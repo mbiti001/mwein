@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Contact Mwein Medical Services to book an appointment or get more information. 24/7 healthcare facility in Busia County, Kenya. Accepting SHA (PHC, Mwalimu, Public Officers), M-Pesa, and cash.">
+    <title>Contact & Appointments | Mwein Medical Services</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Skip to main content link for accessibility -->
+<a href="#main" class="skip-link">Skip to main content</a>
+
+<!-- HEADER -->
+<header class="header">
+    <div class="container">
+        <h1 class="logo">Mwein Medical Services</h1>
+        <nav class="nav">
+            <a href="index.html">Home</a>
+            <a href="services.html">Services</a>
+            <a href="blog.html">Education</a>
+            <a href="contact.html" class="active">Contact</a>
+            <a href="insurers.html">Insurers</a>
+        </nav>
+    </div>
+</header>
+
+<!-- CONTACT METHODS -->
+<section class="content" id="main">
+    <div class="container">
+        <h2 style="text-align: center;">Contact Mwein Medical Services</h2>
+        
+        <div class="services-grid">
+            <div class="service-card">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                    </svg>
+                </div>
+                <h3>Call Us</h3>
+                <p><a href="tel:+254707711888" style="font-weight: 600; font-size: 1.1rem;">+254 707 711 888</a></p>
+                <p style="color: var(--gray-light); font-size: 0.9rem;">Available 24 hours, 7 days a week</p>
+            </div>
+
+            <div class="service-card">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="2" y="4" width="20" height="16" rx="2"/>
+                        <path d="M22 4l-10 8L2 4"/>
+                    </svg>
+                </div>
+                <h3>Email Us</h3>
+                <p><a href="mailto:mweinmedical@gmail.com" style="font-weight: 600; font-size: 1.1rem;">mweinmedical@gmail.com</a></p>
+                <p style="color: var(--gray-light); font-size: 0.9rem;">Response within 24 hours</p>
+            </div>
+
+            <div class="service-card">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                        <circle cx="12" cy="10" r="3"/>
+                    </svg>
+                </div>
+                <h3>Visit Us</h3>
+                <p><strong>Mungatsi, Busia County</strong></p>
+                <p style="color: var(--gray-light); font-size: 0.9rem;">Kenya</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- APPOINTMENT FORM -->
+<section class="appointment">
+    <div class="container">
+        <h2 style="text-align: center;">Book an Appointment</h2>
+        <p style="text-align: center; color: var(--gray); margin-bottom: var(--spacing-xl);">
+            Fill out the form below and we'll contact you via WhatsApp to confirm your appointment.
+        </p>
+
+        <form id="appointmentForm">
+            <label for="name">Full Name <span style="color: var(--danger);">*</span></label>
+            <input type="text" id="name" name="name" required placeholder="Your full name" autocomplete="name">
+
+            <label for="phone">Phone Number <span style="color: var(--danger);">*</span></label>
+            <input type="tel" id="phone" name="phone" required placeholder="e.g., +254 707 711 888" autocomplete="tel">
+
+            <label for="service">Service Needed <span style="color: var(--danger);">*</span></label>
+            <select id="service" name="service" required>
+                <option value="">-- Select a Service --</option>
+                <option value="OPD">Outpatient Consultation (OPD)</option>
+                <option value="VIRTUAL">Virtual Consultation (Non-Emergency)</option>
+                <option value="LAB">Laboratory Tests</option>
+                <option value="ULTRASOUND">Ultrasound Imaging</option>
+                <option value="ANC">Antenatal Care (ANC)</option>
+                <option value="PHARMACY">Pharmacy Services</option>
+                <option value="CHRONIC">Chronic Disease Clinic</option>
+                <option value="OTHER">Other (please specify in notes)</option>
+            </select>
+
+            <label for="date">Preferred Date <span style="color: var(--danger);">*</span></label>
+            <input type="date" id="date" name="date" required>
+            <p style="font-size: 0.85rem; color: var(--gray); margin-top: 0.25rem;">Our team will confirm availability and contact you to finalize your appointment time.</p>
+
+            <label for="notes">Additional Notes or Health Concerns (Optional)</label>
+            <textarea id="notes" name="notes" rows="4" placeholder="Tell us more about your health concern or special requests..." autocomplete="off"></textarea>
+
+            <div class="consent">
+                <input type="checkbox" id="consent" name="consent" required>
+                <label for="consent">
+                    I consent to sharing my information for appointment scheduling and healthcare purposes. 
+                    My information will be kept confidential in accordance with healthcare privacy regulations.
+                </label>
+            </div>
+
+            <button type="submit" class="btn-primary" style="width: 100%;">Send Appointment Request</button>
+        </form>
+
+        <div class="info-box" style="margin-top: var(--spacing-xl);">
+            <p style="color: var(--dark);">
+                <strong>ℹ️ Important:</strong> No charges are shown online. Service costs and specific appointment times 
+                will be confirmed by our team when they respond to your booking request via WhatsApp or phone.
+            </p>
+        </div>
+
+        <div class="info-box" style="background: var(--primary-light); border-left: 4px solid var(--primary); margin-top: var(--spacing-lg);">
+            <p style="color: var(--dark); margin: 0;">
+                <strong>SafeCare Compliance:</strong> Mwein Medical Services is committed to SafeCare quality standards and operates in accordance with Kenya's healthcare regulations. All services are delivered by qualified healthcare professionals using evidence-based clinical practices.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- FACILITY INFO & HOURS -->
+<section class="content">
+    <div class="container">
+        <h2 style="text-align: center;">Facility Information</h2>
+        
+        <div class="services-grid">
+            <div class="service-card">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                </div>
+                <h3>Operating Hours</h3>
+                <p><strong>24 hours, 7 days a week</strong></p>
+                <p style="color: var(--gray-light); font-size: 0.9rem;">Open every day including weekends and public holidays</p>
+            </div>
+
+            <div class="service-card">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="3" y="11" width="18" height="11" rx="2"/>
+                        <path d="M7 11V7a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v4"/>
+                    </svg>
+                </div>
+                <h3>Insurance & Payment</h3>
+                <p><strong>SHA Accepted:</strong></p>
+                <ul style="margin: 0.5rem 0; padding-left: 1.5rem; font-size: 0.95rem;">
+                    <li>SHA PHC (Primary Health Care)</li>
+                    <li>SHA Mwalimu Cover</li>
+                    <li>Public Officers Comprehensive Cover</li>
+                </ul>
+                <p style="margin-top: 0.5rem;"><strong>Other Methods:</strong> M-Pesa, Cash</p>
+            </div>
+
+            <div class="service-card">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="2" y="4" width="20" height="16" rx="2"/>
+                        <path d="M7 9h10M7 13h10"/>
+                    </svg>
+                </div>
+                <h3>Payment Methods</h3>
+                <p><strong>M-Pesa • Cash</strong></p>
+                <p style="color: var(--gray-light); font-size: 0.9rem;">Flexible payment options available</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- DIRECT CONTACT OPTIONS -->
+<section class="content">
+    <div class="container" style="text-align: center;">
+        <h2>Medical Emergency?</h2>
+        <p style="font-size: 1.05rem; margin-bottom: var(--spacing-xl);">
+            <strong>Visit our clinic immediately for emergency care.</strong> We are open 24 hours, 7 days a week.
+        </p>
+        <div style="margin-bottom: var(--spacing-lg);">
+            <h3 style="color: var(--primary); margin-bottom: 0.5rem;">Our Location</h3>
+            <p style="font-size: 1.1rem; font-weight: 600; margin: 0;">Mungatsi, Busia County, Kenya</p>
+        </div>
+        <p style="color: var(--gray); margin-bottom: var(--spacing-lg);">If you need assistance with directions or cannot reach the clinic, call us:</p>
+        <a href="tel:+254707711888" class="btn-primary">Call +254 707 711 888</a>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+    <div class="container">
+        <h3 style="color: white; margin-bottom: var(--spacing-lg); text-align: center;">Mwein Medical Services</h3>
+        <p><strong>Location:</strong> Mungatsi, Busia County, Kenya</p>
+        <p><strong>Phone:</strong> <a href="tel:+254707711888">+254 707 711 888</a></p>
+        <p><strong>Email:</strong> <a href="mailto:mweinmedical@gmail.com">mweinmedical@gmail.com</a></p>
+        <p><strong>Hours:</strong> Open 24 hours, 7 days a week</p>
+        <p><strong>Insurance:</strong> SHA (Social Health Authority) accepted</p>
+        <p><strong>Payment Methods:</strong> M-Pesa, Cash</p>
+        <p style="margin-top: var(--spacing-lg); color: rgba(255,255,255,0.7); font-size: 0.9rem;">
+            &copy; 2026 Mwein Medical Services. All Rights Reserved.
+        </p>
+    </div>
+</footer>
+
+<!-- FLOATING BUTTONS -->
+<a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services" class="whatsapp-float" title="Contact us on WhatsApp">WhatsApp</a><a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services.%20I%20would%20like%20to%20share%20feedback%20about%20my%20visit" style="position: fixed; bottom: 100px; right: 20px; display: flex; align-items: center; justify-content: center; width: 60px; height: 60px; background: var(--primary); color: white; border-radius: 50%; text-decoration: none; font-weight: 600; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 999; text-align: center; transition: transform 0.2s;" title="Send feedback" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">Feedback</a><button id="darkToggle" class="dark-toggle" aria-label="Toggle dark mode">Dark</button>
+
+<!-- JavaScript -->
+<script src="js/main.js"></script>
+
+</body>
+</html>
