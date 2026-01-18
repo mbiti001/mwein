@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Mwein Medical Shop - Non-restricted medical products, first aid supplies, wound care, and health supplements. Serving Busia County, Kenya.">
+    <title>Medical Shop | Mwein Medical Services</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Skip to main content link for accessibility -->
+<a href="#main" class="skip-link">Skip to main content</a>
+
+<!-- HEADER -->
+<header class="header">
+    <div class="container">
+        <h1 class="logo">Mwein Medical Services</h1>
+        <nav class="nav">
+            <a href="index.html">Home</a>
+            <a href="services.html">Services</a>
+            <a href="blog.html">Education</a>
+            <a href="shop.html" class="active">Shop</a>
+            <a href="appointments.html">Appointments</a>
+            <a href="contact.html">Contact</a>
+            <a href="insurers.html">Insurers</a>
+        </nav>
+    </div>
+</header>
+
+<!-- SHOP HEADER -->
+<section class="content" id="main">
+    <div class="container">
+        <h2 style="text-align: center;">Medical Shop</h2>
+        <p style="text-align: center; color: var(--gray-light); margin-bottom: var(--spacing-2xl);">
+            High-quality, non-restricted medical products and health supplies available for purchase. 
+            Order online or visit our facility in Mungatsi.
+        </p>
+    </div>
+</section>
+
+<!-- SHOP NOTICE -->
+<section class="content">
+    <div class="container">
+        <div style="background: var(--primary-light); padding: var(--spacing-lg); border-radius: 8px; max-width: 900px; margin: 0 auto var(--spacing-2xl); border-left: 4px solid var(--primary);">
+            <p style="color: var(--dark); margin: 0; font-size: 0.95rem;"><strong>📦 About Our Shop:</strong> All products sold in our medical shop are non-restricted over-the-counter items. For prescription medications and restricted products, please consult with our healthcare professionals. Prices shown include applicable taxes.</p>
+        </div>
+    </div>
+</section>
+
+<!-- SHOP CATEGORIES -->
+<section class="content">
+    <div class="container">
+        <h3 style="text-align: center; margin-bottom: var(--spacing-2xl);">Shop Categories</h3>
+        
+        <div class="services-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: var(--spacing-3xl);">
+            <!-- First Aid & Wound Care -->
+            <div class="service-card" style="cursor: pointer; transition: transform 0.3s;" onclick="scrollToCategory('wound-care')">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <line x1="3" y1="9" x2="21" y2="9" stroke="currentColor" stroke-width="2"/>
+                        <path d="M9 12h6M12 9v6" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </div>
+                <h3 style="text-align: center;">First Aid & Wound Care</h3>
+            </div>
+
+            <!-- Health Supplements -->
+            <div class="service-card" style="cursor: pointer; transition: transform 0.3s;" onclick="scrollToCategory('supplements')">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 3v18M18 3v18M3 9h18M3 15h18" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <circle cx="9" cy="12" r="2" fill="currentColor"/>
+                        <circle cx="15" cy="12" r="2" fill="currentColor"/>
+                    </svg>
+                </div>
+                <h3 style="text-align: center;">Health Supplements</h3>
+            </div>
+
+            <!-- Personal Care -->
+            <div class="service-card" style="cursor: pointer; transition: transform 0.3s;" onclick="scrollToCategory('personal-care')">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 2c-3.31 0-6 2.69-6 6 0 2.5 1.49 4.67 3.61 5.66-.58 1.41-.99 2.95-1.27 4.58-.45 2.72.16 5.49 1.66 7.28 2.04 2.35 5.2 3.48 8 3.48s5.96-1.13 8-3.48c1.5-1.79 2.11-4.56 1.66-7.28-.28-1.63-.69-3.17-1.27-4.58C16.51 12.67 17.5 10.5 17.5 8c0-3.31-2.69-6-6-6zm0 2c2.21 0 4 1.79 4 4s-1.79 4-4 4-4-1.79-4-4 1.79-4 4-4z" fill="currentColor"/>
+                    </svg>
+                </div>
+                <h3 style="text-align: center;">Personal Care</h3>
+            </div>
+
+            <!-- Over-the-Counter Medications -->
+            <div class="service-card" style="cursor: pointer; transition: transform 0.3s;" onclick="scrollToCategory('otc-meds')">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-2.12-2.54-4.12 5.81h14.4L13.96 12.29z" fill="currentColor"/>
+                    </svg>
+                </div>
+                <h3 style="text-align: center;">OTC Medications</h3>
+            </div>
+
+            <!-- Medical Devices -->
+            <div class="service-card" style="cursor: pointer; transition: transform 0.3s;" onclick="scrollToCategory('devices')">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="12" cy="9" r="3" fill="currentColor"/>
+                        <path d="M8 13v5h2v-3h4v3h2v-5c0-1.65-1.35-3-3-3s-3 1.35-3 3z" fill="currentColor"/>
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="currentColor"/>
+                    </svg>
+                </div>
+                <h3 style="text-align: center;">Medical Devices</h3>
+            </div>
+
+            <!-- Health & Wellness -->
+            <div class="service-card" style="cursor: pointer; transition: transform 0.3s;" onclick="scrollToCategory('wellness')">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>
+                    </svg>
+                </div>
+                <h3 style="text-align: center;">Health & Wellness</h3>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- PRODUCTS BY CATEGORY -->
+
+<!-- First Aid & Wound Care -->
+<section class="content" id="wound-care">
+    <div class="container">
+        <h3 style="text-align: center; color: var(--primary); margin-bottom: var(--spacing-2xl);">First Aid & Wound Care</h3>
+        <div class="services-grid">
+            <!-- Product 1 -->
+            <div class="service-card">
+                <h4>Sterile Gauze Packs (10 pieces)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 250</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Non-adherent sterile gauze for wound dressing and protection</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Sterile Gauze Packs', 250)">Add to Cart</button>
+            </div>
+
+            <!-- Product 2 -->
+            <div class="service-card">
+                <h4>Medical Tape Roll (2.5cm × 10m)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 150</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Hypoallergenic adhesive tape for secure dressing application</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Medical Tape Roll', 150)">Add to Cart</button>
+            </div>
+
+            <!-- Product 3 -->
+            <div class="service-card">
+                <h4>Antiseptic Solution (100ml)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 200</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Effective wound cleaning and antiseptic preparation</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Antiseptic Solution', 200)">Add to Cart</button>
+            </div>
+
+            <!-- Product 4 -->
+            <div class="service-card">
+                <h4>Elastic Bandage (5cm × 5m)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 300</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Compression and support for sprains and injuries</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Elastic Bandage', 300)">Add to Cart</button>
+            </div>
+
+            <!-- Product 5 -->
+            <div class="service-card">
+                <h4>First Aid Kit (Portable)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 1,200</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Complete first aid kit with bandages, antiseptic, and essentials</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('First Aid Kit', 1200)">Add to Cart</button>
+            </div>
+
+            <!-- Product 6 -->
+            <div class="service-card">
+                <h4>Non-Stick Plasters (20 pieces)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 180</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Assorted sizes for cuts and minor wounds</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Non-Stick Plasters', 180)">Add to Cart</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Health Supplements -->
+<section class="content" id="supplements">
+    <div class="container">
+        <h3 style="text-align: center; color: var(--primary); margin-bottom: var(--spacing-2xl);">Health Supplements</h3>
+        <div class="services-grid">
+            <!-- Product 1 -->
+            <div class="service-card">
+                <h4>Vitamin C Tablets (30 tablets)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 350</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">1000mg Vitamin C for immunity support</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Vitamin C Tablets', 350)">Add to Cart</button>
+            </div>
+
+            <!-- Product 2 -->
+            <div class="service-card">
+                <h4>Multivitamin Supplement (30 tablets)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 550</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Daily multivitamin with essential minerals</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Multivitamin Supplement', 550)">Add to Cart</button>
+            </div>
+
+            <!-- Product 3 -->
+            <div class="service-card">
+                <h4>Iron Supplement (30 tablets)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 400</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Ferrous sulfate for anemia prevention</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Iron Supplement', 400)">Add to Cart</button>
+            </div>
+
+            <!-- Product 4 -->
+            <div class="service-card">
+                <h4>Calcium & Vitamin D (30 tablets)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 450</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Bone health and strength support</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Calcium & Vitamin D', 450)">Add to Cart</button>
+            </div>
+
+            <!-- Product 5 -->
+            <div class="service-card">
+                <h4>Folic Acid Supplement (30 tablets)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 280</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Important for pregnancy and cell health</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Folic Acid Supplement', 280)">Add to Cart</button>
+            </div>
+
+            <!-- Product 6 -->
+            <div class="service-card">
+                <h4>Zinc Lozenges (20 lozenges)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 320</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Immune support and cold duration reduction</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Zinc Lozenges', 320)">Add to Cart</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Personal Care -->
+<section class="content" id="personal-care">
+    <div class="container">
+        <h3 style="text-align: center; color: var(--primary); margin-bottom: var(--spacing-2xl);">Personal Care Products</h3>
+        <div class="services-grid">
+            <!-- Product 1 -->
+            <div class="service-card">
+                <h4>Thermometer (Digital)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 600</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Fast and accurate temperature readings</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Digital Thermometer', 600)">Add to Cart</button>
+            </div>
+
+            <!-- Product 2 -->
+            <div class="service-card">
+                <h4>Blood Pressure Monitor (Automatic)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 2,500</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Home BP monitoring with LED display</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Blood Pressure Monitor', 2500)">Add to Cart</button>
+            </div>
+
+            <!-- Product 3 -->
+            <div class="service-card">
+                <h4>Oximeter (Pulse)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 1,800</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Measures oxygen saturation and heart rate</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Pulse Oximeter', 1800)">Add to Cart</button>
+            </div>
+
+            <!-- Product 4 -->
+            <div class="service-card">
+                <h4>Weighing Scale (Digital)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 2,200</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Accurate body weight monitoring</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Digital Weighing Scale', 2200)">Add to Cart</button>
+            </div>
+
+            <!-- Product 5 -->
+            <div class="service-card">
+                <h4>Glucometer (Blood Sugar Monitor)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 1,500</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Monitor blood glucose levels at home</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Glucometer', 1500)">Add to Cart</button>
+            </div>
+
+            <!-- Product 6 -->
+            <div class="service-card">
+                <h4>Glucometer Test Strips (50 strips)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 800</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Compatible with standard glucometers</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Glucometer Test Strips', 800)">Add to Cart</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Over-the-Counter Medications -->
+<section class="content" id="otc-meds">
+    <div class="container">
+        <h3 style="text-align: center; color: var(--primary); margin-bottom: var(--spacing-2xl);">Over-the-Counter Medications</h3>
+        <div class="services-grid">
+            <!-- Product 1 -->
+            <div class="service-card">
+                <h4>Paracetamol 500mg (20 tablets)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 100</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Pain relief and fever reduction</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Paracetamol 500mg', 100)">Add to Cart</button>
+            </div>
+
+            <!-- Product 2 -->
+            <div class="service-card">
+                <h4>Ibuprofen 200mg (20 tablets)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 150</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Anti-inflammatory pain reliever</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Ibuprofen 200mg', 150)">Add to Cart</button>
+            </div>
+
+            <!-- Product 3 -->
+            <div class="service-card">
+                <h4>Antacid Tablets (20 tablets)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 120</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Relief from heartburn and acid indigestion</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Antacid Tablets', 120)">Add to Cart</button>
+            </div>
+
+            <!-- Product 4 -->
+            <div class="service-card">
+                <h4>Antihistamine Tablets (20 tablets)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 180</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Allergy and itching relief</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Antihistamine Tablets', 180)">Add to Cart</button>
+            </div>
+
+            <!-- Product 5 -->
+            <div class="service-card">
+                <h4>Cough Syrup (100ml)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 220</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Effective cough suppression and relief</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Cough Syrup', 220)">Add to Cart</button>
+            </div>
+
+            <!-- Product 6 -->
+            <div class="service-card">
+                <h4>Antidiarrheal Tablets (20 tablets)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 140</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Fast relief from diarrhea symptoms</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Antidiarrheal Tablets', 140)">Add to Cart</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Medical Devices -->
+<section class="content" id="devices">
+    <div class="container">
+        <h3 style="text-align: center; color: var(--primary); margin-bottom: var(--spacing-2xl);">Medical Devices</h3>
+        <div class="services-grid">
+            <!-- Product 1 -->
+            <div class="service-card">
+                <h4>Arm Sling (Adjustable)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 500</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Support and immobilization for arm injuries</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Arm Sling', 500)">Add to Cart</button>
+            </div>
+
+            <!-- Product 2 -->
+            <div class="service-card">
+                <h4>Knee Support Brace</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 800</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Compression support for knee stability</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Knee Support Brace', 800)">Add to Cart</button>
+            </div>
+
+            <!-- Product 3 -->
+            <div class="service-card">
+                <h4>Cervical Collar (Neck Support)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 700</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Neck stabilization and support</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Cervical Collar', 700)">Add to Cart</button>
+            </div>
+
+            <!-- Product 4 -->
+            <div class="service-card">
+                <h4>Crutches (Pair)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 1,200</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Mobility support for leg injuries</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Crutches Pair', 1200)">Add to Cart</button>
+            </div>
+
+            <!-- Product 5 -->
+            <div class="service-card">
+                <h4>Walking Cane</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 600</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Balance and mobility assistance</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Walking Cane', 600)">Add to Cart</button>
+            </div>
+
+            <!-- Product 6 -->
+            <div class="service-card">
+                <h4>Heating Pad (Electric)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 1,500</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Pain relief through therapeutic heat</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Heating Pad', 1500)">Add to Cart</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Health & Wellness -->
+<section class="content" id="wellness">
+    <div class="container">
+        <h3 style="text-align: center; color: var(--primary); margin-bottom: var(--spacing-2xl);">Health & Wellness</h3>
+        <div class="services-grid">
+            <!-- Product 1 -->
+            <div class="service-card">
+                <h4>Face Mask (50 pieces)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 300</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">3-ply surgical masks for protection</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Face Mask 50pc', 300)">Add to Cart</button>
+            </div>
+
+            <!-- Product 2 -->
+            <div class="service-card">
+                <h4>Hand Sanitizer (500ml)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 250</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">70% alcohol antiseptic hand sanitizer</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Hand Sanitizer 500ml', 250)">Add to Cart</button>
+            </div>
+
+            <!-- Product 3 -->
+            <div class="service-card">
+                <h4>Latex Gloves (100 pieces)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 400</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Medical-grade latex gloves for safety</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Latex Gloves 100pc', 400)">Add to Cart</button>
+            </div>
+
+            <!-- Product 4 -->
+            <div class="service-card">
+                <h4>Oral Rehydration Salts (Powder)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 80</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Electrolyte balance restoration</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('ORS Powder', 80)">Add to Cart</button>
+            </div>
+
+            <!-- Product 5 -->
+            <div class="service-card">
+                <h4>Moisturizing Lotion (200ml)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 280</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Skin hydration and nourishment</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Moisturizing Lotion', 280)">Add to Cart</button>
+            </div>
+
+            <!-- Product 6 -->
+            <div class="service-card">
+                <h4>Cotton Wool (200g)</h4>
+                <p style="color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">Ksh 150</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin: 0.5rem 0;">Sterile cotton for cleaning and care</p>
+                <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="addToCart('Cotton Wool 200g', 150)">Add to Cart</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Shopping Cart & Checkout -->
+<section class="content">
+    <div class="container">
+        <h3 style="text-align: center; color: var(--primary); margin-bottom: var(--spacing-2xl);">Your Shopping Cart</h3>
+        
+        <div style="max-width: 700px; margin: 0 auto;">
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: var(--spacing-lg);">
+                <thead>
+                    <tr style="background: var(--primary-light);">
+                        <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--gray-light);">Product</th>
+                        <th style="padding: 0.75rem; text-align: right; border: 1px solid var(--gray-light);">Price</th>
+                        <th style="padding: 0.75rem; text-align: right; border: 1px solid var(--gray-light);">Qty</th>
+                        <th style="padding: 0.75rem; text-align: right; border: 1px solid var(--gray-light);">Total</th>
+                    </tr>
+                </thead>
+                <tbody id="cartItems">
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 2rem; color: var(--gray-light);">Your cart is empty</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="background: var(--light-bg); padding: var(--spacing-lg); border-radius: 8px; margin-bottom: var(--spacing-lg);">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <strong>Subtotal:</strong>
+                    <span id="subtotal">Ksh 0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <strong>Delivery (Mungatsi area):</strong>
+                    <span id="delivery">Ksh 0</span>
+                </div>
+                <div style="border-top: 2px solid var(--gray-light); padding-top: 0.5rem; display: flex; justify-content: space-between; font-size: 1.2rem;">
+                    <strong>Total:</strong>
+                    <span id="total" style="color: var(--primary); font-weight: 600;">Ksh 0</span>
+                </div>
+            </div>
+
+            <button class="btn-primary" style="width: 100%; padding: 1rem; font-size: 1.1rem;" onclick="proceedToCheckout()">Proceed to Checkout</button>
+            <button class="btn-secondary" style="width: 100%; padding: 1rem; font-size: 1.1rem; margin-top: 0.5rem;" onclick="continueShopping()">Continue Shopping</button>
+        </div>
+
+        <div style="background: var(--primary-light); padding: var(--spacing-lg); border-radius: 8px; margin-top: var(--spacing-2xl); text-align: center;">
+            <p style="color: var(--dark); margin: 0; font-size: 0.95rem;"><strong>📦 Ordering Information:</strong> Place your order online or visit our shop. We'll confirm availability and delivery details via WhatsApp at <a href="https://wa.me/254707711888" style="color: var(--primary); font-weight: 600;">+254 707 711 888</a></p>
+        </div>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+    <div class="container">
+        <p>&copy; 2026 Mwein Medical Services. Licensed healthcare facility | <strong>SHA Registered Provider</strong></p>
+        <p style="font-size: 0.9rem; color: var(--gray-light);">
+            Mungatsi, Busia County, Kenya | Emergency: +254 707 711 888 | 24 Hours, 7 Days a Week
+        </p>
+        <p style="margin-top: var(--spacing-lg); font-size: 0.85rem; color: var(--gray-light);">
+            <a href="privacy-policy.html" style="color: var(--gray-light); text-decoration: none;">Privacy Policy</a> | 
+            <a href="terms-of-service.html" style="color: var(--gray-light); text-decoration: none;">Terms of Service</a> | 
+            <a href="donations.html" style="color: var(--gray-light); text-decoration: none;">Support Us</a>
+        </p>
+    </div>
+</footer>
+
+<!-- FLOATING BUTTONS -->
+<a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services" class="whatsapp-float" title="Contact us on WhatsApp">WhatsApp</a>
+<a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services.%20I%20would%20like%20to%20share%20feedback%20about%20my%20visit" style="position: fixed; bottom: 100px; right: 20px; display: flex; align-items: center; justify-content: center; width: 60px; height: 60px; background: var(--primary); color: white; border-radius: 50%; text-decoration: none; font-weight: 600; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 999; text-align: center; transition: transform 0.2s;" title="Send feedback" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">Feedback</a>
+<button id="darkToggle" class="dark-toggle" aria-label="Toggle dark mode">Dark</button>
+
+<!-- JavaScript for Cart Management -->
+<script>
+    let cart = [];
+
+    function addToCart(product, price) {
+        const existingItem = cart.find(item => item.product === product);
+        
+        if (existingItem) {
+            existingItem.quantity += 1;
+        } else {
+            cart.push({ product, price, quantity: 1 });
+        }
+        
+        updateCart();
+        alert(`${product} added to cart!`);
+    }
+
+    function updateCart() {
+        const cartItems = document.getElementById('cartItems');
+        let subtotal = 0;
+
+        if (cart.length === 0) {
+            cartItems.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 2rem; color: var(--gray-light);">Your cart is empty</td></tr>';
+            document.getElementById('subtotal').textContent = 'Ksh 0';
+            document.getElementById('delivery').textContent = 'Ksh 0';
+            document.getElementById('total').textContent = 'Ksh 0';
+            return;
+        }
+
+        cartItems.innerHTML = cart.map(item => {
+            const total = item.price * item.quantity;
+            subtotal += total;
+            return `
+                <tr>
+                    <td style="padding: 0.75rem; border: 1px solid var(--gray-light);">${item.product}</td>
+                    <td style="padding: 0.75rem; border: 1px solid var(--gray-light); text-align: right;">Ksh ${item.price}</td>
+                    <td style="padding: 0.75rem; border: 1px solid var(--gray-light); text-align: right;">
+                        <input type="number" value="${item.quantity}" min="1" onchange="updateQuantity('${item.product}', this.value)" style="width: 50px; padding: 0.25rem;">
+                    </td>
+                    <td style="padding: 0.75rem; border: 1px solid var(--gray-light); text-align: right;">Ksh ${total} <button onclick="removeFromCart('${item.product}')" style="color: var(--danger); border: none; background: none; cursor: pointer; margin-left: 0.5rem;">✕</button></td>
+                </tr>
+            `;
+        }).join('');
+
+        const delivery = subtotal > 0 ? 200 : 0;
+        const total = subtotal + delivery;
+
+        document.getElementById('subtotal').textContent = `Ksh ${subtotal}`;
+        document.getElementById('delivery').textContent = `Ksh ${delivery}`;
+        document.getElementById('total').textContent = `Ksh ${total}`;
+    }
+
+    function updateQuantity(product, newQuantity) {
+        const item = cart.find(item => item.product === product);
+        if (item) {
+            item.quantity = parseInt(newQuantity) || 1;
+            if (item.quantity < 1) item.quantity = 1;
+            updateCart();
+        }
+    }
+
+    function removeFromCart(product) {
+        cart = cart.filter(item => item.product !== product);
+        updateCart();
+    }
+
+    function proceedToCheckout() {
+        if (cart.length === 0) {
+            alert('Your cart is empty!');
+            return;
+        }
+
+        const cartSummary = cart.map(item => `${item.product} (${item.quantity}x Ksh${item.price})`).join(', ');
+        const total = document.getElementById('total').textContent;
+        const message = encodeURIComponent(`Hi Mwein Medical, I would like to order: ${cartSummary}. Total: ${total}. Please confirm availability and delivery.`);
+        window.location.href = `https://wa.me/254707711888?text=${message}`;
+    }
+
+    function continueShopping() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function scrollToCategory(categoryId) {
+        const element = document.getElementById(categoryId);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+</script>
+
+<!-- Dark Mode Script -->
+<script src="js/main.js"></script>
+
+</body>
+</html>
