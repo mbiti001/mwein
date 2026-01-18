@@ -104,13 +104,18 @@
             <p style="font-size: 0.85rem; color: var(--gray); margin-top: 0.25rem;">Our team will confirm availability and contact you to finalize your appointment time.</p>
 
             <label for="notes">Additional Notes or Health Concerns (Optional)</label>
-            <textarea id="notes" name="notes" rows="4" placeholder="Tell us more about your health concern or special requests..." autocomplete="off"></textarea>
+            <textarea id="notes" name="notes" rows="3" placeholder="Brief description of your health concern (e.g., 'General check-up', 'Follow-up'). Do NOT include sensitive medical details." autocomplete="off"></textarea>
 
-            <div class="consent">
-                <input type="checkbox" id="consent" name="consent" required>
-                <label for="consent">
-                    I consent to sharing my information for appointment scheduling and healthcare purposes. 
-                    My information will be kept confidential in accordance with healthcare privacy regulations.
+            <!-- Data Protection Notice - ODPP Compliance -->
+            <div style="padding: var(--spacing-lg); background: var(--primary-light); border-radius: 4px; border-left: 4px solid var(--primary); margin-bottom: var(--spacing-lg);">
+                <p style="margin: 0; font-size: 0.85rem; color: var(--dark);"><strong>🔒 Data Protection:</strong> Your personal data (name, phone) will be used <strong>solely for appointment scheduling and healthcare delivery</strong>. We comply with Kenya's Data Protection Act 2019. Your information will <strong>not be shared with third parties</strong> without consent. Medical records are kept confidential and retained for 5 years per Kenya Health Act.</p>
+            </div>
+
+            <!-- Consent Checkbox - Enhanced ODPP Compliance -->
+            <div class="consent" style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 4px; margin-bottom: var(--spacing-lg);">
+                <input type="checkbox" id="consent" name="consent" required style="margin-right: 0.5rem; cursor: pointer;">
+                <label for="consent" style="font-size: 0.9rem; cursor: pointer;">
+                    <strong>I consent</strong> to sharing my name, phone, and service request for appointment scheduling and healthcare purposes. I understand my information is protected under Kenya's Data Protection Act 2019 and will be kept confidential.
                 </label>
             </div>
 

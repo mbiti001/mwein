@@ -124,18 +124,38 @@
 
                 <!-- Additional Notes -->
                 <div style="margin-bottom: var(--spacing-lg);">
-                    <label for="notes" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Additional Information</label>
+                    <label for="notes" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Health Concern (Optional)</label>
                     <textarea 
                         id="notes" 
                         name="notes" 
-                        placeholder="Tell us about your symptoms or any specific concerns..."
-                        rows="4"
+                        placeholder="Brief description of your health concern (e.g., 'General check-up', 'Follow-up appointment')..."
+                        rows="3"
                         style="width: 100%; padding: 0.75rem; border: 2px solid var(--gray-light); border-radius: 4px; font-size: 1rem; font-family: inherit;"
                     ></textarea>
+                    <p style="font-size: 0.85rem; color: var(--gray-light); margin-top: 0.5rem;">Do not include sensitive medical details here. Provide full medical information securely at the facility.</p>
+                </div>
+
+                <!-- Data Protection Notice - ODPP Compliance -->
+                <div style="margin-bottom: var(--spacing-lg); padding: var(--spacing-lg); background: var(--primary-light); border-radius: 4px; border-left: 4px solid var(--primary);">
+                    <p style="margin: 0; font-size: 0.85rem; color: var(--dark);"><strong>🔒 Data Protection Notice:</strong> Your personal information (name, phone, email) will be used <strong>solely for appointment scheduling and healthcare delivery</strong>. We comply with Kenya's Data Protection Act 2019 and safeguard your privacy. Your information will <strong>not be shared with third parties</strong> without your explicit consent. Medical records are retained for 5 years per Kenya Health Act 2017.</p>
+                </div>
+
+                <!-- Consent Checkbox - ODPP Compliant -->
+                <div style="margin-bottom: var(--spacing-lg); padding: var(--spacing-lg); background: var(--light-bg); border-radius: 4px;">
+                    <input 
+                        type="checkbox" 
+                        id="dataConsent" 
+                        name="dataConsent" 
+                        required
+                        style="margin-right: 0.5rem; cursor: pointer;"
+                    >
+                    <label for="dataConsent" style="font-size: 0.9rem; cursor: pointer;">
+                        <strong>I consent</strong> to sharing my name, phone, and email for appointment scheduling and healthcare purposes. I understand my information is protected under Kenya's Data Protection Act 2019.
+                    </label>
                 </div>
 
                 <!-- Insurance Information -->
-                <div style="margin-bottom: var(--spacing-lg); padding: var(--spacing-lg); background: var(--primary-light); border-radius: 4px;">
+                <div style="margin-bottom: var(--spacing-lg); padding: var(--spacing-lg); background: var(--light-bg); border-radius: 4px;">
                     <p style="margin: 0; font-size: 0.9rem;"><strong>Insurance:</strong> We accept SHA (Social Health Authority), M-Pesa, and cash payments. Your SHA status will be verified during registration.</p>
                 </div>
 
