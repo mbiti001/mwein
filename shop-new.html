@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Mwein Medical Shop - Coming Soon! First aid supplies, wound care, health supplements, and OTC medications. Non-restricted medical products. Serving Busia County, Kenya.">
+    <title>Medical Shop | Mwein Medical Services</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .coming-soon-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            text-align: center;
+            padding: var(--spacing-3xl) var(--spacing-md);
+        }
+
+        .coming-soon-icon {
+            font-size: 4rem;
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .coming-soon-title {
+            font-size: clamp(2rem, 5vw, 3rem);
+            color: var(--primary);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .coming-soon-text {
+            font-size: 1.1rem;
+            color: var(--gray);
+            max-width: 600px;
+            margin-bottom: var(--spacing-2xl);
+            line-height: 1.8;
+        }
+
+        .notify-btn {
+            display: inline-block;
+            padding: 1rem 2rem;
+            background: var(--primary);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: 2px solid var(--primary);
+        }
+
+        .notify-btn:hover {
+            background: var(--primary-dark);
+            border-color: var(--primary-dark);
+        }
+
+        .features-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-lg);
+            margin-top: var(--spacing-2xl);
+            max-width: 900px;
+        }
+
+        .feature-item {
+            padding: var(--spacing-lg);
+            background: var(--primary-light);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .feature-item h4 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            margin-top: 0;
+        }
+
+        .feature-item p {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .coming-soon-container {
+                min-height: 50vh;
+                padding: var(--spacing-2xl) var(--spacing-md);
+            }
+
+            .coming-soon-icon {
+                font-size: 3rem;
+            }
+
+            .features-list {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Skip to main content link for accessibility -->
+<a href="#main" class="skip-link">Skip to main content</a>
+
+<!-- HEADER -->
+<header class="header">
+    <div class="container header-container">
+        <h1 class="logo">Mwein Medical Services</h1>
+        <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation menu" aria-expanded="false">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <nav class="nav" id="navMenu">
+            <a href="index.html">Home</a>
+            <a href="services.html">Services</a>
+            <a href="blog.html">Education</a>
+            <a href="shop.html" class="active">Shop</a>
+            <a href="appointments.html">Appointments</a>
+            <a href="contact.html">Contact</a>
+            <a href="insurers.html">Insurers</a>
+            <a href="donations.html" class="donate-link">Donate</a>
+        </nav>
+    </div>
+</header>
+
+<!-- COMING SOON SECTION -->
+<section class="content" id="main">
+    <div class="coming-soon-container">
+        <div class="coming-soon-icon">🛍️</div>
+        <h2 class="coming-soon-title">Shop Coming Soon</h2>
+        <p class="coming-soon-text">
+            We're preparing an online medical shop to bring high-quality healthcare products directly to you. 
+            Our shop will feature first aid supplies, wound care products, health supplements, and over-the-counter medications.
+        </p>
+        
+        <a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services.%20I%20would%20like%20to%20know%20when%20your%20shop%20opens" class="notify-btn">Get Notified When Available</a>
+
+        <div class="features-list">
+            <div class="feature-item">
+                <h4>✓ First Aid & Wound Care</h4>
+                <p>Complete wound care supplies and first aid kits</p>
+            </div>
+            <div class="feature-item">
+                <h4>✓ Health Supplements</h4>
+                <p>Vitamins, minerals, and wellness products</p>
+            </div>
+            <div class="feature-item">
+                <h4>✓ OTC Medications</h4>
+                <p>Over-the-counter medications for common conditions</p>
+            </div>
+            <div class="feature-item">
+                <h4>✓ Personal Care</h4>
+                <p>Health and hygiene products for daily use</p>
+            </div>
+            <div class="feature-item">
+                <h4>✓ Fast Delivery</h4>
+                <p>Quick delivery to your location in Busia</p>
+            </div>
+            <div class="feature-item">
+                <h4>✓ Professional Guidance</h4>
+                <p>Expert advice on product selection and usage</p>
+            </div>
+        </div>
+
+        <p style="margin-top: var(--spacing-2xl); color: var(--gray-light); font-size: 0.9rem;">
+            In the meantime, you can contact us directly for product inquiries and recommendations.
+        </p>
+        <a href="tel:+254707711888" style="display: inline-block; margin-top: var(--spacing-lg); color: var(--primary); font-weight: 600; text-decoration: none;">📞 Call +254 707 711 888</a>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+    <div class="container">
+        <h3 style="color: white; margin-bottom: var(--spacing-lg); text-align: center;">Mwein Medical Services</h3>
+        <p><strong>Location:</strong> Mungatsi, Busia County, Kenya</p>
+        <p><strong>Phone:</strong> <a href="tel:+254707711888">+254 707 711 888</a></p>
+        <p><strong>Email:</strong> <a href="mailto:mweinmedical@gmail.com">mweinmedical@gmail.com</a></p>
+        <p><strong>Hours:</strong> Open 24 hours, 7 days a week</p>
+        <p><strong>Insurance:</strong> SHA (Social Health Authority) accepted</p>
+        <p><strong>Payment Methods:</strong> M-Pesa, Cash</p>
+        <p style="margin-top: var(--spacing-lg); color: rgba(255,255,255,0.7); font-size: 0.9rem;">
+            &copy; 2026 Mwein Medical Services. All Rights Reserved. | 
+            <a href="privacy-policy.html" style="color: rgba(255,255,255,0.7); text-decoration: none;">Privacy Policy</a> | 
+            <a href="terms-of-service.html" style="color: rgba(255,255,255,0.7); text-decoration: none;">Terms of Service</a>
+        </p>
+    </div>
+</footer>
+
+<!-- FLOATING BUTTONS -->
+<a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services" class="whatsapp-float" title="Contact us on WhatsApp">WhatsApp</a>
+<button id="darkToggle" class="dark-toggle" aria-label="Toggle dark mode">Dark</button>
+
+<!-- JavaScript -->
+<script src="js/main.js"></script>
+
+</body>
+</html>
