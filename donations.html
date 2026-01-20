@@ -15,9 +15,14 @@
 
 <!-- HEADER -->
 <header class="header">
-    <div class="container">
+    <div class="container header-container">
         <h1 class="logo">Mwein Medical Services</h1>
-        <nav class="nav">
+        <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation menu" aria-expanded="false">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <nav class="nav" id="navMenu">
             <a href="index.html">Home</a>
             <a href="services.html">Services</a>
             <a href="blog.html">Education</a>
@@ -25,6 +30,7 @@
             <a href="appointments.html">Appointments</a>
             <a href="contact.html">Contact</a>
             <a href="insurers.html">Insurers</a>
+            <a href="donations.html" class="donate-link active">Donate</a>
         </nav>
     </div>
 </header>
@@ -183,38 +189,64 @@
     <div class="container">
         <h2 style="text-align: center;">Complete Your Donation</h2>
         
-        <div style="max-width: 700px; margin: 0 auto;">
-            <!-- M-Pesa Payment -->
-            <div style="background: var(--light-bg); padding: var(--spacing-2xl); border-radius: 8px; border: 2px solid var(--primary);">
-                <h3 style="text-align: center; color: var(--primary); margin-top: 0;">Donate via M-Pesa</h3>
+        <div style="max-width: 900px; margin: 0 auto;">
+            <!-- M-Pesa Payment - PROMINENT -->
+            <div style="background: linear-gradient(135deg, #1f2937 0%, #374151 100%); padding: var(--spacing-2xl); border-radius: 12px; border: 3px solid var(--primary); box-shadow: 0 8px 24px rgba(14, 165, 233, 0.3);">
+                <h3 style="text-align: center; color: white; margin-top: 0; font-size: 1.5rem;">💚 Donate via M-Pesa Buy Goods & Services</h3>
                 
-                <div style="background: white; padding: var(--spacing-lg); border-radius: 4px; margin-bottom: var(--spacing-lg);">
-                    <p style="margin: 0 0 1rem 0; color: var(--gray-light);"><strong>Donation Amount:</strong></p>
-                    <p style="font-size: 1.5rem; color: var(--primary); font-weight: 600; margin: 0;" id="displayAmount">Ksh 1,000</p>
+                <div style="background: rgba(255, 255, 255, 0.95); padding: var(--spacing-2xl); border-radius: 12px; margin: var(--spacing-2xl) 0; text-align: center;">
+                    <p style="margin: 0 0 1rem 0; color: var(--gray-light); font-size: 1rem; font-weight: 600;">TILL NUMBER</p>
+                    <div style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; padding: var(--spacing-2xl); border-radius: 12px; animation: pulse 2s infinite;">
+                        <p style="font-size: clamp(2rem, 8vw, 4rem); margin: 0; font-weight: 900; letter-spacing: 0.15em;">
+                            <strong>8121096</strong>
+                        </p>
+                        <p style="margin: 0.5rem 0 0 0; font-size: 1rem; opacity: 0.95;">Press to donate</p>
+                    </div>
+                    <style>
+                        @keyframes pulse {
+                            0%, 100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.7); }
+                            50% { box-shadow: 0 0 0 15px rgba(14, 165, 233, 0); }
+                        }
+                        @keyframes slide {
+                            0%, 100% { transform: translateY(0); }
+                            50% { transform: translateY(-5px); }
+                        }
+                        .till-number-label {
+                            animation: slide 2s ease-in-out infinite;
+                        }
+                    </style>
                 </div>
 
-                <div style="background: var(--primary-light); padding: var(--spacing-lg); border-radius: 4px; margin-bottom: var(--spacing-lg);">
-                    <ol style="margin: 0; padding-left: 1.5rem; color: var(--gray-light);">
-                        <li style="margin-bottom: 0.75rem;">Go to your M-Pesa menu or dial <strong>*334#</strong></li>
-                        <li style="margin-bottom: 0.75rem;">Select <strong>"Buy Goods and Services"</strong></li>
-                        <li style="margin-bottom: 0.75rem;">Enter Till Number: <strong>8121096</strong></li>
-                        <li style="margin-bottom: 0.75rem;">Enter amount shown above</li>
-                        <li style="margin-bottom: 0;">Enter your M-Pesa PIN to confirm</li>
+                <div style="background: rgba(255, 255, 255, 0.1); padding: var(--spacing-xl); border-radius: 8px; border-left: 4px solid var(--primary); margin-bottom: var(--spacing-lg); color: white;">
+                    <h4 style="margin-top: 0; margin-bottom: 1rem; color: #a3e635; font-size: 1.1rem;">📱 How to Donate via M-Pesa:</h4>
+                    <ol style="margin: 0; padding-left: 1.5rem; line-height: 2;">
+                        <li><strong>Dial *334#</strong> on your phone</li>
+                        <li>Select <strong>"Buy Goods and Services"</strong></li>
+                        <li>Enter Till Number: <strong style="font-size: 1.2rem; color: #fbbf24;">8121096</strong></li>
+                        <li>Enter your donation amount</li>
+                        <li>Enter your <strong>M-Pesa PIN</strong> to confirm</li>
+                        <li>You'll receive an instant confirmation</li>
                     </ol>
                 </div>
 
-                <div style="background: #fff3cd; padding: var(--spacing-lg); border-left: 4px solid #ffc107; border-radius: 4px; margin-bottom: var(--spacing-lg);">
-                    <p style="margin: 0; font-size: 0.9rem; color: #856404;"><strong>📱 After Donation:</strong> You'll receive an M-Pesa confirmation. Please reply to our WhatsApp with a screenshot for record-keeping and tax-deductible receipt.</p>
+                <div style="background: rgba(251, 191, 36, 0.2); padding: var(--spacing-lg); border-left: 4px solid #fbbf24; border-radius: 8px; margin-bottom: var(--spacing-lg); color: white;">
+                    <p style="margin: 0; font-size: 0.95rem;"><strong>✓ 100% Secure:</strong> Your donation goes directly to Mwein Medical Services through M-Pesa Buy Goods & Services. The transaction is safe and encrypted.</p>
                 </div>
 
-                <button class="btn-primary" style="width: 100%; padding: 1rem; font-size: 1.1rem; margin-bottom: 0.5rem;" onclick="openWhatsAppDonation()">📱 Confirm via WhatsApp</button>
+                <div style="background: rgba(255, 255, 255, 0.1); padding: var(--spacing-lg); border-radius: 8px; margin-bottom: var(--spacing-lg); color: white;">
+                    <p style="margin: 0; font-size: 0.95rem;"><strong>📸 After Your Donation:</strong> Please save your M-Pesa confirmation receipt. You can message it to us via WhatsApp for our records and we'll provide you with a tax-deductible receipt.</p>
+                </div>
+
+                <div style="text-align: center;">
+                    <a href="https://wa.me/254707711888?text=Hi%20Mwein%20Medical.%20I%20have%20just%20made%20a%20donation%20via%20M-Pesa%20till%208121096.%20Please%20confirm%20receipt%20and%20send%20me%20a%20tax%20receipt." class="btn-primary" style="display: inline-block; background: #27ae60; border-color: #27ae60; font-size: 1.1rem; padding: 1rem 2rem;">✓ Confirm Donation via WhatsApp</a>
+                </div>
             </div>
 
             <!-- Alternative Contact -->
             <div style="text-align: center; margin-top: var(--spacing-2xl);">
-                <p style="color: var(--gray-light); margin-bottom: 1rem;">Need another payment method?</p>
-                <a href="tel:+254707711888" class="btn-secondary" style="text-decoration: none; display: inline-block;">Call: +254 707 711 888</a>
-                <a href="https://wa.me/254707711888?text=Hi%20Mwein%20Medical%2C%20I%20would%20like%20to%20make%20a%20donation.%20Please%20provide%20alternative%20payment%20methods." class="btn-secondary" style="text-decoration: none; display: inline-block; margin-left: 0.5rem;">WhatsApp</a>
+                <p style="color: var(--gray-light); margin-bottom: 1rem; font-size: 1.05rem;"><strong>Questions about donating?</strong></p>
+                <a href="tel:+254707711888" class="btn-secondary" style="text-decoration: none; display: inline-block; margin: 0.5rem;">📞 Call: +254 707 711 888</a>
+                <a href="https://wa.me/254707711888?text=Hi%20Mwein%20Medical%2C%20I%20have%20questions%20about%20making%20a%20donation" class="btn-secondary" style="text-decoration: none; display: inline-block; margin: 0.5rem;">💬 WhatsApp</a>
             </div>
         </div>
     </div>

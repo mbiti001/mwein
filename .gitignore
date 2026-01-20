@@ -1,0 +1,15 @@
+# Node, Python, general
+node_modules/
+__pycache__/
+.env
+.DS_Store
+Thumbs.db
+
+# GitHub workflow artifacts
+.github/
+
+# Local deployment scripts
+deploy.ps1
+
+# Logs
+*.log
