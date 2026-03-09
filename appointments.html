@@ -17,7 +17,10 @@
 <header class="header">
     <div class="container">
         <h1 class="logo">Mwein Medical Services</h1>
-        <nav class="nav">
+
+        <button id="navToggle" class="nav-toggle" aria-controls="siteNav" aria-expanded="false" aria-label="Open menu">Menu</button>
+
+        <nav id="siteNav" class="nav" aria-label="Main navigation" aria-hidden="false">
             <a href="index.html">Home</a>
             <a href="services.html">Services</a>
             <a href="blog.html">Education</a>
@@ -25,7 +28,7 @@
             <a href="appointments.html" class="active">Appointments</a>
             <a href="contact.html">Contact</a>
             <a href="insurers.html">Insurers</a>
-            <a href="donations.html" style="color: #27ae60; font-weight: 600;">Donate</a>
+            <a href="donations.html" class="donate-link">Donate</a>
         </nav>
     </div>
 </header>
@@ -165,9 +168,8 @@
                 <!-- Submit Button -->
                 <button 
                     type="submit"
-                    style="width: 100%; padding: 0.75rem; background: var(--primary); color: white; border: none; border-radius: 4px; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: background 0.3s;"
-                    onmouseover="this.style.background='var(--primary-dark)'"
-                    onmouseout="this.style.background='var(--primary)'"
+                    class="btn-primary"
+                    style="width: 100%; padding: 0.75rem; font-size: 1.1rem;"
                 >
                     Book Appointment
                 </button>
@@ -201,6 +203,13 @@
         </p>
     </div>
 </footer>
+<!-- FLOATING BUTTONS -->
+<a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services" class="whatsapp-float" title="Contact us on WhatsApp" aria-label="Contact us on WhatsApp">WhatsApp</a>
+<a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services.%20I%20would%20like%20to%20share%20feedback%20about%20my%20visit" class="feedback-float" title="Send feedback" aria-label="Send feedback on WhatsApp">Feedback</a>
+<button id="darkToggle" class="dark-toggle" aria-label="Toggle dark mode">Dark</button>
+
+<!-- Site JS -->
+<script src="js/main.js"></script>
 
 <script>
     // Set minimum date to today

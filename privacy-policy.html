@@ -17,13 +17,17 @@
 <header class="header">
     <div class="container">
         <h1 class="logo">Mwein Medical Services</h1>
-        <nav class="nav">
+        <button id="navToggle" class="nav-toggle" aria-controls="siteNav" aria-expanded="false" aria-label="Open menu">Menu</button>
+
+        <nav id="siteNav" class="nav" aria-label="Main navigation" aria-hidden="false">
             <a href="index.html">Home</a>
             <a href="services.html">Services</a>
             <a href="blog.html">Education</a>
+            <a href="shop.html">Shop</a>
             <a href="appointments.html">Appointments</a>
             <a href="contact.html">Contact</a>
             <a href="insurers.html">Insurers</a>
+            <a href="donations.html" class="donate-link">Donate</a>
         </nav>
     </div>
 </header>
@@ -212,7 +216,8 @@
 </footer>
 
 <!-- FLOATING BUTTONS -->
-<a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services" class="whatsapp-float" title="Contact us on WhatsApp">WhatsApp</a>
+<a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services" class="whatsapp-float" title="Contact us on WhatsApp" aria-label="Contact us on WhatsApp">WhatsApp</a>
+<a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services.%20I%20would%20like%20to%20share%20feedback%20about%20my%20visit" class="feedback-float" title="Send feedback" aria-label="Send feedback on WhatsApp">Feedback</a>
 <button id="darkToggle" class="dark-toggle" aria-label="Toggle dark mode">Dark</button>
 
 <!-- JavaScript -->

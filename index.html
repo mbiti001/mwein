@@ -6,7 +6,10 @@
     <meta name="description" content="Mwein Medical Services - Private community healthcare facility in Mungatsi, Busia County, Kenya. 24-hour outpatient care, laboratory services, ultrasound, and pharmacy. SHA accepted.">
     <title>Mwein Medical Services | 24-Hour Healthcare in Busia</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <!-- Modern font + site stylesheet -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
+    <meta name="theme-color" content="#0ea5e9">
 </head>
 <body>
 
@@ -17,7 +20,11 @@
 <header class="header">
     <div class="container">
         <h1 class="logo">Mwein Medical Services</h1>
-        <nav class="nav">
+
+        <!-- Mobile navigation toggle -->
+        <button id="navToggle" class="nav-toggle" aria-controls="siteNav" aria-expanded="false" aria-label="Open menu">Menu</button>
+
+        <nav id="siteNav" class="nav" aria-label="Main navigation" aria-hidden="false">
             <a href="index.html" class="active">Home</a>
             <a href="services.html">Services</a>
             <a href="blog.html">Education</a>
@@ -25,7 +32,7 @@
             <a href="appointments.html">Appointments</a>
             <a href="contact.html">Contact</a>
             <a href="insurers.html">Insurers</a>
-            <a href="donations.html" style="color: #27ae60; font-weight: 600;">Donate</a>
+            <a href="donations.html" class="donate-link">Donate</a>
         </nav>
     </div>
 </header>
@@ -350,8 +357,7 @@
                 <p style="color: var(--gray-light); font-size: 0.85rem; margin-top: 0.5rem; margin-bottom: 0;"><em>✓ Mwalimu Comprehensive Cover Accepted</em></p>
                 <div style="margin-top: var(--spacing-lg); color: var(--primary);">★★★★★</div>
             </div>
-                <div style="margin-top: var(--spacing-lg); color: var(--primary);">★★★★★</div>
-            </div>
+        </div>
 
         </div>
 
@@ -366,34 +372,32 @@
 <section class="content">
     <div class="container">
         <h2 style="text-align: center;">Insurance & Payment Information</h2>
-        <p style="text-align: center; color: var(--gray-light); margin-bottom: var(--spacing-xl);">
-            We accept multiple insurance schemes and payment methods for your convenience
-        </p>
+        <p style="text-align: center; color: var(--gray-light); margin-bottom: var(--spacing-xl);">We accept multiple insurance schemes and payment methods for your convenience.</p>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-xl); max-width: 900px; margin: 0 auto;">
-            <div style="padding: var(--spacing-lg); background: var(--primary-light); border-radius: 8px;">
-                <h3 style="color: var(--primary); margin-top: 0;">SHA (Social Health Authority)</h3>
-                <p style="font-weight: 600; margin-bottom: 0.5rem;">Accepted Covers:</p>
-                <ul style="margin: 0.5rem 0; padding-left: 1.5rem; color: var(--dark);">
+        <div class="container-grid-two" style="max-width:900px; margin:0 auto;">
+            <div class="info-card">
+                <h3>SHA (Social Health Authority)</h3>
+                <p style="font-weight:600;">Accepted Covers:</p>
+                <ul>
                     <li>SHA PHC (Primary Health Care)</li>
                     <li>SHA Mwalimu Cover</li>
                     <li>Public Officers Comprehensive Cover</li>
                 </ul>
-                <p style="font-size: 0.9rem; color: var(--dark); margin-top: 1rem; margin-bottom: 0;\"><em>Members receive covered benefits as per their plan.</em></p>
+                <p style="font-size:0.95rem; margin-top:0.5rem;"><em>Members receive covered benefits as per their plan.</em></p>
             </div>
 
-            <div style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 8px;">
-                <h3 style="color: var(--primary); margin-top: 0;\">Other Payment Methods</h3>
-                <ul style=\"margin: 0; padding-left: 1.5rem; color: var(--dark);\">
+            <div class="info-card">
+                <h3>Other Payment Methods</h3>
+                <ul>
                     <li><strong>M-Pesa:</strong> Mobile money payments before, during, or after service</li>
                     <li><strong>Cash:</strong> Accepted at the facility</li>
                 </ul>
-                <p style=\"font-size: 0.9rem; color: var(--dark); margin-top: 1rem; margin-bottom: 0;\"><em>Service costs confirmed when our team responds to your booking.</em></p>
+                <p style="font-size:0.95rem; margin-top:0.5rem;"><em>Service costs confirmed when our team responds to your booking.</em></p>
             </div>
         </div>
 
-        <div style="background: var(--light-bg); padding: var(--spacing-lg); margin-top: var(--spacing-xl); border-radius: 8px; text-align: center;\">
-            <p style=\"margin: 0; color: var(--dark);\"><strong>Ready to incorporate other insurance schemes to support Kenya's Universal Health Coverage (UHC) goals.</strong> <a href=\"insurers.html\" style=\"color: var(--primary); font-weight: 600;\">Learn more →</a></p>
+        <div class="note" style="margin-top: var(--spacing-xl); text-align:center;">
+            <p style="margin:0; font-weight:600;">Ready to incorporate other insurance schemes to support Kenya's Universal Health Coverage (UHC) goals. <a href="insurers.html" style="color: var(--primary); font-weight:600;">Learn more →</a></p>
         </div>
     </div>
 </section>
@@ -416,7 +420,7 @@
             <div style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 8px; text-align: center;">
                 <h3 style="color: var(--primary); margin-top: 0;">☎️ Phone Call</h3>
                 <p>Speak directly with our team for immediate assistance.</p>
-                <a href="tel:+254707711888" class="btn-primary" style="display: inline-block;\">Call +254 707 711 888</a>
+                <a href="tel:+254707711888" class="btn-primary" style="display: inline-block;">Call +254 707 711 888</a>
             </div>
 
             <div style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 8px; text-align: center;">
@@ -552,8 +556,8 @@
 </footer>
 
 <!-- FLOATING BUTTONS -->
-<a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services" class="whatsapp-float" title="Contact us on WhatsApp">WhatsApp</a>
-<a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services.%20I%20would%20like%20to%20share%20feedback%20about%20my%20visit" style="position: fixed; bottom: 100px; right: 20px; display: flex; align-items: center; justify-content: center; width: 60px; height: 60px; background: var(--primary); color: white; border-radius: 50%; text-decoration: none; font-weight: 600; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 999; text-align: center; transition: transform 0.2s;" title="Send feedback" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">Feedback</a>
+<a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services" class="whatsapp-float" title="Contact us on WhatsApp" aria-label="Contact us on WhatsApp">WhatsApp</a>
+<a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services.%20I%20would%20like%20to%20share%20feedback%20about%20my%20visit" class="feedback-float" title="Send feedback" aria-label="Send feedback on WhatsApp">Feedback</a>
 <button id="darkToggle" class="dark-toggle" aria-label="Toggle dark mode">Dark</button>
 
 <!-- JavaScript -->
