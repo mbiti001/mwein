@@ -1,4 +1,26 @@
-<!DOCTYPE html>
+name: Deploy to cPanel via FTP
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@4.3.0
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT }}
+          local-dir: ./
+          server-dir: ${{ secrets.FTP_TARGET }}
+          <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">

@@ -1,0 +1,30 @@
+name: Deploy to cPanel via SFTP (SSH key)
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Prepare workspace (remove git metadata before upload)
+        run: |
+          # remove .git so we don't upload repo metadata to the server
+          rm -rf .git || true
+
+      - name: Upload site to cPanel via SFTP (SSH key)
+        uses: appleboy/scp-action@master
+        with:
+          host: mweinmedical.co.ke
+          username: mweinmed
+          key: ${{ secrets.SFTP_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SFTP_PRIVATE_KEY_PASSPHRASE }}
+          port: 22
+          source: '.'
+          target: /home/mweinmed/public_html
+          rm: true
+          recursive: true
