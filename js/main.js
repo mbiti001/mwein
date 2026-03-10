@@ -26,18 +26,6 @@ document.addEventListener("DOMContentLoaded", () => {
         toggle.setAttribute('aria-pressed', saved ? 'true' : 'false');
     }
 
-    // ======== MOBILE NAV TOGGLE ========
-    const navToggle = document.getElementById('navToggle');
-    const siteNav = document.getElementById('siteNav');
-    if (navToggle && siteNav) {
-        navToggle.addEventListener('click', () => {
-            const expanded = navToggle.getAttribute('aria-expanded') === 'true';
-            navToggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
-            siteNav.setAttribute('aria-hidden', expanded ? 'true' : 'false');
-            navToggle.textContent = expanded ? 'Menu' : 'Close';
-        });
-    }
-
     // ======== APPOINTMENT FORM ========
     // Appointment form handling: only intercept if the form has data-wa="true"
     const form = document.getElementById("appointmentForm");
