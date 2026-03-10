@@ -1,28 +1,11 @@
-name: Deploy to cPanel via FTP
 
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy via FTP
-        uses: SamKirkland/FTP-Deploy-Action@4.3.0
-        with:
-          server: ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: ${{ secrets.FTP_PORT }}
-          local-dir: ./
-          server-dir: ${{ secrets.FTP_TARGET }}
-          <!DOCTYPE html>
-<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Mwein Medical - Modern, accessible healthcare services in Kenya">
+    <link rel="icon" href="favicon-m.svg" type="image/svg+xml">
+    <title>Mwein Medical</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Mwein Medical Services - Private community healthcare facility in Mungatsi, Busia County, Kenya. 24-hour outpatient care, laboratory services, ultrasound, and pharmacy. SHA accepted.">
