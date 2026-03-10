@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mwein Medical - Admin Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .header h1 {
+            color: #0ea5e9;
+        }
+
+        .logout-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .logout-btn:hover {
+            background: #dc2626;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card h3 {
+            color: #94a3b8;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .number {
+            font-size: 2rem;
+            color: #0ea5e9;
+            font-weight: 700;
+        }
+
+        .section {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            color: #0ea5e9;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #0f172a;
+            color: #0ea5e9;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #334155;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #334155;
+        }
+
+        tr:hover {
+            background: #0f172a;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #94a3b8;
+        }
+
+        .error {
+            background: #7f1d1d;
+            color: #fecaca;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .timestamp {
+            font-size: 0.875rem;
+            color: #94a3b8;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+
+            table {
+                font-size: 0.875rem;
+            }
+
+            th, td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <h1>📊 Mwein Medical Admin Dashboard</h1>
+                <p id="userInfo"></p>
+            </div>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+
+        <!-- Dashboard Stats -->
+        <div class="dashboard">
+            <div class="stat-card">
+                <h3>Total Visitors</h3>
+                <div class="number" id="totalVisitors">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Page Views</h3>
+                <div class="number" id="totalPageViews">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>User Actions</h3>
+                <div class="number" id="totalActions">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Form Submissions</h3>
+                <div class="number" id="totalSubmissions">0</div>
+            </div>
+        </div>
+
+        <!-- Page Views Breakdown -->
+        <div class="section">
+            <h2>📄 Page Views Breakdown</h2>
+            <div id="pageViewsTable" class="loading">Loading...</div>
+        </div>
+
+        <!-- Recent Visitors -->
+        <div class="section">
+            <h2>👥 Recent Visitors</h2>
+            <div id="recentVisitors" class="loading">Loading...</div>
+        </div>
+
+        <!-- Recent Actions -->
+        <div class="section">
+            <h2>⚡ Recent Actions</h2>
+            <div id="recentActions" class="loading">Loading...</div>
+        </div>
+
+        <!-- Form Submissions -->
+        <div class="section">
+            <h2>📋 Form Submissions</h2>
+            <div id="formSubmissions" class="loading">Loading...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api';
+        let token = localStorage.getItem('adminToken');
+
+        if (!token) {
+            window.location.href = 'admin-login.html';
+        }
+
+        // Display user info
+        const user = JSON.parse(localStorage.getItem('adminUser'));
+        document.getElementById('userInfo').textContent = `Welcome, ${user?.username}!`;
+
+        // Fetch and display dashboard data
+        async function fetchDashboard() {
+            try {
+                const res = await fetch(`${API_URL}/analytics/dashboard`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                
+                document.getElementById('totalVisitors').textContent = data.total_visitors;
+                document.getElementById('totalPageViews').textContent = data.total_page_views;
+                document.getElementById('totalActions').textContent = data.total_actions;
+                document.getElementById('totalSubmissions').textContent = data.total_submissions;
+            } catch (err) {
+                console.error('Error fetching dashboard:', err);
+            }
+        }
+
+        async function fetchPageViews() {
+            try {
+                const res = await fetch(`${API_URL}/analytics/page-views`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+
+                let table = '<table><thead><tr><th>Page</th><th>Views</th><th>Last Viewed</th></tr></thead><tbody>';
+                data.forEach(row => {
+                    table += `<tr><td>${row.page_name}</td><td>${row.view_count}</td><td class="timestamp">${new Date(row.last_viewed).toLocaleString()}</td></tr>`;
+                });
+                table += '</tbody></table>';
+                document.getElementById('pageViewsTable').innerHTML = table;
+            } catch (err) {
+                console.error('Error fetching page views:', err);
+                document.getElementById('pageViewsTable').innerHTML = '<p class="error">Error loading page views</p>';
+            }
+        }
+
+        async function fetchRecentVisitors() {
+            try {
+                const res = await fetch(`${API_URL}/analytics/recent-visitors`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+
+                let table = '<table><thead><tr><th>IP Address</th><th>Page</th><th>Referrer</th><th>Time</th></tr></thead><tbody>';
+                data.forEach(row => {
+                    table += `<tr><td>${row.ip_address}</td><td>${row.page_url}</td><td>${row.referrer || 'Direct'}</td><td class="timestamp">${new Date(row.timestamp).toLocaleString()}</td></tr>`;
+                });
+                table += '</tbody></table>';
+                document.getElementById('recentVisitors').innerHTML = table;
+            } catch (err) {
+                console.error('Error fetching recent visitors:', err);
+                document.getElementById('recentVisitors').innerHTML = '<p class="error">Error loading visitors</p>';
+            }
+        }
+
+        async function fetchRecentActions() {
+            try {
+                const res = await fetch(`${API_URL}/analytics/recent-actions`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+
+                let table = '<table><thead><tr><th>Action</th><th>Page</th><th>Details</th><th>Time</th></tr></thead><tbody>';
+                data.forEach(row => {
+                    table += `<tr><td>${row.action_type}</td><td>${row.page}</td><td>${row.details || '-'}</td><td class="timestamp">${new Date(row.timestamp).toLocaleString()}</td></tr>`;
+                });
+                table += '</tbody></table>';
+                document.getElementById('recentActions').innerHTML = table;
+            } catch (err) {
+                console.error('Error fetching recent actions:', err);
+                document.getElementById('recentActions').innerHTML = '<p class="error">Error loading actions</p>';
+            }
+        }
+
+        async function fetchFormSubmissions() {
+            try {
+                const res = await fetch(`${API_URL}/analytics/form-submissions`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+
+                let table = '<table><thead><tr><th>Form</th><th>Email</th><th>Phone</th><th>Message</th><th>Time</th></tr></thead><tbody>';
+                data.forEach(row => {
+                    table += `<tr><td>${row.form_name}</td><td>${row.email || '-'}</td><td>${row.phone || '-'}</td><td>${row.message || '-'}</td><td class="timestamp">${new Date(row.timestamp).toLocaleString()}</td></tr>`;
+                });
+                table += '</tbody></table>';
+                document.getElementById('formSubmissions').innerHTML = table;
+            } catch (err) {
+                console.error('Error fetching form submissions:', err);
+                document.getElementById('formSubmissions').innerHTML = '<p class="error">Error loading submissions</p>';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUser');
+            window.location.href = 'admin-login.html';
+        }
+
+        // Load all data on page load
+        fetchDashboard();
+        fetchPageViews();
+        fetchRecentVisitors();
+        fetchRecentActions();
+        fetchFormSubmissions();
+
+        // Refresh data every 30 seconds
+        setInterval(() => {
+            fetchDashboard();
+            fetchPageViews();
+            fetchRecentVisitors();
+            fetchRecentActions();
+            fetchFormSubmissions();
+        }, 30000);
+    </script>
+</body>
+</html>

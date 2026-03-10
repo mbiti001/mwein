@@ -970,5 +970,238 @@ body.dark-mode .footer {
 }
 
 /* ================================
+   ANIMATIONS & TRANSITIONS
+================================ */
+
+/* Smooth fade-in animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Slide-in from left */
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Slide-in from right */
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Scale up animation */
+@keyframes scaleUp {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Pulse animation for interactive elements */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Apply animations to sections */
+section {
+    animation: fadeIn 0.6s ease-out;
+}
+
+/* Button hover effects */
+button {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+/* Link hover effects */
+a {
+    transition: color 0.3s ease, text-decoration-color 0.3s ease;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Card hover lift effect */
+.services-grid > div,
+.info-card,
+[role="article"] {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.services-grid > div:hover,
+.info-card:hover,
+[role="article"]:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-lg);
+}
+
+/* Input focus animation */
+input:focus,
+textarea:focus,
+select:focus {
+    animation: scaleUp 0.2s ease-out;
+}
+
+/* ================================
+   ENHANCED BUTTON STYLES
+================================ */
+button,
+.btn {
+    border-radius: 8px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-size: 0.875rem;
+    padding: 12px 24px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+button:focus-visible,
+.btn:focus-visible {
+    outline: 3px solid var(--primary-light);
+    outline-offset: 2px;
+}
+
+/* Primary button variant */
+button.primary,
+.btn.primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    box-shadow: var(--shadow-sm);
+}
+
+button.primary:hover,
+.btn.primary:hover {
+    box-shadow: var(--shadow-md);
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-darker) 100%);
+}
+
+/* Secondary button variant */
+button.secondary,
+.btn.secondary {
+    background: var(--light-bg);
+    color: var(--primary);
+    border: 2px solid var(--primary);
+}
+
+button.secondary:hover,
+.btn.secondary:hover {
+    background: var(--primary-light);
+}
+
+/* ================================
+   ENHANCED FORM STYLES
+================================ */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+textarea,
+select {
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: var(--font-system);
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background-color: var(--light);
+    color: var(--dark);
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="date"]:focus,
+textarea:focus,
+select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px var(--primary-light);
+    outline: none;
+}
+
+input::placeholder {
+    color: var(--gray-light);
+}
+
+/* ================================
+   ENHANCED CARD LAYOUTS
+================================ */
+.card {
+    background: var(--light);
+    border-radius: 12px;
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-xs);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    border-color: var(--primary-light);
+    box-shadow: var(--shadow-md);
+}
+
+/* ================================
+   DEPTH & LAYERING
+================================ */
+.overlay {
+    position: relative;
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.05) 0%, rgba(14, 165, 233, 0.02) 100%);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.overlay::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.3), transparent);
+}
+
+/* ================================
    END STYLESHEET
 ================================ */

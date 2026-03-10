@@ -1,5 +1,49 @@
 document.addEventListener("DOMContentLoaded", () => {
 
+    // ======== ANALYTICS TRACKER ========
+    // Initialize analytics tracking (non-blocking)
+    const ANALYTICS_API = 'http://localhost:3000/api/track';
+    
+    const trackPageVisit = () => {
+        fetch(`${ANALYTICS_API}/visitor`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                page_url: window.location.pathname,
+                referrer: document.referrer || 'direct',
+                user_agent: navigator.userAgent
+            }),
+            keepalive: true
+        }).catch(() => {}); // Silent fail - don't disrupt user experience
+    };
+
+    const trackAction = (actionType, page, details) => {
+        fetch(`${ANALYTICS_API}/action`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action_type: actionType,
+                page: page || window.location.pathname,
+                details: details
+            }),
+            keepalive: true
+        }).catch(() => {});
+    };
+
+    // Track page visit
+    trackPageVisit();
+
+    // Track button/link clicks
+    document.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A') {
+            trackAction('click', window.location.pathname, {
+                element: e.target.tagName,
+                text: e.target.textContent?.substring(0, 50),
+                href: e.target.href || null
+            });
+        }
+    });
+
     // ======== DARK MODE TOGGLE ========
     const toggle = document.getElementById("darkToggle");
     const applyDarkModeState = (isDark) => {
@@ -71,6 +115,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     showToast("Please fill in all required fields.");
                     return;
                 }
+
+                // Track form submission to analytics
+                trackAction('form_submission', window.location.pathname, {
+                    form_name: 'appointmentForm',
+                    service: service,
+                    name: name
+                });
 
                 // Format the message for WhatsApp
                 const msg = `🏥 *APPOINTMENT REQUEST*\n\n` +
