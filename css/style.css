@@ -751,6 +751,23 @@ textarea {
     text-decoration: underline;
 }
 
+/* Footer branding heading */
+.footer-brand-heading {
+    color: white;
+    margin-bottom: var(--spacing-lg);
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+/* Footer section headings (grid-based footers) */
+.footer-section h4 {
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: var(--spacing-md);
+}
+
 /* ================================
    FLOATING ACTION BUTTONS
 ================================ */
