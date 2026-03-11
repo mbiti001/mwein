@@ -356,7 +356,7 @@ a:focus {
 /* ================================
    BUTTONS
 ================================ */
-.btn-primary, .btn-secondary, .btn-tertiary {
+.btn, .btn-primary, .btn-secondary, .btn-tertiary {
     display: inline-block;
     padding: 0.75rem 1.5rem;
     border-radius: 6px;
@@ -370,20 +370,35 @@ a:focus {
     min-height: 44px;
     margin-right: var(--spacing-md);
     margin-bottom: var(--spacing-md);
+    text-decoration: none;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
 }
 
 .btn-primary {
     background-color: var(--primary);
     color: var(--light);
+    border-color: var(--primary);
 }
 
 .btn-primary:hover {
     background-color: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
 }
 
 .btn-primary:focus {
     outline: none;
     box-shadow: 0 0 0 4px var(--primary-light);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
 }
 
 .btn-secondary {
@@ -394,6 +409,15 @@ a:focus {
 
 .btn-secondary:hover {
     background-color: var(--primary-light);
+    border-color: var(--primary-dark);
+    color: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
+}
+
+.btn-secondary:focus {
+    outline: none;
+    box-shadow: 0 0 0 4px var(--primary-light);
 }
 
 .btn-tertiary {
@@ -404,10 +428,53 @@ a:focus {
 
 .btn-tertiary:hover {
     background-color: var(--primary-light);
+    transform: translateY(-2px);
+}
+
+/* Ensure all button types in forms are visible */
+button, input[type="button"], input[type="submit"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.5rem;
+    min-height: 44px;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.3s;
+    background-color: var(--primary);
+    color: var(--light);
+}
+
+button:hover, input[type="button"]:hover, input[type="submit"]:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-2px);
+}
+
+button:focus, input[type="button"]:focus, input[type="submit"]:focus {
+    outline: none;
+    box-shadow: 0 0 0 4px var(--primary-light);
+}
+
+/* Dark mode button visibility */
+body.dark-mode .btn-primary,
+body.dark-mode button,
+body.dark-mode input[type="submit"] {
+    background-color: var(--primary);
+    color: var(--light);
+    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);
+}
+
+body.dark-mode .btn-secondary {
+    background-color: rgba(14, 165, 233, 0.2);
+    color: var(--primary-light);
+    border-color: var(--primary-light);
 }
 
 @media (max-width: 768px) {
-    .btn-primary, .btn-secondary {
+    .btn, .btn-primary, .btn-secondary, button, input[type="submit"] {
         display: block;
         width: 100%;
         margin-right: 0;
@@ -700,10 +767,24 @@ textarea {
     z-index: 40;
     border: none;
     transition: all 0.3s;
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     touch-action: manipulation;
     font-weight: 600;
     font-size: 12px;
+    text-decoration: none;
+}
+
+.dark-toggle {
+    bottom: 80px;
+    right: 20px;
+    background-color: #333;
+    color: #fff;
+}
+
+.dark-toggle:hover {
+    background-color: #555;
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
 }
 
 /* Feedback floating button */
@@ -1213,7 +1294,43 @@ input::placeholder {
 }
 
 .snake-buttons { gap: 0.5rem; }
-.snake-btn { text-transform: uppercase; letter-spacing: 0.3px; }
+
+.snake-btn { 
+    text-transform: uppercase; 
+    letter-spacing: 0.3px;
+    padding: 0.6rem 1.2rem !important;
+    background-color: var(--primary) !important;
+    color: white !important;
+    border-radius: 4px !important;
+    border: none !important;
+    font-weight: 600 !important;
+    min-height: 40px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    transition: all 0.3s !important;
+}
+
+.snake-btn:hover {
+    background-color: var(--primary-dark) !important;
+    transform: translateY(-2px) !important;
+}
+
+.snake-btn-call {
+    background-color: var(--primary) !important;
+    color: white !important;
+}
+
+.snake-btn-sms {
+    background-color: #25d366 !important;
+    color: white !important;
+}
+
+.snake-btn-sms:hover {
+    background-color: #1e9e52 !important;
+}
 
 /* Dark Mode Support for Snake Messages */
 body.dark-mode .snake-message {
@@ -1538,4 +1655,77 @@ body.dark-mode .snake-content p {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* ================================
+   UNIVERSAL BUTTON VISIBILITY
+================================ */
+/* Ensure ALL buttons and links with button styling are visible */
+a[class*="btn"], 
+a[class*="btn-"], 
+button, 
+input[type="submit"],
+input[type="button"] {
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0.75rem 1.5rem !important;
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    border: 2px solid transparent !important;
+    transition: all 0.3s !important;
+}
+
+/* Primary button visibility guarantee */
+.btn-primary:not([style*="background"]) {
+    background-color: var(--primary) !important;
+    color: white !important;
+}
+
+/* Secondary button visibility guarantee */
+.btn-secondary:not([style*="background"]) {
+    background-color: var(--light-bg) !important;
+    color: var(--primary) !important;
+    border-color: var(--primary) !important;
+}
+
+/* Form submit buttons */
+form button[type="submit"],
+form input[type="submit"] {
+    background-color: var(--primary) !important;
+    color: white !important;
+    width: 100% !important;
+}
+
+/* Donation buttons specific */
+.btn-primary[onclick*="Donation"],
+.btn-primary[onclick*="donation"],
+button[onclick*="Donation"],
+button[onclick*="donation"] {
+    background-color: #27ae60 !important;
+    color: white !important;
+}
+
+/* WhatsApp buttons */
+a[href*="wa.me"], 
+button[onclick*="WhatsApp"],
+.whatsapp-float {
+    background-color: #25d366 !important;
+    color: white !important;
+    border-color: #25d366 !important;
+}
+
+/* Ensure footer complaint/feedback buttons are visible */
+.footer .btn-secondary {
+    background-color: rgba(14, 165, 233, 0.3) !important;
+    color: white !important;
+    border-color: white !important;
+    padding: 0.5rem 1rem !important;
+}
+
+.footer .btn-secondary:hover {
+    background-color: rgba(14, 165, 233, 0.5) !important;
 }
