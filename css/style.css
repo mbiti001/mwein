@@ -342,13 +342,18 @@ a:focus {
     left: 0;
     right: 0;
     bottom: 0;
-    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><path d="M30 30m0 30a30 30 0 1 1 0-60 30 30 0 0 1 0 60z" fill="none" stroke="%23ffffff" stroke-width="0.5" opacity="0.05"/></svg>');
+    /* Fixed URL encoding for the SVG to clear parsing errors */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'%3E%3Cpath d='M30 30m0 30a30 30 0 1 1 0-60 30 30 0 0 1 0 60z' fill='none' stroke='%23ffffff' stroke-width='0.5' opacity='0.05'/%3E%3C/svg%3E");
     opacity: 0.05;
 }
 
 .hero > * {
     position: relative;
     z-index: 2;
+}
+
+.hero h1 em {
+    font-style: italic;
 }
 
 .hero h2 {
