@@ -3,265 +3,375 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About Our Facility | Mwein Medical Services</title>
+    <meta name="description" content="About Mwein Medical Services - Licensed healthcare facility in Mungatsi, Busia County, Kenya.">
+    <meta name="theme-color" content="#0ea5e9">
+    <link rel="icon" type="image/svg+xml" href="assets/favicons/favicon-m.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
-    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <title>About Us | Mwein Medical Services</title>
 </head>
 <body>
-    <!-- HEADER -->
-    <header class="header">
-        <div class="container">
-            <div class="logo-section">
-                <a href="index.html" style="text-decoration: none;">
-                    <h1>Mwein</h1>
-                    <p>Medical Services</p>
-                </a>
-            </div>
-            <nav class="nav">
-                <a href="index.html">Home</a>
-                <a href="services.html">Services</a>
-                <a href="about.html" class="active">About</a>
-                <a href="insurers.html">Insurance</a>
-                <a href="blog.html">Blog</a>
-                <a href="contact.html">Contact</a>
-            </nav>
-            <div class="mobile-nav">
-                <button class="menu-toggle" aria-label="Toggle menu">☰</button>
-            </div>
+
+<a href="#main" class="skip-link">Skip to main content</a>
+
+<!-- ========================================
+     HEADER & NAVIGATION
+     ======================================== -->
+<header class="header">
+    <div class="container">
+        <a href="index.html" class="logo">Mwein Medical Services</a>
+        <nav id="siteNav" class="nav" aria-label="Main navigation">
+            <a href="index.html" class="nav-link">Home</a>
+            <a href="services.html" class="nav-link">Services</a>
+            <a href="about.html" class="nav-link active">About</a>
+            <a href="blog.html" class="nav-link">Education</a>
+            <a href="shop.html" class="nav-link">Shop</a>
+            <a href="appointments.html" class="nav-link">Appointments</a>
+            <a href="contact.html" class="nav-link">Contact</a>
+            <a href="insurers.html" class="nav-link">Insurers</a>
+            <a href="donations.html" class="nav-link donate-link">Donate</a>
+        </nav>
+    </div>
+</header>
+
+<!-- ========================================
+     HERO
+     ======================================== -->
+<section class="hero" id="main">
+    <div class="container">
+        <h1><em>About Mwein Medical Services</em></h1>
+        <p class="hero-subheading">
+            A licensed Primary Healthcare Facility in Mungatsi, Busia County.<br>
+            <strong>Compassionate care, 24 hours a day, 7 days a week.</strong>
+        </p>
+        <div class="hero-cta">
+            <a href="appointments.html" class="btn btn-primary">📅 Book Appointment</a>
+            <a href="contact.html" class="btn btn-secondary">📞 Contact Us</a>
         </div>
-    </header>
+    </div>
+</section>
 
-    <!-- PAGE TITLE -->
-    <section class="page-title" style="background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);">
-        <div class="container">
-            <h1 style="color: white; margin: 0; font-size: 2.5rem;">About Our Facility</h1>
-            <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0; font-size: 1.1rem;">Excellence in healthcare delivery</p>
-        </div>
-    </section>
+<!-- ========================================
+     WHO WE ARE
+     ======================================== -->
+<section class="content" id="who-we-are">
+    <div class="container">
+        <h2 style="text-align:center; margin-bottom: var(--spacing-sm);">Who We Are</h2>
+        <p style="text-align:center; color:var(--gray); max-width:700px; margin:0 auto var(--spacing-2xl);">
+            Mwein Medical Services is a licensed private healthcare facility dedicated to providing 
+            comprehensive, quality care to our community with professionalism and compassion.
+        </p>
 
-    <!-- FACILITY OVERVIEW -->
-    <section class="content">
-        <div class="container">
-            <h2>Who We Are</h2>
-            <p style="font-size: 1.1rem; line-height: 1.8; color: var(--gray-light);">
-                Mwein Medical Services is a licensed private healthcare facility located in Mungatsi, Busia County, Kenya. 
-                We are committed to providing comprehensive, quality healthcare services to our community with a focus on 
-                patient satisfaction, professional excellence, and accessible healthcare for all.
-            </p>
-
-            <div class="services-grid" style="margin-top: var(--spacing-xl);">
-                <div class="service-card">
-                    <div class="service-icon" style="background: #E74C3C;">
-                        <svg viewBox="0 0 24 24" aria-hidden="true" style="color: white;">
-                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" fill="white"/>
-                        </svg>
-                    </div>
-                    <h3>Our Mission</h3>
-                    <p>To provide accessible, quality healthcare services with compassion and professionalism, supporting the health and wellbeing of our community.</p>
-                </div>
-
-                <div class="service-card">
-                    <div class="service-icon" style="background: #27AE60;">
-                        <svg viewBox="0 0 24 24" aria-hidden="true" style="color: white;">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" fill="white"/>
-                        </svg>
-                    </div>
-                    <h3>Our Vision</h3>
-                    <p>To be a trusted healthcare provider known for quality, innovation, and commitment to improving health outcomes in our community.</p>
-                </div>
-
-                <div class="service-card">
-                    <div class="service-icon" style="background: #3498DB;">
-                        <svg viewBox="0 0 24 24" aria-hidden="true" style="color: white;">
-                            <path d="M12 22C6.48 22 2 17.52 2 12S6.48 2 12 2s10 4.48 10 10-4.48 10-10 10zm0-18c-4.42 0-8 3.58-8 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm3.5 9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" fill="white"/>
-                        </svg>
-                    </div>
-                    <h3>Our Values</h3>
-                    <p>We are guided by principles of integrity, patient care, professional excellence, and commitment to community health and wellbeing.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- WHY CHOOSE US -->
-    <section class="content" style="background: var(--light-bg);">
-        <div class="container">
-            <h2>Why Choose Mwein Medical Services?</h2>
-
-            <div class="services-grid">
-                <div class="service-card">
-                    <div class="service-icon">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                        </svg>
-                    </div>
-                    <h3>Professional Team</h3>
-                    <p>Our healthcare professionals are trained, qualified, and dedicated to providing excellent patient care with latest medical practices.</p>
-                </div>
-
-                <div class="service-card">
-                    <div class="service-icon">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <rect x="3" y="11" width="18" height="10" rx="2"/>
-                            <path d="M7 11V7a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v4"/>
-                        </svg>
-                    </div>
-                    <h3>Quality Assurance</h3>
-                    <p>All services are delivered by trained and qualified healthcare professionals using best practices and evidence-based medicine.</p>
-                </div>
-
-                <div class="service-card">
-                    <div class="service-icon">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M12 22C6.48 22 2 17.52 2 12S6.48 2 12 2s10 4.48 10 10-4.48 10-10 10zm0-18c-4.42 0-8 3.58-8 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm3.5 9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>
+        <div class="services-grid">
+            <!-- Mission -->
+            <div class="service-card">
+                <div class="service-icon" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
                     </svg>
-                    </div>
-                    <h3>Patient-Centered Care</h3>
-                    <p>We prioritize patient satisfaction and provide respectful, compassionate healthcare services that meet individual patient needs.</p>
                 </div>
+                <h3>Our Mission</h3>
+                <p>To provide accessible, quality healthcare services with compassion and professionalism, supporting the health and wellbeing of every patient we serve.</p>
+            </div>
 
-                <div class="service-card">
-                    <div class="service-icon">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-2.12-2.12-1.41 1.41L10.5 19l4.96-6.37z"/>
-                        </svg>
-                    </div>
-                    <h3>Transparent Pricing</h3>
-                    <p>We ensure fair, negotiated pricing based on individual circumstances. Contact us for detailed pricing information.</p>
+            <!-- Vision -->
+            <div class="service-card">
+                <div class="service-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
                 </div>
+                <h3>Our Vision</h3>
+                <p>To be the most trusted healthcare provider in Busia County, known for quality, innovation, and measurable improvements in community health outcomes.</p>
+            </div>
 
-                <div class="service-card">
-                    <div class="service-icon">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm-2-13h4v6h-4z"/>
-                        </svg>
-                    </div>
-                    <h3>Accessible Location</h3>
-                    <p>Located in Mungatsi, Busia County, we are easily accessible to our community and surrounding areas.</p>
+            <!-- Values -->
+            <div class="service-card">
+                <div class="service-icon" style="background: linear-gradient(135deg, #0ea5e9, #0284c7);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
                 </div>
+                <h3>Our Values</h3>
+                <p>Integrity, patient-centered care, professional excellence, and a deep commitment to community health guide every decision we make.</p>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
-    <!-- FACILITY REGISTRATION & ACCREDITATION -->
-    <section class="content">
-        <div class="container">
-            <h2 style="text-align: center;">Facility Registration & Accreditation</h2>
-            <p style="text-align: center; color: var(--gray-light); margin-bottom: var(--spacing-xl);">
-                Operating under Kenya's healthcare regulatory framework
+<!-- ========================================
+     WHY CHOOSE US
+     ======================================== -->
+<section class="content" style="background: var(--light-bg);">
+    <div class="container">
+        <h2 style="text-align:center; margin-bottom: var(--spacing-sm);">Why Choose Mwein?</h2>
+        <p style="text-align:center; color:var(--gray); max-width:700px; margin:0 auto var(--spacing-2xl);">
+            We combine professional expertise with genuine care for every patient.
+        </p>
+
+        <div class="services-grid">
+            <div class="service-card">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                </div>
+                <h3>Professional Team</h3>
+                <p>Trained and qualified healthcare professionals committed to delivering excellent patient care using the latest evidence-based practices.</p>
+            </div>
+
+            <div class="service-card">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                    </svg>
+                </div>
+                <h3>24/7 Availability</h3>
+                <p>We are open around the clock, 365 days a year. Emergencies don't keep business hours — and neither do we.</p>
+            </div>
+
+            <div class="service-card">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="9 11 12 14 22 4"/>
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                    </svg>
+                </div>
+                <h3>Quality Assurance</h3>
+                <p>SafeCare-compliant standards with regular audits, infection prevention protocols, and patient safety as our highest priority.</p>
+            </div>
+
+            <div class="service-card">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                    </svg>
+                </div>
+                <h3>Patient-Centered Care</h3>
+                <p>Every care decision is made with the patient's wellbeing and dignity at the center. We listen, we respect, we care.</p>
+            </div>
+
+            <div class="service-card">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                        <line x1="8" y1="21" x2="16" y2="21"/>
+                        <line x1="12" y1="17" x2="12" y2="21"/>
+                    </svg>
+                </div>
+                <h3>SHA & Insurance Accepted</h3>
+                <p>We are a registered SHA network provider, with multiple insurance schemes accepted to reduce out-of-pocket costs for patients.</p>
+            </div>
+
+            <div class="service-card">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="2" y1="12" x2="22" y2="12"/>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                    </svg>
+                </div>
+                <h3>Accessible Location</h3>
+                <p>Conveniently located in Mungatsi, Busia County — serving the local community and surrounding areas with ease of access.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========================================
+     REGISTRATION & ACCREDITATION
+     ======================================== -->
+<section class="content">
+    <div class="container">
+        <h2 style="text-align:center; margin-bottom: var(--spacing-sm);">Registration & Accreditation</h2>
+        <p style="text-align:center; color:var(--gray); max-width:600px; margin:0 auto var(--spacing-2xl);">
+            Operating under Kenya's healthcare regulatory framework with full compliance.
+        </p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--spacing-lg); max-width: 860px; margin: 0 auto;">
+            <div class="service-card" style="border-top: 4px solid var(--primary);">
+                <h4 style="color: var(--primary); margin-top: 0;">⚖️ Regulatory Compliance</h4>
+                <ul style="margin: 0.5rem 0; padding-left: 1.2rem; line-height: 2;">
+                    <li>Licensed private healthcare facility</li>
+                    <li>Compliant with Kenya Health Act</li>
+                    <li>SafeCare quality standards</li>
+                    <li>SHA network provider</li>
+                    <li>KMPDC & PPB regulated</li>
+                </ul>
+            </div>
+
+            <div class="service-card" style="border-top: 4px solid var(--success);">
+                <h4 style="color: var(--success); margin-top: 0;">✅ Quality Commitments</h4>
+                <ul style="margin: 0.5rem 0; padding-left: 1.2rem; line-height: 2;">
+                    <li>Evidence-based clinical practice</li>
+                    <li>Patient safety as top priority</li>
+                    <li>Infection prevention protocols</li>
+                    <li>Strict patient confidentiality</li>
+                    <li>Continuous staff training</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========================================
+     UHC COMMITMENT
+     ======================================== -->
+<section class="content" style="background: var(--light-bg);">
+    <div class="container">
+        <div class="info-card" style="max-width: 800px; margin: 0 auto; border-left: 4px solid var(--primary); background: var(--primary-lightest);">
+            <h3 style="color: var(--primary-darker); margin-top: 0;">🎯 Supporting Kenya's Universal Health Coverage Goals</h3>
+            <p style="color: var(--dark-secondary);">
+                We are committed to supporting Kenya's UHC goals. Our facility is ready to partner with government and private health programs to ensure 
+                every person — regardless of their financial status — can access quality healthcare when they need it most.
             </p>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg); max-width: 800px; margin: 0 auto;">
-                <div style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 8px;">
-                    <h4 style="color: var(--primary); margin-top: 0;">Regulatory Compliance</h4>
-                    <ul style="margin: 0.5rem 0; padding-left: 1.5rem; font-size: 0.9rem;">
-                        <li>Licensed private healthcare facility</li>
-                        <li>Compliant with Kenya Health Act</li>
-                        <li>SafeCare quality standards</li>
-                        <li>SHA network provider</li>
-                    </ul>
-                </div>
-
-                <div style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 8px;">
-                    <h4 style="color: var(--primary); margin-top: 0;">Quality Commitments</h4>
-                    <ul style="margin: 0.5rem 0; padding-left: 1.5rem; font-size: 0.9rem;">
-                        <li>Evidence-based practice</li>
-                        <li>Patient safety priority</li>
-                        <li>Infection prevention</li>
-                        <li>Confidentiality assurance</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- OUR TEAM -->
-    <section class="content" style="background: var(--light-bg);">
-        <div class="container">
-            <h2 style="text-align: center;">Our Healthcare Team</h2>
-            <p style="text-align: center; color: var(--gray-light); margin-bottom: var(--spacing-xl);">
-                Dedicated professionals committed to your health
+            <p style="margin-bottom: 0;">
+                <a href="insurers.html" class="btn-primary" style="display:inline-block; padding: 0.6rem 1.2rem; border-radius:6px; text-decoration:none; font-weight:700;">View Insurance Partnerships →</a>
             </p>
+        </div>
+    </div>
+</section>
 
-            <div style="max-width: 800px; margin: 0 auto;">
-                <p>
-                    Our team consists of trained and qualified healthcare professionals including doctors, nurses, 
-                    laboratory technicians, and support staff. All team members are committed to maintaining high standards 
-                    of patient care, professional ethics, and continuous learning to stay updated with the latest medical practices.
-                </p>
-                <p>
-                    We believe in evidence-based medicine and patient-centered care, ensuring that every patient receives 
-                    appropriate care tailored to their individual needs and circumstances.
-                </p>
+<!-- ========================================
+     OUR TEAM
+     ======================================== -->
+<section class="content">
+    <div class="container">
+        <h2 style="text-align:center; margin-bottom: var(--spacing-sm);">Our Healthcare Team</h2>
+        <p style="text-align:center; color:var(--gray); max-width:700px; margin:0 auto var(--spacing-xl);">
+            Dedicated professionals committed to your health and dignity.
+        </p>
+
+        <div style="max-width: 800px; margin: 0 auto; background: var(--light-bg); border-radius: 12px; padding: var(--spacing-xl);">
+            <p style="line-height: 1.9; margin-bottom: var(--spacing-md);">
+                Our team includes trained doctors, clinical officers, nurses, laboratory technicians, and dedicated support staff.
+                All team members uphold strict professional ethics, patient dignity, and continuous learning to remain current with best practices in medicine.
+            </p>
+            <p style="line-height: 1.9; margin: 0;">
+                We practice evidence-based, patient-centered medicine — meaning every care plan is tailored to the individual's unique needs and circumstances, 
+                not just a generic protocol.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- ========================================
+     CONTACT CTA
+     ======================================== -->
+<section class="content" style="background: var(--light-bg);">
+    <div class="container">
+        <h2 style="text-align:center; margin-bottom: var(--spacing-sm);">Get in Touch</h2>
+        <p style="text-align:center; color:var(--gray); max-width:600px; margin:0 auto var(--spacing-xl);">
+            We're here to help. Reach us any time, day or night.
+        </p>
+
+        <div class="services-grid" style="max-width: 900px; margin: 0 auto;">
+            <div class="service-card" style="text-align:center;">
+                <div class="service-icon" style="margin:0 auto var(--spacing-md);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.61 4.4 2 2 0 0 1 3.6 2.18h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6.09 6.09l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                    </svg>
+                </div>
+                <h3>Phone</h3>
+                <p style="font-size: 1.2rem; font-weight: 700;"><a href="tel:+254707711888" style="color: var(--primary);">+254 707 711 888</a></p>
+                <p style="color: var(--gray); margin:0;">24 hours · 7 days a week</p>
+            </div>
+
+            <div class="service-card" style="text-align:center;">
+                <div class="service-icon" style="margin:0 auto var(--spacing-md);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                        <polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                </div>
+                <h3>Email</h3>
+                <p style="font-weight: 700;"><a href="mailto:mweinmedical@gmail.com" style="color: var(--primary);">mweinmedical@gmail.com</a></p>
+                <p style="color: var(--gray); margin:0;">Response within 24 hours</p>
+            </div>
+
+            <div class="service-card" style="text-align:center;">
+                <div class="service-icon" style="margin:0 auto var(--spacing-md);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                        <circle cx="12" cy="10" r="3"/>
+                    </svg>
+                </div>
+                <h3>Location</h3>
+                <p style="font-weight: 700;">Mungatsi, Busia County</p>
+                <p style="color: var(--gray); margin:0;">Kenya</p>
             </div>
         </div>
-    </section>
 
-    <!-- COMMITMENT TO HEALTH -->
-    <section class="content">
-        <div class="container">
-            <h2 style="text-align: center;">Our Commitment to Universal Health Coverage</h2>
-            
-            <div style="background: var(--primary-light); border-left: 4px solid var(--primary); padding: var(--spacing-lg); border-radius: 4px; max-width: 800px; margin: 0 auto;">
-                <h3 style="color: var(--dark); margin-top: 0;">🎯 Supporting Kenya's UHC Goals</h3>
-                <p style="color: var(--dark); margin: 0.5rem 0;">
-                    We are committed to supporting Kenya's Universal Health Coverage (UHC) goals and are ready to incorporate various insurance schemes 
-                    to expand access to quality healthcare for all. Our facility is designed to partner with government and private health programs.
-                </p>
-                <p style="color: var(--dark); margin: 0; margin-top: 0.5rem;">
-                    <a href="insurers.html" style="color: var(--primary); font-weight: 600; text-decoration: none;">Learn about our insurance partnerships →</a>
-                </p>
+        <div style="text-align:center; margin-top: var(--spacing-xl);">
+            <a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services.%20I%20would%20like%20to%20enquire%20about%20your%20services." class="btn btn-primary" style="margin-right: 0.75rem;">💬 WhatsApp Us</a>
+            <a href="appointments.html" class="btn btn-secondary">📅 Book Appointment</a>
+        </div>
+    </div>
+</section>
+
+<!-- ========================================
+     FOOTER
+     ======================================== -->
+<footer class="footer">
+    <div class="container">
+        <div class="footer-content" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 2rem; margin-bottom: 2rem;">
+            <div class="footer-section">
+                <h4>🏥 Mwein Medical Services</h4>
+                <p style="font-size: 0.9rem; color: #aaa;">A licensed Primary Healthcare Facility committed to SafeCare quality standards in Busia County.</p>
+                <ul style="list-style: none; padding: 0;">
+                    <li><strong>Emergency:</strong> <a href="tel:+254707711888">+254 707 711 888</a></li>
+                    <li><strong>Email:</strong> <a href="mailto:mweinmedical@gmail.com">mweinmedical@gmail.com</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-section">
+                <h4>🛡️ Patient Safety & Quality</h4>
+                <ul style="list-style: none; padding: 0;">
+                    <li><a href="quality.html">Our SafeCare Commitment</a></li>
+                    <li><a href="patient-rights.html">Rights & Responsibilities</a></li>
+                    <li><a href="privacy-policy.html">Data Protection Policy</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-section">
+                <h4>💬 Patient Feedback</h4>
+                <p style="font-size: 0.9rem; color: #aaa;">Your feedback drives our quality improvement.</p>
+                <ul style="list-style: none; padding: 0;">
+                    <li>
+                        <a href="https://wa.me/254707711888?text=Hello,%20I%20have%20a%20compliment/complaint" class="btn-secondary">
+                            Lodge Complaint / Compliment
+                        </a>
+                    </li>
+                </ul>
             </div>
         </div>
-    </section>
 
-    <!-- CONTACT SECTION -->
-    <section class="content" style="background: var(--light-bg);">
-        <div class="container">
-            <h2 style="text-align: center;">Get in Touch</h2>
-            <div class="services-grid">
-                <div class="service-card">
-                    <h3 style="text-align: center;">Phone</h3>
-                    <p style="text-align: center; font-size: 1.2rem;">
-                        <a href="tel:+254707711888" style="color: var(--primary); font-weight: 600;">+254 707 711 888</a>
-                    </p>
-                    <p style="text-align: center; color: var(--gray-light);">24 hours, 7 days a week</p>
-                </div>
-
-                <div class="service-card">
-                    <h3 style="text-align: center;">Email</h3>
-                    <p style="text-align: center;">
-                        <a href="mailto:mweinmedical@gmail.com" style="color: var(--primary); font-weight: 600;">mweinmedical@gmail.com</a>
-                    </p>
-                    <p style="text-align: center; color: var(--gray-light);">Response within 24 hours</p>
-                </div>
-
-                <div class="service-card">
-                    <h3 style="text-align: center;">Location</h3>
-                    <p style="text-align: center; font-weight: 600;">Mungatsi, Busia County</p>
-                    <p style="text-align: center; color: var(--gray-light);">Kenya</p>
-                </div>
-            </div>
+        <div class="footer-bottom" style="text-align: center; color: #888; font-size: 0.85rem;">
+            <p>&copy; 2026 Mwein Medical Services. Regulated by KMPDC &amp; PPB.</p>
         </div>
-    </section>
+    </div>
+</footer>
 
-    <!-- FOOTER -->
-    <footer class="footer">
-        <div class="container">
-            <h3 class="footer-brand-heading">Mwein Medical Services</h3>
-            <p><strong>Facility Status:</strong> Licensed private healthcare facility, SafeCare compliant</p>
-            <p>Location: Mungatsi, Busia County | Phone: <a href="tel:+254707711888">+254 707 711 888</a></p>
-            <p>Email: <a href="mailto:mweinmedical@gmail.com">mweinmedical@gmail.com</a></p>
-            <p>Insurance: SHA Accepted | Payment Methods: M-Pesa, Cash</p>
-            <p>&copy; 2026 All Rights Reserved</p>
-        </div>
-    </footer>
+<!-- ========================================
+     FLOATING BUTTONS
+     ======================================== -->
+<a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services" class="whatsapp-float" title="Contact us on WhatsApp" aria-label="Contact us on WhatsApp">
+    <span class="button-text">WhatsApp</span>
+</a>
 
-    <!-- FLOATING BUTTONS -->
-    <a href="https://wa.me/254707711888" class="whatsapp-float" title="Contact us on WhatsApp" aria-label="Contact us on WhatsApp">WhatsApp</a>
-    <a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services.%20I%20would%20like%20to%20share%20feedback%20about%20my%20visit" class="feedback-float" title="Send feedback" aria-label="Send feedback on WhatsApp">Feedback</a>
-    <button id="darkToggle" class="dark-toggle" aria-label="Toggle dark mode">Dark Mode</button>
+<a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services.%20I%20would%20like%20to%20share%20feedback%20about%20my%20visit" class="feedback-float" title="Send feedback" aria-label="Send feedback on WhatsApp">
+    <span class="button-text">Feedback</span>
+</a>
 
-    <script src="js/main.js"></script>
+<button id="darkToggle" class="dark-toggle" aria-label="Toggle dark mode">🌙 Dark</button>
+
+<script src="js/main.js"></script>
 </body>
 </html>
