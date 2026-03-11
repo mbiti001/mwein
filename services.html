@@ -55,10 +55,14 @@
 <!-- CLINICAL & DIAGNOSTIC SERVICES -->
 <section class="content">
     <div class="container">
-        <h2 style="text-align: center;">Clinical & Diagnostic Services</h2>
-        <p style="text-align: center; color: var(--gray-light); margin-bottom: var(--spacing-2xl);">
-            Complete healthcare services for individuals and families
-        </p>
+        <h1 class="text-center" style="margin-bottom: 0.5rem;">Clinical Scope of Services</h1>
+        <p class="intro-text">Evidence-based primary and diagnostic healthcare available 24/7.</p>
+        
+        <!-- SafeCare Triage/Transfer Notice -->
+        <div class="clinical-alert" style="margin-bottom: 3rem;">
+            <strong style="color: var(--primary-dark);">⚕️ Triage & Referral Policy:</strong> 
+            We provide comprehensive Level 2/3 primary and emergency stabilization care. Specialized surgical emergencies and cases requiring ICU admission will be stabilized and safely referred to higher-level facilities per national referral guidelines.
+        </div>
 
         <div class="services-grid">
 
@@ -144,17 +148,13 @@
                 </p>
             </div>
 
-            <div class="service-card">
-                <div class="service-icon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M12 21s-6-4-6-9a6 6 0 0 1 12 0c0 5-6 9-6 9z"/>
-                    </svg>
+            <div class="service-card" style="display: flex; flex-direction: column;">
+                <div class="service-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6-4-6-9a6 6 0 0 1 12 0c0 5-6 9-6 9z"/></svg></div>
+                <h3>Chronic Disease</h3>
+                <p style="flex-grow: 1;">Long-term care for hypertension, diabetes, and sickle cell disease.</p>
+                <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                    <a href="appointments.html?service=chronic-disease" class="snake-btn snake-btn-call" style="margin:0; flex:1; text-align:center;">Book Now</a>
                 </div>
-                <h3>Chronic Disease Management</h3>
-                <p>
-                    Long-term management of chronic conditions including hypertension, diabetes, 
-                    sickle cell disease, and other conditions requiring ongoing care.
-                </p>
             </div>
 
         </div>
@@ -245,7 +245,7 @@
             <div class="service-card">
                 <div class="service-icon">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
                         <path d="M8 12.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm8 0c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5z"/>
                     </svg>
                 </div>
@@ -433,30 +433,46 @@
     </div>
 </section>
 
-<!-- FOOTER -->
+<!-- ========================================
+     GLOBAL SAFECARE & TRUST FOOTER
+     ======================================== -->
 <footer class="footer">
     <div class="container">
-        <h3 style="color: white; margin-bottom: var(--spacing-lg); text-align: center;">Mwein Medical Services</h3>
-        <p><strong>Location:</strong> Mungatsi, Busia County, Kenya</p>
-        <p><strong>Phone:</strong> <a href="tel:+254707711888">+254 707 711 888</a></p>
-        <p><strong>Email:</strong> <a href="mailto:mweinmedical@gmail.com">mweinmedical@gmail.com</a></p>
-        <p><strong>Hours:</strong> Open 24 hours, 7 days a week</p>
-        <p><strong>Insurance:</strong> SHA (Social Health Authority) accepted</p>
-        <p><strong>Payment Methods:</strong> M-Pesa, Cash</p>
-            <p style="margin-top: var(--spacing-lg); color: rgba(255,255,255,0.7); font-size: 0.9rem;">
-                &copy; 2026 Mwein Medical. All rights reserved.</span>
-                <span>Contact: <a href="mailto:info@mweinmedical.co.ke">info@mweinmedical.co.ke</a></span>
-                <span>
-                    <a href="https://twitter.com/mweinmedical" target="_blank" rel="noopener" aria-label="Twitter">
-                        <svg width="24" height="24" fill="#0074D9"><path d="M23 3a10.9 10.9 0 01-3.14 1.53A4.48 4.48 0 0022.4.96a9.09 9.09 0 01-2.88 1.1A4.48 4.48 0 0016.5 0c-2.5 0-4.5 2.02-4.5 4.5 0 .35.04.7.1 1.03A12.94 12.94 0 013 1.1a4.48 4.48 0 001.39 6A4.48 4.48 0 012.8 6.7v.06c0 2.2 1.57 4.04 3.88 4.46a4.48 4.48 0 01-2.04.08c.58 1.8 2.26 3.12 4.25 3.15A9.05 9.05 0 010 21.54a12.94 12.94 0 007.03 2.06c8.44 0 13.07-7.01 13.07-13.07 0-.2 0-.39-.02-.58A9.36 9.36 0 0023 3z"/></svg>
-                    </a>
-                    <a href="https://facebook.com/mweinmedical" target="_blank" rel="noopener" aria-label="Facebook">
-                        <svg width="24" height="24" fill="#0074D9"><path d="M22.675 0h-21.35C.6 0 0 .6 0 1.325v21.351C0 23.4.6 24 1.325 24h11.495v-9.294H9.691v-3.622h3.129V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.797.143v3.24l-1.918.001c-1.504 0-1.797.715-1.797 1.763v2.313h3.587l-.467 3.622h-3.12V24h6.104C23.4 24 24 23.4 24 22.675V1.325C24 .6 23.4 0 22.675 0z"/></svg>
-                    </a>
-                </span>
+        <div class="footer-content" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 2rem; margin-bottom: 2rem;">
+            <div class="footer-section">
+                <h4>🏥 Mwein Medical Services</h4>
+                <p style="font-size: 0.9rem; color: #aaa;">A licensed Level 2 Primary Healthcare Facility committed to SafeCare quality standards and continuous clinical improvement in Busia County.</p>
+                <ul style="list-style: none; padding: 0;">
+                    <li><strong>Emergency:</strong> <a href="tel:+254707711888">+254 707 711 888</a></li>
+                    <li><strong>Email:</strong> <a href="mailto:mweinmedical@gmail.com">mweinmedical@gmail.com</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-section">
+                <h4>🛡️ Patient Safety & Quality</h4>
+                <ul style="list-style: none; padding: 0;">
+                    <li><a href="quality.html">Our SafeCare Commitment</a></li>
+                    <li><a href="patient-rights.html">Rights & Responsibilities</a></li>
+                    <li><a href="privacy-policy.html">Data Protection Policy</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-section">
+                <h4>💬 Patient Feedback</h4>
+                <p style="font-size: 0.9rem; color: #aaa;">Your feedback drives our quality improvement.</p>
+                <ul style="list-style: none; padding: 0;">
+                    <li>
+                        <a href="https://wa.me/254707711888?text=Hello,%20I%20have%20a%20compliment/complaint" class="btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; display: inline-block; margin-top: 0.5rem; color: white; border-color: white;">
+                            Lodge Complaint / Compliment
+                        </a>
+                    </li>
+                </ul>
             </div>
         </div>
-    </footer>
+
+        <div class="footer-bottom" style="text-align: center; color: #888; font-size: 0.85rem;">
+            <p>&copy; 2026 Mwein Medical Services. All rights reserved. Contact: mweinmedical@gmail.com</p>
+        </div>
     </div>
 </footer>
 

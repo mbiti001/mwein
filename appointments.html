@@ -3,263 +3,158 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Book appointments at Mwein Medical">
-    <link rel="icon" href="assets/favicons/favicon-a.svg" type="image/svg+xml">
-    <title>Appointments | Mwein Medical</title>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Book an appointment at Mwein Medical Services. Online appointment booking form - 24/7 healthcare in Busia County, Kenya.">
-    <title>Book Appointment | Mwein Medical Services</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="css/style.css">
+    <title>Book Appointment | Mwein Medical Services</title>
 </head>
 <body>
+    <!-- Skip to main content link for accessibility -->
+    <a href="#main" class="skip-link">Skip to main content</a>
 
-<!-- Skip to main content link for accessibility -->
-<a href="#main" class="skip-link">Skip to main content</a>
+    <!-- HEADER (single, de-duplicated) -->
+    <header class="header">
+        <div class="container">
+            <h1 class="logo">Mwein Medical Services</h1>
+            <button id="navToggle" class="nav-toggle" aria-controls="siteNav" aria-expanded="false" aria-label="Open menu">Menu</button>
+            <nav id="siteNav" class="nav" aria-label="Main navigation" aria-hidden="false">
+                <a href="index.html">Home</a>
+                <a href="services.html">Services</a>
+                <a href="blog.html">Education</a>
+                <a href="shop.html">Shop</a>
+                <a href="appointments.html" class="active">Appointments</a>
+                <a href="contact.html">Contact</a>
+                <a href="insurers.html">Insurers</a>
+                <a href="donations.html" class="donate-link">Donate</a>
+            </nav>
+        </div>
+    </header>
 
-<!-- HEADER -->
-<header class="header">
-    <div class="container">
-        <h1 class="logo">Mwein Medical Services</h1>
+    <!-- APPOINTMENT BOOKING SECTION -->
+    <section class="content" id="main">
+      <div class="container">
+        <h2 class="text-center">Book Your Appointment</h2>
+        <p class="section-intro">Schedule a visit with our medical team. We'll confirm your appointment via phone.</p>
 
-        <button id="navToggle" class="nav-toggle" aria-controls="siteNav" aria-expanded="false" aria-label="Open menu">Menu</button>
+        <div class="form-card">
+          <form id="appointmentForm" method="POST" action="https://formspree.io/f/xyzjklmn" novalidate>
+            
+            <div class="form-field">
+              <label for="name" class="form-label">Full Name *</label>
+              <input class="form-input" type="text" id="name" name="name" required autocomplete="name" placeholder="Enter your full name">
+            </div>
 
-        <nav id="siteNav" class="nav" aria-label="Main navigation" aria-hidden="false">
-            <a href="index.html">Home</a>
-            <a href="services.html">Services</a>
-            <a href="blog.html">Education</a>
-            <a href="shop.html">Shop</a>
-            <a href="appointments.html" class="active">Appointments</a>
-            <a href="contact.html">Contact</a>
-            <a href="insurers.html">Insurers</a>
-            <a href="donations.html" class="donate-link">Donate</a>
-        </nav>
-    </div>
-</header>
-<header class="header">
-    <div class="container">
-        <a href="index.html" class="logo" aria-label="Mwein Medical Home">
-            <img src="assets/favicons/favicon-a.svg" alt="Mwein Medical Logo" height="32" width="32" style="vertical-align:middle;">
-            <span class="site-title">Mwein Medical</span>
-        </a>
-        <nav class="nav" aria-label="Main navigation">
-            <a href="services.html">Services</a>
-            <a href="appointments.html">Appointments</a>
-            <a href="shop.html">Shop</a>
-            <a href="donations.html">Donations</a>
-            <a href="contact.html">Contact</a>
-        </nav>
-    </div>
-</header>
+            <div class="form-field">
+              <label for="phone" class="form-label">Phone Number *</label>
+              <input class="form-input" type="tel" id="phone" name="phone" required
+                     inputmode="tel" autocomplete="tel"
+                     pattern="^\+?[0-9\s\-]{7,15}$"
+                     placeholder="+254 707 000 000">
+              <p class="form-note">Format: +254 7xx xxx xxx</p>
+            </div>
 
-<!-- APPOINTMENT BOOKING SECTION -->
-<section class="content" id="main">
-    <div class="container">
-        <h2 style="text-align: center;">Book Your Appointment</h2>
-        <p style="text-align: center; color: var(--gray-light); margin-bottom: var(--spacing-2xl);">
-            Schedule a visit with our medical team. We'll confirm your appointment details via phone.
-        </p>
+            <div class="form-field">
+              <label for="email" class="form-label">Email Address</label>
+              <input class="form-input" type="email" id="email" name="email" autocomplete="email" placeholder="your.email@example.com">
+            </div>
 
-        <div style="max-width: 600px; margin: 0 auto; background: var(--light-bg); padding: var(--spacing-2xl); border-radius: 8px;">
-            <form id="appointmentForm" method="POST" action="https://formspree.io/f/xyzjklmn">
-                
-                <!-- Full Name -->
-                <div style="margin-bottom: var(--spacing-lg);">
-                    <label for="name" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Full Name *</label>
-                    <input 
-                        type="text" 
-                        id="name" 
-                        name="name" 
-                        required
-                        placeholder="Enter your full name"
-                        style="width: 100%; padding: 0.75rem; border: 2px solid var(--gray-light); border-radius: 4px; font-size: 1rem;"
-                    >
-                </div>
+            <div class="form-field">
+              <label for="service" class="form-label">Service Needed *</label>
+              <select class="form-select" id="service" name="service" required>
+                <option value="">-- Select a service --</option>
+                <option value="general-consultation">General Consultation</option>
+                <option value="laboratory-tests">Laboratory Tests</option>
+                <option value="ultrasound">Ultrasound Imaging</option>
+                <option value="antenatal-care">Antenatal Care</option>
+                <option value="family-planning">Family Planning Services</option>
+                <option value="chronic-disease">Chronic Disease Management</option>
+                <option value="wound-care">Wound Care & Treatment</option>
+                <option value="vaccination">Immunization & Vaccination</option>
+                <option value="other">Other Services</option>
+              </select>
+            </div>
 
-                <!-- Phone Number -->
-                <div style="margin-bottom: var(--spacing-lg);">
-                    <label for="phone" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Phone Number *</label>
-                    <input 
-                        type="tel" 
-                        id="phone" 
-                        name="phone" 
-                        required
-                        placeholder="+254 700 000 000"
-                        style="width: 100%; padding: 0.75rem; border: 2px solid var(--gray-light); border-radius: 4px; font-size: 1rem;"
-                    >
-                </div>
+            <div class="form-field">
+              <label for="date" class="form-label">Preferred Date *</label>
+              <input class="form-input" type="date" id="date" name="date" required>
+            </div>
 
-                <!-- Email -->
-                <div style="margin-bottom: var(--spacing-lg);">
-                    <label for="email" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Email Address</label>
-                    <input 
-                        type="email" 
-                        id="email" 
-                        name="email" 
-                        placeholder="your.email@example.com"
-                        style="width: 100%; padding: 0.75rem; border: 2px solid var(--gray-light); border-radius: 4px; font-size: 1rem;"
-                    >
-                </div>
+            <div class="form-field">
+              <label for="time" class="form-label">Preferred Time *</label>
+              <input class="form-input" type="time" id="time" name="time" required>
+            </div>
 
-                <!-- Preferred Service -->
-                <div style="margin-bottom: var(--spacing-lg);">
-                    <label for="service" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Service Needed *</label>
-                    <select 
-                        id="service" 
-                        name="service" 
-                        required
-                        style="width: 100%; padding: 0.75rem; border: 2px solid var(--gray-light); border-radius: 4px; font-size: 1rem; background-color: white;"
-                    >
-                        <option value="">-- Select a service --</option>
-                        <option value="general-consultation">General Consultation</option>
-                        <option value="laboratory-tests">Laboratory Tests</option>
-                        <option value="ultrasound">Ultrasound Imaging</option>
-                        <option value="antenatal-care">Antenatal Care</option>
-                        <option value="family-planning">Family Planning Services</option>
-                        <option value="chronic-disease">Chronic Disease Management</option>
-                        <option value="wound-care">Wound Care & Treatment</option>
-                        <option value="vaccination">Immunization & Vaccination</option>
-                        <option value="other">Other Services</option>
-                    </select>
-                </div>
+            <div class="form-field">
+              <label for="notes" class="form-label">Health Concern (Optional)</label>
+              <textarea class="form-textarea" id="notes" name="notes" placeholder="Brief description (e.g., general check-up, follow-up)..."></textarea>
+              <p class="form-note">Do not include sensitive medical details here. Provide full medical info at the facility.</p>
+            </div>
 
-                <!-- Preferred Date -->
-                <div style="margin-bottom: var(--spacing-lg);">
-                    <label for="date" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Preferred Date *</label>
-                    <input 
-                        type="date" 
-                        id="date" 
-                        name="date" 
-                        required
-                        style="width: 100%; padding: 0.75rem; border: 2px solid var(--gray-light); border-radius: 4px; font-size: 1rem;"
-                    >
-                </div>
+            <div class="form-field" style="padding: var(--spacing-lg); background: var(--primary-light); border-radius: 6px; border-left: 4px solid var(--primary);">
+              <p style="margin:0; font-size:0.9rem;"><strong>🔒 Data Protection Notice:</strong> Your data is used only for scheduling and care, in line with Kenya's Data Protection Act 2019. No third-party sharing without consent.</p>
+            </div>
 
-                <!-- Preferred Time -->
-                <div style="margin-bottom: var(--spacing-lg);">
-                    <label for="time" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Preferred Time *</label>
-                    <input 
-                        type="time" 
-                        id="time" 
-                        name="time" 
-                        required
-                        style="width: 100%; padding: 0.75rem; border: 2px solid var(--gray-light); border-radius: 4px; font-size: 1rem;"
-                    >
-                </div>
+            <div class="form-field">
+              <input type="checkbox" id="dataConsent" name="dataConsent" required style="margin-right:0.5rem; cursor:pointer;">
+              <label for="dataConsent" style="font-size:0.95rem; cursor:pointer;">
+                I consent to use of my contact details for appointment scheduling and healthcare purposes.
+              </label>
+            </div>
 
-                <!-- Additional Notes -->
-                <div style="margin-bottom: var(--spacing-lg);">
-                    <label for="notes" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Health Concern (Optional)</label>
-                    <textarea 
-                        id="notes" 
-                        name="notes" 
-                        placeholder="Brief description of your health concern (e.g., 'General check-up', 'Follow-up appointment')..."
-                        rows="3"
-                        style="width: 100%; padding: 0.75rem; border: 2px solid var(--gray-light); border-radius: 4px; font-size: 1rem; font-family: inherit;"
-                    ></textarea>
-                    <p style="font-size: 0.85rem; color: var(--gray-light); margin-top: 0.5rem;">Do not include sensitive medical details here. Provide full medical information securely at the facility.</p>
-                </div>
+            <div class="form-field" style="background: var(--light-bg); padding: var(--spacing-lg); border-radius: 6px;">
+              <p style="margin:0; font-size:0.9rem;"><strong>Insurance:</strong> SHA accepted. M-Pesa and cash also accepted. SHA status verified at registration.</p>
+            </div>
 
-                <!-- Data Protection Notice - ODPP Compliance -->
-                <div style="margin-bottom: var(--spacing-lg); padding: var(--spacing-lg); background: var(--primary-light); border-radius: 4px; border-left: 4px solid var(--primary);">
-                    <p style="margin: 0; font-size: 0.85rem; color: var(--dark);"><strong>🔒 Data Protection Notice:</strong> Your personal information (name, phone, email) will be used <strong>solely for appointment scheduling and healthcare delivery</strong>. We comply with Kenya's Data Protection Act 2019 and safeguard your privacy. Your information will <strong>not be shared with third parties</strong> without your explicit consent. Medical records are retained for 5 years per Kenya Health Act 2017.</p>
-                </div>
+            <button type="submit" class="btn-primary" style="width:100%; padding:0.85rem; font-size:1.05rem;">Book Appointment</button>
+            <p class="form-note" style="text-align:center; margin-top: var(--spacing-lg);">We will call you within 2 hours to confirm.</p>
 
-                <!-- Consent Checkbox - ODPP Compliant -->
-                <div style="margin-bottom: var(--spacing-lg); padding: var(--spacing-lg); background: var(--light-bg); border-radius: 4px;">
-                    <input 
-                        type="checkbox" 
-                        id="dataConsent" 
-                        name="dataConsent" 
-                        required
-                        style="margin-right: 0.5rem; cursor: pointer;"
-                    >
-                    <label for="dataConsent" style="font-size: 0.9rem; cursor: pointer;">
-                        <strong>I consent</strong> to sharing my name, phone, and email for appointment scheduling and healthcare purposes. I understand my information is protected under Kenya's Data Protection Act 2019.
-                    </label>
-                </div>
-
-                <!-- Insurance Information -->
-                <div style="margin-bottom: var(--spacing-lg); padding: var(--spacing-lg); background: var(--light-bg); border-radius: 4px;">
-                    <p style="margin: 0; font-size: 0.9rem;"><strong>Insurance:</strong> We accept SHA (Social Health Authority), M-Pesa, and cash payments. Your SHA status will be verified during registration.</p>
-                </div>
-
-                <!-- Submit Button -->
-                <button 
-                    type="submit"
-                    class="btn-primary"
-                    style="width: 100%; padding: 0.75rem; font-size: 1.1rem;"
-                >
-                    Book Appointment
-                </button>
-
-                <p style="text-align: center; font-size: 0.9rem; color: var(--gray-light); margin-top: var(--spacing-lg);">
-                    Our team will call you to confirm your appointment within 2 hours of submission.
-                </p>
-            </form>
+            <div id="formStatus" aria-live="polite" style="margin-top:var(--spacing-md); font-size:0.95rem;"></div>
+          </form>
         </div>
 
-        <!-- Alternative Contact Info -->
-        <div style="max-width: 600px; margin: var(--spacing-3xl) auto 0; padding: var(--spacing-2xl); background: var(--light-bg); border-radius: 8px;">
-            <h3 style="text-align: center;">Prefer to Call?</h3>
-            <p style="text-align: center; color: var(--gray-light); margin-bottom: var(--spacing-lg);">
-                You can also reach us directly:
-            </p>
-            <div style="display: flex; justify-content: center; gap: var(--spacing-lg); flex-wrap: wrap;">
-                <a href="tel:+254707711888" class="btn-primary" style="text-decoration: none; display: inline-block;">Call: +254 707 711 888</a>
-                <a href="https://wa.me/254707711888" class="btn-secondary" target="_blank" rel="noopener noreferrer" style="text-decoration: none; display: inline-block;">WhatsApp</a>
+        <div class="section-card">
+          <h3 class="text-center">Prefer to Call?</h3>
+          <p class="section-intro">You can also reach us directly:</p>
+          <div class="cta-buttons">
+            <a href="tel:+254707711888" class="btn-primary">Call: +254 707 711 888</a>
+            <a href="https://wa.me/254707711888" class="btn-secondary" target="_blank" rel="noopener">WhatsApp</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER (single) -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <span>&copy; 2026 Mwein Medical. All rights reserved.</span>
+                <span>Contact: <a href="mailto:info@mweinmedical.co.ke">info@mweinmedical.co.ke</a></span>
+                <span>
+                    <a href="https://twitter.com/mweinmedical" target="_blank" rel="noopener" aria-label="Twitter">
+                        <svg width="24" height="24" fill="#0074D9"><path d="M23 3a10.9 10.9 0 01-3.14 1.53A4.48 4.48 0 0022.4.96a9.09 9.09 0 01-2.88 1.1A4.48 4.48 0 0016.5 0c-2.5 0-4.5 2.02-4.5 4.5 0 .35.04.7.1 1.03A12.94 12.94 0 013 1.1a4.48 4.48 0 001.39 6A4.48 4.48 0 012.8 6.7v.06c0 2.2 1.57 4.04 3.88 4.46a4.48 4.48 0 01-2.04.08c.58 1.8 2.26 3.12 4.25 3.15A9.05 9.05 0 010 21.54a12.94 12.94 0 007.03 2.06c8.44 0 13.07-7.01 13.07-13.07 0-.2 0-.39-.02-.58A9.36 9.36 0 0023 3z"/></svg>
+                    </a>
+                    <a href="https://facebook.com/mweinmedical" target="_blank" rel="noopener" aria-label="Facebook">
+                        <svg width="24" height="24" fill="#0074D9"><path d="M22.675 0h-21.35C.6 0 0 .6 0 1.325v21.351C0 23.4.6 24 1.325 24h11.495v-9.294H9.691v-3.622h3.129V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.797.143v3.24l-1.918.001c-1.504 0-1.797.715-1.797 1.763v2.313h3.587l-.467 3.622h-3.12V24h6.104C23.4 24 24 23.4 24 22.675V1.325C24 .6 23.4 0 22.675 0z"/></svg>
+                    </a>
+                </span>
             </div>
         </div>
-    </div>
-</section>
+    </footer>
 
-<!-- FOOTER -->
-<footer class="footer">
-    <div class="container">
-        <p>&copy; 2026 Mwein Medical Services. Licensed healthcare facility | <strong>SHA Registered Provider</strong></p>
-        <p style="font-size: 0.9rem; color: var(--gray-light);">
-            Mungatsi, Busia County, Kenya | Emergency: +254 707 711 888 | 24 Hours, 7 Days a Week
-        </p>
-    </div>
-</footer>
-<footer class="footer">
-    <div class="container">
-        <div class="footer-content">
-            <span>&copy; 2026 Mwein Medical. All rights reserved.</span>
-            <span>Contact: <a href="mailto:info@mweinmedical.co.ke">info@mweinmedical.co.ke</a></span>
-            <span>
-                <a href="https://twitter.com/mweinmedical" target="_blank" rel="noopener" aria-label="Twitter">
-                    <svg width="24" height="24" fill="#0074D9"><path d="M23 3a10.9 10.9 0 01-3.14 1.53A4.48 4.48 0 0022.4.96a9.09 9.09 0 01-2.88 1.1A4.48 4.48 0 0016.5 0c-2.5 0-4.5 2.02-4.5 4.5 0 .35.04.7.1 1.03A12.94 12.94 0 013 1.1a4.48 4.48 0 001.39 6A4.48 4.48 0 012.8 6.7v.06c0 2.2 1.57 4.04 3.88 4.46a4.48 4.48 0 01-2.04.08c.58 1.8 2.26 3.12 4.25 3.15A9.05 9.05 0 010 21.54a12.94 12.94 0 007.03 2.06c8.44 0 13.07-7.01 13.07-13.07 0-.2 0-.39-.02-.58A9.36 9.36 0 0023 3z"/></svg>
-                </a>
-                <a href="https://facebook.com/mweinmedical" target="_blank" rel="noopener" aria-label="Facebook">
-                    <svg width="24" height="24" fill="#0074D9"><path d="M22.675 0h-21.35C.6 0 0 .6 0 1.325v21.351C0 23.4.6 24 1.325 24h11.495v-9.294H9.691v-3.622h3.129V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.797.143v3.24l-1.918.001c-1.504 0-1.797.715-1.797 1.763v2.313h3.587l-.467 3.622h-3.12V24h6.104C23.4 24 24 23.4 24 22.675V1.325C24 .6 23.4 0 22.675 0z"/></svg>
-                </a>
-            </span>
-        </div>
-    </div>
-</footer>
-<!-- FLOATING BUTTONS -->
-<a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services" class="whatsapp-float" title="Contact us on WhatsApp" aria-label="Contact us on WhatsApp">WhatsApp</a>
-<a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services.%20I%20would%20like%20to%20share%20feedback%20about%20my%20visit" class="feedback-float" title="Send feedback" aria-label="Send feedback on WhatsApp">Feedback</a>
-<button id="darkToggle" class="dark-toggle" aria-label="Toggle dark mode">Dark</button>
+    <!-- FLOATING BUTTONS -->
+    <a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services" class="whatsapp-float" title="Contact us on WhatsApp" aria-label="Contact us on WhatsApp">WhatsApp</a>
+    <a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services.%20I%20would%20like%20to%20share%20feedback%20about%20my%20visit" class="feedback-float" title="Send feedback" aria-label="Send feedback on WhatsApp">Feedback</a>
+    <button id="darkToggle" class="dark-toggle" aria-label="Toggle dark mode">Dark</button>
 
-<!-- Site JS -->
-<script src="js/main.js"></script>
-
-<script>
-    // Set minimum date to today
-    document.getElementById('date').min = new Date().toISOString().split('T')[0];
-
-    // Form submission handling
-    document.getElementById('appointmentForm').addEventListener('submit', function(e) {
+    <!-- Site JS -->
+    <script src="js/main.js"></script>
+    <script>
+      document.getElementById('date').min = new Date().toISOString().split('T')[0];
+      document.getElementById('appointmentForm').addEventListener('submit', function(e) {
         const date = new Date(document.getElementById('date').value);
-        if (date < new Date()) {
-            e.preventDefault();
-            alert('Please select a future date for your appointment.');
-        }
-    });
-</script>
-
-</body>
-</html>
+        if (date < new Date()) { e.preventDefault(); alert('Please select a future date for your appointment.'); }
+      });
+      document.getElementById('appointmentForm').addEventListener('submit', function(e) {
+        const date = new Date(document.getElementById('date').value);
+        if (date < new Date()) { e.preventDefault(); alert('Please select a future date for your appointment.'); }
+      });    </script></body></html>

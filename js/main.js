@@ -146,6 +146,36 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // Set min date to today (local) and validate future date
+    (() => {
+      const dateInput = document.getElementById('date');
+      if (dateInput) {
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const iso = new Date(today.getTime() - today.getTimezoneOffset()*60000)
+          .toISOString().split('T')[0];
+        dateInput.min = iso;
+      }
+      const form = document.getElementById('appointmentForm');
+      const statusEl = document.getElementById('formStatus');
+      if (form) {
+        form.addEventListener('submit', (e) => {
+          if (!form.checkValidity()) return;
+          const dateVal = new Date(form.date.value);
+          dateVal.setHours(0,0,0,0);
+          const now = new Date(); now.setHours(0,0,0,0);
+          if (dateVal < now) {
+            e.preventDefault();
+            statusEl.textContent = 'Please select today or a future date.';
+            statusEl.style.color = 'var(--danger)';
+          } else {
+            statusEl.textContent = 'Submitting...';
+            statusEl.style.color = 'var(--gray)';
+          }
+        });
+      }
+    })();
+
     // =====================
     // SHOP: CSV import/export
     // =====================
@@ -254,5 +284,66 @@ document.addEventListener("DOMContentLoaded", () => {
         // Initial render
         renderProducts();
     }
+
+    // Snake strip pause/resume on click
+    document.querySelectorAll('.snake-message').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        // avoid toggling when clicking links/buttons inside
+        if (e.target.closest('a, button')) return;
+        el.classList.toggle('snake-paused');
+      });
+    });
+
+    // Show spinner on form submit
+    document.getElementById('appointmentForm').addEventListener('submit', function() {
+      const btn = document.getElementById('submitBtn');
+      const spinner = document.getElementById('spinner');
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+      spinner.style.display = 'inline-block';
+    });
 });
+
+// ========================================
+     GLOBAL SAFECARE & TRUST FOOTER
+     ========================================
+<footer class="footer">
+    <div class="container">
+        <div class="footer-content" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 2rem; margin-bottom: 2rem;">
+            <div class="footer-section">
+                <h4>🏥 Mwein Medical Services</h4>
+                <p style="font-size: 0.9rem; color: #aaa;">A licensed Level 2 Primary Healthcare Facility committed to SafeCare quality standards and continuous clinical improvement in Busia County.</p>
+                <ul style="list-style: none; padding: 0;">
+                    <li><strong>Emergency:</strong> <a href="tel:+254707711888">+254 707 711 888</a></li>
+                    <li><strong>Email:</strong> <a href="mailto:mweinmedical@gmail.com">mweinmedical@gmail.com</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-section">
+                <h4>🛡️ Patient Safety & Quality</h4>
+                <ul style="list-style: none; padding: 0;">
+                    <li><a href="quality.html">Our SafeCare Commitment</a></li>
+                    <li><a href="patient-rights.html">Rights & Responsibilities</a></li>
+                    <li><a href="privacy-policy.html">Data Protection Policy</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-section">
+                <h4>💬 Patient Feedback</h4>
+                <p style="font-size: 0.9rem; color: #aaa;">Your feedback drives our quality improvement.</p>
+                <ul style="list-style: none; padding: 0;">
+                    <li>
+                        <a href="https://wa.me/254707711888?text=Hello,%20I%20have%20a%20compliment/complaint" class="btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; display: inline-block; margin-top: 0.5rem; color: white; border-color: white;">
+                            Lodge Complaint / Compliment
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer-bottom" style="text-align: center; color: #888; font-size: 0.85rem;">
+            <p>&copy; 2026 Mwein Medical Services. All rights reserved. Contact: mweinmedical@gmail.com</p>
+        </div>
+    </div>
+</footer>
 

@@ -1203,5 +1203,367 @@ input::placeholder {
 }
 
 /* ================================
+   SNAKE MESSAGE ANIMATIONS (NEW!)
+================================ */
+
+.snake-message {
+  background: linear-gradient(135deg, rgba(14,165,233,0.04), rgba(14,165,233,0.02));
+  border-left: 4px solid var(--primary);
+  border-radius: 10px;
+  padding: var(--spacing-lg);
+  margin: var(--spacing-xl) 0;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.snake-message::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.16), transparent);
+  animation: snakeSlideLTR 14s linear infinite;
+  pointer-events: none;
+  opacity: 0.55; /* keep it unobtrusive */
+}
+
+.snake-message:hover::before,
+.snake-message.snake-paused::before {
+  animation-play-state: paused;
+}
+
+@keyframes snakeSlideLTR {
+  0%   { transform: translateX(0);    }
+  100% { transform: translateX(-200%); }
+}
+
+.snake-buttons { gap: 0.5rem; }
+.snake-btn { text-transform: uppercase; letter-spacing: 0.3px; }
+
+/* Dark Mode Support for Snake Messages */
+body.dark-mode .snake-message {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.15), rgba(14, 165, 233, 0.05));
+  border-left-color: var(--primary);
+}
+
+body.dark-mode .snake-content h4 {
+  color: var(--primary);
+}
+
+body.dark-mode .snake-content p {
+  color: var(--gray-light);
+}
+
+/* Mobile Responsive Snake Messages */
+@media (max-width: 768px) {
+  .snake-message {
+    padding: var(--spacing-lg);
+    margin: var(--spacing-lg) 0;
+  }
+
+  .snake-message .container {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .snake-icon {
+    width: 60px;
+    height: 60px;
+    font-size: 2rem;
+  }
+
+  .snake-content h4 {
+    margin-bottom: 0.75rem;
+  }
+
+  .snake-buttons {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .snake-btn {
+    flex: 1;
+    min-width: 120px;
+  }
+}
+
+@media (max-width: 480px) {
+  .snake-message .container {
+    flex-direction: column;
+  }
+
+  .snake-btn {
+    width: 100%;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .snake-buttons {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .snake-content {
+    min-width: 100%;
+  }
+}
+
+/* ================================
+   ENHANCED ANIMATIONS
+================================ */
+
+/* Pulse animation for WhatsApp button */
+@keyframes pulseWhatsApp {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(37, 211, 102, 0);
+  }
+}
+
+.whatsapp-float {
+  animation: pulseWhatsApp 2s infinite;
+}
+
+/* Float up animation */
+@keyframes floatUp {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* Glow effect on hover */
+@keyframes glow {
+  0%, 100% {
+    box-shadow: var(--shadow-md);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(14, 165, 233, 0.4);
+  }
+}
+
+.service-card:hover {
+  animation: glow 0.6s ease-in-out;
+}
+
+/* ================================
+   PREMIUM BUTTON ENHANCEMENTS
+================================ */
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.3s ease;
+}
+
+.btn-primary:hover::before {
+  left: 100%;
+}
+
+/* ================================
+   SERVICE CARD PREMIUM EFFECTS
+================================ */
+
+.service-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.service-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary), var(--primary-dark), transparent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+
+.service-card:hover::after {
+  transform: scaleX(1);
+}
+
+/* ================================
+   GRADIENT TEXT
+================================ */
+
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ================================
+   ENHANCED TESTIMONIAL STYLES
+================================ */
+
+.testimonial-card::before {
+  content: '"';
+  position: absolute;
+  top: -20px;
+  right: 20px;
+  font-size: 4rem;
+  color: var(--primary);
+  opacity: 0.1;
+  font-weight: 800;
+  font-family: Georgia, serif;
+}
+
+/* ================================
+   END PREMIUM ENHANCEMENTS
+================================ */
+/* ================================
    END STYLESHEET
 ================================ */
+
+/* ========================================
+   SECTION STYLING
+================================ */
+
+.section-snake,
+.section-about,
+.section-services,
+.section-benefits,
+.section-quality,
+.section-testimonials,
+.section-insurance,
+.section-booking,
+.section-telemedicine,
+.section-cta-main,
+.section-uhc,
+.section-donations {
+  padding: var(--spacing-2xl) var(--spacing-lg);
+  margin: var(--spacing-lg) 0;
+}
+
+.section-intro {
+  text-align: center;
+  color: var(--gray-light);
+  margin-bottom: var(--spacing-2xl);
+  font-size: 1.05rem;
+}
+
+.intro-text {
+  text-align: center;
+  font-size: 1.05rem;
+  max-width: 700px;
+  margin: 0 auto var(--spacing-2xl);
+  color: var(--gray);
+}
+
+.hero-cta {
+  display: flex;
+  gap: var(--spacing-lg);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: var(--spacing-lg) 0;
+}
+
+.hero-disclaimer {
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.85);
+  margin-top: var(--spacing-lg);
+}
+
+.telemedicine-cta {
+  display: flex;
+  gap: var(--spacing-lg);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: var(--spacing-xl);
+}
+
+.cta-buttons {
+  display: flex;
+  gap: var(--spacing-lg);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* END SECTION STYLING */
+
+/* Form layout */
+.form-card {
+  max-width: 620px;
+  margin: 0 auto;
+  background: var(--light-bg);
+  padding: var(--spacing-2xl);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+}
+.form-field { margin-bottom: var(--spacing-lg); }
+.form-label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid var(--gray-light);
+  border-radius: 6px;
+  font-size: 1rem;
+  background: #fff;
+}
+.form-textarea { min-height: 110px; resize: vertical; }
+.form-note { font-size: 0.9rem; color: var(--gray-light); margin-top: 0.4rem; }
+.section-card {
+  max-width: 620px;
+  margin: var(--spacing-2xl) auto 0;
+  padding: var(--spacing-2xl);
+  background: var(--light-bg);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* SafeCare & Compliance UI */
+.safecare-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    background: var(--success);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.clinical-alert {
+    background: #e8f4fd;
+    border-left: 4px solid var(--info);
+    padding: 1rem 1.5rem;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    margin: 1.5rem 0;
+}
+
+/* Loading Spinner */
+.spinner {
+  display: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
