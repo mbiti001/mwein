@@ -78,6 +78,21 @@ db.serialize(() => {
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
+    // Appointments table
+    db.run(`CREATE TABLE IF NOT EXISTS appointments (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        email TEXT,
+        service TEXT NOT NULL,
+        preferred_date TEXT NOT NULL,
+        preferred_time TEXT,
+        notes TEXT,
+        status TEXT DEFAULT 'pending',
+        ip_address TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
     console.log('Database tables initialized');
 });
 
@@ -193,11 +208,14 @@ app.get('/api/analytics/dashboard', authenticateToken, (req, res) => {
         db.get('SELECT COUNT(*) as total_page_views FROM page_views', (err2, views) => {
             db.get('SELECT COUNT(*) as total_actions FROM user_actions', (err3, actions) => {
                 db.get('SELECT COUNT(*) as total_submissions FROM form_submissions', (err4, submissions) => {
-                    res.json({
-                        total_visitors: visitors?.total_visitors || 0,
-                        total_page_views: views?.total_page_views || 0,
-                        total_actions: actions?.total_actions || 0,
-                        total_submissions: submissions?.total_submissions || 0
+                    db.get("SELECT COUNT(*) as total_appointments FROM appointments WHERE status = 'pending'", (err5, appointments) => {
+                        res.json({
+                            total_visitors: visitors?.total_visitors || 0,
+                            total_page_views: views?.total_page_views || 0,
+                            total_actions: actions?.total_actions || 0,
+                            total_submissions: submissions?.total_submissions || 0,
+                            total_appointments: appointments?.total_appointments || 0
+                        });
                     });
                 });
             });
@@ -250,6 +268,56 @@ app.post('/api/track/form-submission', (req, res) => {
             res.json({ success: true });
         }
     );
+});
+
+// =====================================
+// APPOINTMENTS ROUTES
+// =====================================
+
+// Book appointment (public)
+app.post('/api/appointments', (req, res) => {
+    const { name, phone, email, service, preferred_date, preferred_time, notes } = req.body;
+    const ip_address = req.ip || req.connection.remoteAddress;
+
+    if (!name || !phone || !service || !preferred_date) {
+        return res.status(400).json({ error: 'Name, phone, service, and preferred date are required' });
+    }
+
+    db.run(
+        'INSERT INTO appointments (name, phone, email, service, preferred_date, preferred_time, notes, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [name.trim(), phone.trim(), email?.trim() || null, service, preferred_date, preferred_time || null, notes?.trim() || null, ip_address],
+        function(err) {
+            if (err) {
+                console.error('Error saving appointment:', err);
+                return res.status(500).json({ error: 'Failed to save appointment' });
+            }
+            res.status(201).json({ success: true, id: this.lastID, message: 'Appointment booked successfully' });
+        }
+    );
+});
+
+// Get all appointments (admin only)
+app.get('/api/appointments', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM appointments ORDER BY created_at DESC', (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        res.json(rows || []);
+    });
+});
+
+// Update appointment status (admin only)
+app.patch('/api/appointments/:id', authenticateToken, (req, res) => {
+    const { status } = req.body;
+    const { id } = req.params;
+
+    if (!['pending', 'confirmed', 'cancelled'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status. Must be pending, confirmed, or cancelled' });
+    }
+
+    db.run('UPDATE appointments SET status = ? WHERE id = ?', [status, parseInt(id, 10)], function(err) {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        if (this.changes === 0) return res.status(404).json({ error: 'Appointment not found' });
+        res.json({ success: true, message: `Appointment marked as ${status}` });
+    });
 });
 
 // =====================================

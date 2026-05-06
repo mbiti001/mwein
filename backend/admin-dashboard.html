@@ -134,6 +134,32 @@
             color: #94a3b8;
         }
 
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .badge-pending  { background: #78350f; color: #fde68a; }
+        .badge-confirmed { background: #14532d; color: #86efac; }
+        .badge-cancelled { background: #7f1d1d; color: #fecaca; }
+
+        .action-btn {
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-right: 4px;
+        }
+        .btn-confirm  { background: #16a34a; color: white; }
+        .btn-cancel   { background: #dc2626; color: white; }
+        .btn-confirm:hover { background: #15803d; }
+        .btn-cancel:hover  { background: #b91c1c; }
+
         @media (max-width: 768px) {
             .dashboard {
                 grid-template-columns: 1fr;
@@ -178,6 +204,10 @@
                 <h3>Form Submissions</h3>
                 <div class="number" id="totalSubmissions">0</div>
             </div>
+            <div class="stat-card" style="border-color: #0ea5e9;">
+                <h3>Pending Appointments</h3>
+                <div class="number" id="totalAppointments">0</div>
+            </div>
         </div>
 
         <!-- Page Views Breakdown -->
@@ -202,6 +232,12 @@
         <div class="section">
             <h2>📋 Form Submissions</h2>
             <div id="formSubmissions" class="loading">Loading...</div>
+        </div>
+
+        <!-- Appointments -->
+        <div class="section">
+            <h2>📅 Appointment Requests</h2>
+            <div id="appointmentsTable" class="loading">Loading...</div>
         </div>
     </div>
 
@@ -229,6 +265,7 @@
                 document.getElementById('totalPageViews').textContent = data.total_page_views;
                 document.getElementById('totalActions').textContent = data.total_actions;
                 document.getElementById('totalSubmissions').textContent = data.total_submissions;
+                document.getElementById('totalAppointments').textContent = data.total_appointments || 0;
             } catch (err) {
                 console.error('Error fetching dashboard:', err);
             }
@@ -316,12 +353,81 @@
             window.location.href = 'admin-login.html';
         }
 
+        async function fetchAppointments() {
+            try {
+                const res = await fetch(`${API_URL}/appointments`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+
+                if (!data.length) {
+                    document.getElementById('appointmentsTable').innerHTML = '<p style="color:#94a3b8;">No appointments yet.</p>';
+                    return;
+                }
+
+                let table = `<table><thead><tr>
+                    <th>#</th><th>Name</th><th>Phone</th><th>Email</th><th>Service</th>
+                    <th>Date</th><th>Time</th><th>Notes</th><th>Status</th><th>Actions</th><th>Booked</th>
+                </tr></thead><tbody>`;
+                data.forEach(row => {
+                    const badgeClass = `badge-${row.status}`;
+                    table += `<tr id="appt-row-${row.id}">
+                        <td>${row.id}</td>
+                        <td>${escStr(row.name)}</td>
+                        <td>${escStr(row.phone)}</td>
+                        <td>${escStr(row.email || '-')}</td>
+                        <td>${escStr(row.service)}</td>
+                        <td>${escStr(row.preferred_date)}</td>
+                        <td>${escStr(row.preferred_time || '-')}</td>
+                        <td>${escStr(row.notes || '-')}</td>
+                        <td><span class="badge ${badgeClass}" id="appt-status-${row.id}">${row.status}</span></td>
+                        <td>
+                            <button class="action-btn btn-confirm" onclick="updateAppt(${row.id},'confirmed')">Confirm</button>
+                            <button class="action-btn btn-cancel" onclick="updateAppt(${row.id},'cancelled')">Cancel</button>
+                        </td>
+                        <td class="timestamp">${new Date(row.created_at).toLocaleString()}</td>
+                    </tr>`;
+                });
+                table += '</tbody></table>';
+                document.getElementById('appointmentsTable').innerHTML = table;
+            } catch (err) {
+                console.error('Error fetching appointments:', err);
+                document.getElementById('appointmentsTable').innerHTML = '<p class="error">Error loading appointments</p>';
+            }
+        }
+
+        async function updateAppt(id, status) {
+            try {
+                const res = await fetch(`${API_URL}/appointments/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const badge = document.getElementById(`appt-status-${id}`);
+                    if (badge) {
+                        badge.textContent = status;
+                        badge.className = `badge badge-${status}`;
+                    }
+                    fetchDashboard(); // Refresh pending count
+                }
+            } catch (err) {
+                alert('Failed to update appointment status.');
+            }
+        }
+
+        function escStr(s) {
+            return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+        }
+
         // Load all data on page load
         fetchDashboard();
         fetchPageViews();
         fetchRecentVisitors();
         fetchRecentActions();
         fetchFormSubmissions();
+        fetchAppointments();
 
         // Refresh data every 30 seconds
         setInterval(() => {
@@ -330,6 +436,7 @@
             fetchRecentVisitors();
             fetchRecentActions();
             fetchFormSubmissions();
+            fetchAppointments();
         }, 30000);
     </script>
 </body>

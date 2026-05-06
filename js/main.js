@@ -49,10 +49,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const applyDarkModeState = (isDark) => {
         if (isDark) {
             document.body.classList.add("dark-mode");
-            if (toggle) toggle.textContent = 'Light';
         } else {
             document.body.classList.remove("dark-mode");
-            if (toggle) toggle.textContent = 'Dark';
         }
     }
 
@@ -69,6 +67,52 @@ document.addEventListener("DOMContentLoaded", () => {
         applyDarkModeState(saved);
         toggle.setAttribute('aria-pressed', saved ? 'true' : 'false');
     }
+
+    // ======== HAMBURGER NAV TOGGLE ========
+    const navToggle = document.getElementById('navToggle');
+    const siteNav = document.getElementById('siteNav');
+
+    if (navToggle && siteNav) {
+        navToggle.addEventListener('click', () => {
+            const expanded = navToggle.getAttribute('aria-expanded') === 'true';
+            navToggle.setAttribute('aria-expanded', String(!expanded));
+            siteNav.setAttribute('aria-hidden', String(expanded));
+            siteNav.classList.toggle('nav--open', !expanded);
+            document.body.classList.toggle('nav-open', !expanded);
+            navToggle.classList.toggle('is-active', !expanded);
+        });
+
+        // Close nav when a link is clicked (mobile)
+        siteNav.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                navToggle.setAttribute('aria-expanded', 'false');
+                siteNav.setAttribute('aria-hidden', 'true');
+                siteNav.classList.remove('nav--open');
+                document.body.classList.remove('nav-open');
+                navToggle.classList.remove('is-active');
+            });
+        });
+
+        // Close nav on outside click
+        document.addEventListener('click', (e) => {
+            if (!navToggle.contains(e.target) && !siteNav.contains(e.target)) {
+                navToggle.setAttribute('aria-expanded', 'false');
+                siteNav.setAttribute('aria-hidden', 'true');
+                siteNav.classList.remove('nav--open');
+                document.body.classList.remove('nav-open');
+                navToggle.classList.remove('is-active');
+            }
+        });
+    }
+
+    // ======== ACTIVE NAV LINK ========
+    const currentFile = window.location.pathname.split('/').pop() || 'index.html';
+    document.querySelectorAll('.nav a').forEach(link => {
+        const linkFile = (link.getAttribute('href') || '').split('/').pop();
+        if (linkFile === currentFile || (currentFile === '' && linkFile === 'index.html')) {
+            link.classList.add('active');
+        }
+    });
 
     // ======== APPOINTMENT FORM ========
     // Appointment form handling: only intercept if the form has data-wa="true"
@@ -96,6 +140,44 @@ document.addEventListener("DOMContentLoaded", () => {
             document.body.appendChild(t);
             setTimeout(() => t.remove(), 4000);
         };
+
+        // API submission handler (posts directly to backend)
+        if (form.dataset.api === 'true') {
+            form.addEventListener("submit", async e => {
+                e.preventDefault();
+
+                const name = document.getElementById("name")?.value.trim() || '';
+                const phone = document.getElementById("phone")?.value.trim() || '';
+                const email = document.getElementById("email")?.value.trim() || '';
+                const service = document.getElementById("service")?.value || '';
+                const date = document.getElementById("date")?.value || '';
+                const time = document.getElementById("time")?.value || '';
+                const notes = document.getElementById("notes")?.value.trim() || '';
+
+                if (!name || !phone || !service || !date) {
+                    showToast("Please fill in all required fields.");
+                    return;
+                }
+
+                try {
+                    const res = await fetch('http://localhost:3000/api/appointments', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, phone, email, service, preferred_date: date, preferred_time: time, notes })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        form.reset();
+                        showToast("Appointment request submitted! We'll contact you to confirm.");
+                        trackAction('form_submission', window.location.pathname, { form_name: 'appointmentForm', service });
+                    } else {
+                        showToast(data.error || "Submission failed. Please try again.");
+                    }
+                } catch {
+                    showToast("Could not reach the server. Please call us directly.");
+                }
+            });
+        }
 
         // Only attach the WhatsApp redirect behavior when explicitly requested
         if (form.dataset.wa === 'true' || form.hasAttribute('data-wa')) {
