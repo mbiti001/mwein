@@ -29,6 +29,8 @@
 
     * { box-sizing: border-box; }
 
+    [hidden] { display: none !important; }
+
     .skip-link {
       position: fixed;
       left: 12px;
@@ -1015,18 +1017,25 @@
       font-weight: 800;
     }
 
+    .bar strong {
+      position: absolute;
+      top: -22px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.76rem;
+    }
+
     .donut {
       width: 158px;
       height: 158px;
       margin: 0 auto;
       border-radius: 50%;
-      background: conic-gradient(var(--teal) 0 62%, var(--blue) 62% 82%, var(--amber) 82% 93%, #e5e7eb 93% 100%);
+      background: conic-gradient(var(--teal) 0 0%, #e5e7eb 0% 100%);
       display: grid;
       place-items: center;
     }
 
-    .donut::after {
-      content: "93%";
+    .donut span {
       width: 92px;
       height: 92px;
       background: #fff;
@@ -1561,7 +1570,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        Version 1.0.0 structured laboratory pilot. Demo data only. Complete security certification before real patient use.
+        Version 1.1.0 live operations pilot. Complete security certification before real patient use.
       </div>
     </aside>
 
@@ -1613,7 +1622,7 @@
             </div>
             <button class="btn warning" id="offlineBtn">
               <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1l22 22"/><path d="M16.72 11.06A10.94 10.94 0 0 1 21 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/></svg>
-              Offline Ready
+              Cloud Required
             </button>
           </div>
 
@@ -1621,10 +1630,10 @@
             <article class="stat">
               <div class="stat-top">
                 <small>Patients today</small>
-                <span class="badge green">+12%</span>
+                <span class="badge green" id="todayVisitCount">0 visits</span>
               </div>
-              <strong id="todayCount">37</strong>
-              <small>11 waiting, 18 seen, 8 follow-ups</small>
+              <strong id="todayCount">0</strong>
+              <small id="todaySummary">Registered today in the clinical database</small>
             </article>
             <article class="stat">
               <div class="stat-top">
@@ -1644,11 +1653,11 @@
             </article>
             <article class="stat">
               <div class="stat-top">
-                <small>Compliance queue</small>
-                <span class="badge rose">Action</span>
+                <small>Open invoices</small>
+                <span class="badge blue" id="readyInvoiceCount">0 ready</span>
               </div>
-              <strong>5</strong>
-              <small>DPIA review, ESB logs, user access</small>
+              <strong id="openInvoiceCount">0</strong>
+              <small id="invoiceValue">KES 0 current value</small>
             </article>
           </div>
 
@@ -1656,23 +1665,22 @@
             <article class="readiness-card">
               <header>
                 <h2>Cloud Readiness</h2>
-                <span class="badge green">82%</span>
+                <span class="badge amber">In progress</span>
               </header>
-              <div class="progress" aria-label="Cloud readiness score"><span style="width:82%"></span></div>
               <ul class="mini-list">
-                <li>Encrypted sync queue and offline drafts are active.</li>
+                <li>Authenticated API and transactional clinical persistence are active.</li>
                 <li>Role-based workflows are mapped for clinician, nurse, lab, pharmacy, billing, and admin.</li>
                 <li>Facility onboarding pack still needs final DHA test evidence.</li>
               </ul>
             </article>
             <article class="readiness-card">
               <header>
-                <h2>Clinical Safety</h2>
-                <span class="badge amber">Review 4</span>
+                <h2>Data Quality</h2>
+                <span class="badge blue" id="dashboardQualityScore">0% complete</span>
               </header>
-              <div class="metric-row"><span class="muted">Allergy conflicts</span><strong>1</strong></div>
-              <div class="metric-row"><span class="muted">Critical stock risks</span><strong>3</strong></div>
-              <div class="metric-row"><span class="muted">Unsigned notes</span><strong>4</strong></div>
+              <div class="metric-row"><span class="muted">Missing diagnosis code</span><strong id="dashboardMissingDiagnosis">0</strong></div>
+              <div class="metric-row"><span class="muted">Missing next of kin</span><strong id="dashboardMissingKin">0</strong></div>
+              <div class="metric-row"><span class="muted">Unsigned notes</span><strong id="dashboardUnsignedNotes">0</strong></div>
             </article>
             <article class="readiness-card">
               <header>
@@ -1697,7 +1705,7 @@
               <div class="clinical-map" role="img" aria-label="Abstract service area map showing facility coverage">
                 <div class="map-label">
                   <h3>Busia primary care hub</h3>
-                  <p>Built for cloud sync with local downtime capture, facility-level reporting, and future exchange with national shared health record services.</p>
+                  <p>Built for secure cloud persistence, facility-level reporting, and future exchange with national shared health record services.</p>
                 </div>
               </div>
             </section>
@@ -2179,26 +2187,18 @@
                 <h2>Visits This Week</h2>
                 <p class="muted">OPD, chronic review, ANC, emergency stabilization, and lab-only encounters.</p>
               </div>
-              <div class="bar-chart" aria-label="Weekly visits chart">
-                <div class="bar" style="height:44%"><span>Mon</span></div>
-                <div class="bar" style="height:58%; background:var(--blue)"><span>Tue</span></div>
-                <div class="bar" style="height:72%"><span>Wed</span></div>
-                <div class="bar" style="height:64%; background:var(--amber)"><span>Thu</span></div>
-                <div class="bar" style="height:86%"><span>Fri</span></div>
-                <div class="bar" style="height:51%; background:var(--blue)"><span>Sat</span></div>
-                <div class="bar" style="height:35%; background:var(--green)"><span>Sun</span></div>
-              </div>
+              <div class="bar-chart" id="weeklyVisitBars" aria-label="Weekly visits chart"></div>
             </article>
 
             <article class="chart-card">
               <div>
                 <h2>Data Quality</h2>
-                <p class="muted">Completeness across identifiers, consent, coded diagnosis, signed note, and claim packet.</p>
+                <p class="muted">Completeness across next-of-kin details, coded diagnosis, and signed notes.</p>
               </div>
-              <div class="donut" aria-label="Data quality 93 percent"></div>
+              <div class="donut" id="dataQualityDonut" aria-label="Data quality 0 percent"><span id="dataQualityScore">0%</span></div>
               <ul class="mini-list">
-                <li>7 records need coded diagnosis.</li>
-                <li>3 records need next-of-kin details.</li>
+                <li><span id="missingDiagnosisCount">0</span> records need coded diagnosis.</li>
+                <li><span id="missingKinCount">0</span> records need next-of-kin details.</li>
               </ul>
             </article>
 
@@ -2208,14 +2208,14 @@
                 <p class="muted">Simple heat map for queue planning and staffing decisions.</p>
               </div>
               <div class="heat-grid">
-                <div class="heat-cell">OPD<small>37</small></div>
-                <div class="heat-cell busy">Lab<small>24</small></div>
-                <div class="heat-cell">ANC<small>8</small></div>
-                <div class="heat-cell urgent">Pharm<small>19</small></div>
-                <div class="heat-cell">Claims<small>11</small></div>
-                <div class="heat-cell busy">Chronic<small>14</small></div>
-                <div class="heat-cell">Ultrasound<small>5</small></div>
-                <div class="heat-cell urgent">Stock<small>3</small></div>
+                <div class="heat-cell">Patients<small id="pressurePatients">0</small></div>
+                <div class="heat-cell busy">Visits<small id="pressureVisits">0</small></div>
+                <div class="heat-cell">Labs done<small id="pressureLabsDone">0</small></div>
+                <div class="heat-cell urgent">Lab queue<small id="pressureLabQueue">0</small></div>
+                <div class="heat-cell">Dispensed<small id="pressureDispensed">0</small></div>
+                <div class="heat-cell busy">Pharmacy<small id="pressurePharmacy">0</small></div>
+                <div class="heat-cell">Open bills<small id="pressureOpenBills">0</small></div>
+                <div class="heat-cell urgent">Ready bills<small id="pressureReadyBills">0</small></div>
               </div>
             </article>
           </div>
@@ -2250,12 +2250,12 @@
               <article class="rubric-card">
                 <span class="badge blue">Strong</span>
                 <strong>Technical depth</strong>
-                <p>Offline draft model, exportable report, PWA shell, role selector, and architecture plan are included.</p>
+                <p>Authenticated clinical API, transactional workflows, live database metrics, exportable reports, and PWA shell are included.</p>
               </article>
               <article class="rubric-card">
                 <span class="badge amber">Next step</span>
                 <strong>Production gap</strong>
-                <p>Needs authenticated backend, database, real integrations, penetration testing, and certification evidence.</p>
+                <p>Needs managed database hosting, identity-provider MFA, real integrations, penetration testing, and certification evidence.</p>
               </article>
             </div>
           </section>
@@ -2296,7 +2296,7 @@
           <section class="panel">
             <h2>Cloud Architecture</h2>
             <div class="grid architecture">
-              <div class="arch-node"><strong>Clinic devices</strong><small>Browser app, offline drafts, signed encounter queue.</small></div>
+              <div class="arch-node"><strong>Clinic devices</strong><small>Browser app, secure sessions, and server-backed clinical workflows.</small></div>
               <div class="arch-node"><strong>API gateway</strong><small>MFA, rate limits, facility tenancy, role checks.</small></div>
               <div class="arch-node"><strong>Clinical store</strong><small>Encrypted records, audit hash chain, backup policy.</small></div>
               <div class="arch-node"><strong>Integration layer</strong><small>FHIR-ready resources, lab, claims, national exchange adapter.</small></div>
@@ -2434,43 +2434,12 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script nonce="__CSP_NONCE__">
-    const defaultPatients = [
-      { name: "Achieng Otieno", id: "CHU-4481-029", phone: "+254 712 406 221", sex: "Female", age: 31, county: "Busia", subcounty: "Matayos", residence: "Matayos", program: "SHA", kin: "Grace Otieno, sister", risk: "Allergy", last: "Today 10:44" },
-      { name: "Peter Wekesa", id: "CHU-2259-118", phone: "+254 700 111 908", sex: "Male", age: 54, county: "Busia", subcounty: "Nambale", residence: "Nambale", program: "SHA", kin: "Rose Wekesa, spouse", risk: "Diabetes", last: "Today 09:20" },
-      { name: "Faith Naliaka", id: "CHU-9012-477", phone: "+254 733 820 774", sex: "Female", age: 26, county: "Bungoma", subcounty: "Webuye East", residence: "Webuye", program: "Cash / self-pay", kin: "Moses Simiyu, partner", risk: "ANC", last: "Yesterday" },
-      { name: "Brian Ouma", id: "CHU-6634-021", phone: "+254 745 188 441", sex: "Male", age: 8, county: "Siaya", subcounty: "Ugunja", residence: "Ugunja", program: "Facility waiver", kin: "Janet Ouma, mother", risk: "Pediatric", last: "2026-07-10" }
-    ];
-
-    const defaultAudit = [
-      ["10:44", "DK", "Encounter signed", "CHU-4481-029", "Hash verified"],
-      ["10:31", "Nurse A", "Vitals captured", "CHU-4481-029", "Hash verified"],
-      ["09:26", "Lab Tech", "RBS result posted", "CHU-2259-118", "Hash verified"],
-      ["08:51", "Admin", "User role updated", "USR-014", "Supervisor approved"]
-    ];
-
-    const queue = [
-      ["AO", "Achieng Otieno", "Fever and headache", "Triage"],
-      ["PW", "Peter Wekesa", "Diabetes review", "Clinician"],
-      ["FN", "Faith Naliaka", "ANC follow-up", "Lab"],
-      ["BO", "Brian Ouma", "Cough and fever", "Waiting"]
-    ];
-
-    const defaultPrescriptions = [
-      { medicine: "Paracetamol 500mg", dose: "1g", frequency: "TDS", duration: "3 days", instructions: "Take after meals. Do not exceed 4g in 24 hours.", status: "Ready" },
-      { medicine: "ORS sachets", dose: "1 sachet in clean water", frequency: "After each loose stool", duration: "2 days", instructions: "Prepare with safe water and discard mixed solution after 24 hours.", status: "Counsel" }
-    ];
-
-    const browserFileMode = location.protocol === "file:";
-    if (!browserFileMode) {
-      localStorage.removeItem("mweinPatients");
-      localStorage.removeItem("mweinAudit");
-      localStorage.removeItem("mweinPrescriptions");
-    }
+    const queue = [];
 
     const state = {
-      patients: browserFileMode ? (JSON.parse(localStorage.getItem("mweinPatients") || "null") || defaultPatients) : [],
-      audit: browserFileMode ? (JSON.parse(localStorage.getItem("mweinAudit") || "null") || defaultAudit) : [],
-      prescriptions: browserFileMode ? (JSON.parse(localStorage.getItem("mweinPrescriptions") || "null") || defaultPrescriptions) : [],
+      patients: [],
+      audit: [],
+      prescriptions: [],
       activePatientUuid: null,
       backendConnected: false,
       user: null,
@@ -2478,6 +2447,7 @@
       formulary: [],
       workflow: { labCatalog: [], labWorklist: [], pharmacyQueue: [], invoices: [] },
       activeWorkflow: { labOrders: [], pharmacyOrders: [], invoices: [] },
+      metrics: { visitsByDay: [], dataQuality: {} },
       lastPrescriptionScreening: null
     };
 
@@ -2485,18 +2455,11 @@
     const toast = document.getElementById("toast");
     const duplicateAlert = document.getElementById("duplicateAlert");
 
-    function saveState() {
-      if (!browserFileMode) return;
-      localStorage.setItem("mweinPatients", JSON.stringify(state.patients));
-      localStorage.setItem("mweinAudit", JSON.stringify(state.audit));
-      localStorage.setItem("mweinPrescriptions", JSON.stringify(state.prescriptions));
-    }
-
     function escapeHtml(value) {
       return String(value ?? "").replace(/[&<>'"]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]);
     }
 
-    function setSyncStatus(connected, label = connected ? "Cloud connected" : "Offline draft mode") {
+    function setSyncStatus(connected, label = connected ? "Cloud connected" : "Clinical service unavailable") {
       state.backendConnected = connected;
       const status = document.getElementById("syncStatus");
       status.lastChild.textContent = ` ${label}`;
@@ -2575,11 +2538,9 @@
       state.formulary = [];
       state.workflow = { labCatalog: [], labWorklist: [], pharmacyQueue: [], invoices: [] };
       state.activeWorkflow = { labOrders: [], pharmacyOrders: [], invoices: [] };
+      state.metrics = { visitsByDay: [], dataQuality: {} };
       state.lastPrescriptionScreening = null;
       state.activePatientUuid = null;
-      localStorage.removeItem("mweinPatients");
-      localStorage.removeItem("mweinAudit");
-      localStorage.removeItem("mweinPrescriptions");
       renderPatients();
       renderAudit();
       renderPrescriptions();
@@ -2587,6 +2548,7 @@
       renderPrescriptionScreening(null);
       renderWorkflowBoards();
       renderEncounterLabs();
+      renderMetrics();
       showAuth();
     }
 
@@ -2606,14 +2568,15 @@
         state.prescriptionPlugins = payload.prescriptionPlugins || [];
         state.formulary = payload.formulary || [];
         state.workflow = payload.workflow || state.workflow;
+        state.metrics = payload.metrics || state.metrics;
         applyAuthenticatedUser(payload.user);
-        saveState();
         renderPatients(document.getElementById("globalSearch").value);
         renderAudit();
         populateFormulary();
         populateLabCatalog();
         renderPrescriptionPlugins();
         renderWorkflowBoards();
+        renderMetrics();
         setSyncStatus(true);
         await setActivePatient(state.patients[0]?.uuid || state.patients[0]?.name);
       } catch (error) {
@@ -2630,7 +2593,7 @@
     }
 
     function renderQueue() {
-      document.getElementById("triageQueue").innerHTML = queue.map((item, index) => `
+      document.getElementById("triageQueue").innerHTML = queue.length ? queue.map((item, index) => `
         <div class="queue-row">
           <div class="patient-initial">${item[0]}</div>
           <div>
@@ -2639,7 +2602,7 @@
           </div>
           <span class="badge ${iconColors[index]}">${item[3]}</span>
         </div>
-      `).join("");
+      `).join("") : `<div class="muted">No active triage visits. Start a new visit to begin an encounter.</div>`;
     }
 
     function riskClass(risk) {
@@ -2760,6 +2723,59 @@
       return `KES ${new Intl.NumberFormat("en-KE").format(Number(amount) || 0)}`;
     }
 
+    function renderMetrics() {
+      const metrics = state.metrics || {};
+      const quality = metrics.dataQuality || {};
+      document.getElementById("todayCount").textContent = metrics.patientsToday || 0;
+      document.getElementById("todayVisitCount").textContent = `${metrics.signedEncountersToday || 0} visits`;
+      document.getElementById("todaySummary").textContent = `${metrics.totalPatients || 0} patients in the clinical database`;
+      document.getElementById("openLabCount").textContent = metrics.openLabOrders || 0;
+      document.getElementById("urgentLabCount").textContent = `${metrics.urgentLabOrders || 0} urgent`;
+      document.getElementById("pharmacyTaskCount").textContent = metrics.pharmacyQueue || 0;
+      document.getElementById("openInvoiceCount").textContent = metrics.openInvoices || 0;
+      document.getElementById("readyInvoiceCount").textContent = `${metrics.readyInvoices || 0} ready`;
+      document.getElementById("invoiceValue").textContent = `${formatKes(metrics.openInvoiceValue)} current value`;
+
+      const score = Math.max(0, Math.min(100, Number(quality.score) || 0));
+      const donut = document.getElementById("dataQualityDonut");
+      donut.style.background = `conic-gradient(var(--teal) 0 ${score}%, #e5e7eb ${score}% 100%)`;
+      donut.setAttribute("aria-label", `Data quality ${score} percent`);
+      document.getElementById("dataQualityScore").textContent = `${score}%`;
+      document.getElementById("missingDiagnosisCount").textContent = quality.missingDiagnosisCodes || 0;
+      document.getElementById("missingKinCount").textContent = quality.missingNextOfKin || 0;
+      document.getElementById("dashboardQualityScore").textContent = `${score}% complete`;
+      document.getElementById("dashboardMissingDiagnosis").textContent = quality.missingDiagnosisCodes || 0;
+      document.getElementById("dashboardMissingKin").textContent = quality.missingNextOfKin || 0;
+      document.getElementById("dashboardUnsignedNotes").textContent = quality.unsignedNotes || 0;
+
+      const visits = metrics.visitsByDay || [];
+      const maximum = Math.max(1, ...visits.map(day => Number(day.count) || 0));
+      const colors = ["var(--teal)", "var(--blue)", "var(--teal)", "var(--amber)", "var(--teal)", "var(--blue)", "var(--green)"];
+      document.getElementById("weeklyVisitBars").innerHTML = visits.map((day, index) => {
+        const count = Number(day.count) || 0;
+        const height = count ? Math.max(18, Math.round((count / maximum) * 86)) : 8;
+        return `<div class="bar" style="height:${height}%; background:${colors[index % colors.length]}" title="${escapeHtml(day.label)}: ${count} signed visits"><strong>${count}</strong><span>${escapeHtml(day.label)}</span></div>`;
+      }).join("");
+
+      const pressure = {
+        pressurePatients: metrics.patientsToday,
+        pressureVisits: metrics.signedEncountersToday,
+        pressureLabsDone: metrics.completedLabsToday,
+        pressureLabQueue: metrics.openLabOrders,
+        pressureDispensed: metrics.dispensedPrescriptions,
+        pressurePharmacy: metrics.pharmacyQueue,
+        pressureOpenBills: metrics.openInvoices,
+        pressureReadyBills: metrics.readyInvoices
+      };
+      Object.entries(pressure).forEach(([id, value]) => { document.getElementById(id).textContent = value || 0; });
+    }
+
+    async function refreshMetrics() {
+      const payload = await apiRequest("/api/metrics");
+      state.metrics = payload.metrics;
+      renderMetrics();
+    }
+
     function populateLabCatalog() {
       const select = document.getElementById("labTest");
       const catalog = state.workflow.labCatalog || [];
@@ -2876,6 +2892,7 @@
       state.workflow = payload.workflow;
       populateLabCatalog();
       renderWorkflowBoards();
+      await refreshMetrics();
     }
 
     function populateFormulary() {
@@ -2981,7 +2998,6 @@
         try {
           const payload = await apiRequest(`/api/patients/${encodeURIComponent(patient.uuid)}/workflow`);
           applyActiveWorkflow(payload.workflow);
-          saveState();
         } catch { setSyncStatus(false); }
       }
     }
@@ -2991,17 +3007,7 @@
         facility: "Mwein Medical Services",
         county: "Busia",
         generatedAt: new Date().toISOString(),
-        totals: {
-          patientsToday: 37,
-          openLabOrders: 24,
-          pharmacyTasks: 19,
-          complianceActions: 5
-        },
-        dataQuality: {
-          completenessScore: 93,
-          missingDiagnosisCodes: 7,
-          missingNextOfKin: 3
-        },
+        metrics: state.metrics,
         patients: state.patients,
         prescriptions: state.prescriptions,
         audit: state.audit.slice(0, 20)
@@ -3049,21 +3055,18 @@
         instructions,
         reviewAcknowledged
       };
+      if (!state.backendConnected || !state.activePatientUuid) {
+        showToast("Connect to the secure clinical service and select a patient before prescribing.");
+        return;
+      }
       try {
-        if (state.backendConnected && state.activePatientUuid) {
-          const payload = await apiRequest(`/api/patients/${encodeURIComponent(state.activePatientUuid)}/prescriptions`, { method: "POST", body: JSON.stringify(prescription) });
-          state.audit = payload.audit;
-          await refreshWorkflow(payload.workflow);
-        } else {
-          state.prescriptions.push(prescription);
-          state.audit.unshift([new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), state.user?.initials || "OFF", "Prescription added", medicine, allergyConflict ? "Allergy review" : "Local draft"]);
-        }
+        const payload = await apiRequest(`/api/patients/${encodeURIComponent(state.activePatientUuid)}/prescriptions`, { method: "POST", body: JSON.stringify(prescription) });
+        state.audit = payload.audit;
+        await refreshWorkflow(payload.workflow);
       } catch (error) {
         showToast(error.message);
         return;
       }
-      saveState();
-      if (!state.backendConnected) renderPrescriptions();
       renderAudit();
       generateVisitSummary();
       document.getElementById("rxMedicine").value = "";
@@ -3193,23 +3196,18 @@
       }
       const removeRx = event.target.closest("[data-remove-rx]");
       if (removeRx) {
-        const index = Number(removeRx.dataset.removeRx);
-        const removed = state.prescriptions[index];
+        if (!state.backendConnected || !removeRx.dataset.rxUuid) {
+          showToast("The secure clinical service is required to remove a prescription.");
+          return;
+        }
         try {
-          if (state.backendConnected && removeRx.dataset.rxUuid) {
-            const payload = await apiRequest(`/api/prescriptions/${encodeURIComponent(removeRx.dataset.rxUuid)}`, { method: "DELETE" });
-            state.audit = payload.audit;
-            await refreshWorkflow(payload.workflow);
-          } else {
-            state.audit.unshift([new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), state.user?.initials || "OFF", "Prescription removed", removed?.medicine || "Prescription", "Local draft"]);
-            state.prescriptions.splice(index, 1);
-          }
+          const payload = await apiRequest(`/api/prescriptions/${encodeURIComponent(removeRx.dataset.rxUuid)}`, { method: "DELETE" });
+          state.audit = payload.audit;
+          await refreshWorkflow(payload.workflow);
         } catch (error) {
           showToast(error.message);
           return;
         }
-        saveState();
-        if (!state.backendConnected) renderPrescriptions();
         renderAudit();
         generateVisitSummary();
         showToast("Prescription and invoice line removed from this visit.");
@@ -3233,28 +3231,25 @@
 
     document.getElementById("patientForm").addEventListener("submit", async event => {
       event.preventDefault();
+      if (!state.backendConnected) {
+        showToast("The secure clinical service is required to register a patient.");
+        return;
+      }
       const formData = new FormData(event.currentTarget);
       const patient = Object.fromEntries(formData.entries());
       const startVisitAfterSave = patient.startVisit === "on";
       delete patient.startVisit;
       let savedPatient = patient;
       try {
-        if (state.backendConnected) {
-          const payload = await apiRequest("/api/patients", { method: "POST", body: JSON.stringify(patient) });
-          savedPatient = payload.patient;
-          state.patients.unshift(payload.patient);
-          state.audit = payload.audit;
-        } else {
-          patient.risk = patient.consent.includes("pending") ? "Consent pending" : "New";
-          patient.last = "Local draft";
-          state.patients.unshift(patient);
-          state.audit.unshift([new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), state.user?.initials || "OFF", "Client registered", patient.id, "Local draft"]);
-        }
+        const payload = await apiRequest("/api/patients", { method: "POST", body: JSON.stringify(patient) });
+        savedPatient = payload.patient;
+        state.patients.unshift(payload.patient);
+        state.audit = payload.audit;
+        await refreshMetrics();
       } catch (error) {
         showToast(error.message);
         return;
       }
-      saveState();
       renderPatients(document.getElementById("globalSearch").value);
       renderAudit();
       duplicateAlert.classList.remove("show");
@@ -3264,7 +3259,7 @@
         showEncounterTriage();
         showToast(`Client registered. New visit opened for ${savedPatient.name}.`);
       } else {
-        showToast(state.backendConnected ? "Client saved to the clinical database." : "Client saved as a local offline draft.");
+        showToast("Client saved to the clinical database.");
       }
     });
 
@@ -3378,22 +3373,21 @@
         disposition: getFieldValue("#disposition"),
         summary
       };
+      if (!state.backendConnected || !state.activePatientUuid) {
+        showToast("The secure clinical service and an active patient are required to sign an encounter.");
+        return;
+      }
       try {
-        if (state.backendConnected && state.activePatientUuid) {
-          const payload = await apiRequest("/api/encounters", { method: "POST", body: JSON.stringify(encounter) });
-          state.audit = payload.audit;
-          await refreshWorkflow();
-          await setActivePatient(state.activePatientUuid);
-        } else {
-          state.audit.unshift([new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), state.user?.initials || "OFF", "Encounter saved", patient, "Local draft"]);
-        }
+        const payload = await apiRequest("/api/encounters", { method: "POST", body: JSON.stringify(encounter) });
+        state.audit = payload.audit;
+        await refreshWorkflow();
+        await setActivePatient(state.activePatientUuid);
       } catch (error) {
         showToast(error.message);
         return;
       }
-      saveState();
       renderAudit();
-      showToast(state.backendConnected ? "Encounter signed and saved to the clinical database." : "Encounter saved as a local offline draft.");
+      showToast("Encounter signed and saved to the clinical database.");
     });
 
     document.getElementById("addPrescriptionBtn").addEventListener("click", addPrescription);
@@ -3428,10 +3422,17 @@
       openView("patients");
       document.querySelector("#patientForm input[name='name']").focus();
     });
-    document.getElementById("offlineBtn").addEventListener("click", () => showToast("Offline mode keeps draft visits in this browser until cloud sync is restored."));
+    document.getElementById("offlineBtn").addEventListener("click", () => showToast("Clinical records require the secure service. Browser-only drafts are disabled."));
     document.getElementById("menuBtn").addEventListener("click", () => document.getElementById("sidebar").classList.toggle("open"));
     document.getElementById("exportBtn").addEventListener("click", exportDailyReport);
-    document.getElementById("refreshAnalyticsBtn").addEventListener("click", () => showToast("Analytics refreshed from the local demo dataset."));
+    document.getElementById("refreshAnalyticsBtn").addEventListener("click", async () => {
+      try {
+        await refreshMetrics();
+        showToast("Analytics refreshed from the clinical database.");
+      } catch (error) {
+        showToast(error.message);
+      }
+    });
     document.getElementById("loginForm").addEventListener("submit", signIn);
     document.getElementById("logoutBtn").addEventListener("click", signOut);
     document.querySelectorAll(".safety-check").forEach(check => check.addEventListener("change", updateSafetyScore));
@@ -3453,6 +3454,7 @@
     renderPrescriptionPlugins();
     renderPrescriptionScreening(null);
     renderWorkflowBoards();
+    renderMetrics();
     renderEncounterLabs();
     setActivePatient("Achieng Otieno");
     generateVisitSummary();

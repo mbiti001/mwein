@@ -80,6 +80,8 @@ Local development seeds `clinician@mwein.local` with password `MweinPilot2026!`.
 
 Run `npm test` to verify the database-backed registration and encounter flow.
 
+Authenticated dashboard and analytics metrics are calculated from SQLite through `/api/metrics`. Browser-only clinical drafts are disabled so records cannot split between local storage and the server; the cached PWA shell remains non-clinical.
+
 Run `npm run backup` to create and integrity-check a restricted backup under `data/backups/`. Production must copy encrypted backups off-host and test restoration regularly.
 
 Run `npm run verify-backup` to copy the newest backup into an isolated temporary restore location, verify SQLite integrity, required tables, audit-chain continuity, and a writable transaction, then remove the temporary copy. Set `BACKUP_PATH` to test a specific backup.

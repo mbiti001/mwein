@@ -1,6 +1,6 @@
 {
   "name": "mwein-cloud-emr",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "description": "Kenya-focused cloud EMR prototype with a SQLite-backed clinical API.",
   "type": "module",

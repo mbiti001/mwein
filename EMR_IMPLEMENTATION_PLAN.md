@@ -9,7 +9,7 @@ Mwein Cloud EMR is designed for Kenyan outpatient and primary care facilities th
 - Frontend: responsive web app for clinic desktops, tablets, and mobile browsers.
 - API: facility-tenanted REST or GraphQL service with strict role-based access.
 - Database: encrypted relational clinical store with immutable audit events.
-- Offline support: browser draft storage, signed sync queue, conflict review, and recovery workflow.
+- Downtime support: a future governed sync queue with encryption, conflict review, and recovery controls; browser-only clinical drafts are disabled.
 - Interoperability: FHIR-ready mappings for Patient, Encounter, Observation, MedicationRequest, DiagnosticReport, Claim, and AuditEvent.
 - Reporting: daily facility summaries, claims exception lists, data quality dashboards, and compliance evidence exports.
 
@@ -42,12 +42,12 @@ Mwein Cloud EMR is designed for Kenyan outpatient and primary care facilities th
 ## Rollout Plan
 
 1. Prototype review: validate workflows with clinicians, nurses, lab, pharmacy, billing, and facility admin.
-2. Production build: implement authenticated cloud backend, database schema, audit service, and offline sync.
+2. Production build: authenticated backend, database schema, and hash-chained audit service are implemented; managed hosting and a governed offline-sync design remain.
 3. Pilot: run a two-week parallel paper and EMR workflow at one facility.
 4. Compliance review: complete DPIA, access matrix, retention schedule, backup drill, and incident workflow.
 5. Integration phase: validate SHA claim packet structure and prepare national exchange sandbox testing.
 6. Scale: add multi-facility tenancy, advanced reporting, stock management, appointment scheduling, and patient messaging.
 
-## Demo Notes
+## Pilot Notes
 
-The current prototype is a single self-contained static HTML app. It stores demo data in browser localStorage and exports a sample daily report as JSON. It is not yet a production medical record system, but it is structured to demonstrate the product scope, workflows, and compliance direction.
+The current pilot uses an authenticated Node service and SQLite database for patients, encounters, prescriptions, laboratory orders, invoices, audit events, and live operational metrics. Local development may seed demonstration records on the server, while production rejects demo seeding. It is not yet a certified production medical record system; the remaining rollout, hosting, identity, integration, and governance gates above still apply.
