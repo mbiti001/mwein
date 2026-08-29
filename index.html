@@ -493,6 +493,20 @@
       border-color: #fed7aa;
     }
 
+    .staff-active-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .staff-active-toggle input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--teal);
+    }
+
     .grid {
       display: grid;
       gap: 16px;
@@ -1570,7 +1584,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        Version 1.1.0 live operations pilot. Complete security certification before real patient use.
+        Version 1.2.0 governed staff access pilot. Complete security certification before real patient use.
       </div>
     </aside>
 
@@ -2358,6 +2372,44 @@
             </div>
           </section>
 
+          <section class="panel" id="staffAdminPanel" hidden>
+            <div class="section-head">
+              <div>
+                <h2>Staff Access</h2>
+                <p>Create facility accounts and maintain current role assignments.</p>
+              </div>
+              <span class="badge blue" id="activeStaffCount">0 active</span>
+            </div>
+            <form id="staffForm" style="margin-top:18px;">
+              <div class="form-grid">
+                <label>Full name
+                  <input name="displayName" autocomplete="off" maxlength="120" required>
+                </label>
+                <label>Email
+                  <input name="email" type="email" autocomplete="off" maxlength="160" required>
+                </label>
+                <label>Initials
+                  <input name="initials" maxlength="4" pattern="[A-Za-z]{1,4}" placeholder="e.g. AM" required>
+                </label>
+                <label>Facility role
+                  <select name="role" id="newStaffRole" required></select>
+                </label>
+                <label class="span-2">Temporary password
+                  <input name="temporaryPassword" type="password" autocomplete="new-password" minlength="14" maxlength="128" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{14,128}" title="Use 14 or more characters with upper-case, lower-case, a number, and a symbol." required>
+                </label>
+              </div>
+              <div class="dialog-actions">
+                <button class="btn primary" type="submit">Create Staff Account</button>
+              </div>
+            </form>
+            <div class="table-wrap" style="margin-top:18px;">
+              <table>
+                <thead><tr><th>Staff member</th><th>Role</th><th>Account</th><th>Credential</th></tr></thead>
+                <tbody id="staffRows"><tr><td colspan="4">No staff accounts available.</td></tr></tbody>
+              </table>
+            </div>
+          </section>
+
           <section class="panel">
             <h2>Audit Log</h2>
             <div class="table-wrap">
@@ -2390,6 +2442,56 @@
       <div class="dialog-actions">
         <button class="btn" id="cancelLabResultBtn" type="button">Cancel</button>
         <button class="btn primary" type="submit">Verify and Complete</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="visit-dialog" id="mandatoryPasswordDialog" aria-labelledby="mandatoryPasswordTitle">
+    <form id="mandatoryPasswordForm">
+      <div class="dialog-head">
+        <div>
+          <h2 id="mandatoryPasswordTitle">Change Temporary Password</h2>
+          <small class="muted">Set your personal credential before opening clinical records.</small>
+        </div>
+      </div>
+      <div class="dialog-body">
+        <div class="form-grid">
+          <label class="span-3">Current temporary password
+            <input id="currentStaffPassword" type="password" autocomplete="current-password" maxlength="128" required>
+          </label>
+          <label class="span-3">New password
+            <input id="newStaffPassword" type="password" autocomplete="new-password" minlength="14" maxlength="128" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{14,128}" title="Use 14 or more characters with upper-case, lower-case, a number, and a symbol." required>
+          </label>
+          <label class="span-3">Confirm new password
+            <input id="confirmStaffPassword" type="password" autocomplete="new-password" minlength="14" maxlength="128" required>
+          </label>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn primary" type="submit">Change Password</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="visit-dialog" id="staffPasswordDialog" aria-labelledby="staffPasswordTitle">
+    <form id="staffPasswordForm">
+      <div class="dialog-head">
+        <div>
+          <h2 id="staffPasswordTitle">Issue Temporary Password</h2>
+          <small class="muted" id="staffPasswordContext">Select a staff account.</small>
+        </div>
+        <button class="icon-btn" id="closeStaffPasswordBtn" type="button" aria-label="Close password reset" title="Close">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="dialog-body">
+        <label>Temporary password
+          <input id="staffTemporaryPassword" type="password" autocomplete="new-password" minlength="14" maxlength="128" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{14,128}" title="Use 14 or more characters with upper-case, lower-case, a number, and a symbol." required>
+        </label>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn" id="cancelStaffPasswordBtn" type="button">Cancel</button>
+        <button class="btn primary" type="submit">Reset Password</button>
       </div>
     </form>
   </dialog>
@@ -2435,6 +2537,7 @@
 
   <script nonce="__CSP_NONCE__">
     const queue = [];
+    const FACILITY_ROLES = ["Admin", "Clinician", "Nurse", "Lab", "Pharmacy", "Billing"];
 
     const state = {
       patients: [],
@@ -2443,6 +2546,8 @@
       activePatientUuid: null,
       backendConnected: false,
       user: null,
+      staff: [],
+      staffRoles: [],
       prescriptionPlugins: [],
       formulary: [],
       workflow: { labCatalog: [], labWorklist: [], pharmacyQueue: [], invoices: [] },
@@ -2473,7 +2578,7 @@
       const response = await fetch(path, { ...options, headers, credentials: "same-origin" });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        if (response.status === 401 && path !== "/api/auth/login") showAuth("Your session expired. Sign in again.");
+        if (response.status === 401 && !path.startsWith("/api/auth/")) showAuth("Your session expired. Sign in again.");
         throw Object.assign(new Error(payload.error || "The clinical service could not complete the request."), { status: response.status, payload });
       }
       return payload;
@@ -2499,13 +2604,35 @@
       document.getElementById("roleSelect").value = user.role;
       const clinician = user.role === "Clinician" || user.role === "Admin";
       const registrar = clinician || user.role === "Nurse";
+      const navigationRoles = {
+        dashboard: FACILITY_ROLES,
+        patients: ["Admin", "Clinician", "Nurse"],
+        encounter: ["Admin", "Clinician", "Nurse"],
+        labs: ["Admin", "Clinician", "Nurse", "Lab", "Pharmacy"],
+        claims: ["Admin", "Clinician", "Billing"],
+        analytics: ["Admin", "Clinician", "Nurse", "Billing"],
+        compliance: ["Admin"]
+      };
+      document.querySelectorAll(".nav button[data-view]").forEach(button => {
+        button.hidden = !(navigationRoles[button.dataset.view] || []).includes(user.role);
+      });
       document.querySelector("#patientForm button[type='submit']").disabled = !registrar;
       document.getElementById("addPrescriptionBtn").disabled = !clinician;
       document.getElementById("screenPrescriptionBtn").disabled = !clinician;
       document.getElementById("saveEncounterBtn").disabled = !clinician;
       document.getElementById("quickVisitBtn").disabled = !registrar;
       document.getElementById("registryVisitBtn").disabled = !registrar;
+      document.querySelector("#labOrderForm button[type='submit']").disabled = !clinician;
+      document.getElementById("exportBtn").disabled = user.role !== "Admin";
+      document.getElementById("staffAdminPanel").hidden = user.role !== "Admin";
       document.getElementById("authScreen").hidden = true;
+    }
+
+    function showMandatoryPasswordChange(user) {
+      applyAuthenticatedUser(user);
+      setSyncStatus(false, "Password change required");
+      const dialog = document.getElementById("mandatoryPasswordDialog");
+      if (!dialog.open) dialog.showModal();
     }
 
     async function signIn(event) {
@@ -2518,6 +2645,10 @@
       try {
         const payload = await apiRequest("/api/auth/login", { method: "POST", body: JSON.stringify({ email: document.getElementById("loginEmail").value, password: document.getElementById("loginPassword").value }) });
         applyAuthenticatedUser(payload.user);
+        if (payload.user.mustChangePassword) {
+          showMandatoryPasswordChange(payload.user);
+          return;
+        }
         await loadBackendState();
         showToast(`Welcome, ${payload.user.displayName}.`);
       } catch (loginError) {
@@ -2531,9 +2662,13 @@
 
     async function signOut() {
       try { await apiRequest("/api/auth/logout", { method: "POST" }); } catch {}
+      const mandatoryDialog = document.getElementById("mandatoryPasswordDialog");
+      if (mandatoryDialog.open) mandatoryDialog.close();
       state.patients = [];
       state.audit = [];
       state.prescriptions = [];
+      state.staff = [];
+      state.staffRoles = [];
       state.prescriptionPlugins = [];
       state.formulary = [];
       state.workflow = { labCatalog: [], labWorklist: [], pharmacyQueue: [], invoices: [] };
@@ -2549,6 +2684,7 @@
       renderWorkflowBoards();
       renderEncounterLabs();
       renderMetrics();
+      renderStaff();
       showAuth();
     }
 
@@ -2565,6 +2701,8 @@
         const payload = await apiRequest("/api/bootstrap");
         state.patients = payload.patients;
         state.audit = payload.audit;
+        state.staff = payload.staff || [];
+        state.staffRoles = payload.staffRoles || [];
         state.prescriptionPlugins = payload.prescriptionPlugins || [];
         state.formulary = payload.formulary || [];
         state.workflow = payload.workflow || state.workflow;
@@ -2572,6 +2710,8 @@
         applyAuthenticatedUser(payload.user);
         renderPatients(document.getElementById("globalSearch").value);
         renderAudit();
+        populateStaffRoles();
+        renderStaff();
         populateFormulary();
         populateLabCatalog();
         renderPrescriptionPlugins();
@@ -2580,7 +2720,8 @@
         setSyncStatus(true);
         await setActivePatient(state.patients[0]?.uuid || state.patients[0]?.name);
       } catch (error) {
-        if (error.status === 401) showAuth();
+        if (error.payload?.code === "PASSWORD_CHANGE_REQUIRED") showMandatoryPasswordChange(error.payload.user);
+        else if (error.status === 401) showAuth();
         else showAuth("The clinical service is unavailable. Check the server connection.");
       }
     }
@@ -2692,6 +2833,67 @@
           <td><span class="badge green">${escapeHtml(row[4])}</span></td>
         </tr>
       `).join("");
+    }
+
+    function populateStaffRoles() {
+      const select = document.getElementById("newStaffRole");
+      select.innerHTML = `<option value="">Select role</option>` + state.staffRoles.map(role => `<option>${escapeHtml(role)}</option>`).join("");
+    }
+
+    function staffRoleOptions(selected) {
+      return state.staffRoles.map(role => `<option${role === selected ? " selected" : ""}>${escapeHtml(role)}</option>`).join("");
+    }
+
+    function renderStaff() {
+      const rows = document.getElementById("staffRows");
+      document.getElementById("activeStaffCount").textContent = `${state.staff.filter(member => member.active).length} active`;
+      if (!state.staff.length) {
+        rows.innerHTML = `<tr><td colspan="4">No staff accounts available.</td></tr>`;
+        return;
+      }
+      rows.innerHTML = state.staff.map(member => {
+        const self = member.uuid === state.user?.uuid;
+        return `<tr data-staff-row="${escapeHtml(member.uuid)}">
+          <td><strong>${escapeHtml(member.displayName)}</strong><br><small class="muted">${escapeHtml(member.email)} · ${escapeHtml(member.initials)}</small></td>
+          <td><select class="status-select" data-staff-role="${escapeHtml(member.uuid)}"${self ? " disabled" : ""}>${staffRoleOptions(member.role)}</select></td>
+          <td><label class="staff-active-toggle"><input type="checkbox" data-staff-active="${escapeHtml(member.uuid)}"${member.active ? " checked" : ""}${self ? " disabled" : ""}> Active</label></td>
+          <td>${member.mustChangePassword ? '<span class="badge amber">Temporary</span>' : '<span class="badge green">Personal</span>'}<br><button class="link-btn" data-reset-staff-password="${escapeHtml(member.uuid)}" type="button"${self ? " disabled" : ""}>Reset password</button></td>
+        </tr>`;
+      }).join("");
+    }
+
+    async function refreshStaff() {
+      if (state.user?.role !== "Admin") return;
+      const payload = await apiRequest("/api/staff");
+      state.staff = payload.staff;
+      state.staffRoles = payload.roles;
+      populateStaffRoles();
+      renderStaff();
+    }
+
+    async function updateStaffAccess(uuid) {
+      const row = [...document.querySelectorAll("[data-staff-row]")].find(item => item.dataset.staffRow === uuid);
+      if (!row) return;
+      const role = row.querySelector("[data-staff-role]").value;
+      const active = row.querySelector("[data-staff-active]").checked;
+      try {
+        const payload = await apiRequest(`/api/staff/${encodeURIComponent(uuid)}`, { method: "PATCH", body: JSON.stringify({ role, active }) });
+        state.staff = payload.staff;
+        state.audit = payload.audit;
+        renderStaff();
+        renderAudit();
+        showToast("Staff access updated and existing sessions revoked.");
+      } catch (error) {
+        showToast(error.message);
+        await refreshStaff();
+      }
+    }
+
+    function closeStaffPasswordDialog() {
+      const dialog = document.getElementById("staffPasswordDialog");
+      if (dialog.open) dialog.close();
+      document.getElementById("staffPasswordForm").reset();
+      document.getElementById("staffPasswordForm").dataset.staffUuid = "";
     }
 
     function renderPrescriptions() {
@@ -2845,25 +3047,27 @@
     function renderWorkflowBoards() {
       const labRows = document.getElementById("labWorklistRows");
       const labs = state.workflow.labWorklist || [];
+      const canUpdateLab = ["Admin", "Clinician", "Lab"].includes(state.user?.role);
       document.getElementById("openLabCount").textContent = labs.length;
       document.getElementById("urgentLabCount").textContent = `${labs.filter(order => order.priority === "Urgent").length} urgent`;
       labRows.innerHTML = labs.length ? labs.map(order => `
         <tr data-lab-row="${escapeHtml(order.uuid)}">
           <td><strong>${escapeHtml(order.test_name)}</strong><br><small class="muted">${escapeHtml(order.priority)} · ${escapeHtml(order.specimen)}</small></td>
           <td>${escapeHtml(order.patient_name)}<br><small class="muted">${escapeHtml(order.patient_identifier)}</small></td>
-          <td><select class="status-select" data-lab-status="${escapeHtml(order.uuid)}">${statusOptions(["Ordered", "Collected", "Processing", "Cancelled"], order.status)}</select></td>
-          <td><button class="btn" data-enter-lab-result="${escapeHtml(order.uuid)}" type="button">Enter result</button></td>
+          <td><select class="status-select" data-lab-status="${escapeHtml(order.uuid)}"${canUpdateLab ? "" : " disabled"}>${statusOptions(["Ordered", "Collected", "Processing", "Cancelled"], order.status)}</select></td>
+          <td><button class="btn" data-enter-lab-result="${escapeHtml(order.uuid)}" type="button"${canUpdateLab ? "" : " disabled"}>Enter result</button></td>
         </tr>`).join("") : `<tr><td colspan="4">No outstanding laboratory work.</td></tr>`;
 
       const pharmacyRows = document.getElementById("pharmacyQueueRows");
       const prescriptions = state.workflow.pharmacyQueue || [];
+      const canUpdatePharmacy = ["Admin", "Clinician", "Pharmacy"].includes(state.user?.role);
       document.getElementById("pharmacyTaskCount").textContent = prescriptions.length;
       pharmacyRows.innerHTML = prescriptions.length ? prescriptions.map(rx => `
         <tr>
           <td><strong>${escapeHtml(rx.medicine)}</strong><br><small class="muted">Qty ${escapeHtml(rx.quantity || "1")}</small></td>
           <td>${escapeHtml(rx.patient_name)}<br><small class="muted">${escapeHtml(rx.patient_identifier)}</small></td>
           <td>${escapeHtml(rx.dose)} · ${escapeHtml(rx.frequency)}<br><small class="muted">${escapeHtml(rx.duration)}</small></td>
-          <td><select class="status-select" data-rx-status="${escapeHtml(rx.uuid)}">${statusOptions(["Ready", "Dispensed"], rx.status)}</select></td>
+          <td><select class="status-select" data-rx-status="${escapeHtml(rx.uuid)}"${canUpdatePharmacy ? "" : " disabled"}>${statusOptions(["Ready", "Dispensed"], rx.status)}</select></td>
         </tr>`).join("") : `<tr><td colspan="4">No prescriptions awaiting dispensing.</td></tr>`;
 
       const invoiceRows = document.getElementById("invoiceRows");
@@ -3189,6 +3393,15 @@
     });
 
     document.addEventListener("click", async event => {
+      const passwordReset = event.target.closest("[data-reset-staff-password]");
+      if (passwordReset) {
+        const member = state.staff.find(item => item.uuid === passwordReset.dataset.resetStaffPassword);
+        if (!member) return;
+        document.getElementById("staffPasswordForm").dataset.staffUuid = member.uuid;
+        document.getElementById("staffPasswordContext").textContent = `${member.displayName} · ${member.email}`;
+        document.getElementById("staffPasswordDialog").showModal();
+        return;
+      }
       const enterLabResult = event.target.closest("[data-enter-lab-result]");
       if (enterLabResult) {
         openLabResultDialog(enterLabResult.dataset.enterLabResult);
@@ -3263,6 +3476,66 @@
       }
     });
 
+    document.getElementById("staffForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      if (state.user?.role !== "Admin") {
+        showToast("Only administrators can create staff accounts.");
+        return;
+      }
+      const staff = Object.fromEntries(new FormData(event.currentTarget).entries());
+      try {
+        const payload = await apiRequest("/api/staff", { method: "POST", body: JSON.stringify(staff) });
+        state.staff = payload.staff;
+        state.audit = payload.audit;
+        renderStaff();
+        renderAudit();
+        event.currentTarget.reset();
+        showToast("Staff account created. Share the temporary password through an approved channel.");
+      } catch (error) {
+        showToast(error.message);
+      }
+    });
+
+    document.getElementById("mandatoryPasswordForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      const currentPassword = document.getElementById("currentStaffPassword").value;
+      const newPassword = document.getElementById("newStaffPassword").value;
+      const confirmation = document.getElementById("confirmStaffPassword").value;
+      if (newPassword !== confirmation) {
+        showToast("The new password and confirmation do not match.");
+        return;
+      }
+      try {
+        const payload = await apiRequest("/api/auth/password", { method: "POST", body: JSON.stringify({ currentPassword, newPassword }) });
+        state.user = payload.user;
+        document.getElementById("mandatoryPasswordDialog").close();
+        event.currentTarget.reset();
+        await loadBackendState();
+        showToast("Password changed. Clinical access is now available.");
+      } catch (error) {
+        showToast(error.message);
+      }
+    });
+
+    document.getElementById("staffPasswordForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      const uuid = event.currentTarget.dataset.staffUuid;
+      try {
+        const payload = await apiRequest(`/api/staff/${encodeURIComponent(uuid)}/password`, {
+          method: "PUT",
+          body: JSON.stringify({ temporaryPassword: document.getElementById("staffTemporaryPassword").value })
+        });
+        state.staff = payload.staff;
+        state.audit = payload.audit;
+        renderStaff();
+        renderAudit();
+        closeStaffPasswordDialog();
+        showToast("Temporary password issued and existing sessions revoked.");
+      } catch (error) {
+        showToast(error.message);
+      }
+    });
+
     document.getElementById("labOrderForm").addEventListener("submit", async event => {
       event.preventDefault();
       if (!state.activePatientUuid) {
@@ -3307,8 +3580,16 @@
 
     document.getElementById("closeLabResultBtn").addEventListener("click", closeLabResultDialog);
     document.getElementById("cancelLabResultBtn").addEventListener("click", closeLabResultDialog);
+    document.getElementById("closeStaffPasswordBtn").addEventListener("click", closeStaffPasswordDialog);
+    document.getElementById("cancelStaffPasswordBtn").addEventListener("click", closeStaffPasswordDialog);
+    document.getElementById("mandatoryPasswordDialog").addEventListener("cancel", event => event.preventDefault());
 
     document.addEventListener("change", async event => {
+      const staffUuid = event.target.dataset.staffRole || event.target.dataset.staffActive;
+      if (staffUuid) {
+        await updateStaffAccess(staffUuid);
+        return;
+      }
       const labUuid = event.target.dataset.labStatus;
       if (labUuid) {
         try {

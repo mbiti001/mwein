@@ -10,7 +10,7 @@ Mwein Cloud EMR is a Kenya-focused full-stack electronic medical record pilot fo
 - Transactional encounters, prescriptions, server-side safety screening, health monitoring, and audit events
 - Governed prescription plug-ins for facility formulary, stock, allergy, duplicate-order, antimicrobial, and paediatric review
 - Synchronized lab, dispensing, and invoice lifecycle: ordering creates a charge, cancellation or deletion reverses it, and completion or dispensing clears the active queue while preserving the charge
-- Staff sign-in with salted password hashing, expiring HTTP-only sessions, and server-enforced clinical roles
+- Governed staff accounts with administrator-managed roles and status, mandatory replacement of temporary passwords, immediate session revocation after access changes, and role-scoped operational data
 - Fail-closed production configuration, CSP nonces, host/origin enforcement, tamper-evident audit chaining, and verified backups
 - Installable PWA metadata in `manifest.webmanifest`
 - Offline app-shell cache in `service-worker.js`
@@ -76,11 +76,17 @@ This command is only for local container testing. Use `compose.production.yml` b
 - `SEED_DEMO_DATA`: defaults to false and is rejected in production
 - `EMR_API_KEY`: optional bearer token for trusted machine integrations
 
-Local development seeds `clinician@mwein.local` with password `MweinPilot2026!`. Change the bootstrap password for every deployed environment.
+Local development seeds `clinician@mwein.local` as the first administrator with password `MweinPilot2026!`. Change the bootstrap password for every deployed environment.
 
 Run `npm test` to verify the database-backed registration and encounter flow.
 
 Authenticated dashboard and analytics metrics are calculated from SQLite through `/api/metrics`. Browser-only clinical drafts are disabled so records cannot split between local storage and the server; the cached PWA shell remains non-clinical.
+
+## Staff Access
+
+Administrators manage facility accounts from Compliance. New and reset accounts receive a temporary credential and cannot access clinical data until the staff member sets a different personal password. Role or status changes revoke that account's sessions immediately, self-lockout is blocked, and the service preserves at least one active administrator.
+
+Bootstrap, workflow, metrics, formulary, staff-directory, and audit responses are scoped by role. Laboratory, pharmacy, billing, nursing, clinical, and administrative users receive only the operational datasets needed by their current role.
 
 Run `npm run backup` to create and integrity-check a restricted backup under `data/backups/`. Production must copy encrypted backups off-host and test restoration regularly.
 

@@ -19,6 +19,10 @@ The current application is a full-stack engineering pilot. It must not be used f
 - CSP nonces restrict executable inline scripts and HSTS is enabled in production.
 - Public-file allowlisting prevents download of source, secrets, and database files.
 - Sessions enforce idle and absolute expiry and use `__Host-` secure cookies in production.
+- Administrators can create, deactivate, and reassign staff accounts; access changes revoke the affected sessions immediately.
+- Temporary staff passwords must meet complexity requirements and are blocked from clinical access until replaced by the account owner.
+- Bootstrap, workflow, metrics, formulary, audit, and staff-directory payloads are scoped by facility role.
+- Self-lockout and removal of the final active administrator are rejected.
 - Audit events are hash-chained and checked by the readiness endpoint.
 - `EMR_API_KEY` supports trusted machine integrations with constant-time token comparison.
 - The PWA can cache its non-clinical app shell, but clinical records require the authenticated service and are never stored as browser-only drafts.
@@ -28,7 +32,7 @@ The current application is a full-stack engineering pilot. It must not be used f
 
 - Use HTTPS only.
 - Add MFA and secure staff identity management.
-- Enforce role-based access control on the server, not only in the UI.
+- Review and validate the server role matrix with the facility's approved access-control policy.
 - Encrypt patient data at rest and in transit.
 - Replace local pilot accounts with identity-provider MFA and managed staff account lifecycle controls.
 - Move audit events to append-only storage with independent retention.

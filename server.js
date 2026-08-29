@@ -26,6 +26,7 @@ const SESSION_HOURS = Number(process.env.SESSION_HOURS || 8);
 const SESSION_IDLE_MINUTES = Number(process.env.SESSION_IDLE_MINUTES || 30);
 const COOKIE_NAME = IS_PRODUCTION ? "__Host-mwein_session" : "mwein_session";
 const loginAttempts = new Map();
+const STAFF_ROLES = ["Admin", "Clinician", "Nurse", "Lab", "Pharmacy", "Billing"];
 const PRESCRIPTION_PLUGINS = [
   { id: "facility-formulary", name: "Facility formulary", version: "1.0.0", status: "active", mandatory: true, description: "Checks approved medicines and current facility stock flags." },
   { id: "allergy-guard", name: "Allergy guard", version: "1.0.0", status: "active", mandatory: true, description: "Screens documented allergy text against selected medicines." },
@@ -210,6 +211,7 @@ db.exec(`
     password_salt TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     active INTEGER NOT NULL DEFAULT 1,
+    must_change_password INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL
   );
   CREATE TABLE IF NOT EXISTS sessions (
@@ -238,6 +240,8 @@ if (!prescriptionColumns.includes("screening_status")) db.exec("ALTER TABLE pres
 if (!prescriptionColumns.includes("screening_json")) db.exec("ALTER TABLE prescriptions ADD COLUMN screening_json TEXT NOT NULL DEFAULT '{}'");
 const labOrderColumns = db.prepare("PRAGMA table_info(lab_orders)").all().map(column => column.name);
 if (!labOrderColumns.includes("result_json")) db.exec("ALTER TABLE lab_orders ADD COLUMN result_json TEXT NOT NULL DEFAULT '{}'");
+const userColumns = db.prepare("PRAGMA table_info(users)").all().map(column => column.name);
+if (!userColumns.includes("must_change_password")) db.exec("ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0");
 
 const now = () => new Date().toISOString();
 const text = (value, max = 500) => String(value ?? "").trim().slice(0, max);
@@ -315,9 +319,11 @@ function seedStaffUser() {
   if (!BOOTSTRAP_PASSWORD || (IS_PRODUCTION && BOOTSTRAP_PASSWORD.length < 16)) throw new Error("EMR_BOOTSTRAP_PASSWORD with at least 16 characters is required for the first production startup");
   const salt = randomBytes(24).toString("hex");
   db.prepare("INSERT INTO users (uuid, email, display_name, initials, role, password_salt, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-    .run(randomUUID(), "clinician@mwein.local", "Dr. Daniel K.", "DK", "Clinician", salt, passwordHash(BOOTSTRAP_PASSWORD, salt), now());
+    .run(randomUUID(), "clinician@mwein.local", "Dr. Daniel K.", "DK", "Admin", salt, passwordHash(BOOTSTRAP_PASSWORD, salt), now());
 }
 seedStaffUser();
+const staffCounts = db.prepare("SELECT count(*) AS total, sum(CASE WHEN role = 'Admin' AND active = 1 THEN 1 ELSE 0 END) AS admins FROM users").get();
+if (staffCounts.total === 1 && !staffCounts.admins) db.prepare("UPDATE users SET role = 'Admin' WHERE uuid = (SELECT uuid FROM users LIMIT 1)").run();
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
@@ -363,16 +369,53 @@ function authenticate(req) {
   const token = parseCookies(req)[COOKIE_NAME];
   if (!token) return null;
   const idleCutoff = new Date(Date.now() - SESSION_IDLE_MINUTES * 60 * 1000).toISOString();
-  const row = db.prepare(`SELECT users.uuid, users.email, users.display_name, users.initials, users.role
+  const row = db.prepare(`SELECT users.uuid, users.email, users.display_name, users.initials, users.role, users.must_change_password
     FROM sessions JOIN users ON users.uuid = sessions.user_uuid
     WHERE sessions.token = ? AND sessions.expires_at > ? AND sessions.last_seen_at > ? AND users.active = 1`).get(sessionTokenHash(token), now(), idleCutoff);
   if (!row) return null;
   db.prepare("UPDATE sessions SET last_seen_at = ? WHERE token = ?").run(now(), sessionTokenHash(token));
-  return { uuid: row.uuid, email: row.email, displayName: row.display_name, initials: row.initials, role: row.role };
+  return { uuid: row.uuid, email: row.email, displayName: row.display_name, initials: row.initials, role: row.role, mustChangePassword: Boolean(row.must_change_password) };
 }
 
 function can(user, roles) {
   return user && (user.role === "Admin" || roles.includes(user.role));
+}
+
+function mapStaff(row) {
+  return {
+    uuid: row.uuid,
+    email: row.email,
+    displayName: row.display_name,
+    initials: row.initials,
+    role: row.role,
+    active: Boolean(row.active),
+    mustChangePassword: Boolean(row.must_change_password),
+    createdAt: row.created_at
+  };
+}
+
+function listStaff() {
+  return db.prepare("SELECT uuid, email, display_name, initials, role, active, must_change_password, created_at FROM users ORDER BY active DESC, display_name").all().map(mapStaff);
+}
+
+function validateStaffPassword(value) {
+  const password = String(value || "");
+  if (password.length < 14 || password.length > 128 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+    throw Object.assign(new Error("Temporary password must be 14-128 characters and include upper-case, lower-case, number, and symbol characters"), { status: 422 });
+  }
+  return password;
+}
+
+function staffInput(body) {
+  const displayName = text(body.displayName, 120);
+  const email = text(body.email, 160).toLowerCase();
+  const role = text(body.role, 30);
+  const derivedInitials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join("").toUpperCase();
+  const initials = text(body.initials || derivedInitials, 4).toUpperCase();
+  if (!displayName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !STAFF_ROLES.includes(role) || !/^[A-Z]{1,4}$/.test(initials)) {
+    throw Object.assign(new Error("Name, valid email, initials, and facility role are required"), { status: 422 });
+  }
+  return { displayName, email, role, initials, password: validateStaffPassword(body.temporaryPassword) };
 }
 
 function cookieHeader(req, token, maxAge) {
@@ -586,9 +629,25 @@ function workflowState(patientUuid = "") {
   };
 }
 
+function workflowForRole(user, patientUuid = "") {
+  const workflow = workflowState(patientUuid);
+  const emptyLab = { labCatalog: [], labResultCommonFields: [], labOrders: [], labWorklist: [] };
+  const emptyPharmacy = { pharmacyOrders: [], pharmacyQueue: [] };
+  if (["Admin", "Clinician"].includes(user.role)) return workflow;
+  if (user.role === "Nurse") return { ...workflow, invoices: [] };
+  if (user.role === "Lab") return { ...workflow, ...emptyPharmacy, invoices: [] };
+  if (user.role === "Pharmacy") return { ...workflow, ...emptyLab, invoices: [] };
+  if (user.role === "Billing") return { ...workflow, ...emptyLab, ...emptyPharmacy };
+  return { ...workflow, ...emptyLab, ...emptyPharmacy, invoices: [] };
+}
+
 function listAudit() {
   return db.prepare("SELECT occurred_at, actor, action, record_id, outcome FROM audit_events ORDER BY id DESC LIMIT 100").all()
     .map(row => [new Date(row.occurred_at).toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" }), row.actor, row.action, row.record_id, row.outcome]);
+}
+
+function auditForRole(user) {
+  return user.role === "Admin" ? listAudit() : [];
 }
 
 function kenyaDayWindow(daysAgo = 0) {
@@ -648,6 +707,20 @@ function operationalMetrics() {
   };
 }
 
+function metricsForRole(user) {
+  const metrics = operationalMetrics();
+  const zeroLab = { openLabOrders: 0, urgentLabOrders: 0, completedLabsToday: 0 };
+  const zeroPharmacy = { pharmacyQueue: 0, dispensedPrescriptions: 0 };
+  const zeroBilling = { openInvoices: 0, readyInvoices: 0, openInvoiceValue: 0, readyInvoiceValue: 0 };
+  const zeroClinical = { patientsToday: 0, totalPatients: 0, signedEncountersToday: 0, dataQuality: { score: 0, missingDiagnosisCodes: 0, missingNextOfKin: 0, unsignedNotes: 0 }, visitsByDay: [] };
+  if (["Admin", "Clinician"].includes(user.role)) return metrics;
+  if (user.role === "Nurse") return { ...metrics, ...zeroBilling };
+  if (user.role === "Lab") return { ...metrics, ...zeroClinical, ...zeroPharmacy, ...zeroBilling };
+  if (user.role === "Pharmacy") return { ...metrics, ...zeroClinical, ...zeroLab, ...zeroBilling };
+  if (user.role === "Billing") return { ...metrics, ...zeroClinical, ...zeroLab, ...zeroPharmacy };
+  return { ...metrics, ...zeroClinical, ...zeroLab, ...zeroPharmacy, ...zeroBilling };
+}
+
 async function api(req, res, url, requestId) {
   if (req.method === "GET" && url.pathname === "/api/health") {
     return sendJson(res, 200, { status: "ok", service: "mwein-emr-api", time: now() }, requestId);
@@ -685,7 +758,7 @@ async function api(req, res, url, requestId) {
     const timestamp = now();
     db.prepare("INSERT INTO sessions (token, user_uuid, expires_at, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?)").run(sessionTokenHash(token), user.uuid, expiresAt, timestamp, timestamp);
     audit(user.initials, "Staff signed in", user.uuid, "Allowed", requestId);
-    return sendJson(res, 200, { user: { uuid: user.uuid, email: user.email, displayName: user.display_name, initials: user.initials, role: user.role }, expiresAt }, requestId, { "set-cookie": cookieHeader(req, token, SESSION_HOURS * 60 * 60) });
+    return sendJson(res, 200, { user: { uuid: user.uuid, email: user.email, displayName: user.display_name, initials: user.initials, role: user.role, mustChangePassword: Boolean(user.must_change_password) }, expiresAt }, requestId, { "set-cookie": cookieHeader(req, token, SESSION_HOURS * 60 * 60) });
   }
   const authenticatedUser = authenticate(req);
   if (!authenticatedUser) return sendJson(res, 401, { error: "Authentication required", requestId }, requestId);
@@ -698,18 +771,121 @@ async function api(req, res, url, requestId) {
   if (req.method === "GET" && url.pathname === "/api/auth/me") {
     return sendJson(res, 200, { user: authenticatedUser }, requestId);
   }
+  if (req.method === "POST" && url.pathname === "/api/auth/password") {
+    if (authenticatedUser.uuid === "integration") return sendJson(res, 403, { error: "Integration identities cannot change passwords" }, requestId);
+    const body = await readJson(req);
+    const currentPassword = String(body.currentPassword || "");
+    const newPassword = validateStaffPassword(body.newPassword);
+    const current = db.prepare("SELECT password_salt, password_hash FROM users WHERE uuid = ?").get(authenticatedUser.uuid);
+    const candidate = passwordHash(currentPassword, current.password_salt);
+    const valid = candidate.length === current.password_hash.length && timingSafeEqual(Buffer.from(candidate), Buffer.from(current.password_hash));
+    if (!valid) return sendJson(res, 401, { error: "The current password is incorrect" }, requestId);
+    if (currentPassword === newPassword) return sendJson(res, 422, { error: "The new password must be different from the current password" }, requestId);
+    const salt = randomBytes(24).toString("hex");
+    const currentToken = sessionTokenHash(parseCookies(req)[COOKIE_NAME] || "");
+    db.exec("BEGIN");
+    try {
+      db.prepare("UPDATE users SET password_salt = ?, password_hash = ?, must_change_password = 0 WHERE uuid = ?").run(salt, passwordHash(newPassword, salt), authenticatedUser.uuid);
+      db.prepare("DELETE FROM sessions WHERE user_uuid = ? AND token <> ?").run(authenticatedUser.uuid, currentToken);
+      audit(authenticatedUser.initials, "Staff password changed", authenticatedUser.email, "Credential updated; other sessions revoked", requestId);
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+    return sendJson(res, 200, { user: { ...authenticatedUser, mustChangePassword: false }, audit: auditForRole(authenticatedUser) }, requestId);
+  }
+  if (authenticatedUser.mustChangePassword) {
+    return sendJson(res, 403, { error: "Change the temporary password before accessing clinical records", code: "PASSWORD_CHANGE_REQUIRED", user: authenticatedUser }, requestId);
+  }
   if (req.method === "GET" && url.pathname === "/api/bootstrap") {
-    const patients = db.prepare("SELECT * FROM patients ORDER BY updated_at DESC, name").all().map(mapPatient);
-    return sendJson(res, 200, { patients, audit: listAudit(), user: authenticatedUser, prescriptionPlugins: PRESCRIPTION_PLUGINS, formulary: FORMULARY, workflow: workflowState(), metrics: operationalMetrics(), serverTime: now() }, requestId);
+    const patients = ["Admin", "Clinician", "Nurse"].includes(authenticatedUser.role)
+      ? db.prepare("SELECT * FROM patients ORDER BY updated_at DESC, name").all().map(mapPatient)
+      : [];
+    const staff = authenticatedUser.role === "Admin" ? listStaff() : [];
+    const auditEvents = authenticatedUser.role === "Admin" ? listAudit() : [];
+    const prescriptionPlugins = ["Admin", "Clinician"].includes(authenticatedUser.role) ? PRESCRIPTION_PLUGINS : [];
+    const formulary = ["Admin", "Clinician", "Pharmacy"].includes(authenticatedUser.role) ? FORMULARY : [];
+    return sendJson(res, 200, { patients, audit: auditEvents, user: authenticatedUser, staff, staffRoles: authenticatedUser.role === "Admin" ? STAFF_ROLES : [], prescriptionPlugins, formulary, workflow: workflowForRole(authenticatedUser), metrics: metricsForRole(authenticatedUser), serverTime: now() }, requestId);
   }
   if (req.method === "GET" && url.pathname === "/api/metrics") {
-    return sendJson(res, 200, { metrics: operationalMetrics() }, requestId);
+    return sendJson(res, 200, { metrics: metricsForRole(authenticatedUser) }, requestId);
   }
   if (req.method === "GET" && url.pathname === "/api/prescription-plugins") {
+    if (!can(authenticatedUser, ["Clinician", "Pharmacy"])) return sendJson(res, 403, { error: "Your role cannot access prescription services" }, requestId);
     return sendJson(res, 200, { plugins: PRESCRIPTION_PLUGINS, formulary: FORMULARY }, requestId);
   }
   if (req.method === "GET" && url.pathname === "/api/workflow") {
-    return sendJson(res, 200, { workflow: workflowState() }, requestId);
+    return sendJson(res, 200, { workflow: workflowForRole(authenticatedUser) }, requestId);
+  }
+  if (req.method === "GET" && url.pathname === "/api/staff") {
+    if (!can(authenticatedUser, ["Admin"])) return sendJson(res, 403, { error: "Only administrators can view staff accounts" }, requestId);
+    return sendJson(res, 200, { staff: listStaff(), roles: STAFF_ROLES }, requestId);
+  }
+  if (req.method === "POST" && url.pathname === "/api/staff") {
+    if (!can(authenticatedUser, ["Admin"])) return sendJson(res, 403, { error: "Only administrators can create staff accounts" }, requestId);
+    const staff = staffInput(await readJson(req));
+    if (db.prepare("SELECT 1 FROM users WHERE lower(email) = ?").get(staff.email)) return sendJson(res, 409, { error: "A staff account with this email already exists" }, requestId);
+    const uuid = randomUUID();
+    const salt = randomBytes(24).toString("hex");
+    db.exec("BEGIN");
+    try {
+      db.prepare("INSERT INTO users (uuid, email, display_name, initials, role, password_salt, password_hash, active, must_change_password, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, ?)")
+        .run(uuid, staff.email, staff.displayName, staff.initials, staff.role, salt, passwordHash(staff.password, salt), now());
+      audit(authenticatedUser.initials, "Staff account created", staff.email, staff.role, requestId);
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+    return sendJson(res, 201, { staff: listStaff(), audit: auditForRole(authenticatedUser) }, requestId);
+  }
+  const staffMatch = url.pathname.match(/^\/api\/staff\/([^/]+)$/);
+  if (req.method === "PATCH" && staffMatch) {
+    if (!can(authenticatedUser, ["Admin"])) return sendJson(res, 403, { error: "Only administrators can change staff access" }, requestId);
+    const uuid = decodeURIComponent(staffMatch[1]);
+    const current = db.prepare("SELECT * FROM users WHERE uuid = ?").get(uuid);
+    if (!current) return sendJson(res, 404, { error: "Staff account not found" }, requestId);
+    if (uuid === authenticatedUser.uuid) return sendJson(res, 409, { error: "Ask another administrator to change your own role or account status" }, requestId);
+    const body = await readJson(req);
+    const role = text(body.role, 30);
+    if (!STAFF_ROLES.includes(role) || typeof body.active !== "boolean") return sendJson(res, 422, { error: "Select a valid role and account status" }, requestId);
+    const active = body.active ? 1 : 0;
+    const removesAdmin = current.role === "Admin" && current.active && (role !== "Admin" || !active);
+    const activeAdmins = db.prepare("SELECT count(*) AS count FROM users WHERE role = 'Admin' AND active = 1").get().count;
+    if (removesAdmin && activeAdmins <= 1) return sendJson(res, 409, { error: "At least one active administrator is required" }, requestId);
+    db.exec("BEGIN");
+    try {
+      db.prepare("UPDATE users SET role = ?, active = ? WHERE uuid = ?").run(role, active, uuid);
+      db.prepare("DELETE FROM sessions WHERE user_uuid = ?").run(uuid);
+      audit(authenticatedUser.initials, "Staff access updated", current.email, `${role}; ${active ? "Active" : "Inactive"}; sessions revoked`, requestId);
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+    return sendJson(res, 200, { staff: listStaff(), audit: auditForRole(authenticatedUser) }, requestId);
+  }
+  const staffPasswordMatch = url.pathname.match(/^\/api\/staff\/([^/]+)\/password$/);
+  if (req.method === "PUT" && staffPasswordMatch) {
+    if (!can(authenticatedUser, ["Admin"])) return sendJson(res, 403, { error: "Only administrators can reset staff passwords" }, requestId);
+    const uuid = decodeURIComponent(staffPasswordMatch[1]);
+    if (uuid === authenticatedUser.uuid) return sendJson(res, 409, { error: "Use the personal password-change workflow for your own account" }, requestId);
+    const current = db.prepare("SELECT email FROM users WHERE uuid = ?").get(uuid);
+    if (!current) return sendJson(res, 404, { error: "Staff account not found" }, requestId);
+    const password = validateStaffPassword((await readJson(req)).temporaryPassword);
+    const salt = randomBytes(24).toString("hex");
+    db.exec("BEGIN");
+    try {
+      db.prepare("UPDATE users SET password_salt = ?, password_hash = ?, must_change_password = 1 WHERE uuid = ?").run(salt, passwordHash(password, salt), uuid);
+      db.prepare("DELETE FROM sessions WHERE user_uuid = ?").run(uuid);
+      audit(authenticatedUser.initials, "Staff password reset", current.email, "Temporary credential issued; sessions revoked", requestId);
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+    return sendJson(res, 200, { ok: true, staff: listStaff(), audit: auditForRole(authenticatedUser) }, requestId);
   }
   if (req.method === "POST" && url.pathname === "/api/prescriptions/screen") {
     if (!can(authenticatedUser, ["Clinician"])) return sendJson(res, 403, { error: "Only clinicians can screen prescriptions" }, requestId);
@@ -731,10 +907,11 @@ async function api(req, res, url, requestId) {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(uuid, patient.id, patient.name, patient.phone, patient.sex, patient.age, patient.county, patient.subcounty, patient.residence, patient.kin, patient.program, patient.consent, patient.summary, risk, timestamp, timestamp);
     audit(authenticatedUser.initials, "Client registered", patient.id, "Recorded", requestId);
     const created = db.prepare("SELECT * FROM patients WHERE uuid = ?").get(uuid);
-    return sendJson(res, 201, { patient: mapPatient(created), audit: listAudit() }, requestId);
+    return sendJson(res, 201, { patient: mapPatient(created), audit: auditForRole(authenticatedUser) }, requestId);
   }
   const prescriptionMatch = url.pathname.match(/^\/api\/patients\/([^/]+)\/prescriptions$/);
   if (req.method === "GET" && prescriptionMatch) {
+    if (!can(authenticatedUser, ["Clinician"])) return sendJson(res, 403, { error: "Only clinical staff can view a patient's prescription draft" }, requestId);
     const rows = db.prepare("SELECT * FROM prescriptions WHERE patient_uuid = ? AND encounter_uuid IS NULL ORDER BY created_at").all(decodeURIComponent(prescriptionMatch[1]));
     return sendJson(res, 200, { prescriptions: rows }, requestId);
   }
@@ -763,7 +940,7 @@ async function api(req, res, url, requestId) {
       db.exec("ROLLBACK");
       throw error;
     }
-    return sendJson(res, 201, { prescription: db.prepare("SELECT * FROM prescriptions WHERE uuid = ?").get(uuid), workflow: workflowState(patientUuid), audit: listAudit() }, requestId);
+    return sendJson(res, 201, { prescription: db.prepare("SELECT * FROM prescriptions WHERE uuid = ?").get(uuid), workflow: workflowForRole(authenticatedUser, patientUuid), audit: auditForRole(authenticatedUser) }, requestId);
   }
   const prescriptionStatusMatch = url.pathname.match(/^\/api\/prescriptions\/([^/]+)\/status$/);
   if (req.method === "PATCH" && prescriptionStatusMatch) {
@@ -775,7 +952,7 @@ async function api(req, res, url, requestId) {
     if (!["Ready", "Dispensed"].includes(status)) return sendJson(res, 422, { error: "Prescription status must be Ready or Dispensed" }, requestId);
     db.prepare("UPDATE prescriptions SET status = ? WHERE uuid = ?").run(status, uuid);
     audit(authenticatedUser.initials, "Dispensing status updated", rx.medicine, status, requestId);
-    return sendJson(res, 200, { workflow: workflowState(rx.patient_uuid), audit: listAudit() }, requestId);
+    return sendJson(res, 200, { workflow: workflowForRole(authenticatedUser, rx.patient_uuid), audit: auditForRole(authenticatedUser) }, requestId);
   }
   const deleteRxMatch = url.pathname.match(/^\/api\/prescriptions\/([^/]+)$/);
   if (req.method === "DELETE" && deleteRxMatch) {
@@ -795,13 +972,14 @@ async function api(req, res, url, requestId) {
       db.exec("ROLLBACK");
       throw error;
     }
-    return sendJson(res, 200, { ok: true, workflow: workflowState(rx.patient_uuid), audit: listAudit() }, requestId);
+    return sendJson(res, 200, { ok: true, workflow: workflowForRole(authenticatedUser, rx.patient_uuid), audit: auditForRole(authenticatedUser) }, requestId);
   }
   const patientWorkflowMatch = url.pathname.match(/^\/api\/patients\/([^/]+)\/workflow$/);
   if (req.method === "GET" && patientWorkflowMatch) {
+    if (!can(authenticatedUser, ["Clinician", "Nurse"])) return sendJson(res, 403, { error: "Your role cannot open a patient's clinical workflow" }, requestId);
     const patientUuid = decodeURIComponent(patientWorkflowMatch[1]);
     if (!db.prepare("SELECT 1 FROM patients WHERE uuid = ?").get(patientUuid)) return sendJson(res, 404, { error: "Patient not found" }, requestId);
-    return sendJson(res, 200, { workflow: workflowState(patientUuid) }, requestId);
+    return sendJson(res, 200, { workflow: workflowForRole(authenticatedUser, patientUuid) }, requestId);
   }
   const patientLabMatch = url.pathname.match(/^\/api\/patients\/([^/]+)\/lab-orders$/);
   if (req.method === "POST" && patientLabMatch) {
@@ -828,7 +1006,7 @@ async function api(req, res, url, requestId) {
       db.exec("ROLLBACK");
       throw error;
     }
-    return sendJson(res, 201, { order: db.prepare("SELECT * FROM lab_orders WHERE uuid = ?").get(uuid), workflow: workflowState(patientUuid), audit: listAudit() }, requestId);
+    return sendJson(res, 201, { order: db.prepare("SELECT * FROM lab_orders WHERE uuid = ?").get(uuid), workflow: workflowForRole(authenticatedUser, patientUuid), audit: auditForRole(authenticatedUser) }, requestId);
   }
   const labStatusMatch = url.pathname.match(/^\/api\/lab-orders\/([^/]+)\/status$/);
   if (req.method === "PATCH" && labStatusMatch) {
@@ -853,7 +1031,7 @@ async function api(req, res, url, requestId) {
       db.exec("ROLLBACK");
       throw error;
     }
-    return sendJson(res, 200, { workflow: workflowState(order.patient_uuid), audit: listAudit() }, requestId);
+    return sendJson(res, 200, { workflow: workflowForRole(authenticatedUser, order.patient_uuid), audit: auditForRole(authenticatedUser) }, requestId);
   }
   if (req.method === "POST" && url.pathname === "/api/encounters") {
     if (!can(authenticatedUser, ["Clinician"])) return sendJson(res, 403, { error: "Only clinicians can sign encounters" }, requestId);
@@ -876,7 +1054,7 @@ async function api(req, res, url, requestId) {
       db.exec("ROLLBACK");
       throw error;
     }
-    return sendJson(res, 201, { encounter: { uuid, status: "signed", createdAt: timestamp }, audit: listAudit() }, requestId);
+    return sendJson(res, 201, { encounter: { uuid, status: "signed", createdAt: timestamp }, audit: auditForRole(authenticatedUser) }, requestId);
   }
   return sendJson(res, 404, { error: "API route not found", requestId }, requestId);
 }

@@ -10,6 +10,7 @@ Mwein Cloud EMR is a hardened deployment candidate. It is not authorized for rea
 - Sessions have 30-minute idle and 8-hour absolute expiry by default.
 - Production cookies are `Secure`, `HttpOnly`, `SameSite=Strict`, and use the `__Host-` prefix.
 - Server-side roles authorize registration, prescribing, and encounter signing.
+- Administrator-managed staff creation, role/status changes, mandatory temporary-password replacement, session revocation, and role-scoped payloads are implemented for the pilot identity store.
 - Prescription saves enforce server-owned formulary, allergy, duplicate-order, antimicrobial, and paediatric review plug-ins.
 - Laboratory and prescription orders synchronize transactionally with invoices; cancellations reverse charges and completed work leaves active queues without deleting billing history.
 - Laboratory completion uses server-validated, test-specific result schemas with universal specimen-quality, interpretation, method, reference-context, and notes fields.

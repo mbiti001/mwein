@@ -1,4 +1,4 @@
-const CACHE_NAME = "mwein-emr-v12";
+const CACHE_NAME = "mwein-emr-v13";
 const APP_SHELL = [
   "./",
   "./index.html",
