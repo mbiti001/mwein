@@ -1,0 +1,17 @@
+{
+  "name": "Mwein Cloud EMR",
+  "status": "ok",
+  "version": "0.4.0-static-demo",
+  "deployment": "static-pwa",
+  "productionReady": false,
+  "requiresBackendForProduction": true,
+  "checks": {
+    "appShell": "ok",
+    "manifest": "ok",
+    "serviceWorker": "ok",
+    "securityHeadersConfigured": "ok",
+    "clinicalBackend": "not_configured",
+    "shaIntegration": "not_configured",
+    "nationalExchange": "not_configured"
+  }
+}
