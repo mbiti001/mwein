@@ -1,0 +1,37 @@
+name: EMR verification
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check JavaScript syntax
+        run: |
+          node --check server.js
+          node --check scripts/backup.js
+          node --check scripts/verify-backup.js
+      - name: Run automated tests
+        run: npm test
+      - name: Build hardened container
+        run: docker build --tag mwein-emr:verify .
+      - name: Build verified cloud bundle
+        run: npm run package-release
+      - name: Upload cloud bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: mwein-cloud-emr-source
+          path: dist/mwein-cloud-emr-v*.zip
+          if-no-files-found: error
+          retention-days: 14

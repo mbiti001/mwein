@@ -1,0 +1,18 @@
+{
+  "name": "mwein-cloud-emr",
+  "version": "0.7.0",
+  "private": true,
+  "description": "Kenya-focused cloud EMR prototype with a SQLite-backed clinical API.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test",
+    "backup": "node scripts/backup.js",
+    "verify-backup": "node scripts/verify-backup.js",
+    "package-release": "sh scripts/package-release.sh"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}

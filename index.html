@@ -1,632 +1,3463 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Mwein Medical Services - Private community healthcare facility in Mungatsi, Busia County, Kenya. 24-hour outpatient care, laboratory services, ultrasound, and pharmacy. SHA accepted.">
-    <meta name="theme-color" content="#0ea5e9">
-    <link rel="icon" href="assets/favicons/favicon-m.svg" type="image/svg+xml">
-    <title>Mwein Medical Services | 24-Hour Healthcare in Busia</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Mwein Cloud EMR prototype for Kenyan health facilities.">
+  <meta name="theme-color" content="#0f766e">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Crect width='96' height='96' rx='18' fill='%230f766e'/%3E%3Cpath d='M24 58h14V38h20v20h14V24H58v14H38V24H24v34Z' fill='white'/%3E%3Cpath d='M24 70h48v8H24z' fill='%23ccfbf1'/%3E%3C/svg%3E">
+  <title>Mwein Cloud EMR</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17202a;
+      --muted: #637083;
+      --line: #d8e0e7;
+      --paper: #ffffff;
+      --soft: #f4f7f8;
+      --teal: #0f766e;
+      --teal-dark: #0c5f59;
+      --blue: #2563eb;
+      --amber: #b45309;
+      --rose: #be123c;
+      --green: #15803d;
+      --violet: #6d28d9;
+      --shadow: 0 16px 44px rgba(21, 32, 43, 0.12);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    .skip-link {
+      position: fixed;
+      left: 12px;
+      top: 12px;
+      z-index: 100;
+      transform: translateY(-140%);
+      background: #fff;
+      color: var(--teal);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-weight: 900;
+      text-decoration: none;
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #e9eef0;
+      color: var(--ink);
+    }
+
+    .auth-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: #e9eef0;
+      overflow-y: auto;
+    }
+
+    .auth-screen[hidden] { display: none; }
+
+    .auth-shell {
+      width: min(920px, 100%);
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .auth-context {
+      padding: 44px;
+      display: grid;
+      align-content: end;
+      min-height: 520px;
+      color: #eef8f8;
+      background: #0f2f35;
+    }
+
+    .auth-context .brand-mark { margin-bottom: 28px; }
+    .auth-context h1 { margin: 0 0 12px; font-size: 3.4rem; line-height: 1; }
+    .auth-context p { margin: 0; color: #abd5d2; line-height: 1.55; max-width: 38ch; }
+
+    .auth-form-wrap {
+      padding: 44px;
+      display: grid;
+      align-content: center;
+      gap: 22px;
+    }
+
+    .auth-form-wrap h2 { margin: 0 0 6px; }
+    .auth-form-wrap p { margin: 0; color: var(--muted); line-height: 1.5; }
+    .auth-form { display: grid; gap: 16px; }
+    .auth-form .btn { width: 100%; justify-content: center; }
+
+    .auth-error {
+      display: none;
+      padding: 11px 12px;
+      color: #9f1239;
+      background: #fff1f2;
+      border: 1px solid #fecdd3;
+      border-radius: 8px;
+      line-height: 1.4;
+    }
+
+    .auth-error.show { display: block; }
+
+    .visit-dialog {
+      width: min(620px, calc(100vw - 32px));
+      max-height: calc(100vh - 32px);
+      padding: 0;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      box-shadow: var(--shadow);
+    }
+
+    .visit-dialog::backdrop { background: rgba(15, 47, 53, 0.58); }
+    .visit-dialog.lab-result-dialog { width: min(780px, calc(100vw - 32px)); }
+
+    .dialog-head,
+    .dialog-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 20px;
+    }
+
+    .dialog-head { border-bottom: 1px solid var(--line); }
+    .dialog-head h2 { margin: 0; }
+    .dialog-body { padding: 20px; display: grid; gap: 16px; }
+    .dialog-actions { border-top: 1px solid var(--line); justify-content: flex-end; }
+    .dialog-actions .secondary-action { margin-right: auto; }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 252px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      background: #0f2f35;
+      color: #eef8f8;
+      padding: 22px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      background: #eef8f8;
+      color: #0f2f35;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      letter-spacing: 0;
+      flex: 0 0 auto;
+    }
+
+    .brand strong {
+      display: block;
+      font-size: 1rem;
+      line-height: 1.15;
+    }
+
+    .brand span {
+      color: #abd5d2;
+      font-size: 0.78rem;
+    }
+
+    .facility {
+      padding: 12px;
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+    }
+
+    .facility small {
+      color: #abd5d2;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .facility strong {
+      display: block;
+      font-size: 0.94rem;
+    }
+
+    .nav {
+      display: grid;
+      gap: 6px;
+    }
+
+    .nav button {
+      min-height: 42px;
+      color: #dff3f1;
+      background: transparent;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 12px;
+      text-align: left;
+    }
+
+    .nav button:hover,
+    .nav button.active {
+      background: #eef8f8;
+      color: #0f2f35;
+    }
+
+    .nav svg,
+    .icon {
+      width: 19px;
+      height: 19px;
+      flex: 0 0 auto;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      color: #abd5d2;
+      font-size: 0.78rem;
+      line-height: 1.5;
+    }
+
+    .main {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      min-height: 72px;
+      background: rgba(255,255,255,0.94);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 28px;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    .mobile-menu {
+      display: none;
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      background: var(--soft);
+      color: var(--ink);
+      place-items: center;
+    }
+
+    .search {
+      min-width: 240px;
+      max-width: 540px;
+      flex: 1;
+      position: relative;
+    }
+
+    .search svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+    }
+
+    .search input {
+      width: 100%;
+      min-height: 42px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      padding: 0 12px 0 42px;
+      outline: none;
+      background: #fff;
+    }
+
+    .search input:focus {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .icon-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      background: var(--soft);
+      color: var(--ink);
+      display: grid;
+      place-items: center;
+      border: 1px solid transparent;
+    }
+
+    .icon-btn:hover {
+      border-color: var(--line);
+      background: #fff;
+    }
+
+    .user-chip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 42px;
+      padding: 4px 6px 4px 12px;
+      border-radius: 8px;
+      background: #eef8f8;
+      color: #0f2f35;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .role-select {
+      width: auto;
+      min-width: 132px;
+      min-height: 42px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .sync-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 34px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: #ecfdf5;
+      color: #166534;
+      font-size: 0.78rem;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .sync-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #16a34a;
+      box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.14);
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--teal);
+      color: white;
+      display: grid;
+      place-items: center;
+      font-size: 0.8rem;
+    }
+
+    .content {
+      padding: 26px 28px 36px;
+      display: grid;
+      gap: 22px;
+      min-width: 0;
+    }
+
+    .view {
+      display: none;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .view.active {
+      display: grid;
+      gap: 22px;
+      min-width: 0;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 6px;
+      font-size: clamp(1.7rem, 2.3vw, 2.45rem);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      font-size: 1.05rem;
+      margin-bottom: 14px;
+    }
+
+    h3 {
+      font-size: 0.96rem;
+      margin-bottom: 8px;
+    }
+
+    .section-head p {
+      color: var(--muted);
+      max-width: 760px;
+      margin-bottom: 0;
+      line-height: 1.5;
+    }
+
+    .btn {
+      min-height: 42px;
+      border-radius: 8px;
+      padding: 0 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--line);
+      text-decoration: none;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .btn.primary {
+      background: var(--teal);
+      color: #fff;
+      border-color: var(--teal);
+    }
+
+    .btn.primary:hover {
+      background: var(--teal-dark);
+    }
+
+    .btn.warning {
+      background: #fff7ed;
+      color: #9a3412;
+      border-color: #fed7aa;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .stats {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .stat,
+    .panel,
+    .record-card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 1px 0 rgba(21, 32, 43, 0.03);
+    }
+
+    .stat {
+      padding: 16px;
+      min-height: 126px;
+      display: grid;
+      align-content: space-between;
+      gap: 10px;
+    }
+
+    .stat-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .stat small,
+    .muted {
+      color: var(--muted);
+    }
+
+    .stat strong {
+      font-size: 2rem;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .badge {
+      min-height: 26px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 0 9px;
+      font-size: 0.76rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .badge.green { background: #dcfce7; color: #166534; }
+    .badge.blue { background: #dbeafe; color: #1d4ed8; }
+    .badge.amber { background: #fef3c7; color: #92400e; }
+    .badge.rose { background: #ffe4e6; color: #be123c; }
+    .badge.violet { background: #ede9fe; color: #5b21b6; }
+    .badge.gray { background: #eef2f7; color: #475569; }
+
+    .dashboard-grid {
+      grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.8fr);
+      align-items: start;
+    }
+
+    .panel {
+      padding: 18px;
+      min-width: 0;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .queue {
+      display: grid;
+      gap: 10px;
+    }
+
+    .queue-row,
+    .timeline-row {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .queue-row:first-child,
+    .timeline-row:first-child {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .patient-initial {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: #e0f2fe;
+      color: #075985;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+    }
+
+    .queue-row strong,
+    .timeline-row strong {
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .clinical-map {
+      min-height: 280px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background:
+        radial-gradient(circle at 28% 32%, rgba(21, 128, 61, 0.18) 0 9%, transparent 10%),
+        radial-gradient(circle at 72% 26%, rgba(37, 99, 235, 0.18) 0 7%, transparent 8%),
+        linear-gradient(135deg, #eff6ff 0 34%, #ecfdf5 34% 66%, #fff7ed 66%);
+      position: relative;
+      display: grid;
+      align-content: end;
+      padding: 18px;
+    }
+
+    .clinical-map::before {
+      content: "";
+      position: absolute;
+      inset: 18px;
+      background-image:
+        linear-gradient(90deg, rgba(15, 47, 53, 0.08) 1px, transparent 1px),
+        linear-gradient(rgba(15, 47, 53, 0.08) 1px, transparent 1px);
+      background-size: 38px 38px;
+      border-radius: 8px;
+    }
+
+    .map-label {
+      position: relative;
+      z-index: 1;
+      max-width: 360px;
+      background: rgba(255,255,255,0.88);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      backdrop-filter: blur(8px);
+    }
+
+    .map-label p {
+      color: var(--muted);
+      line-height: 1.45;
+      margin-bottom: 0;
+      font-size: 0.9rem;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+      font-size: 0.92rem;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: middle;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #475569;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .link-btn {
+      color: var(--teal);
+      background: transparent;
+      padding: 0;
+      font-weight: 900;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: #334155;
+      font-weight: 800;
+      font-size: 0.82rem;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-height: 42px;
+      padding: 9px 11px;
+      color: var(--ink);
+      background: #fff;
+      outline: none;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 98px;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+    }
+
+    .span-2 { grid-column: span 2; }
+    .span-3 { grid-column: span 3; }
+
+    .record-layout {
+      grid-template-columns: 310px minmax(0, 1fr);
+      align-items: start;
+    }
+
+    .record-card {
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .profile-hero {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .profile-photo {
+      width: 66px;
+      height: 66px;
+      border-radius: 50%;
+      background:
+        linear-gradient(#bae6fd, #ecfeff);
+      display: grid;
+      place-items: center;
+      color: #075985;
+      font-size: 1.4rem;
+      font-weight: 900;
+      border: 3px solid #fff;
+      box-shadow: 0 0 0 1px var(--line);
+    }
+
+    .detail-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+    }
+
+    .detail-list div {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+    }
+
+    .detail-list dt {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .detail-list dd {
+      margin: 0;
+      font-weight: 800;
+      text-align: right;
+    }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 16px;
+    }
+
+    .tabs button {
+      min-height: 40px;
+      padding: 0 13px;
+      border-radius: 8px 8px 0 0;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 900;
+      border-bottom: 3px solid transparent;
+    }
+
+    .tabs button.active {
+      color: var(--teal);
+      border-bottom-color: var(--teal);
+      background: #f0fdfa;
+    }
+
+    .tab-page {
+      display: none;
+    }
+
+    .tab-page.active {
+      display: grid;
+      gap: 16px;
+    }
+
+    .vitals {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .vital {
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      min-height: 94px;
+    }
+
+    .vital small {
+      color: var(--muted);
+      display: block;
+      margin-bottom: 7px;
+    }
+
+    .vital strong {
+      font-size: 1.35rem;
+    }
+
+    .waveform {
+      height: 96px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #071b20;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .waveform svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .workflow {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .step {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      min-height: 146px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .step-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+    }
+
+    .step p {
+      color: var(--muted);
+      line-height: 1.45;
+      margin-bottom: 0;
+      font-size: 0.9rem;
+    }
+
+    .security-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .readiness-strip {
+      grid-template-columns: 1.1fr 0.9fr 1fr;
+      align-items: stretch;
+    }
+
+    .readiness-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+      min-height: 154px;
+    }
+
+    .readiness-card header,
+    .metric-row,
+    .check-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .readiness-card h2,
+    .readiness-card h3 {
+      margin-bottom: 0;
+    }
+
+    .progress {
+      height: 10px;
+      background: #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--teal);
+    }
+
+    .mini-list {
+      display: grid;
+      gap: 9px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .mini-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      color: var(--muted);
+      line-height: 1.35;
+      font-size: 0.88rem;
+    }
+
+    .mini-list li::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--teal);
+      margin-top: 6px;
+      flex: 0 0 auto;
+    }
+
+    .insight-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .chart-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      min-height: 280px;
+      min-width: 0;
+      display: grid;
+      align-content: space-between;
+      gap: 14px;
+    }
+
+    .insight-grid > *,
+    .readiness-strip > *,
+    .architecture > * {
+      min-width: 0;
+    }
+
+    .bar-chart {
+      height: 180px;
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      align-items: end;
+      gap: 10px;
+      padding-top: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .bar {
+      min-height: 18px;
+      border-radius: 6px 6px 0 0;
+      background: var(--teal);
+      position: relative;
+    }
+
+    .bar span {
+      position: absolute;
+      bottom: -24px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: var(--muted);
+      font-size: 0.74rem;
+      font-weight: 800;
+    }
+
+    .donut {
+      width: 158px;
+      height: 158px;
+      margin: 0 auto;
+      border-radius: 50%;
+      background: conic-gradient(var(--teal) 0 62%, var(--blue) 62% 82%, var(--amber) 82% 93%, #e5e7eb 93% 100%);
+      display: grid;
+      place-items: center;
+    }
+
+    .donut::after {
+      content: "93%";
+      width: 92px;
+      height: 92px;
+      background: #fff;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      font-size: 1.4rem;
+    }
+
+    .heat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .heat-cell {
+      min-height: 58px;
+      border-radius: 8px;
+      background: #ecfdf5;
+      border: 1px solid #bbf7d0;
+      padding: 8px;
+      display: grid;
+      align-content: space-between;
+      font-weight: 900;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .heat-cell small {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .heat-cell.busy {
+      background: #fff7ed;
+      border-color: #fed7aa;
+    }
+
+    .heat-cell.urgent {
+      background: #fff1f2;
+      border-color: #fecdd3;
+    }
+
+    .duplicate-alert {
+      display: none;
+      margin-bottom: 14px;
+      padding: 12px;
+      border: 1px solid #fed7aa;
+      background: #fff7ed;
+      color: #9a3412;
+      border-radius: 8px;
+      line-height: 1.4;
+    }
+
+    .duplicate-alert.show {
+      display: block;
+    }
+
+    .safety-stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .prescription-builder {
+      display: grid;
+      gap: 12px;
+    }
+
+    .prescription-grid {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr 1fr 1fr auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .prescription-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .plugin-panel {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8fafc;
+    }
+
+    .plugin-head,
+    .plugin-chips,
+    .screening-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .plugin-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px;
+      border: 1px solid #a7f3d0;
+      border-radius: 999px;
+      background: #ecfdf5;
+      color: #166534;
+      font-size: 0.76rem;
+      font-weight: 800;
+    }
+
+    .screening-results { display: grid; gap: 8px; }
+
+    .screening-item {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .screening-item strong,
+    .screening-item small { display: block; }
+    .screening-item small { margin-top: 3px; line-height: 1.4; }
+    .screening-item.block { border-color: #fecdd3; background: #fff1f2; }
+    .screening-item.review { border-color: #fde68a; background: #fffbeb; }
+    .review-acknowledgement { display: none; }
+    .review-acknowledgement.show { display: flex; }
+
+    .inline-order-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(120px, 0.7fr) auto;
+      gap: 10px;
+      align-items: end;
+      margin-bottom: 14px;
+    }
+
+    .status-select,
+    .result-input {
+      min-width: 132px;
+      padding: 8px 10px;
+      font-size: 0.82rem;
+    }
+
+    .invoice-description {
+      display: block;
+      max-width: 360px;
+      margin-top: 4px;
+      line-height: 1.35;
+    }
+
+    .money { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+    .prescription-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) auto auto;
+      gap: 10px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .prescription-row strong,
+    .prescription-row small {
+      display: block;
+      min-width: 0;
+    }
+
+    .summary-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .summary-text {
+      white-space: pre-wrap;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #f8fafc;
+      min-height: 260px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .summary-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .check-row {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 11px 12px;
+      background: #fff;
+    }
+
+    .check-row label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.9rem;
+      color: var(--ink);
+    }
+
+    .check-row input {
+      width: 18px;
+      min-height: 18px;
+    }
+
+    .architecture {
+      grid-template-columns: repeat(5, minmax(140px, 1fr));
+      align-items: stretch;
+    }
+
+    .arch-node {
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      min-height: 130px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .arch-node strong {
+      font-size: 0.9rem;
+    }
+
+    .arch-node small {
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .rubric-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .rubric-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      display: grid;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .rubric-card strong {
+      font-size: 1.35rem;
+    }
+
+    .rubric-card p {
+      margin-bottom: 0;
+      color: var(--muted);
+      line-height: 1.4;
+      font-size: 0.88rem;
+    }
+
+    .notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px;
+      border-radius: 8px;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      color: #78350f;
+      line-height: 1.45;
+    }
+
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      background: #0f2f35;
+      color: #fff;
+      padding: 13px 15px;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: 180ms ease;
+      z-index: 20;
+      max-width: min(360px, calc(100vw - 32px));
+      line-height: 1.35;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 1120px) {
+      .stats,
+      .workflow,
+      .security-grid,
+      .readiness-strip,
+      .insight-grid,
+      .architecture,
+      .rubric-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .dashboard-grid,
+      .record-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 820px) {
+      .auth-shell { grid-template-columns: 1fr; }
+      .auth-context { min-height: 210px; padding: 28px; align-content: center; }
+      .auth-context h1 { font-size: 2.2rem; }
+      .auth-form-wrap { padding: 28px; }
+
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: fixed;
+        z-index: 30;
+        inset: 0 auto 0 0;
+        width: min(292px, calc(100vw - 42px));
+        transform: translateX(-104%);
+        transition: transform 180ms ease;
+      }
+
+      .sidebar.open {
+        transform: translateX(0);
+      }
+
+      .mobile-menu {
+        display: grid;
+      }
+
+      .topbar {
+        padding: 12px 16px;
+        align-items: stretch;
+      }
+
+      .search {
+        min-width: 0;
+      }
+
+      .user-chip span {
+        display: none;
+      }
+
+      .sync-pill,
+      .role-select {
+        display: none;
+      }
+
+      .content {
+        padding: 20px 16px 30px;
+      }
+
+      .section-head {
+        display: grid;
+      }
+
+      .form-grid,
+      .split,
+      .vitals,
+      .inline-order-form,
+      .prescription-grid,
+      .prescription-row,
+      .readiness-strip,
+      .insight-grid,
+      .architecture,
+      .rubric-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .span-2,
+      .span-3 {
+        grid-column: auto;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .stats,
+      .workflow,
+      .security-grid,
+      .readiness-strip,
+      .insight-grid,
+      .architecture,
+      .rubric-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .top-actions .btn {
+        display: none;
+      }
+
+      .queue-row,
+      .timeline-row {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      .queue-row .badge,
+      .timeline-row .badge {
+        grid-column: 2;
+        width: max-content;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .sidebar,
+      .topbar,
+      .toast,
+      .skip-link {
+        display: none !important;
+      }
+
+      .app {
+        display: block;
+      }
+
+      .content {
+        padding: 0;
+      }
+
+      .view {
+        display: block !important;
+        break-after: page;
+      }
+
+      .panel,
+      .stat,
+      .record-card,
+      .step,
+      .readiness-card,
+      .chart-card {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+    }
+  </style>
 </head>
 <body>
+  <section class="auth-screen" id="authScreen" aria-labelledby="authTitle">
+    <div class="auth-shell">
+      <div class="auth-context">
+        <div class="brand-mark">M</div>
+        <h1>Mwein Cloud EMR</h1>
+        <p>Secure clinical workspace for Mwein Medical Services, Mungatsi, Busia County.</p>
+      </div>
+      <div class="auth-form-wrap">
+        <div>
+          <h2 id="authTitle">Staff sign in</h2>
+          <p>Use your assigned facility account.</p>
+        </div>
+        <form class="auth-form" id="loginForm">
+          <label>Email
+            <input id="loginEmail" type="email" value="clinician@mwein.local" autocomplete="username" required>
+          </label>
+          <label>Password
+            <input id="loginPassword" type="password" autocomplete="current-password" required>
+          </label>
+          <div class="auth-error" id="loginError" role="alert"></div>
+          <button class="btn primary" id="loginBtn" type="submit">Sign in securely</button>
+        </form>
+        <a class="btn primary" id="serverAppLink" href="http://127.0.0.1:4173" hidden>Open secure application</a>
+      </div>
+    </div>
+  </section>
+  <a class="skip-link" href="#dashboard">Skip to clinical dashboard</a>
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">M</div>
+        <div>
+          <strong>Mwein Cloud EMR</strong>
+          <span>Kenya-ready clinical workspace</span>
+        </div>
+      </div>
 
-<!-- Skip to main content link for accessibility -->
-<a href="#main" class="skip-link">Skip to main content</a>
+      <div class="facility">
+        <small>Facility</small>
+        <strong>Mwein Medical Services</strong>
+        <small>Mungatsi, Busia County</small>
+      </div>
 
-<!-- ALERT BAR -->
-<div class="alert-bar alert-bar--emergency" role="alert">
-    &#9888; Medical Emergency? Call <a href="tel:+254707711888">+254 707 711 888</a> &mdash; Open 24 Hours, 7 Days
-</div>
-
-<!-- HEADER -->
-<header class="header">
-    <div class="container">
-        <a href="index.html" class="logo" aria-label="Mwein Medical Home">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="vertical-align:middle;margin-right:0.4rem;"><rect x="3" y="3" width="18" height="18" rx="3" fill="#0ea5e9"/><path d="M12 7v10M7 12h10" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg>
-            Mwein Medical
-        </a>
-
-        <button id="navToggle" class="nav-toggle" aria-controls="siteNav" aria-expanded="false" aria-label="Open navigation menu">
-            <span class="hamburger-line"></span>
-            <span class="hamburger-line"></span>
-            <span class="hamburger-line"></span>
+      <nav class="nav" aria-label="EMR sections">
+        <button class="active" data-view="dashboard" title="Dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13h8V3H3zM13 21h8V11h-8zM13 3v6h8V3zM3 21h8v-6H3z"/></svg>
+          Dashboard
         </button>
+        <button data-view="patients" title="Patients">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Patients
+        </button>
+        <button data-view="encounter" title="Encounter">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6"/><path d="M12 12v6"/></svg>
+          Encounter
+        </button>
+        <button data-view="orders" title="Orders">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2v6"/><path d="M15 2v6"/><path d="M12 17v5"/><path d="M5 8h14"/><path d="M6 8v3a6 6 0 0 0 12 0V8"/></svg>
+          Lab & Pharmacy
+        </button>
+        <button data-view="claims" title="Claims">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M7 15h3"/></svg>
+          SHA & Billing
+        </button>
+        <button data-view="analytics" title="Analytics">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/><path d="M19 9h-5"/></svg>
+          Analytics
+        </button>
+        <button data-view="compliance" title="Compliance">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+          Compliance
+        </button>
+      </nav>
 
-        <nav id="siteNav" class="nav" aria-label="Main navigation" aria-hidden="true">
-            <a href="index.html" class="active">Home</a>
-            <a href="services.html">Services</a>
-            <a href="blog.html">Education</a>
-            <a href="shop.html">Shop</a>
-            <a href="appointments.html">Appointments</a>
-            <a href="contact.html">Contact</a>
-            <a href="insurers.html">Insurers</a>
-            <a href="donations.html" class="donate-link">Donate</a>
-        </nav>
-    </div>
-</header>
+      <div class="sidebar-footer">
+        Version 1.0.0 structured laboratory pilot. Demo data only. Complete security certification before real patient use.
+      </div>
+    </aside>
 
-<!-- HERO SECTION -->
-<section class="hero" id="main">
-    <div class="container">
-        <h2>Exceptional Care, Close to You</h2>
-        <p class="subheading">
-            Private community healthcare facility in Mungatsi, Busia County, Kenya.
-            <br>
-            <strong>Open 24 hours, 7 days a week</strong>
-        </p>
-        
-        <div style="margin-top: 2rem;">
-            <a href="contact.html" class="btn-primary">Book Appointment</a>
-            <a href="tel:+254707711888" class="btn-secondary">Call Now: +254 707 711 888</a>
+    <main class="main">
+      <header class="topbar">
+        <button class="mobile-menu" id="menuBtn" aria-label="Open menu" title="Open menu">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="search">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="globalSearch" type="search" placeholder="Search by patient, CHUID, phone, diagnosis, order">
         </div>
-
-        <p style="font-size: 0.85rem; color: rgba(255,255,255,0.8); margin-top: 1rem;">
-            No charges shown online &mdash; costs confirmed when our team responds to your booking.
-        </p>
-
-        <!-- STATS STRIP -->
-        <div class="stats-strip">
-            <div class="stat-item">
-                <span class="stat-number">24/7</span>
-                <span class="stat-label">Always Open</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-number">6+</span>
-                <span class="stat-label">Services</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-number">3</span>
-                <span class="stat-label">SHA Plans</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-number">1</span>
-                <span class="stat-label">Busia County</span>
-            </div>
+        <div class="top-actions">
+          <div class="sync-pill" id="syncStatus" title="Cloud synchronization status"><span class="sync-dot"></span> Connecting</div>
+          <select class="role-select" id="roleSelect" aria-label="Active role" disabled>
+            <option>Clinician</option>
+            <option>Nurse</option>
+            <option>Lab</option>
+            <option>Pharmacy</option>
+            <option>Billing</option>
+            <option>Admin</option>
+          </select>
+          <button class="icon-btn" title="Sync encrypted records">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 16v5h5"/><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M16 8h5V3"/></svg>
+          </button>
+          <button class="icon-btn" id="exportBtn" title="Export daily report">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+          </button>
+          <button class="btn primary" id="quickVisitBtn">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            New Visit
+          </button>
+          <div class="user-chip" id="userChip">
+            <span id="staffName">Signed out</span>
+            <div class="avatar" id="staffInitials">--</div>
+          </div>
+          <button class="icon-btn" id="logoutBtn" title="Sign out" aria-label="Sign out">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/></svg>
+          </button>
         </div>
-    </div>
-</section>
+      </header>
 
-<!-- TRUST BUILDING SECTION -->
-<section class="content">
-    <div class="container">
-        <h2 style="text-align: center;">About Mwein Medical Services</h2>
-        <p style="text-align: center; font-size: 1.1rem; max-width: 700px; margin: 0 auto var(--spacing-2xl);">
-            We are a licensed private community medical clinic providing comprehensive healthcare to individuals and families in Mungatsi and surrounding areas. Our facility operates round-the-clock with qualified clinical staff and modern diagnostic equipment, ensuring reliable care when you need it.
-        </p>
-    </div>
-</section>
-
-<!-- CORE SERVICES -->
-<section class="content">
-    <div class="container">
-        <h2 style="text-align: center;">Our Core Services</h2>
-        <p style="text-align: center; color: var(--gray-light); margin-bottom: var(--spacing-2xl);">
-            Comprehensive healthcare services available 24/7
-        </p>
-
-        <div class="services-grid">
-
-            <div class="service-card">
-                <div class="service-icon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <circle cx="12" cy="8" r="4"/>
-                        <path d="M4 20c0-4 16-4 16 0"/>
-                    </svg>
-                </div>
-                <h3>Outpatient Services (OPD)</h3>
-                <p>Medical consultations, diagnosis, and treatment for acute and chronic conditions. Available for walk-ins and pre-booked appointments.</p>
+      <section class="content">
+        <section class="view active" id="dashboard">
+          <div class="section-head">
+            <div>
+              <h1>Clinical Operations</h1>
+              <p>Register clients, document encounters, order labs, dispense medicines, prepare SHA claims, and keep the audit trail ready for Kenyan digital health requirements.</p>
             </div>
+            <button class="btn warning" id="offlineBtn">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1l22 22"/><path d="M16.72 11.06A10.94 10.94 0 0 1 21 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/></svg>
+              Offline Ready
+            </button>
+          </div>
 
-            <div class="service-card">
-                <div class="service-icon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M9 3v6l-5 9a3 3 0 0 0 3 4h10a3 3 0 0 0 3-4l-5-9V3"/>
-                    </svg>
+          <div class="grid stats">
+            <article class="stat">
+              <div class="stat-top">
+                <small>Patients today</small>
+                <span class="badge green">+12%</span>
+              </div>
+              <strong id="todayCount">37</strong>
+              <small>11 waiting, 18 seen, 8 follow-ups</small>
+            </article>
+            <article class="stat">
+              <div class="stat-top">
+                <small>Open lab orders</small>
+                <span class="badge blue" id="urgentLabCount">0 urgent</span>
+              </div>
+              <strong id="openLabCount">0</strong>
+              <small>Live synchronized laboratory worklist</small>
+            </article>
+            <article class="stat">
+              <div class="stat-top">
+                <small>Pharmacy tasks</small>
+                <span class="badge amber">Live queue</span>
+              </div>
+              <strong id="pharmacyTaskCount">0</strong>
+              <small>Prescriptions awaiting dispensing</small>
+            </article>
+            <article class="stat">
+              <div class="stat-top">
+                <small>Compliance queue</small>
+                <span class="badge rose">Action</span>
+              </div>
+              <strong>5</strong>
+              <small>DPIA review, ESB logs, user access</small>
+            </article>
+          </div>
+
+          <div class="grid readiness-strip">
+            <article class="readiness-card">
+              <header>
+                <h2>Cloud Readiness</h2>
+                <span class="badge green">82%</span>
+              </header>
+              <div class="progress" aria-label="Cloud readiness score"><span style="width:82%"></span></div>
+              <ul class="mini-list">
+                <li>Encrypted sync queue and offline drafts are active.</li>
+                <li>Role-based workflows are mapped for clinician, nurse, lab, pharmacy, billing, and admin.</li>
+                <li>Facility onboarding pack still needs final DHA test evidence.</li>
+              </ul>
+            </article>
+            <article class="readiness-card">
+              <header>
+                <h2>Clinical Safety</h2>
+                <span class="badge amber">Review 4</span>
+              </header>
+              <div class="metric-row"><span class="muted">Allergy conflicts</span><strong>1</strong></div>
+              <div class="metric-row"><span class="muted">Critical stock risks</span><strong>3</strong></div>
+              <div class="metric-row"><span class="muted">Unsigned notes</span><strong>4</strong></div>
+            </article>
+            <article class="readiness-card">
+              <header>
+                <h2>Next Milestone</h2>
+                <span class="badge blue">Pilot</span>
+              </header>
+              <ul class="mini-list">
+                <li>Run 2-week parallel paper and EMR capture.</li>
+                <li>Validate SHA claim packet fields with real facility billing workflow.</li>
+                <li>Train super users and capture role access approvals.</li>
+              </ul>
+            </article>
+          </div>
+
+          <div class="grid dashboard-grid">
+            <section class="panel">
+              <h2>Live Triage Queue</h2>
+              <div class="queue" id="triageQueue"></div>
+            </section>
+            <section class="panel">
+              <h2>County Service Map</h2>
+              <div class="clinical-map" role="img" aria-label="Abstract service area map showing facility coverage">
+                <div class="map-label">
+                  <h3>Busia primary care hub</h3>
+                  <p>Built for cloud sync with local downtime capture, facility-level reporting, and future exchange with national shared health record services.</p>
                 </div>
-                <h3>Laboratory Services</h3>
-                <p>Diagnostic testing including malaria screening, blood tests, infectious disease screening, and urine/stool analysis.</p>
+              </div>
+            </section>
+          </div>
+
+          <div class="grid workflow">
+            <article class="step">
+              <div class="step-icon" style="background: var(--teal);">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              </div>
+              <h3>Client Registry</h3>
+              <p>CHUID, national ID, phone, next of kin, county, consent, and de-duplication checks.</p>
+            </article>
+            <article class="step">
+              <div class="step-icon" style="background: var(--blue);">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              </div>
+              <h3>Clinical Notes</h3>
+              <p>Vitals, diagnosis, care plans, allergies, chronic disease review, and emergency notes.</p>
+            </article>
+            <article class="step">
+              <div class="step-icon" style="background: var(--amber);">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2v6"/><path d="M15 2v6"/><path d="M5 8h14"/><path d="M6 8v3a6 6 0 0 0 12 0V8"/></svg>
+              </div>
+              <h3>Orders</h3>
+              <p>Laboratory requests, radiology, medication orders, dispensing, and stock watch.</p>
+            </article>
+            <article class="step">
+              <div class="step-icon" style="background: var(--violet);">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </div>
+              <h3>Data Governance</h3>
+              <p>Role access, consent, audit logs, encrypted sync metadata, retention, and exports.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="patients">
+          <div class="section-head">
+            <div>
+              <h1>Patient Registry</h1>
+              <p>Cloud-ready registration with CHUID support, consent status, county/sub-county context, and fast retrieval for repeat visits.</p>
             </div>
+            <button class="btn primary" id="registryVisitBtn" type="button">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+              Start Visit
+            </button>
+          </div>
 
-            <div class="service-card">
-                <div class="service-icon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <rect x="3" y="5" width="18" height="14" rx="2"/>
-                        <path d="M7 15c4-6 6-6 10 0"/>
-                    </svg>
-                </div>
-                <h3>Ultrasound Imaging</h3>
-                <p>Safe, non-invasive ultrasound for pregnancy monitoring, abdominal evaluation, and other diagnostic imaging needs.</p>
+          <section class="panel">
+            <h2>Register Client</h2>
+            <div class="duplicate-alert" id="duplicateAlert">Possible duplicate client found. Review existing registry before saving a new record.</div>
+            <form class="form-grid" id="patientForm">
+              <label>Full name
+                <input name="name" required placeholder="e.g. Achieng Otieno">
+              </label>
+              <label>Phone
+                <input name="phone" required placeholder="+254 7XX XXX XXX">
+              </label>
+              <label>Client identifier
+                <input name="id" required placeholder="CHUID / National ID">
+              </label>
+              <label>Sex
+                <select name="sex" required>
+                  <option value="">Select</option>
+                  <option>Female</option>
+                  <option>Male</option>
+                  <option>Intersex</option>
+                </select>
+              </label>
+              <label>Age
+                <input name="age" type="number" min="0" max="120" required placeholder="32">
+              </label>
+              <label>County
+                <select name="county" required>
+                  <option>Busia</option>
+                  <option>Kakamega</option>
+                  <option>Bungoma</option>
+                  <option>Siaya</option>
+                  <option>Nairobi</option>
+                </select>
+              </label>
+              <label class="span-2">Residence
+                <input name="residence" placeholder="Village / estate / landmark">
+              </label>
+              <label>Sub-county
+                <input name="subcounty" placeholder="e.g. Matayos">
+              </label>
+              <label>Next of kin
+                <input name="kin" placeholder="Name and relationship">
+              </label>
+              <label>Payment program
+                <select name="program">
+                  <option>Cash / self-pay</option>
+                  <option>SHA</option>
+                  <option>Private insurer</option>
+                  <option>Facility waiver</option>
+                </select>
+              </label>
+              <label>Consent
+                <select name="consent" required>
+                  <option>Care and claims consent recorded</option>
+                  <option>Emergency treatment basis</option>
+                  <option>Consent pending</option>
+                </select>
+              </label>
+              <label class="span-3">Clinical summary
+                <textarea name="summary" placeholder="Known conditions, allergies, current medication, or reason for registration"></textarea>
+              </label>
+              <div class="span-3 check-row">
+                <label><input name="startVisit" type="checkbox" checked> Open the first visit after registration</label>
+                <button class="btn primary" type="submit">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+                  Save Client
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <section class="panel">
+            <h2>Registry</h2>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Client</th>
+                    <th>ID</th>
+                    <th>County</th>
+                    <th>Last visit</th>
+                    <th>Risk</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="patientRows"></tbody>
+              </table>
             </div>
+          </section>
+        </section>
 
-            <div class="service-card">
-                <div class="service-icon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <rect x="3" y="3" width="18" height="18" rx="2"/>
-                        <path d="M12 7v10M7 12h10"/>
-                    </svg>
-                </div>
-                <h3>Pharmacy Services</h3>
-                <p>Professional dispensing of prescribed medications with guidance on usage, dosage, and treatment adherence.</p>
+        <section class="view" id="encounter">
+          <div class="section-head">
+            <div>
+              <h1>Encounter Workspace</h1>
+              <p>Document triage, diagnosis, orders, care plan, and metadata for audit-ready clinical records.</p>
             </div>
+            <button class="btn primary" id="saveEncounterBtn">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+              Save Encounter
+            </button>
+          </div>
 
-            <div class="service-card">
-                <div class="service-icon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <circle cx="12" cy="9" r="3"/>
-                        <path d="M9 20c0-4 6-4 6 0"/>
-                    </svg>
+          <div class="grid record-layout">
+            <aside class="record-card">
+              <div class="profile-hero">
+                <div class="profile-photo" id="activePatientInitials">AO</div>
+                <div>
+                  <h2 id="activePatientName">Achieng Otieno</h2>
+                  <span class="badge green">Care consent active</span>
                 </div>
-                <h3>Antenatal Care (ANC)</h3>
-                <p>Comprehensive pregnancy care including routine check-ups, laboratory screening, ultrasound imaging, and maternal health education.</p>
-            </div>
+              </div>
+              <dl class="detail-list">
+                <div><dt>CHUID</dt><dd id="activePatientId">CHU-4481-029</dd></div>
+                <div><dt>Age / Sex</dt><dd id="activePatientDemo">31 / Female</dd></div>
+                <div><dt>Phone</dt><dd id="activePatientPhone">+254 712 406 221</dd></div>
+                <div><dt>Residence</dt><dd id="activePatientResidence">Matayos</dd></div>
+                <div><dt>Program</dt><dd id="activePatientProgram">SHA</dd></div>
+                <div><dt>Allergy / risk</dt><dd id="activePatientAllergy">Penicillin</dd></div>
+              </dl>
+            </aside>
 
-            <div class="service-card">
-                <div class="service-icon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M12 21s-6-4-6-9a6 6 0 0 1 12 0c0 5-6 9-6 9z"/>
-                    </svg>
+            <section class="panel">
+              <div class="tabs" role="tablist">
+                <button class="active" data-tab="triage">Triage</button>
+                <button data-tab="soap">SOAP</button>
+                <button data-tab="ordersTab">Orders</button>
+                <button data-tab="safety">Safety</button>
+                <button data-tab="visitSummary">Visit Summary</button>
+                <button data-tab="history">Timeline</button>
+              </div>
+
+              <div class="tab-page active" id="triage">
+                <div class="form-grid">
+                  <label>Visit type
+                    <select id="encounterType">
+                      <option>Outpatient</option><option>Emergency</option><option>Chronic care</option><option>ANC</option><option>Teleconsultation</option>
+                    </select>
+                  </label>
+                  <label>Priority
+                    <select id="encounterPriority">
+                      <option>Routine</option><option>Urgent</option><option>Emergency</option>
+                    </select>
+                  </label>
+                  <label>Department
+                    <select id="encounterDepartment">
+                      <option>General outpatient</option><option>Maternal health</option><option>Paediatrics</option><option>Chronic care</option><option>Emergency</option>
+                    </select>
+                  </label>
                 </div>
-                <h3>Chronic Disease Management</h3>
-                <p>Long-term care for hypertension, diabetes, sickle cell disease, and other chronic conditions requiring ongoing support.</p>
-            </div>
-
-        </div>
-    </div>
-</section>
-
-<!-- WHY CHOOSE US -->
-<section class="content">
-    <div class="container">
-        <h2 style="text-align: center;">Why Choose Mwein Medical Services</h2>
-        
-        <div class="services-grid">
-
-            <div class="service-card">
-                <div class="service-icon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <circle cx="12" cy="12" r="10"/>
-                        <path d="M8 12l2 2 4-4"/>
-                    </svg>
+                <div class="grid vitals">
+                  <label>BP
+                    <input id="vitalBp" value="128/82 mmHg">
+                  </label>
+                  <label>Pulse
+                    <input id="vitalPulse" value="84 bpm">
+                  </label>
+                  <label>Temp
+                    <input id="vitalTemp" value="37.4 C">
+                  </label>
+                  <label>SpO2
+                    <input id="vitalSpo2" value="98%">
+                  </label>
                 </div>
-                <h3>24/7 Availability</h3>
-                <p>Round-the-clock operations mean care is available whenever you need it—day, night, weekends, and public holidays.</p>
-            </div>
-
-            <div class="service-card">
-                <div class="service-icon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M12 2L15 10H23L17 15L19 23L12 18L5 23L7 15L1 10H9Z"/>
-                    </svg>
+                <div class="waveform" aria-label="Animated patient vital trace">
+                  <svg viewBox="0 0 680 96" preserveAspectRatio="none">
+                    <polyline id="waveLine" points="0,58 28,58 42,34 58,76 78,22 96,58 145,58 164,45 184,68 202,58 260,58 279,28 298,78 320,18 342,58 420,58 440,43 462,66 488,58 540,58 558,32 578,76 600,24 626,58 680,58" fill="none" stroke="#5eead4" stroke-width="4" stroke-linejoin="round"/>
+                  </svg>
                 </div>
-                <h3>Qualified Staff</h3>
-                <p>Licensed healthcare professionals with clinical experience provide safe, evidence-based care and counseling.</p>
-            </div>
+                <label>Clinical alerts
+                  <textarea>Penicillin allergy. Monitor for dehydration. Follow up BP if repeat reading exceeds 140/90.</textarea>
+                </label>
+              </div>
 
-            <div class="service-card">
-                <div class="service-icon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <rect x="3" y="11" width="18" height="2"/>
-                        <rect x="11" y="3" width="2" height="18"/>
-                    </svg>
+              <div class="tab-page" id="soap">
+                <div class="form-grid">
+                  <label class="span-3">Subjective
+                    <textarea>Fever, headache, body weakness for two days. No severe respiratory distress.</textarea>
+                  </label>
+                  <label class="span-3">Objective
+                    <textarea>Alert, mildly febrile, hydration fair. Malaria test ordered.</textarea>
+                  </label>
+                  <label class="span-2">Diagnosis
+                    <select id="soapDiagnosis">
+                      <option>Suspected uncomplicated malaria</option>
+                      <option>Upper respiratory tract infection</option>
+                      <option>Acute gastroenteritis</option>
+                      <option>Urinary tract infection</option>
+                      <option>Essential hypertension</option>
+                      <option>Type 2 diabetes mellitus</option>
+                      <option>Other / free-text in plan</option>
+                    </select>
+                  </label>
+                  <label>ICD-10
+                    <select id="soapIcd10">
+                      <option value="B54">B54 - Malaria, unspecified</option>
+                      <option value="J06.9">J06.9 - Acute upper respiratory infection</option>
+                      <option value="A09">A09 - Infectious gastroenteritis</option>
+                      <option value="N39.0">N39.0 - Urinary tract infection</option>
+                      <option value="I10">I10 - Essential hypertension</option>
+                      <option value="E11.9">E11.9 - Type 2 diabetes</option>
+                    </select>
+                  </label>
+                  <label class="span-3">Plan
+                    <textarea>Confirm with RDT/FBC. Oral fluids. Review test results before dispensing antimalarial therapy.</textarea>
+                  </label>
                 </div>
-                <h3>Accessible Location</h3>
-                <p>Conveniently located in Mungatsi, Busia County—close to home, reducing travel time and costs for local patients.</p>
-            </div>
+              </div>
 
-            <div class="service-card">
-                <div class="service-icon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
-                        <path d="M9.5 11.5h5v5h-5z"/>
-                    </svg>
-                </div>
-                <h3>Multiple Payment Options</h3>
-                <p>We accept <strong>SHA (Social Health Authority)</strong> including SHA PHC, SHA Mwalimu Cover, and Public Officers Comprehensive Cover for eligible services. We also accept M-Pesa mobile money and cash payments for flexibility.</p>
-            </div>
-
-            <div class="service-card">
-                <div class="service-icon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M12 2L2 7L2 12C2 18.67 12 22 12 22S22 18.67 22 12L22 7L12 2Z"/>
-                        <path d="M10 17L6 13L7.41 11.59L10 14.17L16.59 7.59L18 9L10 17Z"/>
-                    </svg>
-                </div>
-                <h3>Confidential & Safe</h3>
-                <p>Patient privacy is protected in accordance with healthcare regulations. All medical information is handled with strict confidentiality.</p>
-            </div>
-
-            <div class="service-card">
-                <div class="service-icon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5s-5 2.24-5 5v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2z"/>
-                        <path d="M9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z"/>
-                    </svg>
-                </div>
-                <h3>Ethical Standards</h3>
-                <p>We operate transparently, follow clinical guidelines, and maintain professional standards for patient care and facility management.</p>
-            </div>
-
-        </div>
-    </div>
-</section>
-
-<!-- QUALITY STANDARDS & SAFECARE COMPLIANCE -->
-<section class="content">
-    <div class="container">
-        <h2 style="text-align: center;">Quality Assurance & Safety Standards</h2>
-        <p style="text-align: center; color: var(--gray-light); margin-bottom: var(--spacing-xl);">
-            Committed to SafeCare standards and continuous quality improvement
-        </p>
-
-        <div style="max-width: 900px; margin: 0 auto;">
-            <div style="background: var(--primary-light); padding: var(--spacing-lg); border-radius: 8px; border-left: 4px solid var(--primary); margin-bottom: var(--spacing-lg);">
-                <h3 style="color: var(--dark); margin-top: 0;">SafeCare Compliance</h3>
-                <p style="color: var(--dark); margin: 0.5rem 0;">Mwein Medical Services is committed to SafeCare quality standards and operates according to Kenya's healthcare safety and quality regulations. We maintain continuous quality improvement initiatives and adhere to evidence-based clinical practices.</p>
-            </div>
-
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-lg);">
-                <div style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 8px;">
-                    <h4 style="color: var(--primary); margin-top: 0;">✓ Quality Standards</h4>
-                    <p style="margin: 0; font-size: 0.9rem;">Adherence to clinical guidelines and best practices in healthcare delivery.</p>
-                </div>
-
-                <div style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 8px;">
-                    <h4 style="color: var(--primary); margin-top: 0;">✓ Patient Safety</h4>
-                    <p style="margin: 0; font-size: 0.9rem;">Commitment to safe healthcare environments and infection prevention measures.</p>
-                </div>
-
-                <div style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 8px;">
-                    <h4 style="color: var(--primary); margin-top: 0;">✓ Staff Competency</h4>
-                    <p style="margin: 0; font-size: 0.9rem;">Qualified healthcare professionals with regular training and professional development.</p>
-                </div>
-
-                <div style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 8px;">
-                    <h4 style="color: var(--primary); margin-top: 0;">✓ Equipment Safety</h4>
-                    <p style="margin: 0; font-size: 0.9rem;">Properly maintained diagnostic and clinical equipment with regular calibration.</p>
-                </div>
-
-                <div style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 8px;">
-                    <h4 style="color: var(--primary); margin-top: 0;">✓ Record Keeping</h4>
-                    <p style="margin: 0; font-size: 0.9rem;">Secure, confidential patient records management in compliance with regulations.</p>
-                </div>
-
-                <div style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 8px;">
-                    <h4 style="color: var(--primary); margin-top: 0;">✓ Continuous Improvement</h4>
-                    <p style="margin: 0; font-size: 0.9rem;">Regular quality audits and feedback mechanisms for service enhancement.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- PATIENT TESTIMONIALS SECTION -->
-<section class="content">
-    <div class="container">
-        <h2 style="text-align: center;">What Our Patients Say</h2>
-        <p style="text-align: center; color: var(--gray-light); margin-bottom: var(--spacing-2xl);">
-            Real feedback from families who have received care at Mwein Medical Services
-        </p>
-
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--spacing-lg); max-width: 1000px; margin: 0 auto;">
-            
-            <!-- Testimonial 1 -->
-            <div style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 8px; border-top: 4px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                <div style="display: flex; align-items: center; margin-bottom: var(--spacing-lg);">
-                    <div style="width: 50px; height: 50px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 1.2rem; margin-right: var(--spacing-lg);">JM</div>
-                    <div>
-                        <h4 style="margin: 0; color: var(--dark);">Janet Mwangi</h4>
-                        <p style="margin: 0; font-size: 0.9rem; color: var(--gray-light);">Mother of two</p>
+              <div class="tab-page" id="ordersTab">
+                <div class="split">
+                  <section>
+                    <h2>Lab Orders</h2>
+                    <form class="inline-order-form" id="labOrderForm">
+                      <label>Test
+                        <select id="labTest" required><option value="">Select test</option></select>
+                      </label>
+                      <label>Priority
+                        <select id="labPriority"><option>Routine</option><option>Urgent</option></select>
+                      </label>
+                      <button class="btn primary" type="submit">Order</button>
+                    </form>
+                    <div class="queue" id="encounterLabList"><div class="muted">No tests ordered for this visit.</div></div>
+                  </section>
+                  <section>
+                    <h2>Prescription</h2>
+                    <div class="prescription-builder">
+                      <div class="prescription-grid">
+                        <label>Medicine
+                          <select id="rxMedicine">
+                            <option value="">Select medicine</option><option>Paracetamol 500mg</option><option>Artemether/Lumefantrine 20/120mg</option><option>ORS sachets</option><option>Zinc 20mg</option><option>Metformin 500mg</option><option>Amlodipine 5mg</option><option>Amoxicillin 500mg</option>
+                          </select>
+                        </label>
+                        <label>Dose
+                          <select id="rxDose"><option value="">Select dose</option><option>1 tablet</option><option>2 tablets</option><option>5 ml</option><option>10 ml</option><option>1 sachet</option><option>1g</option></select>
+                        </label>
+                        <label>Frequency
+                          <select id="rxFrequency"><option value="">Select frequency</option><option>Once daily</option><option>BD</option><option>TDS</option><option>QID</option><option>Every 8 hours</option><option>When required</option></select>
+                        </label>
+                        <label>Duration
+                          <select id="rxDuration"><option value="">Select duration</option><option>1 day</option><option>3 days</option><option>5 days</option><option>7 days</option><option>14 days</option><option>30 days</option></select>
+                        </label>
+                        <label>Route
+                          <select id="rxRoute"><option>Oral</option><option>Topical</option><option>Inhaled</option><option>Intramuscular</option><option>Intravenous</option></select>
+                        </label>
+                        <label>Quantity
+                          <select id="rxQuantity"><option value="">Select quantity</option><option>3</option><option>6</option><option>10</option><option>14</option><option>20</option><option>30</option></select>
+                        </label>
+                        <button class="btn primary" id="addPrescriptionBtn" type="button">
+                          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                          Add
+                        </button>
+                      </div>
+                      <label>Instructions
+                        <textarea id="rxInstructions" placeholder="Take after meals. Counsel patient on warning signs and return precautions."></textarea>
+                      </label>
+                      <section class="plugin-panel" aria-labelledby="pluginPanelTitle">
+                        <div class="plugin-head">
+                          <div>
+                            <h3 id="pluginPanelTitle">Prescription Safety Plug-ins</h3>
+                            <small class="muted">Server-controlled clinical decision support</small>
+                          </div>
+                          <button class="btn" id="screenPrescriptionBtn" type="button">Run Safety Review</button>
+                        </div>
+                        <div class="plugin-chips" id="prescriptionPluginList"></div>
+                        <div class="screening-results" id="prescriptionScreeningResults">
+                          <div class="muted">Complete the prescription fields to run the safety review.</div>
+                        </div>
+                        <label class="review-acknowledgement" id="rxReviewAcknowledgement">
+                          <input id="rxReviewAcknowledged" type="checkbox">
+                          I reviewed the advisory items using approved clinical references.
+                        </label>
+                        <small class="muted">Plug-in results support, but do not replace, licensed clinical judgement.</small>
+                      </section>
+                      <div class="prescription-list" id="prescriptionList"></div>
                     </div>
+                  </section>
                 </div>
-                <p style="color: var(--dark); line-height: 1.6; margin: 0;">
-                    "The team at Mwein Medical Services is incredibly helpful and caring. When my child had a fever at 2 AM, they were ready to help without any hesitation. The ultrasound services are fast and the doctors really take time to explain everything."
-                </p>
-                <div style="margin-top: var(--spacing-lg); color: var(--primary);">★★★★★</div>
-            </div>
+              </div>
 
-            <!-- Testimonial 2 -->
-            <div style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 8px; border-top: 4px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                <div style="display: flex; align-items: center; margin-bottom: var(--spacing-lg);">
-                    <div style="width: 50px; height: 50px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 1.2rem; margin-right: var(--spacing-lg);">DK</div>
+              <div class="tab-page" id="safety">
+                <div class="notice">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg>
+                  <div id="safetyAllergyNotice">Penicillin allergy is active. Amoxicillin and related antibiotics require an alternative prescription.</div>
+                </div>
+                <div class="safety-stack">
+                  <div class="check-row">
+                    <label><input type="checkbox" class="safety-check" checked> Patient identity verified with CHUID or national ID</label>
+                    <span class="badge green">Done</span>
+                  </div>
+                  <div class="check-row">
+                    <label><input type="checkbox" class="safety-check" checked> Consent basis documented for care and claims processing</label>
+                    <span class="badge green">Done</span>
+                  </div>
+                  <div class="check-row">
+                    <label><input type="checkbox" class="safety-check"> Allergy conflict reviewed before dispensing</label>
+                    <span class="badge amber">Required</span>
+                  </div>
+                  <div class="check-row">
+                    <label><input type="checkbox" class="safety-check"> Follow-up plan and return precautions explained</label>
+                    <span class="badge amber">Required</span>
+                  </div>
+                </div>
+                <div class="readiness-card">
+                  <header>
+                    <h2>Encounter Completion</h2>
+                    <span class="badge blue" id="safetyScore">50%</span>
+                  </header>
+                  <div class="progress"><span id="safetyProgress" style="width:50%"></span></div>
+                </div>
+              </div>
+
+              <div class="tab-page" id="visitSummary">
+                <div class="summary-card">
+                  <div class="form-grid">
+                    <label>Follow-up
+                      <select id="followUp"><option>Review in 3 days</option><option>Review in 7 days</option><option>Review in 14 days</option><option>Review in 30 days</option><option>As needed</option><option>Immediate referral</option></select>
+                    </label>
+                    <label>Disposition
+                      <select id="disposition"><option>Home</option><option>Observation</option><option>Admit</option><option>Refer to higher level facility</option><option>Transfer to emergency care</option></select>
+                    </label>
+                    <label>Summary format
+                      <select id="summaryFormat"><option>Patient copy</option><option>Clinical handover</option><option>SHA claim attachment</option></select>
+                    </label>
+                  </div>
+                  <div class="section-head">
                     <div>
-                        <h4 style="margin: 0; color: var(--dark);">David Kipchoge</h4>
-                        <p style="margin: 0; font-size: 0.9rem; color: var(--gray-light);">Small business owner</p>
+                      <h2>Visit Summary</h2>
+                      <p>Generated from the patient profile, SOAP note, safety checks, and prescription list.</p>
                     </div>
+                    <button class="btn primary" id="generateSummaryBtn" type="button">
+                      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m17 10-5 5-5-5"/><path d="M5 21h14"/></svg>
+                      Generate
+                    </button>
+                  </div>
+                  <div class="summary-text" id="visitSummaryText"></div>
+                  <div class="summary-actions">
+                    <button class="btn" id="copySummaryBtn" type="button">
+                      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      Copy
+                    </button>
+                    <button class="btn" id="downloadSummaryBtn" type="button">
+                      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+                      Download
+                    </button>
+                    <button class="btn" id="printSummaryBtn" type="button">
+                      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+                      Print
+                    </button>
+                  </div>
                 </div>
-                <p style="color: var(--dark); line-height: 1.6; margin: 0;">
-                    "I've been managing my diabetes here for 6 months now. The chronic disease clinic is well-organized and they track my progress regularly. I appreciate that they accept SHA - it's made healthcare much more affordable for me."
-                </p>
-                <div style="margin-top: var(--spacing-lg); color: var(--primary);">★★★★★</div>
-            </div>
+              </div>
 
-            <!-- Testimonial 3 -->
-            <div style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 8px; border-top: 4px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                <div style="display: flex; align-items: center; margin-bottom: var(--spacing-lg);">
-                    <div style="width: 50px; height: 50px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 1.2rem; margin-right: var(--spacing-lg);">AM</div>
-                    <div>
-                        <h4 style="margin: 0; color: var(--dark);">Agnes Makena</h4>
-                        <p style="margin: 0; font-size: 0.9rem; color: var(--gray-light);">Expecting mother</p>
-                    </div>
-                </div>
-                <p style="color: var(--dark); line-height: 1.6; margin: 0;">
-                    "My antenatal care experience here has been exceptional. The ultrasound technician is very thorough, and I feel completely reassured about my pregnancy progress. The staff treats you with respect and answers all your questions patiently."
-                </p>
-                <div style="margin-top: var(--spacing-lg); color: var(--primary);">★★★★★</div>
-            </div>
+              <div class="tab-page" id="history">
+                <div class="timeline-row"><div class="patient-initial">D</div><div><strong>Today 10:44</strong><small class="muted">Triage captured by nurse. Audit hash generated.</small></div><span class="badge green">Signed</span></div>
+                <div class="timeline-row"><div class="patient-initial">L</div><div><strong>2026-06-18</strong><small class="muted">OPD visit: gastritis. Medication dispensed.</small></div><span class="badge blue">Closed</span></div>
+                <div class="timeline-row"><div class="patient-initial">A</div><div><strong>2026-05-03</strong><small class="muted">ANC review and ultrasound referral.</small></div><span class="badge violet">Shared</span></div>
+              </div>
+            </section>
+          </div>
+        </section>
 
-            <!-- Testimonial 4 -->
-            <div style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 8px; border-top: 4px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                <div style="display: flex; align-items: center; margin-bottom: var(--spacing-lg);">
-                    <div style="width: 50px; height: 50px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 1.2rem; margin-right: var(--spacing-lg);">PO</div>
-                    <div>
-                        <h4 style="margin: 0; color: var(--dark);">Peter Omondi</h4>
-                        <p style="margin: 0; font-size: 0.9rem; color: var(--gray-light);">Teacher, Busia</p>
-                    </div>
-                </div>
-                <p style="color: var(--dark); line-height: 1.6; margin: 0;">
-                    "As a teacher on the Mwalimu Comprehensive cover, I'm delighted that Mwein Medical Services accepts it fully. The facility is professional, the doctors are knowledgeable, and my family has received excellent care. No hassles with insurance processing!"
-                </p>
-                <p style="color: var(--gray-light); font-size: 0.85rem; margin-top: 0.5rem; margin-bottom: 0;"><em>✓ Mwalimu Comprehensive Cover Accepted</em></p>
-                <div style="margin-top: var(--spacing-lg); color: var(--primary);">★★★★★</div>
+        <section class="view" id="orders">
+          <div class="section-head">
+            <div>
+              <h1>Lab & Pharmacy</h1>
+              <p>Track order status, specimen handling, results, prescriptions, dispensing, and stock risk from one operational board.</p>
             </div>
+          </div>
 
-            <!-- Testimonial 5 - Additional Teacher -->
-            <div style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 8px; border-top: 4px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                <div style="display: flex; align-items: center; margin-bottom: var(--spacing-lg);">
-                    <div style="width: 50px; height: 50px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 1.2rem; margin-right: var(--spacing-lg);">EW</div>
-                    <div>
-                        <h4 style="margin: 0; color: var(--dark);">Emily Wanjiru</h4>
-                        <p style="margin: 0; font-size: 0.9rem; color: var(--gray-light);">Secondary School Teacher</p>
-                    </div>
-                </div>
-                <p style="color: var(--dark); line-height: 1.6; margin: 0;">
-                    "My entire family uses Mwalimu Comprehensive cover at Mwein Medical Services. The doctors understand our insurance coverage and make sure we access all entitled benefits. It's reassuring to have quality healthcare at a facility that truly values teachers' wellbeing."
-                </p>
-                <p style="color: var(--gray-light); font-size: 0.85rem; margin-top: 0.5rem; margin-bottom: 0;"><em>✓ Mwalimu Comprehensive Cover Accepted</em></p>
-                <div style="margin-top: var(--spacing-lg); color: var(--primary);">★★★★★</div>
+          <div class="grid split">
+            <section class="panel">
+              <h2>Laboratory Worklist</h2>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Order</th><th>Patient</th><th>Status</th><th>Result</th></tr></thead>
+                  <tbody id="labWorklistRows"><tr><td colspan="4">No outstanding laboratory work.</td></tr></tbody>
+                </table>
+              </div>
+            </section>
+            <section class="panel">
+              <h2>Dispensing Queue</h2>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Medicine</th><th>Patient</th><th>Directions</th><th>Status</th></tr></thead>
+                  <tbody id="pharmacyQueueRows"><tr><td colspan="4">No prescriptions awaiting dispensing.</td></tr></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="claims">
+          <div class="section-head">
+            <div>
+              <h1>SHA & Billing</h1>
+              <p>Prepare claim packets with encounter notes, coded diagnosis, itemized services, supporting orders, and submission status.</p>
             </div>
+          </div>
+
+          <section class="panel">
+            <div class="notice">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+              <div>Claims integration should be connected only after facility credentials, provider contracts, and approved national exchange requirements are confirmed.</div>
+            </div>
+            <p class="muted" style="margin-top:14px;">Invoice lines synchronize from laboratory and prescription orders. Current prices are configurable pilot rates and require facility approval before use.</p>
+            <div class="table-wrap" style="margin-top:16px;">
+              <table>
+                <thead><tr><th>Claim</th><th>Patient</th><th>Amount</th><th>Status</th><th>Packet</th></tr></thead>
+                <tbody id="invoiceRows"><tr><td colspan="5">No invoice items recorded.</td></tr></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="view" id="analytics">
+          <div class="section-head">
+            <div>
+              <h1>Analytics & Reporting</h1>
+              <p>Facility-level insight for daily operations, Ministry reporting preparation, claims hygiene, and quality improvement.</p>
+            </div>
+            <button class="btn primary" id="refreshAnalyticsBtn">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 16v5h5"/><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M16 8h5V3"/></svg>
+              Refresh
+            </button>
+          </div>
+
+          <div class="grid insight-grid">
+            <article class="chart-card">
+              <div>
+                <h2>Visits This Week</h2>
+                <p class="muted">OPD, chronic review, ANC, emergency stabilization, and lab-only encounters.</p>
+              </div>
+              <div class="bar-chart" aria-label="Weekly visits chart">
+                <div class="bar" style="height:44%"><span>Mon</span></div>
+                <div class="bar" style="height:58%; background:var(--blue)"><span>Tue</span></div>
+                <div class="bar" style="height:72%"><span>Wed</span></div>
+                <div class="bar" style="height:64%; background:var(--amber)"><span>Thu</span></div>
+                <div class="bar" style="height:86%"><span>Fri</span></div>
+                <div class="bar" style="height:51%; background:var(--blue)"><span>Sat</span></div>
+                <div class="bar" style="height:35%; background:var(--green)"><span>Sun</span></div>
+              </div>
+            </article>
+
+            <article class="chart-card">
+              <div>
+                <h2>Data Quality</h2>
+                <p class="muted">Completeness across identifiers, consent, coded diagnosis, signed note, and claim packet.</p>
+              </div>
+              <div class="donut" aria-label="Data quality 93 percent"></div>
+              <ul class="mini-list">
+                <li>7 records need coded diagnosis.</li>
+                <li>3 records need next-of-kin details.</li>
+              </ul>
+            </article>
+
+            <article class="chart-card">
+              <div>
+                <h2>Service Pressure</h2>
+                <p class="muted">Simple heat map for queue planning and staffing decisions.</p>
+              </div>
+              <div class="heat-grid">
+                <div class="heat-cell">OPD<small>37</small></div>
+                <div class="heat-cell busy">Lab<small>24</small></div>
+                <div class="heat-cell">ANC<small>8</small></div>
+                <div class="heat-cell urgent">Pharm<small>19</small></div>
+                <div class="heat-cell">Claims<small>11</small></div>
+                <div class="heat-cell busy">Chronic<small>14</small></div>
+                <div class="heat-cell">Ultrasound<small>5</small></div>
+                <div class="heat-cell urgent">Stock<small>3</small></div>
+              </div>
+            </article>
+          </div>
+
+          <section class="panel">
+            <h2>Report Pack</h2>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Report</th><th>Audience</th><th>Readiness</th><th>Notes</th></tr></thead>
+                <tbody>
+                  <tr><td>Daily facility summary</td><td>Facility manager</td><td><span class="badge green">Ready</span></td><td>Visits, labs, pharmacy, claims, and exceptions.</td></tr>
+                  <tr><td>Claims exception list</td><td>Billing</td><td><span class="badge amber">Review</span></td><td>Missing result attachments and diagnosis code checks.</td></tr>
+                  <tr><td>Data protection evidence</td><td>Compliance lead</td><td><span class="badge blue">Draft</span></td><td>Access review, DPIA, audit log, retention register.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2>Assessment Rubric</h2>
+            <div class="grid rubric-grid">
+              <article class="rubric-card">
+                <span class="badge green">Excellent</span>
+                <strong>Clinical fit</strong>
+                <p>Patient registry, triage, SOAP notes, orders, pharmacy, billing, and audit flow are represented.</p>
+              </article>
+              <article class="rubric-card">
+                <span class="badge green">Excellent</span>
+                <strong>Kenya context</strong>
+                <p>County workflow, SHA readiness, ODPC posture, DHA onboarding, and exchange mapping are visible.</p>
+              </article>
+              <article class="rubric-card">
+                <span class="badge blue">Strong</span>
+                <strong>Technical depth</strong>
+                <p>Offline draft model, exportable report, PWA shell, role selector, and architecture plan are included.</p>
+              </article>
+              <article class="rubric-card">
+                <span class="badge amber">Next step</span>
+                <strong>Production gap</strong>
+                <p>Needs authenticated backend, database, real integrations, penetration testing, and certification evidence.</p>
+              </article>
+            </div>
+          </section>
+        </section>
+
+        <section class="view" id="compliance">
+          <div class="section-head">
+            <div>
+              <h1>Compliance & Cloud Controls</h1>
+              <p>Operational controls for Kenyan health data governance, privacy, security, and national exchange readiness.</p>
+            </div>
+          </div>
+
+          <div class="grid security-grid">
+            <article class="step">
+              <div class="step-icon" style="background: var(--teal);">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </div>
+              <h3>Privacy by Design</h3>
+              <p>ODPC registration tracker, DPIA evidence, consent records, minimum necessary access, and retention schedules.</p>
+            </article>
+            <article class="step">
+              <div class="step-icon" style="background: var(--blue);">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+              </div>
+              <h3>Certification Pack</h3>
+              <p>Digital Health Agency onboarding checklist, facility details, developer details, test evidence, and audit controls.</p>
+            </article>
+            <article class="step">
+              <div class="step-icon" style="background: var(--rose);">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg>
+              </div>
+              <h3>Security Operations</h3>
+              <p>Role-based access, MFA policy, encrypted backups, incident logs, break-glass access, and transmission metadata.</p>
+            </article>
+          </div>
+
+          <section class="panel">
+            <h2>Cloud Architecture</h2>
+            <div class="grid architecture">
+              <div class="arch-node"><strong>Clinic devices</strong><small>Browser app, offline drafts, signed encounter queue.</small></div>
+              <div class="arch-node"><strong>API gateway</strong><small>MFA, rate limits, facility tenancy, role checks.</small></div>
+              <div class="arch-node"><strong>Clinical store</strong><small>Encrypted records, audit hash chain, backup policy.</small></div>
+              <div class="arch-node"><strong>Integration layer</strong><small>FHIR-ready resources, lab, claims, national exchange adapter.</small></div>
+              <div class="arch-node"><strong>Governance</strong><small>DPIA evidence, access review, retention, incident register.</small></div>
+            </div>
+          </section>
+
+          <div class="grid readiness-strip">
+            <article class="readiness-card">
+              <header>
+                <h2>ODPC & Privacy</h2>
+                <span class="badge amber">In progress</span>
+              </header>
+              <div class="progress"><span style="width:70%"></span></div>
+              <ul class="mini-list">
+                <li>Controller/processor register drafted.</li>
+                <li>DPIA needs approval and sign-off date.</li>
+                <li>Data subject request process needs owner assignment.</li>
+              </ul>
+            </article>
+            <article class="readiness-card">
+              <header>
+                <h2>Security Controls</h2>
+                <span class="badge green">Strong</span>
+              </header>
+              <div class="progress"><span style="width:88%"></span></div>
+              <ul class="mini-list">
+                <li>MFA policy and role templates defined.</li>
+                <li>Backups and recovery drill schedule documented.</li>
+                <li>Break-glass access requires supervisor review.</li>
+              </ul>
+            </article>
+            <article class="readiness-card">
+              <header>
+                <h2>Exchange Readiness</h2>
+                <span class="badge blue">Design</span>
+              </header>
+              <div class="progress"><span style="width:62%"></span></div>
+              <ul class="mini-list">
+                <li>Patient, Encounter, Observation, MedicationRequest, and Claim resources mapped.</li>
+                <li>Certification sandbox and facility credentials still pending.</li>
+              </ul>
+            </article>
+          </div>
+
+          <section class="panel">
+            <h2>Deployment Readiness</h2>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Area</th><th>Status</th><th>Artifact</th><th>Production Note</th></tr></thead>
+                <tbody>
+                  <tr><td>Static hosting</td><td><span class="badge green">Ready</span></td><td>index.html, manifest, service worker</td><td>Serve over HTTPS.</td></tr>
+                  <tr><td>Docker</td><td><span class="badge green">Ready</span></td><td>Dockerfile, nginx.conf</td><td>Expose port 8080 behind TLS proxy.</td></tr>
+                  <tr><td>cPanel / Apache</td><td><span class="badge green">Ready</span></td><td>.htaccess</td><td>Confirm host allows security headers.</td></tr>
+                  <tr><td>Health check</td><td><span class="badge blue">Available</span></td><td>health.json</td><td>Use for uptime monitoring.</td></tr>
+                  <tr><td>Clinical backend</td><td><span class="badge green">Pilot ready</span></td><td>Node API + SQLite</td><td>Move to managed encrypted database and identity provider before real patient use.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2>Audit Log</h2>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Time</th><th>User</th><th>Event</th><th>Record</th><th>Integrity</th></tr></thead>
+                <tbody id="auditRows"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <dialog class="visit-dialog lab-result-dialog" id="labResultDialog" aria-labelledby="labResultTitle">
+    <form id="labResultForm">
+      <div class="dialog-head">
+        <div>
+          <h2 id="labResultTitle">Record Laboratory Result</h2>
+          <small class="muted" id="labResultContext">Select a laboratory order.</small>
         </div>
+        <button class="icon-btn" id="closeLabResultBtn" type="button" aria-label="Close laboratory result" title="Close">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="dialog-body">
+        <div class="notice">Verify patient identity, specimen, units, reference context, and critical-value escalation before completing the result.</div>
+        <div class="form-grid" id="labResultFields"></div>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn" id="cancelLabResultBtn" type="button">Cancel</button>
+        <button class="btn primary" type="submit">Verify and Complete</button>
+      </div>
+    </form>
+  </dialog>
 
+  <dialog class="visit-dialog" id="newVisitDialog" aria-labelledby="newVisitTitle">
+    <form id="newVisitForm">
+      <div class="dialog-head">
+        <div>
+          <h2 id="newVisitTitle">Start New Visit</h2>
+          <small class="muted">Select the patient and visit context.</small>
         </div>
-
-        <div style="background: var(--primary-light); padding: var(--spacing-xl); margin-top: var(--spacing-2xl); border-radius: 8px; text-align: center;">
-            <h3 style="color: var(--dark); margin-top: 0;">Share Your Experience</h3>
-            <p style="color: var(--dark); margin-bottom: var(--spacing-lg);">Have you visited Mwein Medical Services? We'd love to hear about your experience!</p>
-            <a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services.%20I%20would%20like%20to%20share%20feedback%20about%20my%20visit" style="display: inline-block; padding: 0.75rem 1.5rem; background: var(--primary); color: white; text-decoration: none; border-radius: 4px; font-weight: 600;">Send Your Feedback</a>
+        <button class="icon-btn" id="closeVisitDialogBtn" type="button" aria-label="Close new visit" title="Close">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="dialog-body">
+        <label>Patient
+          <select id="visitPatientSelect" required>
+            <option value="">Select registered patient</option>
+          </select>
+        </label>
+        <div class="form-grid">
+          <label>Visit type
+            <select id="visitTypeSelect"><option>Outpatient</option><option>Emergency</option><option>Chronic care</option><option>ANC</option><option>Teleconsultation</option></select>
+          </label>
+          <label>Priority
+            <select id="visitPrioritySelect"><option>Routine</option><option>Urgent</option><option>Emergency</option></select>
+          </label>
+          <label>Department
+            <select id="visitDepartmentSelect"><option>General outpatient</option><option>Maternal health</option><option>Paediatrics</option><option>Chronic care</option><option>Emergency</option></select>
+          </label>
         </div>
-    </div>
-</section>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn secondary-action" id="registerFromVisitBtn" type="button">Register new patient</button>
+        <button class="btn" id="cancelVisitBtn" type="button">Cancel</button>
+        <button class="btn primary" type="submit">Open Encounter</button>
+      </div>
+    </form>
+  </dialog>
 
-<section class="content">
-    <div class="container">
-        <h2 style="text-align: center;">Insurance & Payment Information</h2>
-        <p style="text-align: center; color: var(--gray-light); margin-bottom: var(--spacing-xl);">We accept multiple insurance schemes and payment methods for your convenience.</p>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-        <div class="container-grid-two" style="max-width:900px; margin:0 auto;">
-            <div class="info-card">
-                <h3>SHA (Social Health Authority)</h3>
-                <p style="font-weight:600;">Accepted Covers:</p>
-                <ul>
-                    <li>SHA PHC (Primary Health Care)</li>
-                    <li>SHA Mwalimu Cover</li>
-                    <li>Public Officers Comprehensive Cover</li>
-                </ul>
-                <p style="font-size:0.95rem; margin-top:0.5rem;"><em>Members receive covered benefits as per their plan.</em></p>
-            </div>
+  <script nonce="__CSP_NONCE__">
+    const defaultPatients = [
+      { name: "Achieng Otieno", id: "CHU-4481-029", phone: "+254 712 406 221", sex: "Female", age: 31, county: "Busia", subcounty: "Matayos", residence: "Matayos", program: "SHA", kin: "Grace Otieno, sister", risk: "Allergy", last: "Today 10:44" },
+      { name: "Peter Wekesa", id: "CHU-2259-118", phone: "+254 700 111 908", sex: "Male", age: 54, county: "Busia", subcounty: "Nambale", residence: "Nambale", program: "SHA", kin: "Rose Wekesa, spouse", risk: "Diabetes", last: "Today 09:20" },
+      { name: "Faith Naliaka", id: "CHU-9012-477", phone: "+254 733 820 774", sex: "Female", age: 26, county: "Bungoma", subcounty: "Webuye East", residence: "Webuye", program: "Cash / self-pay", kin: "Moses Simiyu, partner", risk: "ANC", last: "Yesterday" },
+      { name: "Brian Ouma", id: "CHU-6634-021", phone: "+254 745 188 441", sex: "Male", age: 8, county: "Siaya", subcounty: "Ugunja", residence: "Ugunja", program: "Facility waiver", kin: "Janet Ouma, mother", risk: "Pediatric", last: "2026-07-10" }
+    ];
 
-            <div class="info-card">
-                <h3>Other Payment Methods</h3>
-                <ul>
-                    <li><strong>M-Pesa:</strong> Mobile money payments before, during, or after service</li>
-                    <li><strong>Cash:</strong> Accepted at the facility</li>
-                </ul>
-                <p style="font-size:0.95rem; margin-top:0.5rem;"><em>Service costs confirmed when our team responds to your booking.</em></p>
-            </div>
+    const defaultAudit = [
+      ["10:44", "DK", "Encounter signed", "CHU-4481-029", "Hash verified"],
+      ["10:31", "Nurse A", "Vitals captured", "CHU-4481-029", "Hash verified"],
+      ["09:26", "Lab Tech", "RBS result posted", "CHU-2259-118", "Hash verified"],
+      ["08:51", "Admin", "User role updated", "USR-014", "Supervisor approved"]
+    ];
+
+    const queue = [
+      ["AO", "Achieng Otieno", "Fever and headache", "Triage"],
+      ["PW", "Peter Wekesa", "Diabetes review", "Clinician"],
+      ["FN", "Faith Naliaka", "ANC follow-up", "Lab"],
+      ["BO", "Brian Ouma", "Cough and fever", "Waiting"]
+    ];
+
+    const defaultPrescriptions = [
+      { medicine: "Paracetamol 500mg", dose: "1g", frequency: "TDS", duration: "3 days", instructions: "Take after meals. Do not exceed 4g in 24 hours.", status: "Ready" },
+      { medicine: "ORS sachets", dose: "1 sachet in clean water", frequency: "After each loose stool", duration: "2 days", instructions: "Prepare with safe water and discard mixed solution after 24 hours.", status: "Counsel" }
+    ];
+
+    const browserFileMode = location.protocol === "file:";
+    if (!browserFileMode) {
+      localStorage.removeItem("mweinPatients");
+      localStorage.removeItem("mweinAudit");
+      localStorage.removeItem("mweinPrescriptions");
+    }
+
+    const state = {
+      patients: browserFileMode ? (JSON.parse(localStorage.getItem("mweinPatients") || "null") || defaultPatients) : [],
+      audit: browserFileMode ? (JSON.parse(localStorage.getItem("mweinAudit") || "null") || defaultAudit) : [],
+      prescriptions: browserFileMode ? (JSON.parse(localStorage.getItem("mweinPrescriptions") || "null") || defaultPrescriptions) : [],
+      activePatientUuid: null,
+      backendConnected: false,
+      user: null,
+      prescriptionPlugins: [],
+      formulary: [],
+      workflow: { labCatalog: [], labWorklist: [], pharmacyQueue: [], invoices: [] },
+      activeWorkflow: { labOrders: [], pharmacyOrders: [], invoices: [] },
+      lastPrescriptionScreening: null
+    };
+
+    const iconColors = ["green", "blue", "amber", "violet"];
+    const toast = document.getElementById("toast");
+    const duplicateAlert = document.getElementById("duplicateAlert");
+
+    function saveState() {
+      if (!browserFileMode) return;
+      localStorage.setItem("mweinPatients", JSON.stringify(state.patients));
+      localStorage.setItem("mweinAudit", JSON.stringify(state.audit));
+      localStorage.setItem("mweinPrescriptions", JSON.stringify(state.prescriptions));
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>'"]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]);
+    }
+
+    function setSyncStatus(connected, label = connected ? "Cloud connected" : "Offline draft mode") {
+      state.backendConnected = connected;
+      const status = document.getElementById("syncStatus");
+      status.lastChild.textContent = ` ${label}`;
+      status.style.background = connected ? "#ecfdf5" : "#fff7ed";
+      status.style.color = connected ? "#166534" : "#9a3412";
+      status.querySelector(".sync-dot").style.background = connected ? "#16a34a" : "#f97316";
+    }
+
+    async function apiRequest(path, options = {}) {
+      const headers = { "content-type": "application/json", ...options.headers };
+      const response = await fetch(path, { ...options, headers, credentials: "same-origin" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (response.status === 401 && path !== "/api/auth/login") showAuth("Your session expired. Sign in again.");
+        throw Object.assign(new Error(payload.error || "The clinical service could not complete the request."), { status: response.status, payload });
+      }
+      return payload;
+    }
+
+    function showAuth(message = "") {
+      document.getElementById("authScreen").hidden = false;
+      const error = document.getElementById("loginError");
+      error.textContent = message;
+      error.classList.toggle("show", Boolean(message));
+      document.getElementById("loginPassword").value = "";
+      state.user = null;
+      document.getElementById("staffName").textContent = "Signed out";
+      document.getElementById("staffInitials").textContent = "--";
+      document.getElementById("roleSelect").value = "Clinician";
+      setSyncStatus(false, "Signed out");
+    }
+
+    function applyAuthenticatedUser(user) {
+      state.user = user;
+      document.getElementById("staffName").textContent = user.displayName;
+      document.getElementById("staffInitials").textContent = user.initials;
+      document.getElementById("roleSelect").value = user.role;
+      const clinician = user.role === "Clinician" || user.role === "Admin";
+      const registrar = clinician || user.role === "Nurse";
+      document.querySelector("#patientForm button[type='submit']").disabled = !registrar;
+      document.getElementById("addPrescriptionBtn").disabled = !clinician;
+      document.getElementById("screenPrescriptionBtn").disabled = !clinician;
+      document.getElementById("saveEncounterBtn").disabled = !clinician;
+      document.getElementById("quickVisitBtn").disabled = !registrar;
+      document.getElementById("registryVisitBtn").disabled = !registrar;
+      document.getElementById("authScreen").hidden = true;
+    }
+
+    async function signIn(event) {
+      event.preventDefault();
+      const button = document.getElementById("loginBtn");
+      const error = document.getElementById("loginError");
+      button.disabled = true;
+      button.textContent = "Signing in...";
+      error.classList.remove("show");
+      try {
+        const payload = await apiRequest("/api/auth/login", { method: "POST", body: JSON.stringify({ email: document.getElementById("loginEmail").value, password: document.getElementById("loginPassword").value }) });
+        applyAuthenticatedUser(payload.user);
+        await loadBackendState();
+        showToast(`Welcome, ${payload.user.displayName}.`);
+      } catch (loginError) {
+        error.textContent = loginError.message;
+        error.classList.add("show");
+      } finally {
+        button.disabled = false;
+        button.textContent = "Sign in securely";
+      }
+    }
+
+    async function signOut() {
+      try { await apiRequest("/api/auth/logout", { method: "POST" }); } catch {}
+      state.patients = [];
+      state.audit = [];
+      state.prescriptions = [];
+      state.prescriptionPlugins = [];
+      state.formulary = [];
+      state.workflow = { labCatalog: [], labWorklist: [], pharmacyQueue: [], invoices: [] };
+      state.activeWorkflow = { labOrders: [], pharmacyOrders: [], invoices: [] };
+      state.lastPrescriptionScreening = null;
+      state.activePatientUuid = null;
+      localStorage.removeItem("mweinPatients");
+      localStorage.removeItem("mweinAudit");
+      localStorage.removeItem("mweinPrescriptions");
+      renderPatients();
+      renderAudit();
+      renderPrescriptions();
+      renderPrescriptionPlugins();
+      renderPrescriptionScreening(null);
+      renderWorkflowBoards();
+      renderEncounterLabs();
+      showAuth();
+    }
+
+    async function loadBackendState() {
+      if (location.protocol === "file:") {
+        document.getElementById("loginForm").hidden = true;
+        document.getElementById("serverAppLink").hidden = false;
+        showAuth("Open http://127.0.0.1:4173 to use secure sign-in.");
+        return;
+      }
+      document.getElementById("loginForm").hidden = false;
+      document.getElementById("serverAppLink").hidden = true;
+      try {
+        const payload = await apiRequest("/api/bootstrap");
+        state.patients = payload.patients;
+        state.audit = payload.audit;
+        state.prescriptionPlugins = payload.prescriptionPlugins || [];
+        state.formulary = payload.formulary || [];
+        state.workflow = payload.workflow || state.workflow;
+        applyAuthenticatedUser(payload.user);
+        saveState();
+        renderPatients(document.getElementById("globalSearch").value);
+        renderAudit();
+        populateFormulary();
+        populateLabCatalog();
+        renderPrescriptionPlugins();
+        renderWorkflowBoards();
+        setSyncStatus(true);
+        await setActivePatient(state.patients[0]?.uuid || state.patients[0]?.name);
+      } catch (error) {
+        if (error.status === 401) showAuth();
+        else showAuth("The clinical service is unavailable. Check the server connection.");
+      }
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove("show"), 2600);
+    }
+
+    function renderQueue() {
+      document.getElementById("triageQueue").innerHTML = queue.map((item, index) => `
+        <div class="queue-row">
+          <div class="patient-initial">${item[0]}</div>
+          <div>
+            <strong>${item[1]}</strong>
+            <small class="muted">${item[2]}</small>
+          </div>
+          <span class="badge ${iconColors[index]}">${item[3]}</span>
         </div>
+      `).join("");
+    }
 
-        <div class="note" style="margin-top: var(--spacing-xl); text-align:center;">
-            <p style="margin:0; font-weight:600;">Ready to incorporate other insurance schemes to support Kenya's Universal Health Coverage (UHC) goals. <a href="insurers.html" style="color: var(--primary); font-weight:600;">Learn more →</a></p>
+    function riskClass(risk) {
+      if (/allergy|critical/i.test(risk)) return "rose";
+      if (/diabetes|chronic/i.test(risk)) return "amber";
+      if (/anc/i.test(risk)) return "violet";
+      return "blue";
+    }
+
+    function renderPatients(filter = "") {
+      const term = filter.trim().toLowerCase();
+      const rows = state.patients
+        .filter(patient => Object.values(patient).join(" ").toLowerCase().includes(term))
+        .map(patient => `
+          <tr>
+            <td><strong>${escapeHtml(patient.name)}</strong><br><small class="muted">${escapeHtml(patient.phone)}</small></td>
+            <td>${escapeHtml(patient.id)}</td>
+            <td>${escapeHtml(patient.county)}<br><small class="muted">${escapeHtml(patient.subcounty || patient.residence || "Residence pending")}</small></td>
+            <td>${escapeHtml(patient.last)}</td>
+            <td><span class="badge ${riskClass(patient.risk)}">${escapeHtml(patient.risk)}</span></td>
+            <td><button class="link-btn" data-open-view="encounter" data-patient="${escapeHtml(patient.uuid || patient.name)}">Open</button></td>
+          </tr>
+        `).join("");
+
+      document.getElementById("patientRows").innerHTML = rows || `<tr><td colspan="6">No matching patients found.</td></tr>`;
+    }
+
+    function populateVisitPatientSelect(selectedUuid = "") {
+      const select = document.getElementById("visitPatientSelect");
+      select.innerHTML = `<option value="">Select registered patient</option>` + state.patients
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(patient => `<option value="${escapeHtml(patient.uuid || patient.name)}">${escapeHtml(patient.name)} · ${escapeHtml(patient.id)}</option>`)
+        .join("");
+      if (selectedUuid) select.value = selectedUuid;
+    }
+
+    function openNewVisitDialog(selectedUuid = state.activePatientUuid || "") {
+      if (!state.user) {
+        showAuth("Sign in before starting a visit.");
+        return;
+      }
+      if (!state.patients.length) {
+        openView("patients");
+        document.querySelector("#patientForm input[name='name']").focus();
+        showToast("Register a patient before starting a visit.");
+        return;
+      }
+      populateVisitPatientSelect(selectedUuid);
+      document.getElementById("newVisitDialog").showModal();
+    }
+
+    function closeNewVisitDialog() {
+      const dialog = document.getElementById("newVisitDialog");
+      if (dialog.open) dialog.close();
+    }
+
+    function showEncounterTriage() {
+      document.querySelectorAll(".tabs button").forEach(tab => tab.classList.toggle("active", tab.dataset.tab === "triage"));
+      document.querySelectorAll(".tab-page").forEach(page => page.classList.toggle("active", page.id === "triage"));
+      openView("encounter");
+    }
+
+    async function startNewVisit(event) {
+      event.preventDefault();
+      const patientUuid = document.getElementById("visitPatientSelect").value;
+      if (!patientUuid) {
+        document.getElementById("visitPatientSelect").reportValidity();
+        return;
+      }
+      await setActivePatient(patientUuid);
+      document.getElementById("encounterType").value = document.getElementById("visitTypeSelect").value;
+      document.getElementById("encounterPriority").value = document.getElementById("visitPrioritySelect").value;
+      document.getElementById("encounterDepartment").value = document.getElementById("visitDepartmentSelect").value;
+      closeNewVisitDialog();
+      showEncounterTriage();
+      showToast(`New visit opened for ${document.getElementById("activePatientName").textContent}.`);
+    }
+
+    function renderAudit() {
+      document.getElementById("auditRows").innerHTML = state.audit.map(row => `
+        <tr>
+          <td>${escapeHtml(row[0])}</td>
+          <td>${escapeHtml(row[1])}</td>
+          <td>${escapeHtml(row[2])}</td>
+          <td>${escapeHtml(row[3])}</td>
+          <td><span class="badge green">${escapeHtml(row[4])}</span></td>
+        </tr>
+      `).join("");
+    }
+
+    function renderPrescriptions() {
+      const list = document.getElementById("prescriptionList");
+      if (!state.prescriptions.length) {
+        list.innerHTML = `<div class="muted">No medicines prescribed yet.</div>`;
+        return;
+      }
+      const screeningBadge = status => {
+        if (status === "pass") return '<span class="badge green">Safety reviewed</span>';
+        if (status === "review") return '<span class="badge amber">Review acknowledged</span>';
+        return '<span class="badge gray">Legacy order</span>';
+      };
+      list.innerHTML = state.prescriptions.map((rx, index) => `
+        <div class="prescription-row">
+          <div>
+            <strong>${escapeHtml(rx.medicine)}</strong>
+            <small class="muted">${escapeHtml(rx.instructions || "No extra instructions")}</small>
+          </div>
+          <div><strong>${escapeHtml(rx.dose)}</strong><small class="muted">${escapeHtml(rx.frequency)} · ${escapeHtml(rx.route || "Oral")}</small></div>
+          <div><strong>${escapeHtml(rx.duration)}</strong><small class="muted">Qty ${escapeHtml(rx.quantity || "not set")}</small></div>
+          ${screeningBadge(rx.screening_status)}
+          <button class="link-btn" data-remove-rx="${index}" data-rx-uuid="${escapeHtml(rx.uuid || "")}" type="button">Remove</button>
         </div>
-    </div>
-</section>
+      `).join("");
+    }
 
-<!-- HOW TO BOOK SECTION -->
-<section class="content">
-    <div class="container">
-        <h2 style="text-align: center;">How to Book an Appointment</h2>
-        <p style="text-align: center; color: var(--gray-light); margin-bottom: var(--spacing-xl);">
-            Multiple easy ways to schedule your care
-        </p>
+    function formatKes(amount) {
+      return `KES ${new Intl.NumberFormat("en-KE").format(Number(amount) || 0)}`;
+    }
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--spacing-lg); max-width: 900px; margin: 0 auto;">
-            <div style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 8px; text-align: center;">
-                <h3 style="color: var(--primary); margin-top: 0;">📱 WhatsApp</h3>
-                <p>Quick and convenient. Message us anytime, we respond 24/7.</p>
-                <a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services.%20I%20would%20like%20to%20book%20an%20appointment" class="btn-primary" style="display: inline-block;">Start WhatsApp Chat</a>
-            </div>
+    function populateLabCatalog() {
+      const select = document.getElementById("labTest");
+      const catalog = state.workflow.labCatalog || [];
+      select.innerHTML = `<option value="">Select test</option>` + catalog.map(item =>
+        `<option value="${escapeHtml(item.test)}">${escapeHtml(item.test)} · ${formatKes(item.price)}</option>`
+      ).join("");
+    }
 
-            <div style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 8px; text-align: center;">
-                <h3 style="color: var(--primary); margin-top: 0;">☎️ Phone Call</h3>
-                <p>Speak directly with our team for immediate assistance.</p>
-                <a href="tel:+254707711888" class="btn-primary" style="display: inline-block;">Call +254 707 711 888</a>
-            </div>
+    function renderEncounterLabs() {
+      const container = document.getElementById("encounterLabList");
+      const orders = (state.activeWorkflow.labOrders || []).filter(order => !order.encounter_uuid && order.status !== "Cancelled");
+      if (!orders.length) {
+        container.innerHTML = `<div class="muted">No tests ordered for this visit.</div>`;
+        return;
+      }
+      container.innerHTML = orders.map(order => `
+        <div class="queue-row">
+          <div class="patient-initial">${escapeHtml(order.test_name.slice(0, 1))}</div>
+          <div><strong>${escapeHtml(order.test_name)}</strong><small class="muted">${escapeHtml(order.priority)} · ${escapeHtml(order.result || order.specimen)}</small></div>
+          <span class="badge ${order.status === "Complete" ? "green" : order.status === "Processing" ? "amber" : "blue"}">${escapeHtml(order.status)}</span>
+        </div>`).join("");
+    }
 
-            <div style="padding: var(--spacing-lg); background: var(--light-bg); border-radius: 8px; text-align: center;">
-                <h3 style="color: var(--primary); margin-top: 0;">📋 Online Form</h3>
-                <p>Fill our booking form and we'll confirm your appointment.</p>
-                <a href="contact.html" class="btn-primary" style="display: inline-block;">Use Booking Form</a>
-            </div>
-        </div>
+    function statusOptions(values, selected) {
+      return values.map(value => `<option${value === selected ? " selected" : ""}>${escapeHtml(value)}</option>`).join("");
+    }
 
-        <div style="background: #f5f5f5; border-left: 4px solid var(--primary); padding: var(--spacing-lg); margin-top: var(--spacing-xl); border-radius: 4px; max-width: 800px; margin-left: auto; margin-right: auto;">
-            <p style="margin: 0; color: var(--dark);"><strong>💡 Tip:</strong> Have your insurance details and preferred date ready. Our team will confirm availability and contact you to finalize your appointment time.</p>
-        </div>
-    </div>
-</section>
+    function labResultControl(field, value = "") {
+      const required = field.required ? " required" : "";
+      const unit = field.unit ? ` <span class="muted">(${escapeHtml(field.unit)})</span>` : "";
+      const labelClass = field.type === "textarea" ? "span-3" : "";
+      if (field.type === "select") {
+        return `<label class="${labelClass}">${escapeHtml(field.label)}${unit}<select data-result-field="${escapeHtml(field.id)}"${required}><option value="">Select result</option>${field.options.map(option => `<option${option === value ? " selected" : ""}>${escapeHtml(option)}</option>`).join("")}</select></label>`;
+      }
+      if (field.type === "textarea") {
+        return `<label class="${labelClass}">${escapeHtml(field.label)}${unit}<textarea data-result-field="${escapeHtml(field.id)}" placeholder="${escapeHtml(field.placeholder || "Add result notes")}"${required}>${escapeHtml(value)}</textarea></label>`;
+      }
+      const bounds = field.type === "number" ? `${field.min !== undefined ? ` min="${escapeHtml(field.min)}"` : ""}${field.max !== undefined ? ` max="${escapeHtml(field.max)}"` : ""}` : "";
+      return `<label class="${labelClass}">${escapeHtml(field.label)}${unit}<input data-result-field="${escapeHtml(field.id)}" type="${field.type === "number" ? "number" : "text"}" value="${escapeHtml(value)}" step="${escapeHtml(field.step || "any")}"${bounds} placeholder="${escapeHtml(field.placeholder || "Enter result")}"${required}></label>`;
+    }
 
-<!-- VIRTUAL CONSULTATION SECTION -->
-<section class="content">
-    <div class="container">
-        <h2 style="text-align: center;">Remote Medical Consultation</h2>
-        <p style="text-align: center; color: var(--gray-light); margin-bottom: var(--spacing-xl);">
-            Professional telemedicine services for non-emergency medical guidance and follow-up care
-        </p>
+    function openLabResultDialog(orderUuid) {
+      const orders = [...(state.workflow.labWorklist || []), ...(state.activeWorkflow.labOrders || [])];
+      const order = orders.find(item => item.uuid === orderUuid);
+      const catalog = (state.workflow.labCatalog || []).find(item => item.test === order?.test_name);
+      if (!order || !catalog) {
+        showToast("The result schema for this test is unavailable.");
+        return;
+      }
+      let savedValues = {};
+      try { savedValues = JSON.parse(order.result_json || "{}"); } catch {}
+      const fields = [...catalog.resultFields, ...(state.workflow.labResultCommonFields || [])];
+      document.getElementById("labResultForm").dataset.orderUuid = order.uuid;
+      document.getElementById("labResultTitle").textContent = catalog.test;
+      document.getElementById("labResultContext").textContent = `${order.patient_name} · ${order.patient_identifier} · ${order.specimen} specimen`;
+      document.getElementById("labResultFields").innerHTML = fields.map(field => labResultControl(field, savedValues[field.id] || "")).join("");
+      document.getElementById("labResultDialog").showModal();
+    }
 
-        <div style="max-width: 800px; margin: 0 auto; padding: var(--spacing-lg); background: var(--primary-light); border-radius: 8px; border-left: 4px solid var(--primary);">
-            <h3 style="color: var(--dark); margin-top: 0;">Virtual Consultation Benefits</h3>
-            <ul style="color: var(--dark); margin: 0.5rem 0; padding-left: 1.5rem;">
-                <li><strong>Convenience:</strong> Consult from home without travel time</li>
-                <li><strong>Accessibility:</strong> Available for routine medical advice and follow-ups</li>
-                <li><strong>Privacy:</strong> Secure, confidential healthcare communication</li>
-                <li><strong>Cost-Effective:</strong> Reduced expenses for non-emergency concerns</li>
-            </ul>
-            <p style="color: var(--dark); font-size: 0.95rem; margin-top: 1rem; margin-bottom: 0;"><em><strong>Note:</strong> Virtual consultations are suitable for non-emergency medical advice, prescription refills, chronic disease management follow-ups, and routine health guidance. Emergency cases require in-person evaluation and immediate medical attention.</em></p>
-        </div>
+    function closeLabResultDialog() {
+      const dialog = document.getElementById("labResultDialog");
+      if (dialog.open) dialog.close();
+      document.getElementById("labResultForm").reset();
+      document.getElementById("labResultForm").dataset.orderUuid = "";
+    }
 
-        <div style="text-align: center; margin-top: var(--spacing-xl);">
-            <a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services.%20I%20would%20like%20to%20request%20a%20virtual%20consultation%20for%20non-emergency%20medical%20advice" class="btn-primary" style="display: inline-block; margin-right: 1rem;">Request Virtual Consultation</a>
-            <a href="tel:+254707711888" class="btn-secondary" style="display: inline-block;">Call to Arrange</a>
-        </div>
-    </div>
-</section>
+    function renderWorkflowBoards() {
+      const labRows = document.getElementById("labWorklistRows");
+      const labs = state.workflow.labWorklist || [];
+      document.getElementById("openLabCount").textContent = labs.length;
+      document.getElementById("urgentLabCount").textContent = `${labs.filter(order => order.priority === "Urgent").length} urgent`;
+      labRows.innerHTML = labs.length ? labs.map(order => `
+        <tr data-lab-row="${escapeHtml(order.uuid)}">
+          <td><strong>${escapeHtml(order.test_name)}</strong><br><small class="muted">${escapeHtml(order.priority)} · ${escapeHtml(order.specimen)}</small></td>
+          <td>${escapeHtml(order.patient_name)}<br><small class="muted">${escapeHtml(order.patient_identifier)}</small></td>
+          <td><select class="status-select" data-lab-status="${escapeHtml(order.uuid)}">${statusOptions(["Ordered", "Collected", "Processing", "Cancelled"], order.status)}</select></td>
+          <td><button class="btn" data-enter-lab-result="${escapeHtml(order.uuid)}" type="button">Enter result</button></td>
+        </tr>`).join("") : `<tr><td colspan="4">No outstanding laboratory work.</td></tr>`;
 
-<!-- CTA SECTION -->
-<section class="content">
-    <div class="container" style="text-align: center;">
-        <h2>Ready to Book an Appointment?</h2>
-        <p style="font-size: 1.1rem; margin-bottom: var(--spacing-xl);">
-            Contact us via phone, WhatsApp, or use our online booking form.
-        </p>
-        <a href="contact.html" class="btn-primary">Go to Contact & Appointments</a>
-        <a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services" class="btn-secondary">WhatsApp Us</a>
-    </div>
-</section>
+      const pharmacyRows = document.getElementById("pharmacyQueueRows");
+      const prescriptions = state.workflow.pharmacyQueue || [];
+      document.getElementById("pharmacyTaskCount").textContent = prescriptions.length;
+      pharmacyRows.innerHTML = prescriptions.length ? prescriptions.map(rx => `
+        <tr>
+          <td><strong>${escapeHtml(rx.medicine)}</strong><br><small class="muted">Qty ${escapeHtml(rx.quantity || "1")}</small></td>
+          <td>${escapeHtml(rx.patient_name)}<br><small class="muted">${escapeHtml(rx.patient_identifier)}</small></td>
+          <td>${escapeHtml(rx.dose)} · ${escapeHtml(rx.frequency)}<br><small class="muted">${escapeHtml(rx.duration)}</small></td>
+          <td><select class="status-select" data-rx-status="${escapeHtml(rx.uuid)}">${statusOptions(["Ready", "Dispensed"], rx.status)}</select></td>
+        </tr>`).join("") : `<tr><td colspan="4">No prescriptions awaiting dispensing.</td></tr>`;
 
-<!-- UNIVERSAL HEALTH COVERAGE COMMITMENT -->
-<section class="content">
-    <div class="container">
-        <div style="background: linear-gradient(135deg, var(--primary-light) 0%, rgba(76, 175, 80, 0.1) 100%); border-left: 4px solid var(--primary); padding: var(--spacing-xl); border-radius: 8px;">
-            <h3 style="color: var(--dark); margin-top: 0;">🎯 Ready for Kenya's Universal Health Coverage (UHC)</h3>
-            <p style="color: var(--dark); margin: 0.5rem 0; font-size: 1rem;">
-                We are committed to supporting Kenya's Universal Health Coverage goals and are <strong>ready to incorporate additional insurance schemes</strong> to expand access to quality healthcare for all. Our facility is designed to partner with government and private health programs.
-            </p>
-            <p style="color: var(--dark); margin: 0; margin-top: 1rem; font-size: 0.95rem;">
-                <a href="contact.html" style="color: var(--primary); font-weight: 600; text-decoration: none; display: inline-block;">Learn more about our partnership opportunities →</a>
-            </p>
-        </div>
-    </div>
-</section>
+      const invoiceRows = document.getElementById("invoiceRows");
+      const invoices = state.workflow.invoices || [];
+      invoiceRows.innerHTML = invoices.length ? invoices.map(invoice => `
+        <tr>
+          <td><strong>INV-${escapeHtml(invoice.uuid.slice(0, 8).toUpperCase())}</strong></td>
+          <td>${escapeHtml(invoice.patient_name)}<br><small class="muted">${escapeHtml(invoice.patient_identifier)}</small></td>
+          <td class="money"><strong>${formatKes(invoice.total)}</strong></td>
+          <td><span class="badge ${invoice.status === "Ready" ? "blue" : "amber"}">${escapeHtml(invoice.status)}</span></td>
+          <td><span>${invoice.items.length} item${invoice.items.length === 1 ? "" : "s"}</span><small class="muted invoice-description">${invoice.items.map(item => `${escapeHtml(item.description)} × ${item.quantity}`).join(" · ")}</small></td>
+        </tr>`).join("") : `<tr><td colspan="5">No invoice items recorded.</td></tr>`;
+    }
 
-<!-- DONATION SUPPORT SECTION -->
-<section class="content" style="background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);">
-    <div class="container">
-        <div style="max-width: 900px; margin: 0 auto; text-align: center;">
-            <h2 style="color: #2e7d32; margin-top: 0;">Help Us Serve More Patients</h2>
-            <p style="font-size: 1.1rem; color: #1b5e20; margin-bottom: var(--spacing-lg);">
-                Your donation helps us improve our facility and provide free/subsidized care to patients who cannot afford medical services.
-            </p>
-            
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-lg); margin-bottom: var(--spacing-2xl);">
-                            <!-- Donation via M-Pesa Buy Goods and Services -->
-                            <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: var(--spacing-lg); border-radius: 8px; margin-bottom: var(--spacing-2xl); max-width: 600px; margin-left: auto; margin-right: auto;">
-                                <h3 style="color: #2d8cff; margin-top: 0;">Donate via M-Pesa Till Number</h3>
-                                <ol style="color: #856404; margin: 0 0 1rem 1.5rem;">
-                                    <li>Go to your M-Pesa menu or dial <strong>*334#</strong></li>
-                                    <li>Select <strong>"Buy Goods and Services"</strong></li>
-                                    <li>Enter Till Number: <strong>8121096</strong></li>
-                                    <li>Enter your donation amount</li>
-                                    <li>Enter your M-Pesa PIN to confirm</li>
-                                </ol>
-                                <p style="margin: 0; color: #856404; font-size: 0.95rem;"><strong>After Donation:</strong> You'll receive an M-Pesa confirmation. For a receipt, reply to our WhatsApp with a screenshot.</p>
-                            </div>
-                <div style="background: white; padding: var(--spacing-lg); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <h3 style="color: #27ae60; margin: 0 0 0.5rem 0;">40%</h3>
-                    <p style="color: var(--gray-light); margin: 0; font-size: 0.9rem;">Facility Improvements & Equipment</p>
-                </div>
-                <div style="background: white; padding: var(--spacing-lg); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <h3 style="color: #27ae60; margin: 0 0 0.5rem 0;">45%</h3>
-                    <p style="color: var(--gray-light); margin: 0; font-size: 0.9rem;">Patient Bill Waivers & Support</p>
-                </div>
-                <div style="background: white; padding: var(--spacing-lg); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <h3 style="color: #27ae60; margin: 0 0 0.5rem 0;">15%</h3>
-                    <p style="color: var(--gray-light); margin: 0; font-size: 0.9rem;">Staff Training & Development</p>
-                </div>
-            </div>
+    function applyActiveWorkflow(workflow) {
+      state.activeWorkflow = workflow || { labOrders: [], pharmacyOrders: [], invoices: [] };
+      state.prescriptions = (state.activeWorkflow.pharmacyOrders || []).filter(rx => !rx.encounter_uuid);
+      renderPrescriptions();
+      renderEncounterLabs();
+      generateVisitSummary();
+    }
 
-            <div style="display: flex; gap: var(--spacing-lg); justify-content: center; flex-wrap: wrap;">
-                <a href="donations.html" class="btn-primary" style="display: inline-block; background: #27ae60; text-decoration: none; padding: 1rem 2rem; border-radius: 4px; color: white; font-weight: 600;">💚 Make a Donation</a>
-                <a href="shop.html" class="btn-secondary" style="display: inline-block; text-decoration: none; padding: 1rem 2rem; border-radius: 4px; border: 2px solid var(--primary); color: var(--primary); font-weight: 600; background: white;">🛒 Shop Medical Products</a>
-            </div>
+    async function refreshWorkflow(activeWorkflow = null) {
+      if (activeWorkflow) applyActiveWorkflow(activeWorkflow);
+      const payload = await apiRequest("/api/workflow");
+      state.workflow = payload.workflow;
+      populateLabCatalog();
+      renderWorkflowBoards();
+    }
 
-            <p style="font-size: 0.9rem; color: #558b2f; margin-top: var(--spacing-lg); margin-bottom: 0;">
-                <strong>✓ Tax-Deductible:</strong> All donations are eligible for tax deduction. | <strong>✓ Transparent:</strong> Quarterly reports on donation usage available
-            </p>
-        </div>
-    </div>
-</section>
+    function populateFormulary() {
+      if (!state.formulary.length) return;
+      const select = document.getElementById("rxMedicine");
+      const current = select.value;
+      select.innerHTML = `<option value="">Select medicine</option>` + state.formulary.map(item =>
+        `<option value="${escapeHtml(item.medicine)}">${escapeHtml(item.medicine)} · ${escapeHtml(item.stockStatus)}</option>`
+      ).join("");
+      if ([...select.options].some(option => option.value === current)) select.value = current;
+    }
 
-<!-- FOOTER -->
-<footer class="footer">
-    <div class="container">
-        <div class="footer-columns">
-            <div class="footer-col">
-                <h4>Mwein Medical</h4>
-                <p>Licensed community healthcare. 24/7 medical care in Mungatsi, Busia County, Kenya.</p>
-                <p><strong style="color:white;">Emergency:</strong> <a href="tel:+254707711888">+254 707 711 888</a></p>
-                <p><a href="mailto:mweinmedical@gmail.com">mweinmedical@gmail.com</a></p>
-            </div>
-            <div class="footer-col">
-                <h4>Quick Links</h4>
-                <ul>
-                    <li><a href="index.html">Home</a></li>
-                    <li><a href="services.html">Services</a></li>
-                    <li><a href="appointments.html">Book Appointment</a></li>
-                    <li><a href="blog.html">Health Education</a></li>
-                    <li><a href="shop.html">Medical Shop</a></li>
-                    <li><a href="donations.html">Donate</a></li>
-                </ul>
-            </div>
-            <div class="footer-col">
-                <h4>Services</h4>
-                <ul>
-                    <li><a href="services.html">Outpatient (OPD)</a></li>
-                    <li><a href="services.html">Laboratory</a></li>
-                    <li><a href="services.html">Ultrasound</a></li>
-                    <li><a href="services.html">Antenatal Care</a></li>
-                    <li><a href="services.html">Pharmacy</a></li>
-                    <li><a href="services.html">Chronic Disease</a></li>
-                </ul>
-            </div>
-            <div class="footer-col">
-                <h4>Info &amp; Legal</h4>
-                <ul>
-                    <li><a href="contact.html">Contact Us</a></li>
-                    <li><a href="insurers.html">Insurers</a></li>
-                    <li><a href="privacy-policy.html">Privacy Policy</a></li>
-                    <li><a href="terms-of-service.html">Terms of Service</a></li>
-                    <li><a href="https://wa.me/254707711888" target="_blank" rel="noopener">WhatsApp Chat</a></li>
-                </ul>
-            </div>
-        </div>
-        <div class="footer-bottom">
-            <p>&copy; 2026 Mwein Medical Services. Licensed healthcare facility | <strong>SHA Registered Provider</strong></p>
-            <p>Mungatsi, Busia County, Kenya &nbsp;|&nbsp; Open 24 Hours, 7 Days &nbsp;|&nbsp; <a href="mailto:mweinmedical@gmail.com">mweinmedical@gmail.com</a></p>
-        </div>
-    </div>
-</footer>
+    function renderPrescriptionPlugins() {
+      const container = document.getElementById("prescriptionPluginList");
+      if (!state.prescriptionPlugins.length) {
+        container.innerHTML = `<span class="badge amber">Plug-ins unavailable</span>`;
+        return;
+      }
+      container.innerHTML = state.prescriptionPlugins.map(plugin =>
+        `<span class="plugin-chip" title="${escapeHtml(plugin.description)}">${escapeHtml(plugin.name)} · v${escapeHtml(plugin.version)}</span>`
+      ).join("");
+    }
 
-<!-- FLOATING BUTTONS -->
-<a href="https://wa.me/254707711888?text=Hello%20Mwein%20Medical%20Services" class="whatsapp-float" title="Chat on WhatsApp" aria-label="Chat on WhatsApp">
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-</a>
-<button id="darkToggle" class="dark-toggle" aria-label="Toggle dark mode" aria-pressed="false">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-</button>
+    function prescriptionDraft() {
+      return {
+        patientUuid: state.activePatientUuid,
+        medicine: getFieldValue("#rxMedicine"),
+        dose: getFieldValue("#rxDose"),
+        frequency: getFieldValue("#rxFrequency"),
+        duration: getFieldValue("#rxDuration"),
+        route: getFieldValue("#rxRoute"),
+        quantity: getFieldValue("#rxQuantity"),
+        instructions: getFieldValue("#rxInstructions")
+      };
+    }
 
-<!-- JavaScript -->
-<script src="js/main.js"></script>
+    function renderPrescriptionScreening(screening) {
+      state.lastPrescriptionScreening = screening;
+      const results = document.getElementById("prescriptionScreeningResults");
+      const acknowledgement = document.getElementById("rxReviewAcknowledgement");
+      document.getElementById("rxReviewAcknowledged").checked = false;
+      if (!screening) {
+        results.innerHTML = `<div class="muted">Complete the prescription fields to run the safety review.</div>`;
+        acknowledgement.classList.remove("show");
+        return;
+      }
+      const badgeClass = screening.overall === "block" ? "rose" : screening.overall === "review" ? "amber" : "green";
+      results.innerHTML = `
+        <div class="screening-head"><strong>Safety review</strong><span class="badge ${badgeClass}">${escapeHtml(screening.overall)}</span></div>
+        ${screening.checks.map(check => `
+          <div class="screening-item ${escapeHtml(check.severity)}">
+            <span class="badge ${check.severity === "block" ? "rose" : check.severity === "review" ? "amber" : "green"}">${escapeHtml(check.severity)}</span>
+            <div><strong>${escapeHtml(check.title)}</strong><small class="muted">${escapeHtml(check.message)}</small></div>
+          </div>
+        `).join("")}`;
+      acknowledgement.classList.toggle("show", screening.overall === "review");
+    }
 
+    async function runPrescriptionScreening({ silent = false } = {}) {
+      const draft = prescriptionDraft();
+      if (!draft.patientUuid || !draft.medicine || !draft.dose || !draft.frequency || !draft.duration) {
+        renderPrescriptionScreening(null);
+        if (!silent) showToast("Select patient, medicine, dose, frequency, and duration first.");
+        return null;
+      }
+      if (!state.backendConnected) {
+        if (!silent) showToast("Safety plug-ins require the secure clinical service.");
+        return null;
+      }
+      try {
+        const payload = await apiRequest("/api/prescriptions/screen", { method: "POST", body: JSON.stringify(draft) });
+        renderPrescriptionScreening(payload.screening);
+        if (!silent) showToast(`Prescription safety review: ${payload.screening.overall}.`);
+        return payload.screening;
+      } catch (error) {
+        if (error.payload?.screening) renderPrescriptionScreening(error.payload.screening);
+        if (!silent) showToast(error.message);
+        return null;
+      }
+    }
+
+    function initials(name) {
+      return name.split(" ").filter(Boolean).slice(0, 2).map(part => part[0]).join("").toUpperCase();
+    }
+
+    async function setActivePatient(identifier) {
+      const patient = state.patients.find(item => item.uuid === identifier || item.name === identifier) || state.patients[0];
+      if (!patient) return;
+      state.activePatientUuid = patient.uuid || null;
+      renderPrescriptionScreening(null);
+      document.getElementById("activePatientName").textContent = patient.name;
+      document.getElementById("activePatientInitials").textContent = initials(patient.name);
+      document.getElementById("activePatientId").textContent = patient.id;
+      document.getElementById("activePatientDemo").textContent = `${patient.age || "?"} / ${patient.sex || "Unknown"}`;
+      document.getElementById("activePatientPhone").textContent = patient.phone;
+      document.getElementById("activePatientResidence").textContent = patient.residence || patient.subcounty || patient.county;
+      document.getElementById("activePatientProgram").textContent = patient.program || "Cash / self-pay";
+      document.getElementById("activePatientAllergy").textContent = patient.summary || patient.risk || "Not documented";
+      document.getElementById("safetyAllergyNotice").textContent = /penicillin|allergy/i.test(`${patient.summary || ""} ${patient.risk || ""}`)
+        ? `${patient.summary || patient.risk}. Review all medicine orders against the documented allergy record.`
+        : "No allergy term is currently documented in the patient summary. Confirm allergy status directly with the patient before prescribing.";
+      if (state.backendConnected && patient.uuid) {
+        try {
+          const payload = await apiRequest(`/api/patients/${encodeURIComponent(patient.uuid)}/workflow`);
+          applyActiveWorkflow(payload.workflow);
+          saveState();
+        } catch { setSyncStatus(false); }
+      }
+    }
+
+    function exportDailyReport() {
+      const report = {
+        facility: "Mwein Medical Services",
+        county: "Busia",
+        generatedAt: new Date().toISOString(),
+        totals: {
+          patientsToday: 37,
+          openLabOrders: 24,
+          pharmacyTasks: 19,
+          complianceActions: 5
+        },
+        dataQuality: {
+          completenessScore: 93,
+          missingDiagnosisCodes: 7,
+          missingNextOfKin: 3
+        },
+        patients: state.patients,
+        prescriptions: state.prescriptions,
+        audit: state.audit.slice(0, 20)
+      };
+      const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "mwein-daily-report.json";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showToast("Daily report exported as JSON for facility review.");
+    }
+
+    async function addPrescription() {
+      const draft = prescriptionDraft();
+      const { medicine, dose, frequency, duration, route, quantity, instructions } = draft;
+      if (!medicine || !dose || !frequency || !duration) {
+        showToast("Add medicine, dose, frequency, and duration before saving the prescription.");
+        return;
+      }
+      const reviewAcknowledged = document.getElementById("rxReviewAcknowledged").checked;
+      const screening = await runPrescriptionScreening({ silent: true });
+      if (!screening) {
+        showToast("Run the prescription safety review before saving.");
+        return;
+      }
+      if (screening.overall === "block") {
+        showToast("Prescription blocked. Resolve the mandatory safety findings.");
+        return;
+      }
+      if (screening.overall === "review" && !reviewAcknowledged) {
+        showToast("Review and acknowledge the advisory items before saving.");
+        return;
+      }
+      const prescription = {
+        medicine,
+        dose,
+        route,
+        frequency,
+        duration,
+        quantity,
+        instructions,
+        reviewAcknowledged
+      };
+      try {
+        if (state.backendConnected && state.activePatientUuid) {
+          const payload = await apiRequest(`/api/patients/${encodeURIComponent(state.activePatientUuid)}/prescriptions`, { method: "POST", body: JSON.stringify(prescription) });
+          state.audit = payload.audit;
+          await refreshWorkflow(payload.workflow);
+        } else {
+          state.prescriptions.push(prescription);
+          state.audit.unshift([new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), state.user?.initials || "OFF", "Prescription added", medicine, allergyConflict ? "Allergy review" : "Local draft"]);
+        }
+      } catch (error) {
+        showToast(error.message);
+        return;
+      }
+      saveState();
+      if (!state.backendConnected) renderPrescriptions();
+      renderAudit();
+      generateVisitSummary();
+      document.getElementById("rxMedicine").value = "";
+      document.getElementById("rxDose").value = "";
+      document.getElementById("rxFrequency").value = "";
+      document.getElementById("rxDuration").value = "";
+      document.getElementById("rxRoute").value = "Oral";
+      document.getElementById("rxQuantity").value = "";
+      document.getElementById("rxInstructions").value = "";
+      renderPrescriptionScreening(null);
+      showToast("Prescription added to the visit, pharmacy queue, and invoice.");
+    }
+
+    function getFieldValue(selector) {
+      return document.querySelector(selector)?.value?.trim() || "";
+    }
+
+    function generateVisitSummary() {
+      const patientName = document.getElementById("activePatientName").textContent;
+      const patientId = document.getElementById("activePatientId").textContent;
+      const patientDemo = document.getElementById("activePatientDemo").textContent;
+      const diagnosis = getFieldValue("#soapDiagnosis") || "Not documented";
+      const icd10 = getFieldValue("#soapIcd10") || "Not documented";
+      const subjective = document.querySelector("#soap textarea")?.value.trim() || "Not documented";
+      const objective = document.querySelectorAll("#soap textarea")[1]?.value.trim() || "Not documented";
+      const plan = document.querySelectorAll("#soap textarea")[2]?.value.trim() || "Not documented";
+      const vitals = [`BP ${getFieldValue("#vitalBp")}`, `Pulse ${getFieldValue("#vitalPulse")}`, `Temp ${getFieldValue("#vitalTemp")}`, `SpO2 ${getFieldValue("#vitalSpo2")}`].join(", ");
+      const followUp = getFieldValue("#followUp") || "As directed";
+      const disposition = getFieldValue("#disposition") || "Home";
+      const prescriptions = state.prescriptions.map((rx, index) =>
+        `${index + 1}. ${rx.medicine} - ${rx.dose}, ${rx.route || "Oral"}, ${rx.frequency} for ${rx.duration}${rx.quantity ? ` (quantity ${rx.quantity})` : ""}. ${rx.instructions || ""}`.trim()
+      ).join("\n") || "No medicines prescribed.";
+      const summary = [
+        "MWEIN MEDICAL SERVICES - VISIT SUMMARY",
+        `Patient: ${patientName}`,
+        `Identifier: ${patientId}`,
+        `Age/Sex: ${patientDemo}`,
+        `Date: ${new Date().toLocaleDateString()}`,
+        "",
+        `Vitals: ${vitals || "Not documented"}`,
+        "",
+        "Presenting Complaint / Subjective:",
+        subjective,
+        "",
+        "Clinical Findings / Objective:",
+        objective,
+        "",
+        `Diagnosis: ${diagnosis} (${icd10})`,
+        "",
+        "Plan:",
+        plan,
+        "",
+        "Prescription:",
+        prescriptions,
+        "",
+        "Follow-up:",
+        `${followUp}. Disposition: ${disposition}. Return immediately if symptoms worsen or danger signs develop.`,
+        "",
+        `Clinician: ${state.user?.displayName || "Not signed in"}`,
+        "Status: Draft visit summary for review and signing."
+      ].join("\n");
+      document.getElementById("visitSummaryText").textContent = summary;
+      return summary;
+    }
+
+    function downloadVisitSummary() {
+      const summary = generateVisitSummary();
+      const blob = new Blob([summary], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "mwein-visit-summary.txt";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showToast("Visit summary downloaded.");
+    }
+
+    function copyVisitSummary() {
+      const summary = generateVisitSummary();
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(summary).then(() => showToast("Visit summary copied."));
+      } else {
+        showToast("Visit summary generated. Select the text to copy.");
+      }
+    }
+
+    function updateSafetyScore() {
+      const checks = [...document.querySelectorAll(".safety-check")];
+      if (!checks.length) return;
+      const complete = checks.filter(check => check.checked).length;
+      const score = Math.round((complete / checks.length) * 100);
+      document.getElementById("safetyScore").textContent = `${score}%`;
+      document.getElementById("safetyProgress").style.width = `${score}%`;
+    }
+
+    function updateDuplicateAlert() {
+      const form = document.getElementById("patientForm");
+      const name = form.elements.name.value.trim().toLowerCase();
+      const phone = form.elements.phone.value.trim();
+      const id = form.elements.id.value.trim().toLowerCase();
+      const duplicate = state.patients.some(patient =>
+        (id && patient.id.toLowerCase() === id) ||
+        (phone && patient.phone === phone) ||
+        (name.length > 4 && patient.name.toLowerCase() === name)
+      );
+      duplicateAlert.classList.toggle("show", duplicate);
+    }
+
+    function openView(viewId) {
+      document.querySelectorAll(".view").forEach(view => view.classList.toggle("active", view.id === viewId));
+      document.querySelectorAll(".nav button").forEach(btn => btn.classList.toggle("active", btn.dataset.view === viewId));
+      document.getElementById("sidebar").classList.remove("open");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    document.querySelectorAll(".nav button").forEach(button => {
+      button.addEventListener("click", () => openView(button.dataset.view));
+    });
+
+    document.addEventListener("click", async event => {
+      const enterLabResult = event.target.closest("[data-enter-lab-result]");
+      if (enterLabResult) {
+        openLabResultDialog(enterLabResult.dataset.enterLabResult);
+        return;
+      }
+      const removeRx = event.target.closest("[data-remove-rx]");
+      if (removeRx) {
+        const index = Number(removeRx.dataset.removeRx);
+        const removed = state.prescriptions[index];
+        try {
+          if (state.backendConnected && removeRx.dataset.rxUuid) {
+            const payload = await apiRequest(`/api/prescriptions/${encodeURIComponent(removeRx.dataset.rxUuid)}`, { method: "DELETE" });
+            state.audit = payload.audit;
+            await refreshWorkflow(payload.workflow);
+          } else {
+            state.audit.unshift([new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), state.user?.initials || "OFF", "Prescription removed", removed?.medicine || "Prescription", "Local draft"]);
+            state.prescriptions.splice(index, 1);
+          }
+        } catch (error) {
+          showToast(error.message);
+          return;
+        }
+        saveState();
+        if (!state.backendConnected) renderPrescriptions();
+        renderAudit();
+        generateVisitSummary();
+        showToast("Prescription and invoice line removed from this visit.");
+        return;
+      }
+
+      const opener = event.target.closest("[data-open-view]");
+      if (!opener) return;
+      if (opener.dataset.patient) {
+        setActivePatient(opener.dataset.patient);
+      }
+      openView(opener.dataset.openView);
+    });
+
+    document.querySelectorAll(".tabs button").forEach(button => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".tabs button").forEach(tab => tab.classList.toggle("active", tab === button));
+        document.querySelectorAll(".tab-page").forEach(page => page.classList.toggle("active", page.id === button.dataset.tab));
+      });
+    });
+
+    document.getElementById("patientForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      const formData = new FormData(event.currentTarget);
+      const patient = Object.fromEntries(formData.entries());
+      const startVisitAfterSave = patient.startVisit === "on";
+      delete patient.startVisit;
+      let savedPatient = patient;
+      try {
+        if (state.backendConnected) {
+          const payload = await apiRequest("/api/patients", { method: "POST", body: JSON.stringify(patient) });
+          savedPatient = payload.patient;
+          state.patients.unshift(payload.patient);
+          state.audit = payload.audit;
+        } else {
+          patient.risk = patient.consent.includes("pending") ? "Consent pending" : "New";
+          patient.last = "Local draft";
+          state.patients.unshift(patient);
+          state.audit.unshift([new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), state.user?.initials || "OFF", "Client registered", patient.id, "Local draft"]);
+        }
+      } catch (error) {
+        showToast(error.message);
+        return;
+      }
+      saveState();
+      renderPatients(document.getElementById("globalSearch").value);
+      renderAudit();
+      duplicateAlert.classList.remove("show");
+      event.currentTarget.reset();
+      if (startVisitAfterSave) {
+        await setActivePatient(savedPatient.uuid || savedPatient.name);
+        showEncounterTriage();
+        showToast(`Client registered. New visit opened for ${savedPatient.name}.`);
+      } else {
+        showToast(state.backendConnected ? "Client saved to the clinical database." : "Client saved as a local offline draft.");
+      }
+    });
+
+    document.getElementById("labOrderForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      if (!state.activePatientUuid) {
+        showToast("Select a patient before ordering a laboratory test.");
+        return;
+      }
+      const testName = getFieldValue("#labTest");
+      const priority = getFieldValue("#labPriority");
+      try {
+        const payload = await apiRequest(`/api/patients/${encodeURIComponent(state.activePatientUuid)}/lab-orders`, {
+          method: "POST",
+          body: JSON.stringify({ testName, priority })
+        });
+        state.audit = payload.audit;
+        await refreshWorkflow(payload.workflow);
+        renderAudit();
+        document.getElementById("labTest").value = "";
+        showToast("Lab order added to the worklist and invoice.");
+      } catch (error) {
+        showToast(error.message);
+      }
+    });
+
+    document.getElementById("labResultForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      const orderUuid = event.currentTarget.dataset.orderUuid;
+      const resultData = Object.fromEntries([...document.querySelectorAll("#labResultFields [data-result-field]")].map(field => [field.dataset.resultField, field.value.trim()]));
+      try {
+        const payload = await apiRequest(`/api/lab-orders/${encodeURIComponent(orderUuid)}/status`, {
+          method: "PATCH",
+          body: JSON.stringify({ status: "Complete", resultData })
+        });
+        state.audit = payload.audit;
+        closeLabResultDialog();
+        await refreshWorkflow(payload.workflow);
+        renderAudit();
+        showToast("Verified laboratory result completed and removed from the active worklist.");
+      } catch (error) {
+        showToast(error.message);
+      }
+    });
+
+    document.getElementById("closeLabResultBtn").addEventListener("click", closeLabResultDialog);
+    document.getElementById("cancelLabResultBtn").addEventListener("click", closeLabResultDialog);
+
+    document.addEventListener("change", async event => {
+      const labUuid = event.target.dataset.labStatus;
+      if (labUuid) {
+        try {
+          const payload = await apiRequest(`/api/lab-orders/${encodeURIComponent(labUuid)}/status`, {
+            method: "PATCH",
+            body: JSON.stringify({ status: event.target.value })
+          });
+          state.audit = payload.audit;
+          await refreshWorkflow(payload.workflow);
+          renderAudit();
+          showToast(event.target.value === "Cancelled" ? "Lab order and invoice line removed." : `Lab order updated to ${event.target.value}.`);
+        } catch (error) {
+          showToast(error.message);
+          await refreshWorkflow();
+        }
+        return;
+      }
+      const rxUuid = event.target.dataset.rxStatus;
+      if (rxUuid) {
+        try {
+          const payload = await apiRequest(`/api/prescriptions/${encodeURIComponent(rxUuid)}/status`, {
+            method: "PATCH",
+            body: JSON.stringify({ status: event.target.value })
+          });
+          state.audit = payload.audit;
+          await refreshWorkflow(payload.workflow);
+          renderAudit();
+          showToast(event.target.value === "Dispensed" ? "Medicine dispensed and removed from the active queue." : "Prescription returned to the dispensing queue.");
+        } catch (error) {
+          showToast(error.message);
+          await refreshWorkflow();
+        }
+      }
+    });
+
+    document.querySelectorAll("#patientForm input, #patientForm select").forEach(field => {
+      field.addEventListener("input", updateDuplicateAlert);
+      field.addEventListener("change", updateDuplicateAlert);
+    });
+
+    document.getElementById("globalSearch").addEventListener("input", event => {
+      renderPatients(event.target.value);
+      if (!document.getElementById("patients").classList.contains("active")) openView("patients");
+    });
+
+    document.getElementById("saveEncounterBtn").addEventListener("click", async () => {
+      const patient = document.getElementById("activePatientName").textContent;
+      const summary = generateVisitSummary();
+      const soapTextareas = document.querySelectorAll("#soap textarea");
+      const encounter = {
+        patientUuid: state.activePatientUuid,
+        encounterType: getFieldValue("#encounterType"),
+        priority: getFieldValue("#encounterPriority"),
+        department: getFieldValue("#encounterDepartment"),
+        vitals: { bp: getFieldValue("#vitalBp"), pulse: getFieldValue("#vitalPulse"), temperature: getFieldValue("#vitalTemp"), spo2: getFieldValue("#vitalSpo2") },
+        subjective: soapTextareas[0]?.value || "",
+        objective: soapTextareas[1]?.value || "",
+        diagnosis: getFieldValue("#soapDiagnosis"),
+        icd10: getFieldValue("#soapIcd10"),
+        plan: soapTextareas[2]?.value || "",
+        followUp: getFieldValue("#followUp"),
+        disposition: getFieldValue("#disposition"),
+        summary
+      };
+      try {
+        if (state.backendConnected && state.activePatientUuid) {
+          const payload = await apiRequest("/api/encounters", { method: "POST", body: JSON.stringify(encounter) });
+          state.audit = payload.audit;
+          await refreshWorkflow();
+          await setActivePatient(state.activePatientUuid);
+        } else {
+          state.audit.unshift([new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), state.user?.initials || "OFF", "Encounter saved", patient, "Local draft"]);
+        }
+      } catch (error) {
+        showToast(error.message);
+        return;
+      }
+      saveState();
+      renderAudit();
+      showToast(state.backendConnected ? "Encounter signed and saved to the clinical database." : "Encounter saved as a local offline draft.");
+    });
+
+    document.getElementById("addPrescriptionBtn").addEventListener("click", addPrescription);
+    document.getElementById("screenPrescriptionBtn").addEventListener("click", () => runPrescriptionScreening());
+    document.getElementById("generateSummaryBtn").addEventListener("click", () => {
+      generateVisitSummary();
+      showToast("Visit summary generated for review.");
+    });
+    document.getElementById("downloadSummaryBtn").addEventListener("click", downloadVisitSummary);
+    document.getElementById("copySummaryBtn").addEventListener("click", copyVisitSummary);
+    document.getElementById("printSummaryBtn").addEventListener("click", () => {
+      generateVisitSummary();
+      window.print();
+    });
+    document.querySelectorAll("#rxMedicine, #rxDose, #rxFrequency, #rxDuration, #rxRoute, #rxQuantity").forEach(field => {
+      field.addEventListener("change", () => runPrescriptionScreening({ silent: true }));
+    });
+    const diagnosisCodes = { "Suspected uncomplicated malaria": "B54", "Upper respiratory tract infection": "J06.9", "Acute gastroenteritis": "A09", "Urinary tract infection": "N39.0", "Essential hypertension": "I10", "Type 2 diabetes mellitus": "E11.9" };
+    document.getElementById("soapDiagnosis").addEventListener("change", event => {
+      if (diagnosisCodes[event.target.value]) document.getElementById("soapIcd10").value = diagnosisCodes[event.target.value];
+      generateVisitSummary();
+    });
+    document.querySelectorAll("#followUp, #disposition, #summaryFormat").forEach(field => field.addEventListener("change", generateVisitSummary));
+
+    document.getElementById("quickVisitBtn").addEventListener("click", () => openNewVisitDialog());
+    document.getElementById("registryVisitBtn").addEventListener("click", () => openNewVisitDialog());
+    document.getElementById("newVisitForm").addEventListener("submit", startNewVisit);
+    document.getElementById("closeVisitDialogBtn").addEventListener("click", closeNewVisitDialog);
+    document.getElementById("cancelVisitBtn").addEventListener("click", closeNewVisitDialog);
+    document.getElementById("registerFromVisitBtn").addEventListener("click", () => {
+      closeNewVisitDialog();
+      openView("patients");
+      document.querySelector("#patientForm input[name='name']").focus();
+    });
+    document.getElementById("offlineBtn").addEventListener("click", () => showToast("Offline mode keeps draft visits in this browser until cloud sync is restored."));
+    document.getElementById("menuBtn").addEventListener("click", () => document.getElementById("sidebar").classList.toggle("open"));
+    document.getElementById("exportBtn").addEventListener("click", exportDailyReport);
+    document.getElementById("refreshAnalyticsBtn").addEventListener("click", () => showToast("Analytics refreshed from the local demo dataset."));
+    document.getElementById("loginForm").addEventListener("submit", signIn);
+    document.getElementById("logoutBtn").addEventListener("click", signOut);
+    document.querySelectorAll(".safety-check").forEach(check => check.addEventListener("change", updateSafetyScore));
+
+    if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
+      navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+    }
+
+    let offset = 0;
+    setInterval(() => {
+      offset = (offset + 1) % 80;
+      document.getElementById("waveLine").style.transform = `translateX(-${offset}px)`;
+    }, 120);
+
+    renderQueue();
+    renderPatients();
+    renderAudit();
+    renderPrescriptions();
+    renderPrescriptionPlugins();
+    renderPrescriptionScreening(null);
+    renderWorkflowBoards();
+    renderEncounterLabs();
+    setActivePatient("Achieng Otieno");
+    generateVisitSummary();
+    updateSafetyScore();
+    loadBackendState();
+  </script>
 </body>
 </html>

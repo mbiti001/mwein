@@ -1,0 +1,88 @@
+{
+  "folders": [
+    {
+      "name": "Mwein Cloud EMR",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "editor.formatOnSave": false,
+    "files.exclude": {
+      "**/.DS_Store": true,
+      "data": true,
+      "dist": true,
+      "secrets": true
+    },
+    "search.exclude": {
+      "data": true,
+      "dist": true,
+      "secrets": true
+    },
+    "terminal.integrated.cwd": "${workspaceFolder}"
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-azuretools.vscode-docker",
+      "github.vscode-github-actions"
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "EMR: Start local server",
+        "type": "npm",
+        "script": "start",
+        "group": "build",
+        "problemMatcher": []
+      },
+      {
+        "label": "EMR: Run tests",
+        "type": "npm",
+        "script": "test",
+        "group": {
+          "kind": "test",
+          "isDefault": true
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "EMR: Create verified backup",
+        "type": "npm",
+        "script": "backup",
+        "problemMatcher": []
+      },
+      {
+        "label": "EMR: Verify latest backup",
+        "type": "npm",
+        "script": "verify-backup",
+        "problemMatcher": []
+      },
+      {
+        "label": "EMR: Build cloud source bundle",
+        "type": "npm",
+        "script": "package-release",
+        "group": "build",
+        "problemMatcher": []
+      }
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Debug Mwein EMR",
+        "type": "node",
+        "request": "launch",
+        "program": "${workspaceFolder}/server.js",
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "NODE_ENV": "development",
+          "HOST": "127.0.0.1",
+          "PORT": "4173"
+        },
+        "skipFiles": ["<node_internals>/**"]
+      }
+    ]
+  }
+}
