@@ -21,7 +21,7 @@ The current application is a full-stack engineering pilot. It must not be used f
 - Sessions enforce idle and absolute expiry and use `__Host-` secure cookies in production.
 - Audit events are hash-chained and checked by the readiness endpoint.
 - `EMR_API_KEY` supports trusted machine integrations with constant-time token comparison.
-- The PWA app shell and local drafts can work offline for demonstration.
+- The PWA can cache its non-clinical app shell, but clinical records require the authenticated service and are never stored as browser-only drafts.
 - `robots.txt` blocks indexing.
 
 ## Production Requirements

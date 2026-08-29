@@ -591,6 +591,63 @@ function listAudit() {
     .map(row => [new Date(row.occurred_at).toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" }), row.actor, row.action, row.record_id, row.outcome]);
 }
 
+function kenyaDayWindow(daysAgo = 0) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Nairobi", year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(new Date()).filter(part => part.type !== "literal").map(part => [part.type, Number(part.value)]));
+  const startMs = Date.UTC(parts.year, parts.month - 1, parts.day - daysAgo) - (3 * 60 * 60 * 1000);
+  const start = new Date(startMs);
+  const end = new Date(startMs + 24 * 60 * 60 * 1000);
+  return { start: start.toISOString(), end: end.toISOString(), label: start.toLocaleDateString("en-KE", { timeZone: "Africa/Nairobi", weekday: "short" }) };
+}
+
+function operationalMetrics() {
+  const today = kenyaDayWindow();
+  const countBetween = (table, extra = "", params = []) => db.prepare(
+    `SELECT count(*) AS count FROM ${table} WHERE created_at >= ? AND created_at < ?${extra}`
+  ).get(today.start, today.end, ...params).count;
+  const totalPatients = db.prepare("SELECT count(*) AS count FROM patients").get().count;
+  const totalEncounters = db.prepare("SELECT count(*) AS count FROM encounters").get().count;
+  const missingNextOfKin = db.prepare("SELECT count(*) AS count FROM patients WHERE trim(next_of_kin) = ''").get().count;
+  const missingDiagnosisCodes = db.prepare("SELECT count(*) AS count FROM encounters WHERE trim(diagnosis) = '' OR trim(icd10) = ''").get().count;
+  const unsignedNotes = db.prepare("SELECT count(*) AS count FROM encounters WHERE status <> 'signed'").get().count;
+  const qualityChecks = totalPatients + (totalEncounters * 2);
+  const qualityGaps = missingNextOfKin + missingDiagnosisCodes + unsignedNotes;
+  const visitsByDay = Array.from({ length: 7 }, (_, index) => kenyaDayWindow(6 - index)).map(day => ({
+    label: day.label,
+    count: db.prepare("SELECT count(*) AS count FROM encounters WHERE created_at >= ? AND created_at < ?").get(day.start, day.end).count
+  }));
+  const invoiceTotals = db.prepare(`SELECT
+      count(DISTINCT CASE WHEN i.status = 'Open' THEN i.uuid END) AS open_count,
+      count(DISTINCT CASE WHEN i.status = 'Ready' THEN i.uuid END) AS ready_count,
+      coalesce(sum(CASE WHEN i.status = 'Open' THEN ii.quantity * ii.unit_price ELSE 0 END), 0) AS open_value,
+      coalesce(sum(CASE WHEN i.status = 'Ready' THEN ii.quantity * ii.unit_price ELSE 0 END), 0) AS ready_value
+    FROM invoices i LEFT JOIN invoice_items ii ON ii.invoice_uuid = i.uuid`).get();
+  return {
+    generatedAt: now(),
+    demoMode: SEED_DEMO_DATA,
+    patientsToday: countBetween("patients"),
+    totalPatients,
+    signedEncountersToday: countBetween("encounters", " AND status = ?", ["signed"]),
+    openLabOrders: db.prepare("SELECT count(*) AS count FROM lab_orders WHERE status NOT IN ('Complete', 'Cancelled')").get().count,
+    urgentLabOrders: db.prepare("SELECT count(*) AS count FROM lab_orders WHERE priority = 'Urgent' AND status NOT IN ('Complete', 'Cancelled')").get().count,
+    completedLabsToday: db.prepare("SELECT count(*) AS count FROM lab_orders WHERE updated_at >= ? AND updated_at < ? AND status = 'Complete'").get(today.start, today.end).count,
+    pharmacyQueue: db.prepare("SELECT count(*) AS count FROM prescriptions WHERE status NOT IN ('Dispensed', 'Cancelled')").get().count,
+    dispensedPrescriptions: db.prepare("SELECT count(*) AS count FROM prescriptions WHERE status = 'Dispensed'").get().count,
+    openInvoices: invoiceTotals.open_count,
+    readyInvoices: invoiceTotals.ready_count,
+    openInvoiceValue: invoiceTotals.open_value,
+    readyInvoiceValue: invoiceTotals.ready_value,
+    dataQuality: {
+      score: qualityChecks ? Math.max(0, Math.round(((qualityChecks - qualityGaps) / qualityChecks) * 100)) : 0,
+      missingDiagnosisCodes,
+      missingNextOfKin,
+      unsignedNotes
+    },
+    visitsByDay
+  };
+}
+
 async function api(req, res, url, requestId) {
   if (req.method === "GET" && url.pathname === "/api/health") {
     return sendJson(res, 200, { status: "ok", service: "mwein-emr-api", time: now() }, requestId);
@@ -643,7 +700,10 @@ async function api(req, res, url, requestId) {
   }
   if (req.method === "GET" && url.pathname === "/api/bootstrap") {
     const patients = db.prepare("SELECT * FROM patients ORDER BY updated_at DESC, name").all().map(mapPatient);
-    return sendJson(res, 200, { patients, audit: listAudit(), user: authenticatedUser, prescriptionPlugins: PRESCRIPTION_PLUGINS, formulary: FORMULARY, workflow: workflowState(), serverTime: now() }, requestId);
+    return sendJson(res, 200, { patients, audit: listAudit(), user: authenticatedUser, prescriptionPlugins: PRESCRIPTION_PLUGINS, formulary: FORMULARY, workflow: workflowState(), metrics: operationalMetrics(), serverTime: now() }, requestId);
+  }
+  if (req.method === "GET" && url.pathname === "/api/metrics") {
+    return sendJson(res, 200, { metrics: operationalMetrics() }, requestId);
   }
   if (req.method === "GET" && url.pathname === "/api/prescription-plugins") {
     return sendJson(res, 200, { plugins: PRESCRIPTION_PLUGINS, formulary: FORMULARY }, requestId);
