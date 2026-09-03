@@ -1,0 +1,1 @@
+.examGroup{display:grid;gap:8px;padding-top:12px;border-top:1px solid var(--line)}.examGroup:first-of-type{padding-top:0;border-top:0}.examGroup h4{margin:0;color:#0c4a6e;font-size:13px;text-transform:uppercase;letter-spacing:.06em}.findingsGrid select{font-size:13px}.findingsGrid label:has(select option:checked:not(:first-child)){border-color:#93c5fd}

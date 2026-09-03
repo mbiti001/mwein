@@ -1,0 +1,17 @@
+# Dependencies and framework output
+node_modules/
+.next/
+.vercel/
+
+# Local configuration and compiler caches
+.env*
+!.env.example
+*.tsbuildinfo
+
+# Local data and operating-system files
+data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.log
+.DS_Store

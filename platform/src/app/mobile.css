@@ -1,0 +1,8 @@
+.mobileNavToggle,.navScrim{display:none}
+@media(max-width:900px){
+  .shell{display:block}
+  .mobileNavToggle{display:block;position:sticky;top:0;z-index:41;width:100%;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:12px 18px;background:#073b58;color:white;text-align:left;font-weight:850}
+  .sidebar{display:flex;position:fixed;z-index:50;inset:0 auto 0 0;width:min(310px,86vw);transform:translateX(-105%);transition:transform .2s ease;box-shadow:8px 0 30px #062f4740}
+  .sidebar.mobileOpen{transform:translateX(0)}
+  .navScrim{display:block;position:fixed;z-index:45;inset:0;width:100%;border:0;background:#062f4770}
+}
