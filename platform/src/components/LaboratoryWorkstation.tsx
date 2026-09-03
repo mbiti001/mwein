@@ -437,7 +437,6 @@ export default function LaboratoryWorkstation({
       <VerifiedReport
         visit={active.visit}
         order={active.order}
-        ranges={ranges}
         onBack={() => setActive(null)}
       />
     );
@@ -652,12 +651,10 @@ export default function LaboratoryWorkstation({
 function VerifiedReport({
   visit,
   order,
-  ranges,
   onBack,
 }: {
   visit: Visit;
   order: LabOrder;
-  ranges: ReferenceRange[];
   onBack: () => void;
 }) {
   const result = order.laboratory!.result!;
@@ -781,15 +778,6 @@ function VerifiedReport({
             <p>{result.reportText}</p>
           </div>
         )}
-        <div className="reportMethod">
-          <strong>Method and interval source</strong>
-          {ranges.map((range) => (
-            <span key={range.id}>
-              {range.analyte}: {range.method || "Method not stated"} ·{" "}
-              {range.source || "Facility-defined interval"}
-            </span>
-          ))}
-        </div>
         <footer>
           <div>
             <small>Recorded by</small>
@@ -812,11 +800,15 @@ function VerifiedReport({
             </strong>
           </div>
         </footer>
-        <p className="reportDisclaimer">
+        <div className="reportMethod">
+          <strong>Method</strong>
+          <span>
           {canonicalLaboratoryCode(order.laboratory?.testCode || "") === "FBC"
             ? ZYBIO_Z3_PROFILE.footer
-            : "Reference intervals are population-, method- and analyser-dependent. Interpret results with the clinical context."} This electronically authorised report is valid without a handwritten signature.
-        </p>
+            : "Reference intervals are population-, method- and analyser-dependent. Interpret results with the clinical context."}
+          </span>
+          <small>This electronically authorised report is valid without a handwritten signature.</small>
+        </div>
       </article>
     </section>
   );
