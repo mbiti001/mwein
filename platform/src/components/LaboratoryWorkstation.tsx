@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { laboratoryDisplayName, laboratoryFlagSummary } from "@/lib/laboratory";
+import { canonicalLaboratoryCode, laboratoryDisplayName, laboratoryFlagSummary, ZYBIO_Z3_PROFILE } from "@/lib/laboratory";
 
 type ReferenceRange = {
   id: string;
@@ -813,9 +813,9 @@ function VerifiedReport({
           </div>
         </footer>
         <p className="reportDisclaimer">
-          Reference intervals are population-, method- and analyser-dependent.
-          Interpret results with the clinical context. This electronically
-          authorised report is valid without a handwritten signature.
+          {canonicalLaboratoryCode(order.laboratory?.testCode || "") === "FBC"
+            ? ZYBIO_Z3_PROFILE.footer
+            : "Reference intervals are population-, method- and analyser-dependent. Interpret results with the clinical context."} This electronically authorised report is valid without a handwritten signature.
         </p>
       </article>
     </section>

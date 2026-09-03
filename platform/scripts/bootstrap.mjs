@@ -674,4 +674,111 @@ for (const [analyte, componentCode, loincCode, unitUcum] of fbcComponents)
         displayOrder: fbcComponents.findIndex((item) => item[0] === analyte) + 1,
       },
     });
+
+// Mwein's analyser is a Zybio Z3 three-part differential instrument. Retire only
+// the generic starter ranges created by earlier builds; preserve any laboratory-
+// approved custom ranges already entered by staff.
+const z3Method =
+  "WBC, RBC and platelet counts by electrical impedance; haemoglobin by colorimetry; three-part WBC classification by cell-volume distribution. Red-cell and platelet indices are analyser-calculated.";
+const z3Source =
+  "Zybio Z3 Operation Manual and Mwein Medical Services provisional adult reference interval set (MMS-Z3-FBC-ADULT-v1.0). Provisional — pending local verification.";
+if (fbc) {
+  await db.catalogItem.update({
+    where: { id: fbc.id },
+    data: {
+      name: "Full Blood Count",
+      description:
+        "Zybio Z3 three-part FBC. Also known as Full Haemogram, FBC or CBC. MID cells combine monocytes, eosinophils and basophils.",
+      specimenType: "EDTA whole blood",
+      method: z3Method,
+    },
+  });
+  await db.labReferenceRange.updateMany({
+    where: {
+      catalogItemId: fbc.id,
+      OR: [
+        { source: { contains: "NWL Pathology" } },
+        { source: { contains: "Starter interval" } },
+      ],
+    },
+    data: { active: false },
+  });
+
+  const existingZ3 = await db.labReferenceRange.count({
+    where: { catalogItemId: fbc.id, analyser: "Zybio Z3" },
+  });
+  if (!existingZ3) {
+    const base = {
+      catalogItemId: fbc.id,
+      sexAtBirth: "ANY",
+      minAgeDays: 6570,
+      method: z3Method,
+      analyser: "Zybio Z3",
+      source: z3Source,
+      active: true,
+    };
+    const z3Rows = [
+      ["White blood cell count", "FBC-WBC", "×10⁹/L", "10*9/L", 4, 11],
+      ["Absolute lymphocyte count", "FBC-LYM-ABS", "×10⁹/L", "10*9/L", 1, 4],
+      ["Absolute MID-cell count", "FBC-MID-ABS", "×10⁹/L", "10*9/L", 0.2, 1.5],
+      ["Absolute granulocyte count", "FBC-GRAN-ABS", "×10⁹/L", "10*9/L", 1.5, 7.5],
+      ["Lymphocytes", "FBC-LYM-PCT", "%", "%", 20, 45],
+      ["MID cells", "FBC-MID-PCT", "%", "%", 2, 15],
+      ["Granulocytes", "FBC-GRAN-PCT", "%", "%", 40, 75],
+      ["Mean cell volume", "FBC-MCV", "fL", "fL", 80, 100],
+      ["Mean cell haemoglobin", "FBC-MCH", "pg", "pg", 27, 33],
+      ["Mean cell haemoglobin concentration", "FBC-MCHC", "g/dL", "g/dL", 32, 36],
+      ["Red-cell distribution width–CV", "FBC-RDW-CV", "%", "%", 11.5, 15],
+      ["Platelet count", "FBC-PLT", "×10⁹/L", "10*9/L", 150, 450],
+      ["Red-cell distribution width–SD", "FBC-RDW-SD", "fL", "fL", null, null],
+      ["Mean platelet volume", "FBC-MPV", "fL", "fL", null, null],
+      ["Platelet distribution width", "FBC-PDW", "fL", "fL", null, null],
+      ["Plateletcrit", "FBC-PCT", "%", "%", null, null],
+      ["Platelet large-cell ratio", "FBC-P-LCR", "%", "%", null, null],
+      ["Platelet large-cell count", "FBC-P-LCC", "×10⁹/L", "10*9/L", null, null],
+    ].map(([analyte, componentCode, unit, unitUcum, lowerLimit, upperLimit], index) => ({
+      ...base, analyte, componentCode, unit, unitUcum, lowerLimit, upperLimit,
+      displayOrder: index < 12 ? index + 1 : index + 4,
+    }));
+    z3Rows.splice(7, 0,
+      { ...base, analyte: "Red blood cell count", componentCode: "FBC-RBC", unit: "×10¹²/L", unitUcum: "10*12/L", sexAtBirth: "MALE", lowerLimit: 4.5, upperLimit: 6, displayOrder: 8 },
+      { ...base, analyte: "Red blood cell count", componentCode: "FBC-RBC", unit: "×10¹²/L", unitUcum: "10*12/L", sexAtBirth: "FEMALE", lowerLimit: 4, upperLimit: 5.5, displayOrder: 8 },
+      { ...base, analyte: "Haemoglobin", componentCode: "FBC-HGB", loincCode: "718-7", unit: "g/dL", unitUcum: "g/dL", sexAtBirth: "MALE", lowerLimit: 13, upperLimit: 17.5, criticalLow: 5, criticalHigh: 20, displayOrder: 9 },
+      { ...base, analyte: "Haemoglobin", componentCode: "FBC-HGB", loincCode: "718-7", unit: "g/dL", unitUcum: "g/dL", sexAtBirth: "FEMALE", lowerLimit: 12, upperLimit: 15.5, criticalLow: 5, criticalHigh: 20, displayOrder: 9 },
+      { ...base, analyte: "Haematocrit", componentCode: "FBC-HCT", unit: "%", unitUcum: "%", sexAtBirth: "MALE", lowerLimit: 40, upperLimit: 52, criticalLow: 15, criticalHigh: 60, displayOrder: 10 },
+      { ...base, analyte: "Haematocrit", componentCode: "FBC-HCT", unit: "%", unitUcum: "%", sexAtBirth: "FEMALE", lowerLimit: 36, upperLimit: 48, criticalLow: 15, criticalHigh: 60, displayOrder: 10 },
+    );
+    await db.labReferenceRange.createMany({ data: z3Rows });
+  }
+}
+
+const manualDifferential = await db.catalogItem.upsert({
+  where: { facilityId_code: { facilityId: facility.id, code: "LAB-HEM-MANDIFF" } },
+  update: {},
+  create: {
+    facilityId: facility.id,
+    category: "LABORATORY_TEST",
+    code: "LAB-HEM-MANDIFF",
+    name: "Peripheral blood film with manual differential",
+    description: "Separate manual microscopy examination; results are not produced by the Zybio Z3.",
+    unitPrice: "600.00",
+    department: "Haematology",
+    panelOrSingle: "PANEL",
+    specimenType: "EDTA whole blood",
+    method: "Manual microscopy",
+    turnaroundMinutes: 120,
+  },
+});
+if (!(await db.labReferenceRange.count({ where: { catalogItemId: manualDifferential.id } })))
+  await db.labReferenceRange.createMany({
+    data: ["Neutrophils %", "Lymphocytes %", "Monocytes %", "Eosinophils %", "Basophils %", "Morphology comments"].map((analyte, displayOrder) => ({
+      catalogItemId: manualDifferential.id,
+      analyte,
+      unit: analyte.endsWith("%") ? "%" : null,
+      displayOrder: displayOrder + 1,
+      method: "Manual microscopy",
+      source: "Facility manual differential procedure — laboratory approval required",
+      active: true,
+    })),
+  });
 await db.$disconnect();
