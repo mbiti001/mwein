@@ -389,8 +389,12 @@ export async function POST(
                 encounterId: encounter.id, diagnosisId: primary.id, idempotencyKey: input.data.idempotencyKey,
               } });
               await tx.clinicalOrder.update({ where: { id: exact.order.id }, data: { orderedById: user.id, displayName: item.name, clinicalIndication: medicine.indication, status: input.data.submit ? "REQUESTED" : "DRAFT" } });
-              if (exact.order.status !== "DRAFT" && exact.order.invoiceItem)
-                await tx.invoiceItem.update({ where: { id: exact.order.invoiceItem.id }, data: { quantity: new Prisma.Decimal(medicine.quantity), unitPrice: item.unitPrice, description: item.name } });
+              if (exact.order.invoiceItem) {
+                const alreadyDispensed = Number(exact.dispensedQuantity || 0);
+                if (alreadyDispensed > 0)
+                  await tx.invoiceItem.update({ where: { id: exact.order.invoiceItem.id }, data: { quantity: new Prisma.Decimal(alreadyDispensed), unitPrice: item.unitPrice, description: item.name } });
+                else await tx.invoiceItem.delete({ where: { id: exact.order.invoiceItem.id } });
+              }
               await tx.medicationSafetyOverride.create({ data: { prescriptionId: updated.id, existingPrescriptionId: exact.id, prescriberId: user.id, warningCode: input.data.duplicateAction!, justification: input.data.duplicateReason!, originalDetails: original, revisedDetails: revised } });
               created.push(item.name);
               continue;
@@ -431,17 +435,6 @@ export async function POST(
               },
               include: { prescription: true },
             });
-            if (input.data.submit)
-              await tx.invoiceItem.create({
-                data: {
-                  invoiceId: visit.invoice!.id,
-                  orderId: order.id,
-                  serviceCode: `MED-${medicine.medicineCode}`,
-                  description: item.name,
-                  quantity: new Prisma.Decimal(medicine.quantity),
-                  unitPrice: item.unitPrice,
-                },
-              });
             created.push(item.name);
             if (exact && input.data.duplicateAction === "KEEP_BOTH")
               await tx.medicationSafetyOverride.create({ data: { prescriptionId: order.prescription!.id, existingPrescriptionId: exact.id, prescriberId: user.id, warningCode: "EXACT_DUPLICATE_OVERRIDDEN", justification: input.data.duplicateReason!, originalDetails: prescriptionSnapshot({ ...exact, quantity: Number(exact.quantity) }), revisedDetails: revised } });

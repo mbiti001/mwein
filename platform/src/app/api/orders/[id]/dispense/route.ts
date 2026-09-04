@@ -9,6 +9,7 @@ import { dispensingBalance, planFefoAllocation } from "@/lib/pharmacy";
 
 const inputSchema = z.object({
   action: z.enum(["DISPENSE", "NOT_DISPENSED"]),
+  idempotencyKey: z.uuid(),
   quantity: z.coerce.number().positive().optional(),
   counsellingCompleted: z.boolean().optional(),
   notes: z.string().trim().max(500).optional(),
@@ -46,6 +47,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       batchNumber: batch.batchNumber,
       expiryDate: batch.expiryDate,
       quantityAvailable: Number(batch.quantityAvailable),
+      daysToExpiry: Math.ceil((batch.expiryDate.getTime() - Date.now()) / 86400000),
     })) || [];
     const plannedQuantity = Math.min(requested || outstanding, batches.reduce((sum, batch) => sum + batch.quantityAvailable, 0));
     const allocation = plannedQuantity > 0 ? planFefoAllocation(batches, plannedQuantity) : [];
@@ -59,9 +61,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id } = await params;
     const input = inputSchema.parse(await request.json());
     const result = await db.$transaction(async (tx) => {
+      const replay = await tx.dispensation.findFirst({ where: { idempotencyKey: input.idempotencyKey, prescription: { orderId: id } }, include: { prescription: true, items: { include: { batch: true } } } });
+      if (replay) return { dispenseStatus: replay.status, remainingQuantity: Math.max(0, Number(replay.prescription.quantity) - Number(replay.prescription.dispensedQuantity || 0)), remainingOrders: -1, replayed: true, allocations: replay.items.map(value => ({ id: value.batchId, batchNumber: value.batch.batchNumber, expiryDate: value.batch.expiryDate, quantity: Number(value.quantity), quantityAvailable: Number(value.batch.quantityAvailable) })) };
       const order = await tx.clinicalOrder.findFirst({
         where: { id, visit: { facilityId: user.facilityId }, type: "MEDICATION", status: { in: ["REQUESTED", "IN_PROGRESS"] } },
-        include: { prescription: true, visit: { include: { orders: true } } },
+        include: { prescription: true, visit: { include: { orders: true, invoice: true } } },
       });
       if (!order?.prescription) throw Object.assign(new Error("Active prescription not found"), { status: 404 });
       const prescribed = Number(order.prescription.quantity);
@@ -69,6 +73,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const previouslyDispensed = Number(order.prescription.dispensedQuantity || 0);
       let balance: ReturnType<typeof dispensingBalance> | null = null;
       let allocations: ReturnType<typeof planFefoAllocation> = [];
+      let catalogItem: Awaited<ReturnType<typeof tx.catalogItem.findFirst>> = null;
       if (input.action === "DISPENSE") {
         try {
           balance = dispensingBalance(prescribed, previouslyDispensed, quantity);
@@ -77,20 +82,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         }
       }
       if (input.action === "DISPENSE") {
-        const item = await tx.catalogItem.findFirst({ where: { facilityId: user.facilityId, category: "PHARMACEUTICAL", code: order.prescription.medicineCode.toUpperCase(), active: true } });
-        if (!item) throw Object.assign(new Error("Medicine is not active in the formulary"), { status: 422 });
-        const batches = await tx.inventoryBatch.findMany({ where: { catalogItemId: item.id, active: true, expiryDate: { gt: new Date() }, quantityAvailable: { gt: 0 } }, orderBy: [{ expiryDate: "asc" }, { receivedAt: "asc" }] });
+        catalogItem = await tx.catalogItem.findFirst({ where: { facilityId: user.facilityId, category: "PHARMACEUTICAL", code: order.prescription.medicineCode.toUpperCase(), active: true } });
+        if (!catalogItem) throw Object.assign(new Error("Medicine is not active in the formulary"), { status: 422 });
+        const batches = await tx.inventoryBatch.findMany({ where: { catalogItemId: catalogItem.id, active: true, expiryDate: { gt: new Date() }, quantityAvailable: { gt: 0 } }, orderBy: [{ expiryDate: "asc" }, { receivedAt: "asc" }] });
         try {
           allocations = planFefoAllocation(batches.map(batch => ({ ...batch, quantityAvailable: Number(batch.quantityAvailable) })), quantity);
         } catch (error) {
           throw Object.assign(error as Error, { status: 409 });
         }
+        const dispensation = await tx.dispensation.create({ data: { prescriptionId: order.prescription.id, dispensedById: user.id, idempotencyKey: input.idempotencyKey, status: balance!.complete ? "DISPENSED" : "PARTIALLY_DISPENSED", quantity: new Prisma.Decimal(quantity), counsellingCompleted: true, notes: input.notes } });
         for (const allocation of allocations) {
           const batch = batches.find(candidate => candidate.id === allocation.id)!;
           const batchBalance = Number(batch.quantityAvailable) - allocation.quantity;
           await tx.inventoryBatch.update({ where: { id: batch.id }, data: { quantityAvailable: new Prisma.Decimal(batchBalance), active: batchBalance > 0 } });
-          await tx.stockMovement.create({ data: { batchId: batch.id, userId: user.id, prescriptionId: order.prescription.id, type: "DISPENSE", quantity: new Prisma.Decimal(-allocation.quantity), balanceAfter: new Prisma.Decimal(batchBalance), reason: `${order.visit.visitNumber} · ${order.displayName}` } });
+          await tx.dispensationItem.create({ data: { dispensationId: dispensation.id, batchId: batch.id, quantity: new Prisma.Decimal(allocation.quantity), unitPrice: catalogItem.unitPrice, unitCost: batch.unitCost } });
+          await tx.stockMovement.create({ data: { batchId: batch.id, userId: user.id, prescriptionId: order.prescription.id, dispensationId: dispensation.id, type: "DISPENSE", quantity: new Prisma.Decimal(-allocation.quantity), balanceAfter: new Prisma.Decimal(batchBalance), reason: `${order.visit.visitNumber} · ${order.displayName}` } });
         }
+      } else {
+        await tx.dispensation.create({ data: { prescriptionId: order.prescription.id, dispensedById: user.id, idempotencyKey: input.idempotencyKey, status: "NOT_DISPENSED", quantity: new Prisma.Decimal(0), notes: input.notes } });
       }
       const dispenseStatus = input.action === "NOT_DISPENSED" ? "NOT_DISPENSED" : balance!.complete ? "DISPENSED" : "PARTIALLY_DISPENSED";
       await tx.prescription.update({ where: { id: order.prescription.id }, data: {
@@ -98,6 +107,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         counsellingCompleted: input.action === "DISPENSE" ? true : undefined, counselledAt: input.action === "DISPENSE" ? new Date() : undefined,
         dispensedAt: new Date(), dispensedById: user.id,
       }});
+      if (input.action === "DISPENSE") {
+        await tx.invoiceItem.upsert({
+          where: { orderId: order.id },
+          update: { quantity: new Prisma.Decimal(balance!.cumulativeDispensed), unitPrice: catalogItem!.unitPrice, description: catalogItem!.name },
+          create: { invoiceId: order.visit.invoice!.id, orderId: order.id, serviceCode: `MED-${order.prescription.medicineCode}`, description: catalogItem!.name, quantity: new Prisma.Decimal(balance!.cumulativeDispensed), unitPrice: catalogItem!.unitPrice },
+        });
+      } else if (previouslyDispensed === 0) {
+        await tx.invoiceItem.deleteMany({ where: { orderId: order.id } });
+      }
       const orderComplete = input.action === "NOT_DISPENSED" || balance!.complete;
       await tx.clinicalOrder.update({ where: { id }, data: {
         status: orderComplete ? "COMPLETED" : "IN_PROGRESS",

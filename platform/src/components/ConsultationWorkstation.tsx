@@ -1137,7 +1137,7 @@ function ConsultationForm({
         const result = await run(
           action,
           { submit: submitPrescription, idempotencyKey: prescriptionKey, duplicateAction: f.get("duplicateAction") || undefined, duplicateReason: f.get("duplicateReason") || undefined, prescriptions },
-          submitPrescription ? "Prescription submitted to pharmacy and billing." : "Prescription saved as a draft; it has not been billed.",
+          submitPrescription ? "Prescription signed and sent to pharmacy. Billing will use the confirmed supplied quantity." : "Prescription saved as a draft; it has not been billed.",
         );
         if (result) { setPrescriptionKey(crypto.randomUUID()); setDuplicateConflict(null); }
         return result;

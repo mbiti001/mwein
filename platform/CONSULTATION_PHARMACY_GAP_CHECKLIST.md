@@ -23,12 +23,14 @@ Legend: `[x]` implemented, `[~]` partial, `[ ]` missing or requires a product de
 - [~] Medicine catalogue. Stable codes, medicine names, prices and active state exist; strength/form/route/pack/minimum-stock/controlled flags are not fully normalized as catalogue fields.
 - [~] Structured prescription. Normalized medication concept, generic, strength, form, dose, route, frequency, treatment dates, quantity, instructions, indication, PRN and dose timing are persisted; dose and duration units are not yet separate fields.
 - [ ] Automatic prescription quantity calculation and clinician confirmation.
-- [~] Queue status views. Awaiting and partial prescriptions remain actionable, but four explicit Awaiting/Partial/Dispensed/Cancelled tabs are not present.
-- [~] Queue card context. Patient, medicine, quantity and allergy information exist; prescriber, available stock, payer status and prescription time are incomplete.
+- [x] Queue status views separate Awaiting, Partial, Dispensed and Not supplied prescriptions while keeping only actionable prescriptions open for dispensing.
+- [~] Queue and review context includes patient, age, weight, allergies, diagnosis, medicine, prior supply and live FEFO stock; prescriber, payer status and prescription time still need richer queue-card display.
 - [x] Batch inventory, expiry enforcement, FEFO deduction, no negative stock, stock movements and audit trail.
 - [x] Full and cumulative partial dispensing. Outstanding quantity remains on the original prescription and in the pharmacy queue.
 - [~] Safety checks. Exact active duplicates are blocked using normalized ingredient, strength, form, route, frequency and overlapping dates; edit, replace and justified override decisions are audited. Same-class and allergy matches warn. Interaction knowledge-base, dose-limit, renal/hepatic, pregnancy/paediatric and severe-allergy hard stops remain incomplete.
 - [x] Automatic FEFO batch allocation is visible before supply, retained in the stock ledger and visit summary, and dispensing requires explicit counselling confirmation.
+- [x] Every confirmed supply creates an idempotent immutable dispensation with batch lines; network replay cannot deduct stock or bill twice.
+- [x] Pharmacy invoice quantities follow cumulative confirmed dispensing, including partial supply; prescribing alone no longer creates a medicine charge.
 - [ ] Pharmacist override of the FEFO batch and medicine substitution with a recorded reason.
 - [~] Low-stock/expiry visibility and operations reporting exist; periodic physical counts and variance authorization need a dedicated workflow.
 - [~] Billing uses immutable invoice line prices; dated multi-payer medicine price history is not implemented.
@@ -36,7 +38,7 @@ Legend: `[x]` implemented, `[~]` partial, `[ ]` missing or requires a product de
 
 ## Recommended Order
 
-1. Complete the pharmacy queue context and four status tabs.
+1. Complete prescriber, payer and prescription-time context on pharmacy queue cards.
 2. Add structured prescription frequency/duration and safe quantity calculation.
 3. Add controlled FEFO override and substitution reasons.
 4. Complete investigation priority/indication fields.
