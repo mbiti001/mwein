@@ -55,7 +55,10 @@ export async function GET() {
               },
             },
             imaging: { include: { result: { include: { performedBy: { select: { displayName: true } }, verifiedBy: { select: { displayName: true } } } } } },
-            prescription: { include: { dispensedBy: { select: { displayName: true } } } },
+            prescription: { include: {
+              dispensedBy: { select: { displayName: true } },
+              stockMovements: { where: { type: "DISPENSE" }, include: { batch: { select: { batchNumber: true, expiryDate: true } } }, orderBy: { occurredAt: "asc" } },
+            } },
           },
           orderBy: { requestedAt: "asc" },
         },

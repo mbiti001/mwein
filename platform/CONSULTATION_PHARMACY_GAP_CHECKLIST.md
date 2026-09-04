@@ -28,16 +28,17 @@ Legend: `[x]` implemented, `[~]` partial, `[ ]` missing or requires a product de
 - [x] Batch inventory, expiry enforcement, FEFO deduction, no negative stock, stock movements and audit trail.
 - [x] Full and cumulative partial dispensing. Outstanding quantity remains on the original prescription and in the pharmacy queue.
 - [~] Safety checks. Stock, expiry, active-formulary and allergy visibility exist; severe-allergy hard stop, duplicate ingredient, pregnancy/paediatric warnings and configurable formulary checks remain incomplete.
-- [ ] Pharmacist-selected batch, substitution with reason, and explicit counselling confirmation.
+- [x] Automatic FEFO batch allocation is visible before supply, retained in the stock ledger and visit summary, and dispensing requires explicit counselling confirmation.
+- [ ] Pharmacist override of the FEFO batch and medicine substitution with a recorded reason.
 - [~] Low-stock/expiry visibility and operations reporting exist; periodic physical counts and variance authorization need a dedicated workflow.
 - [~] Billing uses immutable invoice line prices; dated multi-payer medicine price history is not implemented.
 - [ ] Stand-alone pharmacy sale with prescription-only controls.
 
 ## Recommended Order
 
-1. Add pharmacist safety/dispense fields: counselling, substitution reason, and explicit batch traceability.
-2. Complete the pharmacy queue context and four status tabs.
-3. Add structured prescription frequency/duration and safe quantity calculation.
+1. Complete the pharmacy queue context and four status tabs.
+2. Add structured prescription frequency/duration and safe quantity calculation.
+3. Add controlled FEFO override and substitution reasons.
 4. Complete investigation priority/indication fields.
 5. Add signed-note addenda.
 6. Complete the consultation banner and structured multiple complaints.
@@ -46,6 +47,6 @@ Legend: `[x]` implemented, `[~]` partial, `[ ]` missing or requires a product de
 
 ## Verification
 
-- `npm test -- --reporter=dot`: 40 tests passed.
+- `npm test -- --reporter=dot`: 44 tests passed.
 - `npm run lint`: TypeScript validation passed.
 - `npm run build`: Next.js production build passed.

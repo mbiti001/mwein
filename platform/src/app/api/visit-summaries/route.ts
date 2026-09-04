@@ -31,7 +31,10 @@ export async function GET(request: Request) {
         orders: { include: {
           laboratory: { include: { result: { include: { items: true, verifiedBy: { select: { displayName: true } } } } } },
           imaging: { include: { result: { include: { performedBy: { select: { displayName: true } }, verifiedBy: { select: { displayName: true } } } } } },
-          prescription: { include: { dispensedBy: { select: { displayName: true } } } },
+          prescription: { include: {
+            dispensedBy: { select: { displayName: true } },
+            stockMovements: { where: { type: "DISPENSE" }, include: { batch: { select: { batchNumber: true, expiryDate: true } } }, orderBy: { occurredAt: "asc" } },
+          } },
         }, orderBy: { requestedAt: "asc" } },
         invoice: { include: { items: true, payments: { where: { status: "CONFIRMED" }, include: { receipt: true } } } },
       },

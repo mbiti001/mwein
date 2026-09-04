@@ -20,3 +20,27 @@ export function dispensingBalance(
     complete: remainingAfter <= 0.000001,
   };
 }
+
+export type FefoBatch = {
+  id: string;
+  batchNumber: string;
+  expiryDate: Date | string;
+  quantityAvailable: number;
+};
+
+export function planFefoAllocation(batches: FefoBatch[], quantity: number) {
+  if (!Number.isFinite(quantity) || quantity <= 0)
+    throw new Error("Dispensed quantity must be a valid positive number");
+
+  let needed = quantity;
+  const allocations = [] as Array<FefoBatch & { quantity: number }>;
+  for (const batch of batches) {
+    if (needed <= 0) break;
+    const used = Math.min(needed, batch.quantityAvailable);
+    if (used > 0) allocations.push({ ...batch, quantity: used });
+    needed -= used;
+  }
+  if (needed > 0.000001)
+    throw new Error(`Insufficient unexpired stock. Available: ${quantity - needed}`);
+  return allocations;
+}

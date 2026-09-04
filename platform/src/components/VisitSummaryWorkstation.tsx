@@ -298,6 +298,7 @@ export default function VisitSummaryWorkstation() {
                     : ""}{" "}
                   · {o.prescription.dispenseStatus.replaceAll("_", " ")}
                 </span>
+                {o.prescription.stockMovements?.length ? <small>Batch trace: {o.prescription.stockMovements.map((movement: Summary) => `${movement.batch.batchNumber} (${Math.abs(Number(movement.quantity))}, exp ${new Date(movement.batch.expiryDate).toLocaleDateString()})`).join(" · ")} · Counselling {o.prescription.counsellingCompleted ? "confirmed" : "not confirmed"}</small> : null}
               </div>
             ))
           ) : (

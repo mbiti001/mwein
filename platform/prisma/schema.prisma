@@ -593,10 +593,13 @@ model Prescription {
   dispensedQuantity Decimal? @db.Decimal(12, 3)
   dispenseStatus String @default("PENDING")
   dispenseNotes String?
+  counsellingCompleted Boolean @default(false)
+  counselledAt DateTime?
   dispensedAt DateTime?
   dispensedById String? @db.Uuid
   order ClinicalOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
   dispensedBy User? @relation("PrescriptionDispensedBy", fields: [dispensedById], references: [id])
+  stockMovements StockMovement[]
 }
 
 model InventoryBatch {
@@ -627,7 +630,9 @@ model StockMovement {
   occurredAt DateTime @default(now())
   batch InventoryBatch @relation(fields: [batchId], references: [id])
   user User @relation(fields: [userId], references: [id])
+  prescription Prescription? @relation(fields: [prescriptionId], references: [id])
   @@index([batchId, occurredAt])
+  @@index([prescriptionId, occurredAt])
 }
 
 model Invoice {
