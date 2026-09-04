@@ -489,21 +489,12 @@ export default function LaboratoryWorkstation({
               );
               const interval =
                 range.qualitativeValues ||
-                `${range.lowerLimit ?? "—"} – ${range.upperLimit ?? "—"}`;
+                (range.lowerLimit || range.upperLimit
+                  ? `${range.lowerLimit ?? "—"} – ${range.upperLimit ?? "—"}`
+                  : "—");
               return (
                 <div className="resultGridRow" key={range.id}>
-                  <span>
-                    <strong>{range.analyte}</strong>
-                    <small>
-                      {range.componentCode || "Local component"}
-                      {range.loincCode ? ` · LOINC ${range.loincCode}` : ""}
-                      {" · "}
-                      {range.sexAtBirth !== "ANY"
-                        ? range.sexAtBirth
-                        : "All patients"}
-                      {range.method ? ` · ${range.method}` : ""}
-                    </small>
-                  </span>
+                  <strong>{range.analyte}</strong>
                   {range.qualitativeValues ? (
                     <select name={`value_${range.id}`} required defaultValue={saved?.value || ""}>
                       <option value="" disabled>Select result</option>
@@ -517,7 +508,7 @@ export default function LaboratoryWorkstation({
                   <span>
                     {range.criticalLow || range.criticalHigh
                       ? `${range.criticalLow ?? "—"} / ${range.criticalHigh ?? "—"}`
-                      : "Not defined"}
+                      : "—"}
                   </span>
                 </div>
               );
