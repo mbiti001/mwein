@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { jsonRequest } from "@/lib/client-http";
 
 type BatchAllocation = { id: string; batchNumber: string; expiryDate: string; quantity: number; quantityAvailable: number; daysToExpiry?: number };
 type StockPreview = { outstanding: number; available: number; allocation: BatchAllocation[] };
@@ -23,10 +24,7 @@ type Visit = {
 };
 
 async function post(id: string, body: unknown) {
-  const response = await fetch(`/api/orders/${id}/dispense`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || "Dispensing could not be recorded");
-  return data as { allocations: BatchAllocation[]; replayed?: boolean };
+  return jsonRequest<{ allocations: BatchAllocation[]; replayed?: boolean }>(`/api/orders/${id}/dispense`, { method: "POST", body: JSON.stringify(body) }, "Dispensing could not be recorded");
 }
 
 export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId, onInitialVisitOpened }: { visits: Visit[]; onUpdated: () => Promise<void>; initialVisitId?: string | null; onInitialVisitOpened?: () => void }) {

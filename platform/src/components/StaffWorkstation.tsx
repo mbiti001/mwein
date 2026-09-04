@@ -1,15 +1,13 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { jsonRequest } from "@/lib/client-http";
 
 type Role = { id: string; code: string; name: string };
 type Staff = { id: string; displayName: string; email: string; status: string; roles: { role: Role }[] };
 
 async function request<T>(options?: RequestInit): Promise<T> {
-  const response = await fetch("/api/admin/users", { ...options, headers: { "Content-Type": "application/json", ...options?.headers } });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || "Staff request could not be completed");
-  return data;
+  return jsonRequest<T>("/api/admin/users", options, "Staff request could not be completed");
 }
 
 export default function StaffWorkstation() {

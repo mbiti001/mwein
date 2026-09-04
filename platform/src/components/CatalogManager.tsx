@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { jsonRequest } from "@/lib/client-http";
 
 type Category =
   | "LABORATORY_TEST"
@@ -34,14 +35,7 @@ const labels: Record<Category, string> = {
 };
 
 async function request(url: string, options?: RequestInit) {
-  const response = await fetch(url, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...options?.headers },
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok)
-    throw new Error(data.error || "The catalogue could not be updated");
-  return data;
+  return jsonRequest<{ items: Item[] }>(url, options, "The catalogue could not be updated");
 }
 
 export default function CatalogManager() {

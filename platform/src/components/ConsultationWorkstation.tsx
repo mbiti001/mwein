@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { patientClinicalGroup } from "@/lib/domain";
+import { jsonRequest } from "@/lib/client-http";
 
 type Visit = {
   id: string;
@@ -65,15 +66,7 @@ function parseRecord(value?: string | null): Record<string, string> { try { retu
 function parseFindings(value?: string) { return Object.fromEntries((value || "").split("\n").map(line => line.split(": ")).filter(parts => parts.length > 1).map(([label, ...rest]) => [label, rest.join(": ")])); }
 
 async function post(url: string, body: unknown) {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok)
-    throw Object.assign(new Error(data.error || "The consultation could not be saved"), { details: data.details });
-  return data;
+  return jsonRequest<Record<string, any>>(url, { method: "POST", body: JSON.stringify(body) }, "The consultation could not be saved");
 }
 
 type FindingDefinition = {
@@ -1098,7 +1091,7 @@ function ConsultationForm({
         },
         "Primary ICD-11 diagnosis recorded.",
       );
-      if (result?.diagnosis) {
+      if (result && result.diagnosis) {
         setSavedDiagnoses(current => [...current.map(item => result.diagnosis.primary ? { ...item, primary: false } : item), result.diagnosis]);
         setDiagnosisQuery(""); setDiagnosisCode(""); setDiagnosisUri("");
       }

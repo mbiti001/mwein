@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { appointmentClinics } from "@/lib/appointments";
+import { jsonRequest } from "@/lib/client-http";
 
 type Patient = {
   id: string;
@@ -24,10 +25,7 @@ type Appointment = {
 };
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, { ...options, headers: { "Content-Type": "application/json", ...options?.headers } });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || "The request could not be completed");
-  return data;
+  return jsonRequest<T>(url, options);
 }
 
 const kenyaInputTime = () => {

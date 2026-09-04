@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { jsonRequest } from "@/lib/client-http";
 
 type Dataset =
   | "PATIENTS"
@@ -66,31 +67,22 @@ export default function ImportCenter() {
   async function send(publish: boolean, page = 1) {
     setError("");
     setNotice("");
-    const response = await fetch("/api/admin/import", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        dataset,
-        csv,
-        publish,
-        page,
-        pageSize: 25,
-        sourceTitle: workbookTitle || undefined,
-        sheetTitle: sheetTitle || undefined,
-      }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) return setError(data.error || "Import failed");
-    if (!publish) {
-      setPreview(data.preview);
-      setSummary(data);
-    } else {
-      setNotice(
-        `${data.imported} ${datasets[dataset].label.toLowerCase()} row(s) published successfully.`,
-      );
-      setCsv("");
-      setPreview([]);
-      setSummary(null);
+    try {
+      const data = await jsonRequest<any>("/api/admin/import", {
+        method: "POST",
+        body: JSON.stringify({ dataset, csv, publish, page, pageSize: 25, sourceTitle: workbookTitle || undefined, sheetTitle: sheetTitle || undefined }),
+      }, "Import failed");
+      if (!publish) {
+        setPreview(data.preview);
+        setSummary(data);
+      } else {
+        setNotice(`${data.imported} ${datasets[dataset].label.toLowerCase()} row(s) published successfully.`);
+        setCsv("");
+        setPreview([]);
+        setSummary(null);
+      }
+    } catch (reason) {
+      setError((reason as Error).message);
     }
   }
   async function readWorkbook(file: File, selectedSheet?: string) {
@@ -98,20 +90,18 @@ export default function ImportCenter() {
     const form = new FormData();
     form.set("file", file);
     if (selectedSheet) form.set("sheetTitle", selectedSheet);
-    const response = await fetch("/api/admin/import/workbook", {
-      method: "POST",
-      body: form,
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok)
-      return setError(data.error || "Workbook could not be read");
-    setWorkbookTitle(data.workbookTitle);
-    setSheetTitles(data.sheetTitles || []);
-    if (data.csv) {
-      setSheetTitle(data.sheetTitle);
-      setCsv(data.csv);
-      setPreview([]);
-      setSummary(null);
+    try {
+      const data = await jsonRequest<any>("/api/admin/import/workbook", { method: "POST", body: form }, "Workbook could not be read");
+      setWorkbookTitle(data.workbookTitle);
+      setSheetTitles(data.sheetTitles || []);
+      if (data.csv) {
+        setSheetTitle(data.sheetTitle);
+        setCsv(data.csv);
+        setPreview([]);
+        setSummary(null);
+      }
+    } catch (reason) {
+      setError((reason as Error).message);
     }
   }
   function template() {

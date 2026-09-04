@@ -4,6 +4,7 @@ import {
   allowedClaimStatuses,
   type ClaimStatus,
 } from "@/lib/billing";
+import { jsonRequest } from "@/lib/client-http";
 type Visit = {
   id: string;
   visitNumber: string;
@@ -92,18 +93,14 @@ export default function BillingWorkstation({
     setBusy(true);
     const form = new FormData(event.currentTarget);
     try {
-      const response = await fetch(`/api/invoices/${invoice.id}/payments`, {
+      const data = await jsonRequest<any>(`/api/invoices/${invoice.id}/payments`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           method: form.get("method"),
           amount: form.get("amount"),
           externalReference: form.get("externalReference") || undefined,
         }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok)
-        throw new Error(data.error || "Payment could not be recorded");
+      }, "Payment could not be recorded");
       setLastReceipt(data.payment.receipt?.receiptNumber || "");
       setReceiptView({ visit: active, payment: data.payment });
       await onUpdated();
@@ -120,9 +117,8 @@ export default function BillingWorkstation({
     setError("");
     const f = new FormData(event.currentTarget);
     try {
-      const r = await fetch(`/api/invoices/${invoice.id}/claims`, {
+      const d = await jsonRequest<any>(`/api/invoices/${invoice.id}/claims`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             payer: f.get("payer"),
             memberNumber: f.get("memberNumber"),
@@ -130,9 +126,7 @@ export default function BillingWorkstation({
             notes: f.get("claimNotes") || undefined,
             submit: true,
           }),
-        }),
-        d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Claim could not be created");
+        }, "Claim could not be created");
       setLastReceipt(`Claim ${d.claim.claimNumber} submitted`);
       await onUpdated();
       setActive(null);
@@ -148,13 +142,10 @@ export default function BillingWorkstation({
     setBusy(true);
     setError("");
     try {
-      const r = await fetch(`/api/payments/${paymentId}/reverse`, {
+      await jsonRequest(`/api/payments/${paymentId}/reverse`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ reason }),
-        }),
-        d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Payment could not be reversed");
+        }, "Payment could not be reversed");
       await onUpdated();
       setActive(null);
     } catch (e) {
@@ -172,17 +163,13 @@ export default function BillingWorkstation({
     setError("");
     const form = new FormData(event.currentTarget);
     try {
-      const response = await fetch(`/api/claims/${claimId}/status`, {
+      const data = await jsonRequest<any>(`/api/claims/${claimId}/status`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           status: form.get("status"),
           notes: form.get("notes"),
         }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok)
-        throw new Error(data.error || "Claim status could not be updated");
+      }, "Claim status could not be updated");
       setLastReceipt(`Claim ${data.claim.claimNumber} marked ${data.claim.status}`);
       await onUpdated();
       setActive(null);

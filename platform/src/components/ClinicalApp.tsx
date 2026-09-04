@@ -16,6 +16,7 @@ import AppointmentWorkstation from "@/components/AppointmentWorkstation";
 import ServicePointMap from "@/components/ServicePointMap";
 import StaffWorkstation from "@/components/StaffWorkstation";
 import { currentServicePoint, isWaitingOverdue, waitingMinutes, type ServicePointCode } from "@/lib/service-points";
+import { jsonRequest } from "@/lib/client-http";
 
 type User = {
   displayName: string;
@@ -105,14 +106,7 @@ type Screen =
   | "imports";
 
 async function api<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...options?.headers },
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok)
-    throw new Error(data.error || "The request could not be completed");
-  return data;
+  return jsonRequest<T>(url, options);
 }
 
 export default function ClinicalApp() {

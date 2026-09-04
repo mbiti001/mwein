@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { canonicalLaboratoryCode, laboratoryDisplayName, laboratoryFlagSummary, ZYBIO_Z3_PROFILE } from "@/lib/laboratory";
+import { jsonRequest } from "@/lib/client-http";
 
 type ReferenceRange = {
   id: string;
@@ -175,23 +176,23 @@ export default function LaboratoryWorkstation({
   ) {
     if (!active) return;
     setError("");
-    const response = await fetch(`/api/orders/${active.order.id}/specimen`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, ...payload }),
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok)
-      return setError(result.error || "Specimen status could not be updated");
-    setNotice(
-      action === "COLLECT"
-        ? "Specimen collected and accession assigned."
-        : action === "RECEIVE"
-          ? "Specimen accepted into the laboratory worklist."
-          : "Specimen rejected; recollection is required.",
-    );
-    await onUpdated();
-    setActive(null);
+    try {
+      await jsonRequest(`/api/orders/${active.order.id}/specimen`, {
+        method: "POST",
+        body: JSON.stringify({ action, ...payload }),
+      }, "Specimen status could not be updated");
+      setNotice(
+        action === "COLLECT"
+          ? "Specimen collected and accession assigned."
+          : action === "RECEIVE"
+            ? "Specimen accepted into the laboratory worklist."
+            : "Specimen rejected; recollection is required.",
+      );
+      await onUpdated();
+      setActive(null);
+    } catch (reason) {
+      setError((reason as Error).message);
+    }
   }
   async function submit(
     form: HTMLFormElement,
@@ -220,11 +221,9 @@ export default function LaboratoryWorkstation({
             flag: data.get("flag") || undefined,
           },
         ];
-    const response = await fetch(
-      `/api/orders/${active.order.id}/laboratory-result`,
-      {
+    try {
+      await jsonRequest(`/api/orders/${active.order.id}/laboratory-result`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action,
           reportText: data.get("reportText") || undefined,
@@ -240,18 +239,17 @@ export default function LaboratoryWorkstation({
             : undefined,
           items,
         }),
-      },
-    );
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok)
-      return setError(result.error || "The result could not be saved");
-    setNotice(
-      action === "VERIFY"
-        ? "Result verified and released to the clinician."
-        : "Result saved as a draft.",
-    );
-    await onUpdated();
-    if (action === "VERIFY") setActive(null);
+      }, "The result could not be saved");
+      setNotice(
+        action === "VERIFY"
+          ? "Result verified and released to the clinician."
+          : "Result saved as a draft.",
+      );
+      await onUpdated();
+      if (action === "VERIFY") setActive(null);
+    } catch (reason) {
+      setError((reason as Error).message);
+    }
   }
   if (!active)
     return (

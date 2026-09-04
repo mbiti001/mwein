@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { jsonRequest } from "@/lib/client-http";
 type Visit = any;
 export default function ImagingWorkstation({
   visits,
@@ -37,11 +38,10 @@ export default function ImagingWorkstation({
     setError("");
     const f = new FormData(form);
     try {
-      const response = await fetch(
+      await jsonRequest(
         `/api/orders/${active.order.id}/imaging-result`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action,
             technique: f.get("technique") || undefined,
@@ -52,10 +52,8 @@ export default function ImagingWorkstation({
             reason: f.get("reason") || undefined,
           }),
         },
+        "Imaging report could not be saved",
       );
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok)
-        throw new Error(data.error || "Imaging report could not be saved");
       await onUpdated();
       setActive(null);
     } catch (e) {
