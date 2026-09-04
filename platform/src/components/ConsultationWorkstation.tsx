@@ -59,7 +59,7 @@ type CatalogItem = {
   strength?: string | null;
   dosageForm?: string | null;
 };
-type DuplicateConflict = { code: "EXACT_DUPLICATE"; existingOrderId: string; existingPrescriptionId: string; existing: Record<string, unknown> };
+type DuplicateConflict = { code: "EXACT_DUPLICATE" | "SAME_VISIT_DUPLICATE"; existingOrderId: string; existingPrescriptionId: string; existing: Record<string, unknown> };
 type DiagnosisSearchResult = { code: string; title: string; foundationUri?: string; source: string };
 function parseRecord(value?: string | null): Record<string, string> { try { return value ? JSON.parse(value) : {}; } catch { return {}; } }
 function parseFindings(value?: string) { return Object.fromEntries((value || "").split("\n").map(line => line.split(": ")).filter(parts => parts.length > 1).map(([label, ...rest]) => [label, rest.join(": ")])); }
@@ -1035,7 +1035,7 @@ function ConsultationForm({
       return result;
     } catch (e) {
       const details = (e as Error & { details?: DuplicateConflict }).details;
-      if (details?.code === "EXACT_DUPLICATE") setDuplicateConflict(details);
+      if (details?.code === "EXACT_DUPLICATE" || details?.code === "SAME_VISIT_DUPLICATE") setDuplicateConflict(details);
       setError((e as Error).message);
       return false;
     }
@@ -1516,7 +1516,7 @@ function ConsultationForm({
               <label className="span2">
                 PRN indication<input name="prnIndication" placeholder="Symptom or condition requiring the PRN dose" />
               </label>
-              {duplicateConflict && <div className="span2 dangerPanel"><strong>Exact active duplicate detected</strong><span>{String(duplicateConflict.existing.genericName || "Medicine")} {String(duplicateConflict.existing.strength || "")} · {String(duplicateConflict.existing.dosageForm || "")} · {String(duplicateConflict.existing.route || "")} · {String(duplicateConflict.existing.frequency || "")}</span><span>Choose what to do with the existing prescription. A clinical reason is mandatory.</span><label>Decision *<select name="duplicateAction" required defaultValue=""><option value="">Cancel and review</option><option value="EDIT_EXISTING">Edit existing prescription</option><option value="REPLACE_EXISTING">Replace existing prescription</option><option value="KEEP_BOTH">Override and keep both</option></select></label><label>Clinical justification *<textarea name="duplicateReason" required minLength={10} rows={2} /></label></div>}
+              {duplicateConflict && <div className="span2 dangerPanel"><strong>{duplicateConflict.code === "SAME_VISIT_DUPLICATE" ? "Medicine already prescribed in this visit" : "Exact active duplicate detected"}</strong><span>{String(duplicateConflict.existing.genericName || "Medicine")} {String(duplicateConflict.existing.strength || "")} · {String(duplicateConflict.existing.dosageForm || "")} · {String(duplicateConflict.existing.route || "")} · {String(duplicateConflict.existing.frequency || "")}</span><span>{duplicateConflict.code === "SAME_VISIT_DUPLICATE" ? "A second order is not allowed. Edit the existing prescription or cancel." : "Choose what to do with the existing prescription. A clinical reason is mandatory."}</span><label>Decision *<select name="duplicateAction" required defaultValue=""><option value="">Cancel and review</option><option value="EDIT_EXISTING">Edit existing prescription</option>{duplicateConflict.code === "EXACT_DUPLICATE" && <><option value="REPLACE_EXISTING">Replace existing prescription</option><option value="KEEP_BOTH">Override and keep both</option></>}</select></label><label>Clinical justification *<textarea name="duplicateReason" required minLength={10} rows={2} /></label></div>}
             </>
           )}
           <div className="span2 submitBar">

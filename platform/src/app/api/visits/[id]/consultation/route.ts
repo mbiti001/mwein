@@ -6,7 +6,7 @@ import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
 import { canonicalLaboratoryCode } from "@/lib/laboratory";
-import { normalizeMedicationConcept, periodsOverlap, prescriptionSnapshot, treatmentStopDate } from "@/lib/medication";
+import { normalizeMedicationConcept, periodsOverlap, prescriptionSnapshot, sameVisitMedicationKey, treatmentStopDate } from "@/lib/medication";
 import {
   consultationNotesSchema,
   diagnosisSchema,
@@ -359,6 +359,7 @@ export async function POST(
               },
               include: { order: { include: { invoiceItem: true } }, catalogItem: true },
             });
+            const sameVisit = activeCandidates.find(candidate => candidate.order.visitId === id);
             const exact = activeCandidates.find(candidate =>
               candidate.strength === item.strength && candidate.dosageForm === item.dosageForm &&
               candidate.route.toLowerCase() === medicine.route.toLowerCase() &&
@@ -371,31 +372,40 @@ export async function POST(
               dose: medicine.dose, route: medicine.route, frequency: medicine.frequency, duration: medicine.duration,
               startDate, stopDate, quantity: medicine.quantity, instructions: medicine.instructions,
             });
-            if (exact && !input.data.duplicateAction)
-              throw Object.assign(new Error(`Active duplicate found: ${exact.order.displayName}`), {
+            if (sameVisit && !input.data.duplicateAction)
+              throw Object.assign(new Error(`${sameVisit.order.displayName} is already prescribed in this visit. Edit the existing prescription instead.`), {
                 status: 409,
-                details: { code: "EXACT_DUPLICATE", existingOrderId: exact.order.id, existingPrescriptionId: exact.id, existing: prescriptionSnapshot({ ...exact, quantity: Number(exact.quantity) }), options: ["EDIT_EXISTING", "REPLACE_EXISTING", "KEEP_BOTH", "CANCEL"] },
+                details: { code: "SAME_VISIT_DUPLICATE", existingOrderId: sameVisit.order.id, existingPrescriptionId: sameVisit.id, existing: prescriptionSnapshot({ ...sameVisit, quantity: Number(sameVisit.quantity) }), options: ["EDIT_EXISTING", "CANCEL"] },
               });
-            if (exact && input.data.duplicateAction && !input.data.duplicateReason)
+            if (sameVisit && input.data.duplicateAction && input.data.duplicateAction !== "EDIT_EXISTING")
+              throw Object.assign(new Error("The same medicine cannot be prescribed twice in one visit. Edit the existing prescription instead."), { status: 409 });
+            const duplicate = sameVisit || exact;
+            if (duplicate && !sameVisit && !input.data.duplicateAction)
+              throw Object.assign(new Error(`Active duplicate found: ${duplicate.order.displayName}`), {
+                status: 409,
+                details: { code: "EXACT_DUPLICATE", existingOrderId: duplicate.order.id, existingPrescriptionId: duplicate.id, existing: prescriptionSnapshot({ ...duplicate, quantity: Number(duplicate.quantity) }), options: ["EDIT_EXISTING", "REPLACE_EXISTING", "KEEP_BOTH", "CANCEL"] },
+              });
+            if (duplicate && input.data.duplicateAction && !input.data.duplicateReason)
               throw Object.assign(new Error("Record a clinical reason for the duplicate decision"), { status: 422 });
 
-            if (exact && ["EDIT_EXISTING", "REPLACE_EXISTING"].includes(input.data.duplicateAction || "")) {
-              const original = prescriptionSnapshot({ ...exact, quantity: Number(exact.quantity) });
-              const updated = await tx.prescription.update({ where: { id: exact.id }, data: {
+            if (duplicate && ["EDIT_EXISTING", "REPLACE_EXISTING"].includes(input.data.duplicateAction || "")) {
+              const original = prescriptionSnapshot({ ...duplicate, quantity: Number(duplicate.quantity) });
+              const updated = await tx.prescription.update({ where: { id: duplicate.id }, data: {
                 catalogItemId: item.id, medicationConceptId, genericName: item.genericName, strength: item.strength, dosageForm: item.dosageForm,
                 dose: medicine.dose, route: medicine.route, frequency: medicine.frequency, duration: medicine.duration,
                 startDate, stopDate, quantity: new Prisma.Decimal(medicine.quantity), instructions: medicine.instructions,
                 isPrn: medicine.isPrn, prnIndication: medicine.prnIndication, doseTiming: medicine.doseTiming, sequenceNote: medicine.sequenceNote,
                 encounterId: encounter.id, diagnosisId: primary.id, idempotencyKey: input.data.idempotencyKey,
+                ...(sameVisit ? { visitMedicationKey: sameVisitMedicationKey(id, medicationConceptId) } : {}),
               } });
-              await tx.clinicalOrder.update({ where: { id: exact.order.id }, data: { orderedById: user.id, displayName: item.name, clinicalIndication: medicine.indication, status: input.data.submit ? "REQUESTED" : "DRAFT" } });
-              if (exact.order.invoiceItem) {
-                const alreadyDispensed = Number(exact.dispensedQuantity || 0);
+              await tx.clinicalOrder.update({ where: { id: duplicate.order.id }, data: { orderedById: user.id, displayName: item.name, clinicalIndication: medicine.indication, status: input.data.submit ? "REQUESTED" : "DRAFT" } });
+              if (duplicate.order.invoiceItem) {
+                const alreadyDispensed = Number(duplicate.dispensedQuantity || 0);
                 if (alreadyDispensed > 0)
-                  await tx.invoiceItem.update({ where: { id: exact.order.invoiceItem.id }, data: { quantity: new Prisma.Decimal(alreadyDispensed), unitPrice: item.unitPrice, description: item.name } });
-                else await tx.invoiceItem.delete({ where: { id: exact.order.invoiceItem.id } });
+                  await tx.invoiceItem.update({ where: { id: duplicate.order.invoiceItem.id }, data: { quantity: new Prisma.Decimal(alreadyDispensed), unitPrice: item.unitPrice, description: item.name } });
+                else await tx.invoiceItem.delete({ where: { id: duplicate.order.invoiceItem.id } });
               }
-              await tx.medicationSafetyOverride.create({ data: { prescriptionId: updated.id, existingPrescriptionId: exact.id, prescriberId: user.id, warningCode: input.data.duplicateAction!, justification: input.data.duplicateReason!, originalDetails: original, revisedDetails: revised } });
+              await tx.medicationSafetyOverride.create({ data: { prescriptionId: updated.id, existingPrescriptionId: duplicate.id, prescriberId: user.id, warningCode: sameVisit ? "SAME_VISIT_EDIT" : input.data.duplicateAction!, justification: input.data.duplicateReason!, originalDetails: original, revisedDetails: revised } });
               created.push(item.name);
               continue;
             }
@@ -430,6 +440,7 @@ export async function POST(
                     encounterId: encounter.id,
                     diagnosisId: primary.id,
                     idempotencyKey: input.data.idempotencyKey,
+                    visitMedicationKey: sameVisitMedicationKey(id, medicationConceptId),
                   },
                 },
               },
@@ -528,8 +539,13 @@ export async function POST(
     );
     return NextResponse.json(result);
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002" && String(error.meta?.target).includes("idempotencyKey"))
-      return NextResponse.json({ stage: "PRESCRIPTION_ALREADY_SAVED", created: [], warnings: [] });
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const target = String(error.meta?.target);
+      if (target.includes("idempotencyKey"))
+        return NextResponse.json({ stage: "PRESCRIPTION_ALREADY_SAVED", created: [], warnings: [] });
+      if (target.includes("visitMedicationKey"))
+        return NextResponse.json({ error: "This medicine is already prescribed in this visit. Edit the existing prescription instead." }, { status: 409 });
+    }
     return apiError(error);
   }
 }

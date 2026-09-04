@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { normalizeMedicationConcept, periodsOverlap, treatmentStopDate } from "./medication";
+import { normalizeMedicationConcept, periodsOverlap, sameVisitMedicationKey, treatmentStopDate } from "./medication";
 
 describe("medication safety helpers", () => {
   it("normalizes brands and spelling-safe concept identifiers", () => {
     expect(normalizeMedicationConcept(" Amoxicillin / Clavulanate ")).toBe("amoxicillin-clavulanate");
+  });
+
+  it("uses one normalized medicine slot per visit", () => {
+    expect(sameVisitMedicationKey("visit-123", normalizeMedicationConcept("Paracetamol"))).toBe("visit-123:paracetamol");
+    expect(sameVisitMedicationKey("visit-123", normalizeMedicationConcept("PARACETAMOL"))).toBe("visit-123:paracetamol");
   });
 
   it("derives an inclusive stop date from a structured duration", () => {

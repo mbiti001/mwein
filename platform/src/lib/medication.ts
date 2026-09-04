@@ -2,6 +2,10 @@ export function normalizeMedicationConcept(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+export function sameVisitMedicationKey(visitId: string, medicationConceptId: string) {
+  return `${visitId}:${medicationConceptId}`;
+}
+
 export function treatmentStopDate(start: Date, duration?: string, explicitStop?: Date) {
   if (explicitStop) return explicitStop;
   const match = duration?.trim().match(/^(\d+)\s*(day|days|week|weeks|month|months)$/i);

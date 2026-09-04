@@ -611,6 +611,7 @@ model Prescription {
   encounterId String? @db.Uuid
   diagnosisId String? @db.Uuid
   idempotencyKey String? @unique
+  visitMedicationKey String? @unique
   dispensedQuantity Decimal? @db.Decimal(12, 3)
   dispenseStatus String @default("PENDING")
   dispenseNotes String?
