@@ -894,11 +894,20 @@ function serializeFindings(
 export default function ConsultationWorkstation({
   visits,
   onCompleted,
+  initialVisitId,
+  onInitialVisitOpened,
 }: {
   visits: Visit[];
   onCompleted: (patientName: string) => void;
+  initialVisitId?: string | null;
+  onInitialVisitOpened?: () => void;
 }) {
   const [active, setActive] = useState<Visit | null>(null);
+  useEffect(() => {
+    if (!initialVisitId) return;
+    const visit = visits.find(item => item.id === initialVisitId);
+    if (visit) { setActive(visit); onInitialVisitOpened?.(); }
+  }, [initialVisitId, visits, onInitialVisitOpened]);
   if (!active)
     return (
       <>

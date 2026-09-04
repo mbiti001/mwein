@@ -15,12 +15,14 @@ import ReportingWorkstation from "@/components/ReportingWorkstation";
 import AppointmentWorkstation from "@/components/AppointmentWorkstation";
 import ServicePointMap from "@/components/ServicePointMap";
 import StaffWorkstation from "@/components/StaffWorkstation";
+import { currentServicePoint, isWaitingOverdue, waitingMinutes, type ServicePointCode } from "@/lib/service-points";
 
 type User = {
   displayName: string;
   email: string;
   facility: { name: string };
   permissions: string[];
+  roles?: string[];
 };
 type Patient = {
   id: string;
@@ -122,6 +124,8 @@ export default function ClinicalApp() {
   const [appointment, setAppointment] = useState<{ id: string; clinic: string } | null>(null);
   const [notice, setNotice] = useState("");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [focusedVisitId, setFocusedVisitId] = useState<string | null>(null);
+  const [contextVisitId, setContextVisitId] = useState<string | null>(null);
   const loadVisits = useCallback(
     async () =>
       setVisits((await api<{ visits: Visit[] }>("/api/visits")).visits),
@@ -183,20 +187,21 @@ export default function ClinicalApp() {
     setScreen("visit");
     setNotice("");
   };
-  const nav: [Screen, string][] = [
+  const allNav: [Screen, string, string?][] = [
     ["dashboard", "Home"],
-    ["flow", "Patient flow"],
-    ["registration", "Reception"],
-    ["appointments", "Appointments"],
-    ["triage", "Triage"],
-    ["consultation", "Consultation"],
-    ["diagnostics", "Diagnostics"],
-    ["imaging", "Imaging"],
-    ["pharmacy", "Pharmacy"],
-    ["inventory", "Inventory"],
-    ["billing", "Billing"],
-    ["summaries", "Visit summaries"],
+    ["flow", "Patient flow", "visit.read"],
+    ["registration", "Reception", "patient.create"],
+    ["appointments", "Appointments", "visit.create"],
+    ["triage", "Triage", "triage.write"],
+    ["consultation", "Consultation", "encounter.write"],
+    ["diagnostics", "Laboratory", "laboratory.write"],
+    ["imaging", "Imaging", "imaging.write"],
+    ["pharmacy", "Pharmacy", "pharmacy.dispense"],
+    ["inventory", "Inventory", "inventory.write"],
+    ["billing", "Billing", "billing.read"],
+    ["summaries", "Visit summaries", "patient.read"],
   ];
+  const nav: [Screen, string][] = allNav.filter(([, , permission]) => !permission || user.permissions.includes(permission)).map(([key, label]) => [key, label]);
   if ((user.permissions || []).includes("billing.read"))
     nav.push(["reports", "Reports"]);
   if ((user.permissions || []).includes("admin.users"))
@@ -219,7 +224,7 @@ export default function ClinicalApp() {
           {nav.map(([key, label]) => (
             <button
               className={screen === key ? "active" : ""}
-              onClick={() => { setScreen(key); setMobileNavOpen(false); }}
+              onClick={() => { setScreen(key); setFocusedVisitId(null); setContextVisitId(null); setMobileNavOpen(false); }}
               key={key}
             >
               {label}
@@ -245,18 +250,25 @@ export default function ClinicalApp() {
           !["catalogue", "imports", "summaries", "reports", "appointments", "flow", "staff"].includes(screen) && (
             <WorkflowSteps screen={screen} />
           )}{" "}
+        {contextVisitId && (() => { const visit = visits.find(item => item.id === contextVisitId); return visit ? <PatientContextBar visit={visit} onClear={() => setContextVisitId(null)} /> : null; })()}
         {notice && <div className="alert success">{notice}</div>}
         {screen === "dashboard" && (
           <Dashboard
             visits={visits}
+            user={user}
             onStart={() => {
               setScreen("registration");
               setNotice("");
             }}
+            onOpenTask={(target, visitId) => { setFocusedVisitId(visitId); setContextVisitId(visitId); setScreen(target); }}
           />
         )}
         {screen === "flow" && (
-          <ServicePointMap visits={visits} onOpen={(target) => setScreen(target as Screen)} />
+          <ServicePointMap visits={visits} onOpen={(target, visitId) => {
+            const targetScreen = target as Screen;
+            if (!nav.some(([key]) => key === targetScreen)) return setNotice("This task belongs to another service-point role.");
+            setFocusedVisitId(visitId || null); setContextVisitId(visitId || null); setScreen(targetScreen);
+          }} />
         )}
         {screen === "registration" && (
           <PatientRegister
@@ -302,8 +314,10 @@ export default function ClinicalApp() {
               setNotice(
                 `Triage completed for ${patientName}; the patient is now awaiting consultation.`,
               );
-              setScreen("dashboard");
+              setFocusedVisitId(null); setContextVisitId(null); setScreen("triage");
             }}
+            initialVisitId={focusedVisitId}
+            onInitialVisitOpened={() => setFocusedVisitId(null)}
           />
         )}
         {screen === "consultation" && (
@@ -318,20 +332,22 @@ export default function ClinicalApp() {
               setNotice(
                 `Consultation signed for ${patientName}; orders and billing have been updated.`,
               );
-              setScreen("dashboard");
+              setFocusedVisitId(null); setContextVisitId(null); setScreen("consultation");
             }}
+            initialVisitId={focusedVisitId}
+            onInitialVisitOpened={() => setFocusedVisitId(null)}
           />
         )}
         {screen === "diagnostics" && (
-          <LaboratoryWorkstation visits={visits} onUpdated={loadVisits} />
+          <LaboratoryWorkstation visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />
         )}{" "}
-        {screen === "imaging" && <ImagingWorkstation visits={visits} onUpdated={loadVisits} />}
+        {screen === "imaging" && <ImagingWorkstation visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />}
         {screen === "pharmacy" && (
-          <PharmacyWorkstation visits={visits} onUpdated={loadVisits} />
+          <PharmacyWorkstation visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />
         )}
         {screen === "inventory" && <InventoryWorkstation />}
         {screen === "billing" && (
-          <BillingWorkstation visits={visits} onUpdated={loadVisits} />
+          <BillingWorkstation visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />
         )}
         {screen === "summaries" && <VisitSummaryWorkstation />}
         {screen === "reports" && <ReportingWorkstation />}
@@ -468,28 +484,44 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
 
 function Dashboard({
   visits,
+  user,
   onStart,
+  onOpenTask,
 }: {
   visits: Visit[];
+  user: User;
   onStart: () => void;
+  onOpenTask: (screen: Screen, visitId: string) => void;
 }) {
+  const access: Partial<Record<ServicePointCode, { permission: string; screen: Screen; action: string }>> = {
+    TRIAGE: { permission: "triage.write", screen: "triage", action: "Start triage" },
+    CONSULTATION: { permission: "encounter.write", screen: "consultation", action: "Open consultation" },
+    LABORATORY: { permission: "laboratory.write", screen: "diagnostics", action: "Open laboratory" },
+    IMAGING: { permission: "imaging.write", screen: "imaging", action: "Open imaging" },
+    PHARMACY: { permission: "pharmacy.dispense", screen: "pharmacy", action: "Dispense" },
+    BILLING: { permission: "billing.read", screen: "billing", action: "Receive payment" },
+  };
+  const priorityRank: Record<string, number> = { EMERGENCY: 0, URGENT: 1, PRIORITY: 2, ROUTINE: 3 };
+  const tasks = visits.map(visit => ({ visit, point: currentServicePoint(visit), wait: waitingMinutes(visit) }))
+    .filter(item => item.point && user.permissions.includes(access[item.point]?.permission || ""))
+    .sort((a, b) => priorityRank[a.visit.priority] - priorityRank[b.visit.priority] || b.wait - a.wait);
   return (
     <>
       <header>
         <div>
           <p className="eyebrow">Clinical operations</p>
-          <h1>Today’s patient flow</h1>
-          <p>One visit record from reception through billing and completion.</p>
+          <h1>My work now</h1>
+          <p>{user.roles?.join(" · ") || "Clinical operations"} · tasks are ordered by urgency and waiting time.</p>
         </div>
-        <button className="new" onClick={onStart}>
+        {user.permissions.includes("patient.create") && <button className="new" onClick={onStart}>
           + Reception / register patient
-        </button>
+        </button>}
       </header>
       <div className="metrics">
         <article>
-          <small>Active visits</small>
-          <strong>{visits.length}</strong>
-          <span>Across all clinics</span>
+          <small>My open tasks</small>
+          <strong>{tasks.length}</strong>
+          <span>At your service points</span>
         </article>
         <article>
           <small>Emergency</small>
@@ -499,62 +531,53 @@ function Dashboard({
           <span>Immediate response required</span>
         </article>
         <article>
-          <small>Awaiting triage</small>
-          <strong>
-            {visits.filter((v) => v.status === "AWAITING_TRIAGE").length}
-          </strong>
-          <span>Sorted by clinical urgency</span>
+          <small>Overdue</small>
+          <strong>{tasks.filter(item => isWaitingOverdue(item.visit.priority, item.wait)).length}</strong>
+          <span>Needs attention now</span>
         </article>
         <article>
-          <small>In consultation</small>
-          <strong>
-            {visits.filter((v) => v.status === "UNDER_CONSULTATION").length}
-          </strong>
-          <span>Active clinician records</span>
+          <small>Facility active</small>
+          <strong>{visits.length}</strong>
+          <span>Across all service points</span>
         </article>
       </div>
       <section className="card">
         <div className="cardHead">
           <div>
-            <h2>Live patient journey</h2>
-            <p>Urgency first, then earliest arrival.</p>
+            <h2>Next actions</h2>
+            <p>Open the patient directly—no module hunting.</p>
           </div>
-          <button onClick={onStart}>Reception</button>
         </div>
-        {visits.length === 0 ? (
+        {tasks.length === 0 ? (
           <div className="empty">
-            <strong>No active visits</strong>
-            <p>Register or find a patient to begin today’s first visit.</p>
-            <button className="primary" onClick={onStart}>
-              Register or find patient
-            </button>
+            <strong>Your queue is clear</strong>
+            <p>New tasks will appear here when a patient reaches your service point.</p>
           </div>
         ) : (
           <div className="queue">
-            {visits.map((v) => (
-              <div className={`row ${v.priority.toLowerCase()}`} key={v.id}>
+            {tasks.map(({ visit: v, point, wait }) => { const task = access[point!]; const overdue = isWaitingOverdue(v.priority, wait); return (
+              <button className={`row taskRow ${v.priority.toLowerCase()} ${overdue ? "overdue" : ""}`} key={v.id} onClick={() => onOpenTask(task!.screen, v.id)}>
                 <span className="dot" />
                 <div>
                   <strong>{v.patient.fullName}</strong>
                   <small>
-                    {v.patient.patientNumber} · {v.clinic} ·{" "}
-                    {v.status.replaceAll("_", " ")}
+                    {v.patient.patientNumber} · {v.clinic} · {task!.action}
                   </small>
                 </div>
-                <b>{v.priority}</b>
-                <time>
-                  {new Date(v.arrivedAt).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </time>
-              </div>
-            ))}
+                <b>{v.priority}</b><time>{overdue ? "OVERDUE · " : ""}{wait} min</time>
+              </button>
+            );})}
           </div>
         )}
       </section>
     </>
   );
+}
+
+function PatientContextBar({ visit, onClear }: { visit: Visit; onClear: () => void }) {
+  const point = currentServicePoint(visit)?.replaceAll("_", " ") || visit.status.replaceAll("_", " ");
+  const balance = visit.invoice ? visit.invoice.items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0) - visit.invoice.payments.filter(item => item.status === "CONFIRMED").reduce((sum, item) => sum + Number(item.amount), 0) : 0;
+  return <aside className="patientContext" aria-label="Current patient context"><div><strong>{visit.patient.fullName}</strong><span>{visit.patient.patientNumber} · {visit.visitNumber} · {visit.clinic}</span></div><div><small>Current location</small><b>{point}</b></div><div><small>Allergies</small><b className={visit.patient.allergies?.length ? "dangerText" : ""}>{visit.patient.allergies?.length ? visit.patient.allergies.map(item => item.substance).join(", ") : "None recorded"}</b></div><div><small>Payment</small><b>{visit.invoice?.status || "OPEN"} · KES {Math.max(0, balance).toLocaleString()}</b></div><button className="contextClose" onClick={onClear} aria-label="Clear patient context">×</button></aside>;
 }
 
 function PatientRegister({
@@ -854,9 +877,13 @@ function StartVisit({
 function TriageWorkstation({
   visits,
   onCompleted,
+  initialVisitId,
+  onInitialVisitOpened,
 }: {
   visits: Visit[];
   onCompleted: (patientName: string) => void;
+  initialVisitId?: string | null;
+  onInitialVisitOpened?: () => void;
 }) {
   const [active, setActive] = useState<Visit | null>(null);
   const [error, setError] = useState("");
@@ -871,6 +898,11 @@ function TriageWorkstation({
     consciousness: "ALERT" as "ALERT" | "VOICE" | "PAIN" | "UNRESPONSIVE",
   });
   const alerts = useMemo(() => assessTriageVitals(vitals), [vitals]);
+  useEffect(() => {
+    if (!initialVisitId) return;
+    const visit = visits.find(item => item.id === initialVisitId);
+    if (visit) { setActive(visit); onInitialVisitOpened?.(); }
+  }, [initialVisitId, visits, onInitialVisitOpened]);
   function vital(name: keyof typeof vitals, value: string) {
     setVitals((current) => ({
       ...current,

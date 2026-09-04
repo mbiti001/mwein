@@ -5,6 +5,7 @@ import {
   servicePointCounts,
   servicePoints,
   waitingMinutes,
+  isWaitingOverdue,
   type FlowVisit,
 } from "@/lib/service-points";
 
@@ -13,7 +14,7 @@ export default function ServicePointMap({
   onOpen,
 }: {
   visits: FlowVisit[];
-  onOpen: (screen: string) => void;
+  onOpen: (screen: string, visitId?: string) => void;
 }) {
   const counts = servicePointCounts(visits);
   return (
@@ -39,7 +40,8 @@ export default function ServicePointMap({
           const point = currentServicePoint(visit);
           const label = servicePoints.find((item) => item.code === point)?.label || "Review needed";
           const wait = waitingMinutes(visit);
-          return <div className={`row ${visit.priority.toLowerCase()}`} key={visit.id}><span className="dot"/><div><strong>{visit.patient.fullName}</strong><small>{visit.patient.patientNumber} · {label}</small></div><b>{visit.priority}</b><time>{wait < 60 ? `${wait} min` : `${Math.floor(wait / 60)}h ${wait % 60}m`}</time></div>;
+          const target = servicePoints.find(item => item.code === point)?.screen;
+          return <button className={`row ${visit.priority.toLowerCase()} ${isWaitingOverdue(visit.priority, wait) ? "overdue" : ""}`} onClick={() => target && onOpen(target, visit.id)} key={visit.id}><span className="dot"/><div><strong>{visit.patient.fullName}</strong><small>{visit.patient.patientNumber} · {label}</small></div><b>{visit.priority}</b><time>{wait < 60 ? `${wait} min` : `${Math.floor(wait / 60)}h ${wait % 60}m`}</time></button>;
         })}</div> : <div className="empty"><strong>No active visits</strong><p>Checked-in patients will appear here automatically.</p></div>}
       </section>
     </>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentServicePoint, servicePointCounts, waitingMinutes } from "./service-points";
+import { currentServicePoint, isWaitingOverdue, servicePointCounts, waitingMinutes } from "./service-points";
 
 const patient = { fullName: "Test Patient", patientNumber: "P-1" };
 
@@ -16,5 +16,11 @@ describe("service point mapping", () => {
     const visits = [{ id: "1", status: "AWAITING_TRIAGE", priority: "ROUTINE", arrivedAt: "2026-09-03T06:00:00Z", patient }];
     expect(servicePointCounts(visits).TRIAGE).toBe(1);
     expect(waitingMinutes(visits[0], new Date("2026-09-03T06:15:00Z"))).toBe(15);
+  });
+
+  it("escalates emergency and urgent waits sooner than routine queues", () => {
+    expect(isWaitingOverdue("EMERGENCY", 1)).toBe(true);
+    expect(isWaitingOverdue("URGENT", 9)).toBe(false);
+    expect(isWaitingOverdue("ROUTINE", 30)).toBe(true);
   });
 });

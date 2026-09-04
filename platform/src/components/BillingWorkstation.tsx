@@ -1,5 +1,5 @@
 "use client";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   allowedClaimStatuses,
   type ClaimStatus,
@@ -49,9 +49,13 @@ const money = (value: number, currency = "KES") =>
 export default function BillingWorkstation({
   visits,
   onUpdated,
+  initialVisitId,
+  onInitialVisitOpened,
 }: {
   visits: Visit[];
   onUpdated: () => Promise<void>;
+  initialVisitId?: string | null;
+  onInitialVisitOpened?: () => void;
 }) {
   const queue = useMemo(
     () => visits.filter((v) => v.invoice && v.invoice.status !== "PAID"),
@@ -65,6 +69,11 @@ export default function BillingWorkstation({
     visit: Visit;
     payment: any;
   } | null>(null);
+  useEffect(() => {
+    if (!initialVisitId) return;
+    const visit = queue.find(item => item.id === initialVisitId);
+    if (visit) { setActive(visit); onInitialVisitOpened?.(); }
+  }, [initialVisitId, queue, onInitialVisitOpened]);
   const invoice = active?.invoice;
   const total =
     invoice?.items.reduce(

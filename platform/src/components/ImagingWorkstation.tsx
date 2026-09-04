@@ -1,12 +1,16 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 type Visit = any;
 export default function ImagingWorkstation({
   visits,
   onUpdated,
+  initialVisitId,
+  onInitialVisitOpened,
 }: {
   visits: Visit[];
   onUpdated: () => Promise<void>;
+  initialVisitId?: string | null;
+  onInitialVisitOpened?: () => void;
 }) {
   const queue = useMemo(
     () =>
@@ -22,6 +26,11 @@ export default function ImagingWorkstation({
   const [active, setActive] = useState<Visit | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!initialVisitId) return;
+    const target = queue.find((item: Visit) => item.visit.id === initialVisitId && item.order.status !== "COMPLETED");
+    if (target) { setActive(target); onInitialVisitOpened?.(); }
+  }, [initialVisitId, queue, onInitialVisitOpened]);
   async function submit(form: HTMLFormElement, action: string) {
     if (!active) return;
     setBusy(true);

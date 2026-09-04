@@ -45,3 +45,8 @@ export function waitingMinutes(visit: FlowVisit, now = new Date()) {
   const enteredAt = visit.queues?.[0]?.enteredAt || visit.arrivedAt;
   return Math.max(0, Math.floor((now.getTime() - new Date(enteredAt).getTime()) / 60000));
 }
+
+export function isWaitingOverdue(priority: string, minutes: number) {
+  const threshold = priority === "EMERGENCY" ? 1 : priority === "URGENT" ? 10 : 30;
+  return minutes >= threshold;
+}

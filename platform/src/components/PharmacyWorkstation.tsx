@@ -27,7 +27,7 @@ async function post(id: string, body: unknown) {
   return data as { allocations: BatchAllocation[] };
 }
 
-export default function PharmacyWorkstation({ visits, onUpdated }: { visits: Visit[]; onUpdated: () => Promise<void> }) {
+export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId, onInitialVisitOpened }: { visits: Visit[]; onUpdated: () => Promise<void>; initialVisitId?: string | null; onInitialVisitOpened?: () => void }) {
   const queue = useMemo(() => visits.filter(v => v.orders?.some(o => o.type === "MEDICATION" && ["REQUESTED", "IN_PROGRESS"].includes(o.status))), [visits]);
   const [active, setActive] = useState<Visit | null>(null);
   const [error, setError] = useState("");
@@ -35,6 +35,11 @@ export default function PharmacyWorkstation({ visits, onUpdated }: { visits: Vis
   const [busy, setBusy] = useState("");
   const [stock, setStock] = useState<Record<string, StockPreview>>({});
   const prescriptions = active?.orders?.filter(o => o.type === "MEDICATION" && o.prescription) || [];
+  useEffect(() => {
+    if (!initialVisitId) return;
+    const visit = queue.find(item => item.id === initialVisitId);
+    if (visit) { setActive(visit); onInitialVisitOpened?.(); }
+  }, [initialVisitId, queue, onInitialVisitOpened]);
 
   async function loadStock(orderId: string, quantity?: number) {
     const response = await fetch(`/api/orders/${orderId}/dispense${quantity ? `?quantity=${quantity}` : ""}`);

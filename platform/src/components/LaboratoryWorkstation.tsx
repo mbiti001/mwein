@@ -139,9 +139,13 @@ function exportResultCsv(visit: Visit, order: LabOrder) {
 export default function LaboratoryWorkstation({
   visits,
   onUpdated,
+  initialVisitId,
+  onInitialVisitOpened,
 }: {
   visits: Visit[];
   onUpdated: () => Promise<void>;
+  initialVisitId?: string | null;
+  onInitialVisitOpened?: () => void;
 }) {
   const orders = visits.flatMap((visit) =>
     (visit.orders || [])
@@ -154,6 +158,11 @@ export default function LaboratoryWorkstation({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [tests, setTests] = useState<CatalogTest[]>([]);
+  useEffect(() => {
+    if (!initialVisitId) return;
+    const target = orders.find(item => item.visit.id === initialVisitId && item.order.status !== "COMPLETED");
+    if (target) { setActive(target); onInitialVisitOpened?.(); }
+  }, [initialVisitId, orders, onInitialVisitOpened]);
   useEffect(() => {
     fetch("/api/catalog?category=LABORATORY_TEST")
       .then((response) => response.json())
