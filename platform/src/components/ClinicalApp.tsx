@@ -15,6 +15,7 @@ import ReportingWorkstation from "@/components/ReportingWorkstation";
 import AppointmentWorkstation from "@/components/AppointmentWorkstation";
 import ServicePointMap from "@/components/ServicePointMap";
 import StaffWorkstation from "@/components/StaffWorkstation";
+import SupplyWorkstation from "@/components/SupplyWorkstation";
 import { currentServicePoint, isWaitingOverdue, waitingMinutes, type ServicePointCode } from "@/lib/service-points";
 import { jsonRequest } from "@/lib/client-http";
 
@@ -54,6 +55,9 @@ type Visit = {
     id: string;
     type: string;
     status: string;
+    priority?: string;
+    requestedAt?: string;
+    orderedBy?: { displayName: string };
     displayName: string;
     clinicalIndication?: string | null;
     laboratory?: {
@@ -99,6 +103,7 @@ type Screen =
   | "imaging"
   | "pharmacy"
   | "inventory"
+  | "supply"
   | "billing"
   | "summaries"
   | "reports"
@@ -149,6 +154,7 @@ export default function ClinicalApp() {
       imaging: "Imaging",
       pharmacy: "Pharmacy",
       inventory: "Inventory",
+      supply: "Supply chain",
       billing: "Billing",
       summaries: "Visit summaries",
       reports: "Reports",
@@ -192,6 +198,7 @@ export default function ClinicalApp() {
     ["imaging", "Imaging", "imaging.write"],
     ["pharmacy", "Pharmacy", "pharmacy.dispense"],
     ["inventory", "Inventory", "inventory.write"],
+    ["supply", "Supply chain", "inventory.write"],
     ["billing", "Billing", "billing.read"],
     ["summaries", "Visit summaries", "patient.read"],
   ];
@@ -340,10 +347,11 @@ export default function ClinicalApp() {
           <PharmacyWorkstation visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />
         )}
         {screen === "inventory" && <InventoryWorkstation />}
+        {screen === "supply" && <SupplyWorkstation />}
         {screen === "billing" && (
           <BillingWorkstation visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />
         )}
-        {screen === "summaries" && <VisitSummaryWorkstation />}
+        {screen === "summaries" && <VisitSummaryWorkstation canAddendum={user.permissions.includes("encounter.write")} />}
         {screen === "reports" && <ReportingWorkstation />}
         {screen === "staff" && <StaffWorkstation />}
         {screen === "catalogue" && <CatalogManager />}
@@ -361,6 +369,7 @@ export default function ClinicalApp() {
             "imaging",
             "pharmacy",
             "inventory",
+            "supply",
             "billing",
             "summaries",
             "reports",
@@ -499,6 +508,13 @@ function Dashboard({
   const tasks = visits.map(visit => ({ visit, point: currentServicePoint(visit), wait: waitingMinutes(visit) }))
     .filter(item => item.point && user.permissions.includes(access[item.point]?.permission || ""))
     .sort((a, b) => priorityRank[a.visit.priority] - priorityRank[b.visit.priority] || b.wait - a.wait);
+  const financial = visits.reduce((totals, visit) => {
+    const billed = visit.invoice?.items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0) || 0;
+    const paid = visit.invoice?.payments.filter(item => item.status === "CONFIRMED").reduce((sum, item) => sum + Number(item.amount), 0) || 0;
+    const claims = visit.invoice?.claims.filter(item => !["PAID", "REJECTED", "CANCELLED"].includes(item.status)).reduce((sum, item) => sum + Number(item.amount), 0) || 0;
+    return { billed: totals.billed + billed, paid: totals.paid + paid, claims: totals.claims + claims };
+  }, { billed: 0, paid: 0, claims: 0 });
+  const serviceCounts = tasks.reduce<Record<string, number>>((counts, item) => ({ ...counts, [item.point!]: (counts[item.point!] || 0) + 1 }), {});
   return (
     <>
       <header>
@@ -535,6 +551,10 @@ function Dashboard({
           <span>Across all service points</span>
         </article>
       </div>
+      <section className="dashboardInsights">
+        <article className="card"><div className="cardHead"><div><h2>Work by service point</h2><p>Current actionable load for your role.</p></div></div>{Object.keys(serviceCounts).length ? Object.entries(serviceCounts).map(([point, count]) => <div className="summaryLine" key={point}><strong>{point.replaceAll("_", " ")}</strong><span>{count} waiting</span></div>) : <p>No work waiting.</p>}</article>
+        {user.permissions.includes("billing.read") && <article className="card"><div className="cardHead"><div><h2>Active-visit finance</h2><p>Live exposure from currently active patient visits.</p></div></div><div className="summaryLine"><strong>Billed</strong><span>KES {financial.billed.toLocaleString()}</span></div><div className="summaryLine"><strong>Collected</strong><span>KES {financial.paid.toLocaleString()}</span></div><div className="summaryLine"><strong>Patient balance</strong><span>KES {Math.max(0, financial.billed - financial.paid - financial.claims).toLocaleString()}</span></div><div className="summaryLine"><strong>Claims in process</strong><span>KES {financial.claims.toLocaleString()}</span></div></article>}
+      </section>
       <section className="card">
         <div className="cardHead">
           <div>

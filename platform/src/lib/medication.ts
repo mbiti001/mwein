@@ -6,6 +6,11 @@ export function sameVisitMedicationKey(visitId: string, medicationConceptId: str
   return `${visitId}:${medicationConceptId}`;
 }
 
+export function calculateDispenseQuantity(doseQuantity: number, frequencyPerDay: number, durationDays: number) {
+  if (![doseQuantity, frequencyPerDay, durationDays].every(Number.isFinite) || doseQuantity <= 0 || frequencyPerDay <= 0 || durationDays <= 0) return 0;
+  return Number((doseQuantity * frequencyPerDay * durationDays).toFixed(3));
+}
+
 export function treatmentStopDate(start: Date, duration?: string, explicitStop?: Date) {
   if (explicitStop) return explicitStop;
   const match = duration?.trim().match(/^(\d+)\s*(day|days|week|weeks|month|months)$/i);

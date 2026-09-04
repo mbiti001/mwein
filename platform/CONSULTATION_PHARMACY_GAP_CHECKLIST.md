@@ -12,19 +12,19 @@ Legend: `[x]` implemented, `[~]` partial, `[ ]` missing or requires a product de
 - [~] Presenting complaint and history. Text limits are enforced, but multiple separately structured complaints with duration units are not yet supported.
 - [x] General and optional system examination capture.
 - [~] Searchable coded diagnosis, diagnosis type and one primary diagnosis. The build intentionally uses WHO ICD-11 MMS; the supplied specification says ICD-10. Confirm the Kenyan reporting/interoperability requirement before changing the coding system.
-- [~] Laboratory and imaging ordering. Catalogue selection, specimen defaults and worklists exist; priority and clinical indication are not captured per investigation.
+- [x] Laboratory and imaging ordering captures priority and clinical indication, then routes catalogue-backed requests to worklists and billing.
 - [x] Prescription transfer to the pharmacy queue and billing synchronization.
 - [~] Referral/admission/follow-up. Disposition and follow-up are captured, but a full referral document/workflow is not implemented.
 - [x] Signed encounter locking, audit author/timestamp and visit summary.
-- [ ] Addendum workflow for a signed note.
+- [x] Signed-note addenda are append-only, author/timestamp attributed and audit logged without rewriting the original encounter.
 
 ## Pharmacy
 
 - [~] Medicine catalogue. Stable codes, medicine names, prices and active state exist; strength/form/route/pack/minimum-stock/controlled flags are not fully normalized as catalogue fields.
 - [~] Structured prescription. Normalized medication concept, generic, strength, form, dose, route, frequency, treatment dates, quantity, instructions, indication, PRN and dose timing are persisted; dose and duration units are not yet separate fields.
-- [ ] Automatic prescription quantity calculation and clinician confirmation.
+- [x] Automatic prescription quantity calculation from structured dose units, administrations per day and duration, with clinician confirmation and an editable final quantity.
 - [x] Queue status views separate Awaiting, Partial, Dispensed and Not supplied prescriptions while keeping only actionable prescriptions open for dispensing.
-- [~] Queue and review context includes patient, age, weight, allergies, diagnosis, medicine, prior supply and live FEFO stock; prescriber, payer status and prescription time still need richer queue-card display.
+- [x] Queue and review context includes patient, age, weight, allergies, diagnosis, medicine, prescriber, priority, prescription time, payer status, prior supply and live FEFO stock.
 - [x] Batch inventory, expiry enforcement, FEFO deduction, no negative stock, stock movements and audit trail.
 - [x] Full and cumulative partial dispensing. Outstanding quantity remains on the original prescription and in the pharmacy queue.
 - [~] Safety checks. Exact active duplicates are blocked using normalized ingredient, strength, form, route, frequency and overlapping dates; edit, replace and justified override decisions are audited. Same-class and allergy matches warn. Interaction knowledge-base, dose-limit, renal/hepatic, pregnancy/paediatric and severe-allergy hard stops remain incomplete.
@@ -38,14 +38,10 @@ Legend: `[x]` implemented, `[~]` partial, `[ ]` missing or requires a product de
 
 ## Recommended Order
 
-1. Complete prescriber, payer and prescription-time context on pharmacy queue cards.
-2. Add structured prescription frequency/duration and safe quantity calculation.
-3. Add controlled FEFO override and substitution reasons.
-4. Complete investigation priority/indication fields.
-5. Add signed-note addenda.
-6. Complete the consultation banner and structured multiple complaints.
-7. Decide ICD-10 versus ICD-11 mapping/reporting with the clinical and interoperability owner.
-8. Defer stand-alone pharmacy sales until the connected OPD workflow passes UAT.
+1. Add controlled FEFO override and substitution reasons.
+2. Complete the consultation banner and structured multiple complaints.
+3. Decide ICD-10 versus ICD-11 mapping/reporting with the clinical and interoperability owner.
+4. Defer stand-alone pharmacy sales until the connected OPD workflow passes UAT.
 
 ## Verification
 

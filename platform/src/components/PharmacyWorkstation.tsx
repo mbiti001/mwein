@@ -14,7 +14,7 @@ type Prescription = {
   dispensedBy?: { displayName: string } | null;
   counsellingCompleted?: boolean; stockMovements?: { id: string; quantity: string; batch: { batchNumber: string; expiryDate: string } }[];
 };
-type Order = { id: string; type: string; status: string; displayName: string; clinicalIndication?: string | null; prescription?: Prescription | null };
+type Order = { id: string; type: string; status: string; priority?: string; requestedAt?: string; displayName: string; clinicalIndication?: string | null; orderedBy?: { displayName: string }; prescription?: Prescription | null };
 type Visit = {
   id: string; visitNumber: string; priority: string; status: string; arrivedAt: string;
   patient: { fullName: string; patientNumber: string; dateOfBirth?: string | null; estimatedAgeYears?: number | null; allergies?: { substance: string; reaction?: string | null; severity?: string | null }[] };
@@ -93,6 +93,7 @@ export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId,
       const preview = stock[order.id];
       return <form className="card dataForm" onSubmit={e => submit(e, order)} key={order.id}>
       <div className="wide"><h2>{order.prescription!.genericName || order.displayName}{order.prescription!.strength ? ` ${order.prescription!.strength}` : ""}</h2><p>{order.prescription!.dosageForm || order.prescription!.medicineCode} · {order.prescription!.dose} · {order.prescription!.route} · {order.prescription!.frequency} · {order.prescription!.duration || (order.prescription!.stopDate ? `until ${new Date(order.prescription!.stopDate).toLocaleDateString()}` : "course not defined")}{order.prescription!.isPrn ? ` · PRN for ${order.prescription!.prnIndication}` : ""}</p><p><strong>Indication:</strong> {order.clinicalIndication || "Not recorded"}</p>{order.prescription!.instructions && <p><strong>Instructions:</strong> {order.prescription!.instructions}</p>}</div>
+      <div className="wide privacyNotice"><strong>Order context</strong><span>Prescriber: {order.orderedBy?.displayName || "Not recorded"} · Prescribed: {order.requestedAt ? new Date(order.requestedAt).toLocaleString() : "time not recorded"} · Priority: {order.priority || active.priority} · Payer status: {active.invoice?.status || "No invoice"}</span></div>
       <label>Decision *<select name="action" defaultValue="DISPENSE"><option value="DISPENSE">Dispense medicine</option><option value="NOT_DISPENSED">Do not dispense</option></select></label>
       <label>Quantity supplied now *<input name="quantity" type="number" min="0.001" max={outstanding} step="0.001" defaultValue={outstanding} onChange={e => loadStock(order.id, Number(e.target.value)).catch(x => setError(x.message))}/><small>Prescribed: {prescribed} · Previously supplied: {supplied} · Outstanding: {outstanding}</small></label>
       <div className="wide privacyNotice"><strong>FEFO batch plan</strong><span>{preview?.allocation.length ? preview.allocation.map(item => `${item.batchNumber}: ${item.quantity} · exp ${new Date(item.expiryDate).toLocaleDateString()}${item.daysToExpiry != null && item.daysToExpiry <= 90 ? ` · NEAR EXPIRY (${item.daysToExpiry} days)` : ""}`).join(" · ") : "No usable stock batch available"}</span></div>

@@ -43,6 +43,7 @@ export async function GET() {
         },
         orders: {
           include: {
+            orderedBy: { select: { displayName: true } },
             laboratory: {
               include: {
                 result: {

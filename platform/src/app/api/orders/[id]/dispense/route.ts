@@ -38,7 +38,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const order = await findDispensableOrder(id, user.facilityId);
     const item = await db.catalogItem.findFirst({
       where: { facilityId: user.facilityId, category: "PHARMACEUTICAL", code: order.prescription!.medicineCode.toUpperCase(), active: true },
-      include: { inventoryBatches: { where: { active: true, expiryDate: { gt: new Date() }, quantityAvailable: { gt: 0 } }, orderBy: [{ expiryDate: "asc" }, { receivedAt: "asc" }] } },
+      include: { inventoryBatches: { where: { active: true, expiryDate: { gt: new Date() }, quantityAvailable: { gt: 0 } }, include: { locationBalances: { where: { store: { code: "MAIN" } } } }, orderBy: [{ expiryDate: "asc" }, { receivedAt: "asc" }] } },
     });
     const outstanding = Math.max(0, Number(order.prescription!.quantity) - Number(order.prescription!.dispensedQuantity || 0));
     const requested = z.coerce.number().positive().max(outstanding).optional().parse(new URL(request.url).searchParams.get("quantity") || undefined);
@@ -46,7 +46,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       id: batch.id,
       batchNumber: batch.batchNumber,
       expiryDate: batch.expiryDate,
-      quantityAvailable: Number(batch.quantityAvailable),
+      quantityAvailable: Number(batch.locationBalances[0]?.quantity ?? batch.quantityAvailable),
       daysToExpiry: Math.ceil((batch.expiryDate.getTime() - Date.now()) / 86400000),
     })) || [];
     const plannedQuantity = Math.min(requested || outstanding, batches.reduce((sum, batch) => sum + batch.quantityAvailable, 0));
@@ -84,9 +84,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       if (input.action === "DISPENSE") {
         catalogItem = await tx.catalogItem.findFirst({ where: { facilityId: user.facilityId, category: "PHARMACEUTICAL", code: order.prescription.medicineCode.toUpperCase(), active: true } });
         if (!catalogItem) throw Object.assign(new Error("Medicine is not active in the formulary"), { status: 422 });
-        const batches = await tx.inventoryBatch.findMany({ where: { catalogItemId: catalogItem.id, active: true, expiryDate: { gt: new Date() }, quantityAvailable: { gt: 0 } }, orderBy: [{ expiryDate: "asc" }, { receivedAt: "asc" }] });
+        const mainStore = await tx.store.findFirst({ where: { facilityId: user.facilityId, code: "MAIN", active: true } });
+        if (!mainStore) throw Object.assign(new Error("Main pharmacy store is not configured"), { status: 409 });
+        const batches = await tx.inventoryBatch.findMany({ where: { catalogItemId: catalogItem.id, active: true, expiryDate: { gt: new Date() }, quantityAvailable: { gt: 0 }, locationBalances: { some: { storeId: mainStore.id, quantity: { gt: 0 } } } }, include: { locationBalances: { where: { storeId: mainStore.id } } }, orderBy: [{ expiryDate: "asc" }, { receivedAt: "asc" }] });
         try {
-          allocations = planFefoAllocation(batches.map(batch => ({ ...batch, quantityAvailable: Number(batch.quantityAvailable) })), quantity);
+          allocations = planFefoAllocation(batches.map(batch => ({ ...batch, quantityAvailable: Number(batch.locationBalances[0]?.quantity || 0) })), quantity);
         } catch (error) {
           throw Object.assign(error as Error, { status: 409 });
         }
@@ -95,6 +97,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           const batch = batches.find(candidate => candidate.id === allocation.id)!;
           const batchBalance = Number(batch.quantityAvailable) - allocation.quantity;
           await tx.inventoryBatch.update({ where: { id: batch.id }, data: { quantityAvailable: new Prisma.Decimal(batchBalance), active: batchBalance > 0 } });
+          await tx.inventoryLocationBalance.update({ where: { storeId_batchId: { storeId: mainStore.id, batchId: batch.id } }, data: { quantity: { decrement: allocation.quantity } } });
           await tx.dispensationItem.create({ data: { dispensationId: dispensation.id, batchId: batch.id, quantity: new Prisma.Decimal(allocation.quantity), unitPrice: catalogItem.unitPrice, unitCost: batch.unitCost } });
           await tx.stockMovement.create({ data: { batchId: batch.id, userId: user.id, prescriptionId: order.prescription.id, dispensationId: dispensation.id, type: "DISPENSE", quantity: new Prisma.Decimal(-allocation.quantity), balanceAfter: new Prisma.Decimal(batchBalance), reason: `${order.visit.visitNumber} · ${order.displayName}` } });
         }

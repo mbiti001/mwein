@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { jsonRequest } from "@/lib/client-http";
 
 type Summary = any;
 const display = (value?: string | null) => value || "Not recorded";
@@ -17,11 +18,12 @@ function age(patient: Summary["patient"]) {
     : "Age not recorded";
 }
 
-export default function VisitSummaryWorkstation() {
+export default function VisitSummaryWorkstation({ canAddendum = false }: { canAddendum?: boolean }) {
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [active, setActive] = useState<Summary | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [savingAddendum, setSavingAddendum] = useState(false);
   async function load(q = "") {
     setLoading(true);
     setError("");
@@ -240,6 +242,10 @@ export default function VisitSummaryWorkstation() {
             <p>No diagnosis recorded.</p>
           )}
         </SummarySection>
+        {e?.status === "SIGNED" && <SummarySection title="Signed-note addenda">
+          {e.addenda?.length ? e.addenda.map((item: Summary) => <div className="summaryLine" key={item.id}><strong>{new Date(item.createdAt).toLocaleString()} · {item.author.displayName}</strong><span>{item.reason}: {item.text}</span></div>) : <p>No addenda recorded.</p>}
+          {canAddendum && <form className="dataForm noPrint" onSubmit={async event => { event.preventDefault(); setSavingAddendum(true); setError(""); const form = new FormData(event.currentTarget); try { const result = await jsonRequest<any>(`/api/encounters/${e.id}/addenda`, { method: "POST", body: JSON.stringify({ reason: form.get("reason"), text: form.get("text") }) }, "Addendum could not be saved"); setActive({ ...active, encounter: { ...e, addenda: [...(e.addenda || []), result.addendum] } }); event.currentTarget.reset(); } catch (reason) { setError((reason as Error).message); } finally { setSavingAddendum(false); } }}><label>Reason *<input name="reason" required minLength={5} placeholder="Correction, clarification, or late information" /></label><label>Addendum *<textarea name="text" required minLength={5} rows={3} placeholder="Add new information without changing the signed note" /></label><button className="secondary" disabled={savingAddendum}>{savingAddendum ? "Adding…" : "Add signed addendum"}</button></form>}
+        </SummarySection>}
         <SummarySection title="Investigations">
           {investigations.length ? (
             investigations.map((o: Summary) => (

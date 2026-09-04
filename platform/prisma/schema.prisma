@@ -122,6 +122,9 @@ model Facility {
   sequences ReferenceSequence[]
   catalogItems CatalogItem[]
   appointments Appointment[]
+  suppliers Supplier[]
+  stores Store[]
+  purchaseOrders PurchaseOrder[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -215,6 +218,7 @@ model User {
   roles UserRole[]
   sessions Session[]
   encounters Encounter[]
+  clinicalOrders ClinicalOrder[]
   recordedLabResults LaboratoryResult[] @relation("LabResultRecordedBy")
   verifiedLabResults LaboratoryResult[] @relation("LabResultVerifiedBy")
   dispensedPrescriptions Prescription[] @relation("PrescriptionDispensedBy")
@@ -223,6 +227,7 @@ model User {
   stockMovements StockMovement[]
   dispensations Dispensation[]
   medicationSafetyOverrides MedicationSafetyOverride[]
+  encounterAddenda EncounterAddendum[]
   createdClaims Claim[]
   reversedPayments Payment[] @relation("PaymentReversedBy")
   auditEvents AuditEvent[]
@@ -463,8 +468,21 @@ model Encounter {
   clinician User @relation(fields: [clinicianId], references: [id])
   diagnoses Diagnosis[]
   prescriptions Prescription[]
+  addenda EncounterAddendum[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model EncounterAddendum {
+  id String @id @default(uuid()) @db.Uuid
+  encounterId String @db.Uuid
+  authorId String @db.Uuid
+  text String
+  reason String
+  createdAt DateTime @default(now())
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Restrict)
+  author User @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  @@index([encounterId, createdAt])
 }
 
 model Diagnosis {
@@ -493,6 +511,7 @@ model ClinicalOrder {
   requestedAt DateTime @default(now())
   completedAt DateTime?
   visit Visit @relation(fields: [visitId], references: [id])
+  orderedBy User @relation(fields: [orderedById], references: [id])
   laboratory LaboratoryOrder?
   imaging ImagingOrder?
   prescription Prescription?
@@ -600,6 +619,10 @@ model Prescription {
   route String
   frequency String
   duration String?
+  doseQuantity Decimal? @db.Decimal(12, 3)
+  frequencyPerDay Int?
+  durationDays Int?
+  quantityConfirmed Boolean @default(false)
   startDate DateTime @default(now()) @db.Date
   stopDate DateTime? @db.Date
   isPrn Boolean @default(false)
@@ -660,8 +683,89 @@ model InventoryBatch {
   catalogItem CatalogItem @relation(fields: [catalogItemId], references: [id])
   movements StockMovement[]
   dispensationItems DispensationItem[]
+  locationBalances InventoryLocationBalance[]
   @@unique([catalogItemId, batchNumber])
   @@index([catalogItemId, active, expiryDate])
+}
+
+model Supplier {
+  id String @id @default(uuid()) @db.Uuid
+  facilityId String @db.Uuid
+  code String
+  name String
+  phone String?
+  email String?
+  active Boolean @default(true)
+  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  purchaseOrders PurchaseOrder[]
+  createdAt DateTime @default(now())
+  @@unique([facilityId, code])
+}
+
+model Store {
+  id String @id @default(uuid()) @db.Uuid
+  facilityId String @db.Uuid
+  code String
+  name String
+  active Boolean @default(true)
+  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  balances InventoryLocationBalance[]
+  @@unique([facilityId, code])
+}
+
+model InventoryLocationBalance {
+  id String @id @default(uuid()) @db.Uuid
+  storeId String @db.Uuid
+  batchId String @db.Uuid
+  quantity Decimal @db.Decimal(12, 3)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  batch InventoryBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  updatedAt DateTime @updatedAt
+  @@unique([storeId, batchId])
+  @@index([batchId])
+}
+
+model PurchaseOrder {
+  id String @id @default(uuid()) @db.Uuid
+  facilityId String @db.Uuid
+  supplierId String @db.Uuid
+  orderNumber String
+  status String @default("DRAFT")
+  expectedAt DateTime? @db.Date
+  notes String?
+  createdById String @db.Uuid
+  createdAt DateTime @default(now())
+  receivedAt DateTime?
+  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  lines PurchaseOrderLine[]
+  @@unique([facilityId, orderNumber])
+}
+
+model PurchaseOrderLine {
+  id String @id @default(uuid()) @db.Uuid
+  purchaseOrderId String @db.Uuid
+  catalogItemId String @db.Uuid
+  quantityOrdered Decimal @db.Decimal(12, 3)
+  quantityReceived Decimal @default(0) @db.Decimal(12, 3)
+  unitCost Decimal? @db.Decimal(14, 2)
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  @@index([catalogItemId])
+}
+
+model InventoryControlEvent {
+  id String @id @default(uuid()) @db.Uuid
+  facilityId String @db.Uuid
+  type String
+  storeId String @db.Uuid
+  destinationStoreId String? @db.Uuid
+  batchId String @db.Uuid
+  quantity Decimal @db.Decimal(12, 3)
+  variance Decimal? @db.Decimal(12, 3)
+  reason String
+  recordedById String @db.Uuid
+  occurredAt DateTime @default(now())
+  @@index([facilityId, type, occurredAt])
 }
 
 model StockMovement {

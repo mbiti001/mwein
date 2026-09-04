@@ -68,6 +68,8 @@ export const investigationOrderSchema = z
     .array(z.string().trim().min(2).max(40))
       .max(20)
       .default([]),
+  priority: z.enum(["ROUTINE", "PRIORITY", "URGENT", "EMERGENCY"]).default("ROUTINE"),
+  indication: z.string().trim().min(2).max(240),
   })
   .refine(
     (value) => value.labs.length + value.imaging.length > 0,
@@ -85,12 +87,16 @@ export const prescriptionSchema = z.object({
         medicineCode: z.string().trim().min(2).max(40),
         indication: z.string().trim().min(2).max(240),
         dose: z.string().trim().min(1).max(100),
+        doseQuantity: z.coerce.number().positive().max(1000).optional(),
         route: z.string().trim().min(1).max(50),
         frequency: z.string().trim().min(1).max(100),
+        frequencyPerDay: z.coerce.number().int().positive().max(24).optional(),
         duration: z.string().trim().min(1).max(100).optional(),
+        durationDays: z.coerce.number().int().positive().max(3650).optional(),
         startDate: z.coerce.date(),
         stopDate: z.coerce.date().optional(),
         quantity: z.coerce.number().positive().max(10000),
+        quantityConfirmed: z.boolean().default(false),
         instructions: z.string().trim().min(2).max(500),
         isPrn: z.boolean().default(false),
         prnIndication: z.string().trim().max(240).optional(),
@@ -107,6 +113,7 @@ export const prescriptionSchema = z.object({
     if (item.stopDate && item.stopDate < item.startDate) context.addIssue({ code: "custom", path: ["prescriptions", index, "stopDate"], message: "Stop date cannot be before start date" });
     if (item.isPrn && !item.prnIndication) context.addIssue({ code: "custom", path: ["prescriptions", index, "prnIndication"], message: "PRN indication is required" });
     if (item.doseTiming === "STAT_THEN_SCHEDULED" && !item.sequenceNote) context.addIssue({ code: "custom", path: ["prescriptions", index, "sequenceNote"], message: "Document the intended STAT-to-course sequence" });
+    if (item.doseQuantity && item.frequencyPerDay && item.durationDays && !item.quantityConfirmed) context.addIssue({ code: "custom", path: ["prescriptions", index, "quantityConfirmed"], message: "Confirm the calculated dispensing quantity" });
   });
   if (value.duplicateAction && !value.duplicateReason) context.addIssue({ code: "custom", path: ["duplicateReason"], message: "Clinical justification is required" });
 });

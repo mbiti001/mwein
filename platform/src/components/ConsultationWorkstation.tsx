@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { patientClinicalGroup } from "@/lib/domain";
 import { jsonRequest } from "@/lib/client-http";
+import { calculateDispenseQuantity } from "@/lib/medication";
 
 type Visit = {
   id: string;
@@ -12,6 +13,7 @@ type Visit = {
   status?: string;
   arrivedAt: string;
   patient: {
+    id: string;
     fullName: string;
     patientNumber: string;
     sexAtBirth: "FEMALE" | "MALE" | "INTERSEX" | "UNKNOWN";
@@ -62,6 +64,7 @@ type CatalogItem = {
 };
 type DuplicateConflict = { code: "EXACT_DUPLICATE" | "SAME_VISIT_DUPLICATE"; existingOrderId: string; existingPrescriptionId: string; existing: Record<string, unknown> };
 type DiagnosisSearchResult = { code: string; title: string; foundationUri?: string; source: string };
+type HistoryVisit = { id: string; visitNumber: string; clinic: string; arrivedAt: string; status: string; encounters: { diagnoses: { description: string; code?: string | null; primary: boolean }[] }[]; orders: { type: string; displayName: string; prescription?: { genericName?: string | null; strength?: string | null; dose: string; frequency: string; duration?: string | null; dispenseStatus: string } | null; laboratory?: { result?: { status: string; items: { analyte: string; value: string; unit?: string | null; flag?: string | null }[] } | null } | null; imaging?: { result?: { status: string; conclusion: string } | null } | null }[] };
 function parseRecord(value?: string | null): Record<string, string> { try { return value ? JSON.parse(value) : {}; } catch { return {}; } }
 function parseFindings(value?: string) { return Object.fromEntries((value || "").split("\n").map(line => line.split(": ")).filter(parts => parts.length > 1).map(([label, ...rest]) => [label, rest.join(": ")])); }
 
@@ -964,6 +967,10 @@ function ConsultationForm({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [medicine, setMedicine] = useState("");
+  const [doseQuantity, setDoseQuantity] = useState(1);
+  const [frequencyPerDay, setFrequencyPerDay] = useState(1);
+  const [durationDays, setDurationDays] = useState(1);
+  const [dispenseQuantity, setDispenseQuantity] = useState(1);
   const [prescriptionKey, setPrescriptionKey] = useState(() => crypto.randomUUID());
   const [savingPrescription, setSavingPrescription] = useState(false);
   const [duplicateConflict, setDuplicateConflict] = useState<DuplicateConflict | null>(null);
@@ -979,6 +986,8 @@ function ConsultationForm({
   const savedObjective = parseRecord(draft?.objective);
   const savedPlan = parseRecord(draft?.plan);
   const [savedDiagnoses, setSavedDiagnoses] = useState(draft?.diagnoses || []);
+  const [history, setHistory] = useState<HistoryVisit[]>([]);
+  useEffect(() => setDispenseQuantity(calculateDispenseQuantity(doseQuantity, frequencyPerDay, durationDays)), [doseQuantity, frequencyPerDay, durationDays]);
   useEffect(() => {
     fetch("/api/catalog")
       .then((response) => response.json())
@@ -989,6 +998,10 @@ function ConsultationForm({
       )
       .catch(() => setError("The order catalogue could not be loaded"));
   }, []);
+  useEffect(() => {
+    jsonRequest<{ visits: HistoryVisit[] }>(`/api/patients/${visit.patient.id}/history?exclude=${visit.id}`, undefined, "Previous clinical history could not be loaded")
+      .then(result => setHistory(result.visits)).catch(reason => setError((reason as Error).message));
+  }, [visit.id, visit.patient.id]);
   useEffect(() => {
     if (diagnosisQuery.trim().length < 2 || diagnosisCode) return setDiagnosisResults([]);
     const controller = new AbortController();
@@ -1100,7 +1113,7 @@ function ConsultationForm({
     if (action === "SUBMIT_INVESTIGATIONS")
       return run(
         action,
-        { labs: f.getAll("labs"), imaging: f.getAll("imaging") },
+        { labs: f.getAll("labs"), imaging: f.getAll("imaging"), priority: f.get("investigationPriority"), indication: f.get("investigationIndication") },
         "Investigation requests submitted and billing updated.",
       );
     if (action === "SAVE_PRESCRIPTION") {
@@ -1112,12 +1125,16 @@ function ConsultationForm({
               medicineCode: medicine,
               indication: f.get("medicineIndication"),
               dose: f.get("dose"),
+              doseQuantity,
               route: f.get("route"),
               frequency: f.get("frequency"),
+              frequencyPerDay,
               duration: f.get("duration") || undefined,
+              durationDays,
               startDate: f.get("startDate"),
               stopDate: f.get("stopDate") || undefined,
               quantity: f.get("quantity"),
+              quantityConfirmed: f.get("quantityConfirmed") === "on",
               instructions: f.get("medicineInstructions"),
               isPrn: f.get("isPrn") === "on",
               prnIndication: f.get("prnIndication") || undefined,
@@ -1203,6 +1220,10 @@ function ConsultationForm({
           No active allergies recorded — verify with the patient.
         </div>
       )}
+      <details className="card historyPanel">
+        <summary><strong>Recent clinical history</strong><span>{history.length ? `${history.length} previous visit${history.length === 1 ? "" : "s"}` : "No previous visits found"}</span></summary>
+        {history.map(previous => <article key={previous.id}><h3>{new Date(previous.arrivedAt).toLocaleDateString()} · {previous.clinic}</h3><p><strong>Diagnosis:</strong> {previous.encounters[0]?.diagnoses.map(item => `${item.code || ""} ${item.description}`.trim()).join(" · ") || "No signed diagnosis"}</p><p><strong>Medicines:</strong> {previous.orders.filter(item => item.prescription).map(item => `${item.prescription!.genericName || item.displayName}${item.prescription!.strength ? ` ${item.prescription!.strength}` : ""} — ${item.prescription!.dose}, ${item.prescription!.frequency}`).join(" · ") || "None recorded"}</p><p><strong>Results:</strong> {previous.orders.flatMap(item => item.laboratory?.result?.items || []).map(item => `${item.analyte} ${item.value}${item.unit ? ` ${item.unit}` : ""}${item.flag ? ` (${item.flag})` : ""}`).join(" · ") || previous.orders.map(item => item.imaging?.result?.conclusion).filter(Boolean).join(" · ") || "No verified results"}</p></article>)}
+      </details>
       <form
         className="consultForm"
         onSubmit={(event) => event.preventDefault()}
@@ -1383,6 +1404,12 @@ function ConsultationForm({
           active={activeStep === 5}
           onOpen={() => setActiveStep(5)}
         >
+          <label>
+            Priority *<select name="investigationPriority" defaultValue={visit.priority}><option value="ROUTINE">Routine</option><option value="PRIORITY">Priority</option><option value="URGENT">Urgent</option><option value="EMERGENCY">Emergency</option></select>
+          </label>
+          <label>
+            Clinical indication *<input name="investigationIndication" required defaultValue={savedDiagnoses.find(item => item.primary)?.description || ""} placeholder="Why the investigation is needed" />
+          </label>
           <div className="orderGroup">
             <strong>Laboratory</strong>
             {catalogue
@@ -1436,7 +1463,7 @@ function ConsultationForm({
             Medicine
             <select
               value={medicine}
-              onChange={(e) => { setMedicine(e.target.value); setPrescriptionKey(crypto.randomUUID()); setDuplicateConflict(null); }}
+              onChange={(e) => { setMedicine(e.target.value); setDoseQuantity(1); setFrequencyPerDay(1); setDurationDays(1); setPrescriptionKey(crypto.randomUUID()); setDuplicateConflict(null); }}
             >
               <option value="">No medicine</option>
               {catalogue
@@ -1455,7 +1482,10 @@ function ConsultationForm({
                 Diagnosis / clinical indication *<input name="medicineIndication" required defaultValue={savedDiagnoses.find(item => item.primary)?.description || ""} />
               </label>
               <label>
-                Dose *<input name="dose" required placeholder="e.g. 1 tablet" />
+                Dose units per administration *<input name="doseQuantity" type="number" min="0.001" step="0.001" value={doseQuantity} onChange={event => setDoseQuantity(Number(event.target.value) || 0)} required />
+              </label>
+              <label>
+                Dose instruction *<input name="dose" required placeholder="e.g. 1 tablet" />
               </label>
               <label>
                 Route *
@@ -1469,15 +1499,13 @@ function ConsultationForm({
               </label>
               <label>
                 Frequency *
-                <input
-                  name="frequency"
-                  required
-                  placeholder="e.g. Three times daily"
-                />
+                <select value={frequencyPerDay} onChange={event => setFrequencyPerDay(Number(event.target.value))}><option value={1}>Once daily</option><option value={2}>Twice daily</option><option value={3}>Three times daily</option><option value={4}>Four times daily</option></select>
+                <input name="frequency" type="hidden" value={frequencyPerDay === 1 ? "Once daily" : frequencyPerDay === 2 ? "Twice daily" : frequencyPerDay === 3 ? "Three times daily" : "Four times daily"} />
               </label>
               <label>
-                Duration or stop date
-                <input name="duration" placeholder="e.g. 5 days" />
+                Duration in days *
+                <input name="durationDays" type="number" min="1" max="3650" value={durationDays} onChange={event => setDurationDays(Number(event.target.value) || 0)} required />
+                <input name="duration" type="hidden" value={`${durationDays} days`} />
               </label>
               <label>
                 Start date *<input name="startDate" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
@@ -1493,8 +1521,12 @@ function ConsultationForm({
                   min="0.1"
                   step="0.1"
                   required
+                  value={dispenseQuantity}
+                  onChange={event => setDispenseQuantity(Number(event.target.value) || 0)}
                 />
+                <small>Calculated as dose units × administrations/day × days. Adjust only when pack size or clinical instructions require it.</small>
               </label>
+              <label className="span2"><span><input name="quantityConfirmed" type="checkbox" required /> I reviewed and confirm the dispensing quantity *</span></label>
               <label className="span2">
                 Patient instructions *
                 <input name="medicineInstructions" required placeholder="How and when the patient should take this medicine" />
