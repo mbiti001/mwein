@@ -6,13 +6,14 @@ type BatchAllocation = { id: string; batchNumber: string; expiryDate: string; qu
 type StockPreview = { outstanding: number; available: number; allocation: BatchAllocation[] };
 
 type Prescription = {
-  medicineCode: string; dose: string; route: string; frequency: string; duration: string;
+  medicineCode: string; genericName?: string | null; strength?: string | null; dosageForm?: string | null; dose: string; route: string; frequency: string; duration?: string | null;
+  startDate?: string; stopDate?: string | null; isPrn?: boolean; prnIndication?: string | null; doseTiming?: string;
   quantity: string; instructions?: string | null; dispensedQuantity?: string | null;
   dispenseStatus: string; dispenseNotes?: string | null; dispensedAt?: string | null;
   dispensedBy?: { displayName: string } | null;
   counsellingCompleted?: boolean; stockMovements?: { id: string; quantity: string; batch: { batchNumber: string; expiryDate: string } }[];
 };
-type Order = { id: string; type: string; status: string; displayName: string; prescription?: Prescription | null };
+type Order = { id: string; type: string; status: string; displayName: string; clinicalIndication?: string | null; prescription?: Prescription | null };
 type Visit = {
   id: string; visitNumber: string; priority: string; status: string; arrivedAt: string;
   patient: { fullName: string; patientNumber: string; allergies?: { substance: string; reaction?: string | null; severity?: string | null }[] };
@@ -76,7 +77,7 @@ export default function PharmacyWorkstation({ visits, onUpdated }: { visits: Vis
       const outstanding = Math.max(0, prescribed - supplied);
       const preview = stock[order.id];
       return <form className="card dataForm" onSubmit={e => submit(e, order)} key={order.id}>
-      <div className="wide"><h2>{order.displayName}</h2><p>{order.prescription!.medicineCode} · {order.prescription!.dose} · {order.prescription!.route} · {order.prescription!.frequency} · {order.prescription!.duration}</p>{order.prescription!.instructions && <p><strong>Instructions:</strong> {order.prescription!.instructions}</p>}</div>
+      <div className="wide"><h2>{order.prescription!.genericName || order.displayName}{order.prescription!.strength ? ` ${order.prescription!.strength}` : ""}</h2><p>{order.prescription!.dosageForm || order.prescription!.medicineCode} · {order.prescription!.dose} · {order.prescription!.route} · {order.prescription!.frequency} · {order.prescription!.duration || (order.prescription!.stopDate ? `until ${new Date(order.prescription!.stopDate).toLocaleDateString()}` : "course not defined")}{order.prescription!.isPrn ? ` · PRN for ${order.prescription!.prnIndication}` : ""}</p><p><strong>Indication:</strong> {order.clinicalIndication || "Not recorded"}</p>{order.prescription!.instructions && <p><strong>Instructions:</strong> {order.prescription!.instructions}</p>}</div>
       <label>Decision *<select name="action" defaultValue="DISPENSE"><option value="DISPENSE">Dispense medicine</option><option value="NOT_DISPENSED">Do not dispense</option></select></label>
       <label>Quantity supplied now *<input name="quantity" type="number" min="0.001" max={outstanding} step="0.001" defaultValue={outstanding} onChange={e => loadStock(order.id, Number(e.target.value)).catch(x => setError(x.message))}/><small>Prescribed: {prescribed} · Previously supplied: {supplied} · Outstanding: {outstanding}</small></label>
       <div className="wide privacyNotice"><strong>FEFO batch plan</strong><span>{preview?.allocation.length ? preview.allocation.map(item => `${item.batchNumber}: ${item.quantity} · exp ${new Date(item.expiryDate).toLocaleDateString()}`).join(" · ") : "No usable stock batch available"}</span></div>

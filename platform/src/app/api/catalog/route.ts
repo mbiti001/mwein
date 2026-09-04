@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
 import { canonicalLaboratoryCode, laboratoryDisplayName } from "@/lib/laboratory";
+import { normalizeMedicationConcept } from "@/lib/medication";
 
 const category = z.enum([
   "LABORATORY_TEST",
@@ -31,6 +32,8 @@ const itemSchema = z
     specimenType: z.string().trim().max(80).optional(),
     modality: z.string().trim().max(80).optional(),
     genericName: z.string().trim().max(180).optional(),
+    medicationConceptId: z.string().trim().max(180).optional(),
+    therapeuticClass: z.string().trim().max(180).optional(),
     strength: z.string().trim().max(80).optional(),
     dosageForm: z.string().trim().max(80).optional(),
     unitOfMeasure: z.string().trim().max(80).optional(),
@@ -53,6 +56,10 @@ const itemSchema = z
         path: ["unitOfMeasure"],
         message: "Unit of measure is required for commodities",
       });
+    if (value.category === "PHARMACEUTICAL") {
+      for (const field of ["genericName", "strength", "dosageForm"] as const)
+        if (!value[field]) context.addIssue({ code: "custom", path: [field], message: `${field} is required for a medicine` });
+    }
   });
 
 export async function GET(request: Request) {
@@ -90,6 +97,7 @@ export async function POST(request: Request) {
         data: {
           facilityId: user.facilityId,
           ...input,
+          medicationConceptId: input.category === "PHARMACEUTICAL" ? input.medicationConceptId || normalizeMedicationConcept(input.genericName!) : undefined,
           code: normalizedCode,
           name: normalizedName,
           unitPrice: new Prisma.Decimal(input.unitPrice),
@@ -134,6 +142,7 @@ export async function PATCH(request: Request) {
         where: { id },
         data: {
           ...input,
+          medicationConceptId: input.category === "PHARMACEUTICAL" ? input.medicationConceptId || normalizeMedicationConcept(input.genericName!) : null,
           code: normalizedCode,
           name: normalizedCode === "FBC" ? laboratoryDisplayName(normalizedCode) : input.name,
           unitPrice: new Prisma.Decimal(input.unitPrice),

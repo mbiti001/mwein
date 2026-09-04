@@ -19,6 +19,8 @@ type Item = {
   specimenType?: string | null;
   modality?: string | null;
   genericName?: string | null;
+  medicationConceptId?: string | null;
+  therapeuticClass?: string | null;
   strength?: string | null;
   dosageForm?: string | null;
   unitOfMeasure?: string | null;
@@ -193,27 +195,38 @@ export default function CatalogManager() {
           {category === "PHARMACEUTICAL" && (
             <>
               <label>
-                Generic name
+                Generic name *
                 <input
                   name="genericName"
+                  required
                   defaultValue={editing?.genericName || ""}
                 />
               </label>
               <label>
-                Strength
+                Strength *
                 <input
                   name="strength"
+                  required
                   defaultValue={editing?.strength || ""}
                   placeholder="500 mg"
                 />
               </label>
               <label>
-                Dosage form
+                Dosage form *
                 <input
                   name="dosageForm"
+                  required
                   defaultValue={editing?.dosageForm || ""}
                   placeholder="Tablet, suspension…"
                 />
+              </label>
+              <label>
+                Medication concept ID
+                <input name="medicationConceptId" defaultValue={editing?.medicationConceptId || ""} placeholder="Generated from generic name if blank" />
+              </label>
+              <label>
+                Therapeutic class
+                <input name="therapeuticClass" defaultValue={editing?.therapeuticClass || ""} placeholder="e.g. NSAID, PPI, antihistamine" />
               </label>
             </>
           )}

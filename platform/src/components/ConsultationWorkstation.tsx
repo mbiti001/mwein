@@ -53,7 +53,13 @@ type CatalogItem = {
   category: "LABORATORY_TEST" | "PROCEDURE" | "PHARMACEUTICAL";
   unitPrice: string;
   active: boolean;
+  genericName?: string | null;
+  medicationConceptId?: string | null;
+  therapeuticClass?: string | null;
+  strength?: string | null;
+  dosageForm?: string | null;
 };
+type DuplicateConflict = { code: "EXACT_DUPLICATE"; existingOrderId: string; existingPrescriptionId: string; existing: Record<string, unknown> };
 type DiagnosisSearchResult = { code: string; title: string; foundationUri?: string; source: string };
 function parseRecord(value?: string | null): Record<string, string> { try { return value ? JSON.parse(value) : {}; } catch { return {}; } }
 function parseFindings(value?: string) { return Object.fromEntries((value || "").split("\n").map(line => line.split(": ")).filter(parts => parts.length > 1).map(([label, ...rest]) => [label, rest.join(": ")])); }
@@ -66,7 +72,7 @@ async function post(url: string, body: unknown) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok)
-    throw new Error(data.error || "The consultation could not be saved");
+    throw Object.assign(new Error(data.error || "The consultation could not be saved"), { details: data.details });
   return data;
 }
 
@@ -956,6 +962,9 @@ function ConsultationForm({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [medicine, setMedicine] = useState("");
+  const [prescriptionKey, setPrescriptionKey] = useState(() => crypto.randomUUID());
+  const [savingPrescription, setSavingPrescription] = useState(false);
+  const [duplicateConflict, setDuplicateConflict] = useState<DuplicateConflict | null>(null);
   const [catalogue, setCatalogue] = useState<CatalogItem[]>([]);
   const [diagnosisQuery, setDiagnosisQuery] = useState("");
   const [diagnosisCode, setDiagnosisCode] = useState("");
@@ -1013,9 +1022,11 @@ function ConsultationForm({
     setNotice("");
     try {
       const result = await post(`/api/visits/${visit.id}/consultation`, { action, data });
-      setNotice(message);
+      setNotice(result.warnings?.length ? `${message} ${result.warnings.join(" ")}` : message);
       return result;
     } catch (e) {
+      const details = (e as Error & { details?: DuplicateConflict }).details;
+      if (details?.code === "EXACT_DUPLICATE") setDuplicateConflict(details);
       setError((e as Error).message);
       return false;
     }
@@ -1091,26 +1102,37 @@ function ConsultationForm({
         "Investigation requests submitted and billing updated.",
       );
     if (action === "SAVE_PRESCRIPTION") {
+      if (savingPrescription) return false;
+      setSavingPrescription(true);
       const prescriptions = medicine
         ? [
             {
               medicineCode: medicine,
+              indication: f.get("medicineIndication"),
               dose: f.get("dose"),
               route: f.get("route"),
               frequency: f.get("frequency"),
-              duration: f.get("duration"),
+              duration: f.get("duration") || undefined,
+              startDate: f.get("startDate"),
+              stopDate: f.get("stopDate") || undefined,
               quantity: f.get("quantity"),
-              instructions: f.get("medicineInstructions") || undefined,
+              instructions: f.get("medicineInstructions"),
+              isPrn: f.get("isPrn") === "on",
+              prnIndication: f.get("prnIndication") || undefined,
+              doseTiming: f.get("doseTiming"),
+              sequenceNote: f.get("sequenceNote") || undefined,
             },
           ]
         : [];
-      return run(
-        action,
-        { submit: submitPrescription, prescriptions },
-        submitPrescription
-          ? "Prescription submitted to pharmacy and billing."
-          : "Prescription saved as a draft; it has not been billed.",
-      );
+      try {
+        const result = await run(
+          action,
+          { submit: submitPrescription, idempotencyKey: prescriptionKey, duplicateAction: f.get("duplicateAction") || undefined, duplicateReason: f.get("duplicateReason") || undefined, prescriptions },
+          submitPrescription ? "Prescription submitted to pharmacy and billing." : "Prescription saved as a draft; it has not been billed.",
+        );
+        if (result) { setPrescriptionKey(crypto.randomUUID()); setDuplicateConflict(null); }
+        return result;
+      } finally { setSavingPrescription(false); }
     }
     if (
       await run(
@@ -1412,14 +1434,14 @@ function ConsultationForm({
             Medicine
             <select
               value={medicine}
-              onChange={(e) => setMedicine(e.target.value)}
+              onChange={(e) => { setMedicine(e.target.value); setPrescriptionKey(crypto.randomUUID()); setDuplicateConflict(null); }}
             >
               <option value="">No medicine</option>
               {catalogue
                 .filter((item) => item.category === "PHARMACEUTICAL")
                 .map((item) => (
                   <option key={item.code} value={item.code}>
-                    {item.name} · KES {Number(item.unitPrice).toLocaleString()}{" "}
+                    {item.genericName || item.name}{item.strength ? ` ${item.strength}` : ""}{item.dosageForm ? ` · ${item.dosageForm}` : ""} · KES {Number(item.unitPrice).toLocaleString()}{" "}
                     each
                   </option>
                 ))}
@@ -1427,6 +1449,9 @@ function ConsultationForm({
           </label>
           {medicine && (
             <>
+              <label className="span2">
+                Diagnosis / clinical indication *<input name="medicineIndication" required defaultValue={savedDiagnoses.find(item => item.primary)?.description || ""} />
+              </label>
               <label>
                 Dose *<input name="dose" required placeholder="e.g. 1 tablet" />
               </label>
@@ -1449,8 +1474,14 @@ function ConsultationForm({
                 />
               </label>
               <label>
-                Duration *
-                <input name="duration" required placeholder="e.g. 5 days" />
+                Duration or stop date
+                <input name="duration" placeholder="e.g. 5 days" />
+              </label>
+              <label>
+                Start date *<input name="startDate" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
+              </label>
+              <label>
+                Stop date<input name="stopDate" type="date" />
               </label>
               <label>
                 Quantity *
@@ -1462,10 +1493,21 @@ function ConsultationForm({
                   required
                 />
               </label>
-              <label>
-                Additional instructions
-                <input name="medicineInstructions" />
+              <label className="span2">
+                Patient instructions *
+                <input name="medicineInstructions" required placeholder="How and when the patient should take this medicine" />
               </label>
+              <label>
+                Dose timing<select name="doseTiming"><option value="SCHEDULED">Scheduled course</option><option value="STAT">STAT dose</option><option value="STAT_THEN_SCHEDULED">STAT then scheduled course</option></select>
+              </label>
+              <label>
+                Sequence note<input name="sequenceNote" placeholder="Document STAT-to-course sequence" />
+              </label>
+              <label className="span2"><span><input name="isPrn" type="checkbox" /> Use when required (PRN)</span></label>
+              <label className="span2">
+                PRN indication<input name="prnIndication" placeholder="Symptom or condition requiring the PRN dose" />
+              </label>
+              {duplicateConflict && <div className="span2 dangerPanel"><strong>Exact active duplicate detected</strong><span>{String(duplicateConflict.existing.genericName || "Medicine")} {String(duplicateConflict.existing.strength || "")} · {String(duplicateConflict.existing.dosageForm || "")} · {String(duplicateConflict.existing.route || "")} · {String(duplicateConflict.existing.frequency || "")}</span><span>Choose what to do with the existing prescription. A clinical reason is mandatory.</span><label>Decision *<select name="duplicateAction" required defaultValue=""><option value="">Cancel and review</option><option value="EDIT_EXISTING">Edit existing prescription</option><option value="REPLACE_EXISTING">Replace existing prescription</option><option value="KEEP_BOTH">Override and keep both</option></select></label><label>Clinical justification *<textarea name="duplicateReason" required minLength={10} rows={2} /></label></div>}
             </>
           )}
           <div className="span2 submitBar">
@@ -1476,6 +1518,7 @@ function ConsultationForm({
               <button
                 type="button"
                 className="secondary"
+                disabled={savingPrescription}
                 onClick={(event) => act(event, "SAVE_PRESCRIPTION")}
               >
                 Save prescription draft
@@ -1483,9 +1526,10 @@ function ConsultationForm({
               <button
                 type="button"
                 className="primary"
+                disabled={savingPrescription}
                 onClick={(event) => act(event, "SAVE_PRESCRIPTION", true)}
               >
-                Submit prescription
+                {savingPrescription ? "Saving…" : "Submit prescription"}
               </button>
             </div>
           </div>

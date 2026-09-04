@@ -164,6 +164,8 @@ const catalogue = [
     "5.00",
     {
       genericName: "Paracetamol",
+      medicationConceptId: "paracetamol",
+      therapeuticClass: "Analgesic / antipyretic",
       strength: "500 mg",
       dosageForm: "Tablet",
       unitOfMeasure: "tablet",
@@ -176,6 +178,8 @@ const catalogue = [
     "15.00",
     {
       genericName: "Amoxicillin",
+      medicationConceptId: "amoxicillin",
+      therapeuticClass: "Penicillin antibiotic",
       strength: "500 mg",
       dosageForm: "Capsule",
       unitOfMeasure: "capsule",
@@ -188,6 +192,8 @@ const catalogue = [
     "8.00",
     {
       genericName: "Metformin",
+      medicationConceptId: "metformin",
+      therapeuticClass: "Biguanide antidiabetic",
       strength: "500 mg",
       dosageForm: "Tablet",
       unitOfMeasure: "tablet",
@@ -200,6 +206,8 @@ const catalogue = [
     "10.00",
     {
       genericName: "Amlodipine",
+      medicationConceptId: "amlodipine",
+      therapeuticClass: "Calcium-channel blocker",
       strength: "5 mg",
       dosageForm: "Tablet",
       unitOfMeasure: "tablet",
@@ -212,6 +220,8 @@ const catalogue = [
     "25.00",
     {
       genericName: "Oral rehydration salts",
+      medicationConceptId: "oral-rehydration-salts",
+      therapeuticClass: "Oral electrolyte replacement",
       dosageForm: "Sachet",
       unitOfMeasure: "sachet",
     },
@@ -220,14 +230,16 @@ const catalogue = [
 for (const [category, code, name, unitPrice, detail] of catalogue)
   await db.catalogItem.upsert({
     where: { facilityId_code: { facilityId: facility.id, code } },
-    update:
-      code === "FBC"
+    update: {
+      ...detail,
+      ...(code === "FBC"
         ? {
             name,
             description:
               "Also known as full haemogram, full hemogram, haemogram, hemogram or CBC; all terms use this same complete haematology panel.",
           }
-        : {},
+        : {}),
+    },
     create: {
       facilityId: facility.id,
       category,

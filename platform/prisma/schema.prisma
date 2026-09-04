@@ -148,6 +148,8 @@ model CatalogItem {
   khisMapping String?
   modality String?
   genericName String?
+  medicationConceptId String?
+  therapeuticClass String?
   strength String?
   dosageForm String?
   unitOfMeasure String?
@@ -155,6 +157,7 @@ model CatalogItem {
   facility Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   referenceRanges LabReferenceRange[]
   inventoryBatches InventoryBatch[]
+  prescriptions Prescription[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@unique([facilityId, code])
@@ -218,6 +221,7 @@ model User {
   performedImagingResults ImagingResult[] @relation("ImagingPerformedBy")
   verifiedImagingResults ImagingResult[] @relation("ImagingVerifiedBy")
   stockMovements StockMovement[]
+  medicationSafetyOverrides MedicationSafetyOverride[]
   createdClaims Claim[]
   reversedPayments Payment[] @relation("PaymentReversedBy")
   auditEvents AuditEvent[]
@@ -457,6 +461,7 @@ model Encounter {
   visit Visit @relation(fields: [visitId], references: [id])
   clinician User @relation(fields: [clinicianId], references: [id])
   diagnoses Diagnosis[]
+  prescriptions Prescription[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -472,6 +477,7 @@ model Diagnosis {
   foundationUri String?
   primary Boolean @default(false)
   encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  prescriptions Prescription[]
 }
 
 model ClinicalOrder {
@@ -584,12 +590,26 @@ model Prescription {
   id String @id @default(uuid()) @db.Uuid
   orderId String @unique @db.Uuid
   medicineCode String
+  catalogItemId String? @db.Uuid
+  medicationConceptId String?
+  genericName String?
+  strength String?
+  dosageForm String?
   dose String
   route String
   frequency String
-  duration String
+  duration String?
+  startDate DateTime @default(now()) @db.Date
+  stopDate DateTime? @db.Date
+  isPrn Boolean @default(false)
+  prnIndication String?
+  doseTiming String @default("SCHEDULED")
+  sequenceNote String?
   quantity Decimal @db.Decimal(12, 3)
-  instructions String?
+  instructions String
+  encounterId String? @db.Uuid
+  diagnosisId String? @db.Uuid
+  idempotencyKey String? @unique
   dispensedQuantity Decimal? @db.Decimal(12, 3)
   dispenseStatus String @default("PENDING")
   dispenseNotes String?
@@ -598,8 +618,30 @@ model Prescription {
   dispensedAt DateTime?
   dispensedById String? @db.Uuid
   order ClinicalOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  catalogItem CatalogItem? @relation(fields: [catalogItemId], references: [id])
+  encounter Encounter? @relation(fields: [encounterId], references: [id])
+  diagnosis Diagnosis? @relation(fields: [diagnosisId], references: [id])
   dispensedBy User? @relation("PrescriptionDispensedBy", fields: [dispensedById], references: [id])
   stockMovements StockMovement[]
+  safetyOverrides MedicationSafetyOverride[] @relation("OverridePrescription")
+  duplicateOverrides MedicationSafetyOverride[] @relation("ExistingPrescription")
+  @@index([medicationConceptId, strength, dosageForm, startDate, stopDate])
+}
+
+model MedicationSafetyOverride {
+  id String @id @default(uuid()) @db.Uuid
+  prescriptionId String @db.Uuid
+  existingPrescriptionId String? @db.Uuid
+  prescriberId String @db.Uuid
+  warningCode String
+  justification String
+  originalDetails Json?
+  revisedDetails Json
+  createdAt DateTime @default(now())
+  prescription Prescription @relation("OverridePrescription", fields: [prescriptionId], references: [id], onDelete: Cascade)
+  existingPrescription Prescription? @relation("ExistingPrescription", fields: [existingPrescriptionId], references: [id])
+  prescriber User @relation(fields: [prescriberId], references: [id])
+  @@index([prescriptionId, createdAt])
 }
 
 model InventoryBatch {

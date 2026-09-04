@@ -76,21 +76,39 @@ export const investigationOrderSchema = z
 
 export const prescriptionSchema = z.object({
   submit: z.boolean().default(false),
+  idempotencyKey: z.uuid(),
+  duplicateAction: z.enum(["EDIT_EXISTING", "REPLACE_EXISTING", "KEEP_BOTH"]).optional(),
+  duplicateReason: z.string().trim().min(10).max(500).optional(),
   prescriptions: z
     .array(
       z.object({
         medicineCode: z.string().trim().min(2).max(40),
+        indication: z.string().trim().min(2).max(240),
         dose: z.string().trim().min(1).max(100),
         route: z.string().trim().min(1).max(50),
         frequency: z.string().trim().min(1).max(100),
-        duration: z.string().trim().min(1).max(100),
+        duration: z.string().trim().min(1).max(100).optional(),
+        startDate: z.coerce.date(),
+        stopDate: z.coerce.date().optional(),
         quantity: z.coerce.number().positive().max(10000),
-        instructions: z.string().trim().max(500).optional(),
+        instructions: z.string().trim().min(2).max(500),
+        isPrn: z.boolean().default(false),
+        prnIndication: z.string().trim().max(240).optional(),
+        doseTiming: z.enum(["SCHEDULED", "STAT", "STAT_THEN_SCHEDULED"]).default("SCHEDULED"),
+        sequenceNote: z.string().trim().max(240).optional(),
       }),
     )
     .min(1, "Add at least one medicine")
     .max(20)
     .default([]),
+}).superRefine((value, context) => {
+  value.prescriptions.forEach((item, index) => {
+    if (!item.duration && !item.stopDate) context.addIssue({ code: "custom", path: ["prescriptions", index, "duration"], message: "Duration or stop date is required" });
+    if (item.stopDate && item.stopDate < item.startDate) context.addIssue({ code: "custom", path: ["prescriptions", index, "stopDate"], message: "Stop date cannot be before start date" });
+    if (item.isPrn && !item.prnIndication) context.addIssue({ code: "custom", path: ["prescriptions", index, "prnIndication"], message: "PRN indication is required" });
+    if (item.doseTiming === "STAT_THEN_SCHEDULED" && !item.sequenceNote) context.addIssue({ code: "custom", path: ["prescriptions", index, "sequenceNote"], message: "Document the intended STAT-to-course sequence" });
+  });
+  if (value.duplicateAction && !value.duplicateReason) context.addIssue({ code: "custom", path: ["duplicateReason"], message: "Clinical justification is required" });
 });
 
 export const signConsultationSchema = z.object({

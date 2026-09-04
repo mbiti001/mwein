@@ -70,7 +70,7 @@ type Visit = {
     } | null;
     prescription?: {
       medicineCode: string; dose: string; route: string; frequency: string;
-      duration: string; quantity: string; instructions?: string | null;
+      duration?: string | null; quantity: string; instructions: string;
       dispensedQuantity?: string | null; dispenseStatus: string;
       dispenseNotes?: string | null; dispensedAt?: string | null;
       dispensedBy?: { displayName: string } | null;
