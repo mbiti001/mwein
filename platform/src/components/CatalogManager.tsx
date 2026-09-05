@@ -15,6 +15,7 @@ type Item = {
   name: string;
   description?: string | null;
   unitPrice: string;
+  costPrice?: string | null;
   currency: string;
   active: boolean;
   specimenType?: string | null;
@@ -63,6 +64,7 @@ export default function CatalogManager() {
     body.category = category;
     body.active = form.get("active") === "on";
     if (!body.reorderLevel) delete body.reorderLevel;
+    if (!body.costPrice) delete body.costPrice;
     try {
       await request("/api/catalog", {
         method: editing ? "PATCH" : "POST",
@@ -84,6 +86,7 @@ export default function CatalogManager() {
         body: JSON.stringify({
           ...item,
           unitPrice: Number(item.unitPrice),
+          costPrice: item.costPrice ? Number(item.costPrice) : undefined,
           reorderLevel: item.reorderLevel
             ? Number(item.reorderLevel)
             : undefined,
@@ -165,6 +168,7 @@ export default function CatalogManager() {
               defaultValue={editing?.unitPrice || "0.00"}
             />
           </label>
+          {["PROCEDURE", "PHARMACEUTICAL"].includes(category) && <label>Cost price (KES)<input name="costPrice" type="number" min="0" step="0.01" defaultValue={editing?.costPrice || ""}/></label>}
           {category === "LABORATORY_TEST" && (
             <label>
               Specimen type *
@@ -302,6 +306,7 @@ export default function CatalogManager() {
                       minimumFractionDigits: 2,
                     })}
                     {item.unitOfMeasure ? ` / ${item.unitOfMeasure}` : ""}
+                    {item.costPrice ? ` · cost KES ${Number(item.costPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : ""}
                   </span>
                 </div>
                 <b>{item.active ? "ACTIVE" : "INACTIVE"}</b>

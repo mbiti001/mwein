@@ -137,6 +137,7 @@ model CatalogItem {
   name String
   description String?
   unitPrice Decimal @db.Decimal(14, 2)
+  costPrice Decimal? @db.Decimal(14, 2)
   currency String @default("KES")
   active Boolean @default(true)
   specimenType String?

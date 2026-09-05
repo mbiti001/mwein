@@ -40,8 +40,16 @@ export async function POST(request: Request) {
         { error: `Worksheet “${requestedTitle}” was not found` },
         { status: 422 },
       );
+    const headerMarkers = new Set(["full_name", "code", "test_code"]);
+    let headerRow = 0;
+    sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (!headerRow && headerMarkers.has(row.getCell(1).text.trim().toLowerCase())) headerRow = rowNumber;
+    });
+    if (!headerRow)
+      return NextResponse.json({ error: `Worksheet “${requestedTitle}” does not contain a supported header row` }, { status: 422 });
     const lines: string[] = [];
-    sheet.eachRow({ includeEmpty: false }, (row) => {
+    sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (rowNumber < headerRow) return;
       const values: string[] = [];
       for (let column = 1; column <= sheet.actualColumnCount; column++)
         values.push(csvCell(row.getCell(column).text.trim()));

@@ -7,6 +7,7 @@ import { apiError } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
 import { canonicalLaboratoryCode, laboratoryDisplayName } from "@/lib/laboratory";
 import { normalizeName } from "@/lib/security";
+import { normalizeMedicationConcept } from "@/lib/medication";
 import { patientNumber } from "@/lib/domain";
 import { parseCsv } from "@/lib/csv";
 
@@ -59,6 +60,14 @@ function validate(row: Row, dataset: z.infer<typeof datasetSchema>) {
     (!Number.isFinite(Number(value.unit_price)) || Number(value.unit_price) < 0)
   )
     errors.push("unit_price must be zero or greater");
+  if (value.cost_price && (!Number.isFinite(Number(value.cost_price)) || Number(value.cost_price) < 0))
+    errors.push("cost_price must be zero or greater");
+  if (value.opening_quantity && (!Number.isFinite(Number(value.opening_quantity)) || Number(value.opening_quantity) < 0))
+    errors.push("opening_quantity must be zero or greater");
+  if (dataset === "PHARMACEUTICALS" && Number(value.opening_quantity) > 0) {
+    if (!value.batch_number) errors.push("batch_number is required when opening_quantity is provided");
+    if (!value.expiry_date || Number.isNaN(new Date(value.expiry_date).getTime())) errors.push("a valid expiry_date is required when opening_quantity is provided");
+  }
   for (const field of [
     "min_age_days",
     "max_age_days",
@@ -118,6 +127,8 @@ export async function POST(request: Request) {
     const imported = await db.$transaction(
       async (tx) => {
         let count = 0;
+        let skippedDuplicates = 0;
+        let openingStockSkipped = 0;
         if (input.dataset === "PATIENTS") {
           const facility = await tx.facility.findUniqueOrThrow({
             where: { id: user.facilityId },
@@ -142,7 +153,7 @@ export async function POST(request: Request) {
                 ],
               },
             });
-            if (existing) continue;
+            if (existing) { skippedDuplicates++; continue; }
             const sequence = await tx.referenceSequence.upsert({
               where: {
                 facilityId_kind_year: {
@@ -279,7 +290,7 @@ export async function POST(request: Request) {
           for (const row of rows) {
             const v = row.values;
             const normalizedCode = category === "LABORATORY_TEST" ? canonicalLaboratoryCode(v.code) : v.code.toUpperCase();
-            await tx.catalogItem.upsert({
+            const catalogItem = await tx.catalogItem.upsert({
               where: {
                 facilityId_code: {
                   facilityId: user.facilityId,
@@ -291,6 +302,7 @@ export async function POST(request: Request) {
                 name: normalizedCode === "FBC" ? laboratoryDisplayName(normalizedCode) : v.name,
                 description: v.description || null,
                 unitPrice: new Prisma.Decimal(v.unit_price),
+                costPrice: v.cost_price ? new Prisma.Decimal(v.cost_price) : null,
                 active: v.active?.toLowerCase() !== "false",
                 specimenType: v.specimen_type || null,
                 synonyms: v.synonyms || null,
@@ -304,6 +316,7 @@ export async function POST(request: Request) {
                 khisMapping: v.khis_mapping || null,
                 modality: v.modality || null,
                 genericName: v.generic_name || null,
+                medicationConceptId: category === "PHARMACEUTICAL" && v.generic_name ? normalizeMedicationConcept(v.generic_name) : null,
                 strength: v.strength || null,
                 dosageForm: v.dosage_form || null,
                 unitOfMeasure: v.unit_of_measure || null,
@@ -318,6 +331,7 @@ export async function POST(request: Request) {
                 name: normalizedCode === "FBC" ? laboratoryDisplayName(normalizedCode) : v.name,
                 description: v.description || null,
                 unitPrice: new Prisma.Decimal(v.unit_price),
+                costPrice: v.cost_price ? new Prisma.Decimal(v.cost_price) : null,
                 active: v.active?.toLowerCase() !== "false",
                 specimenType: v.specimen_type || null,
                 synonyms: v.synonyms || null,
@@ -331,6 +345,7 @@ export async function POST(request: Request) {
                 khisMapping: v.khis_mapping || null,
                 modality: v.modality || null,
                 genericName: v.generic_name || null,
+                medicationConceptId: category === "PHARMACEUTICAL" && v.generic_name ? normalizeMedicationConcept(v.generic_name) : null,
                 strength: v.strength || null,
                 dosageForm: v.dosage_form || null,
                 unitOfMeasure: v.unit_of_measure || null,
@@ -339,6 +354,18 @@ export async function POST(request: Request) {
                   : null,
               },
             });
+            if (category === "PHARMACEUTICAL" && Number(v.opening_quantity) > 0) {
+              const expiryDate = new Date(v.expiry_date);
+              if (expiryDate <= new Date()) throw Object.assign(new Error(`Row ${row.rowNumber}: opening stock expiry date must be in the future`), { status: 422 });
+              const storeCode = (v.store_code || "MAIN").toUpperCase();
+              const store = await tx.store.upsert({ where: { facilityId_code: { facilityId: user.facilityId, code: storeCode } }, update: { active: true }, create: { facilityId: user.facilityId, code: storeCode, name: storeCode === "MAIN" ? "Main pharmacy store" : storeCode } });
+              const exists = await tx.inventoryBatch.findUnique({ where: { catalogItemId_batchNumber: { catalogItemId: catalogItem.id, batchNumber: v.batch_number } } });
+              if (!exists) {
+                const batch = await tx.inventoryBatch.create({ data: { catalogItemId: catalogItem.id, batchNumber: v.batch_number, expiryDate, quantityReceived: new Prisma.Decimal(v.opening_quantity), quantityAvailable: new Prisma.Decimal(v.opening_quantity), unitCost: v.cost_price ? new Prisma.Decimal(v.cost_price) : null } });
+                await tx.inventoryLocationBalance.create({ data: { storeId: store.id, batchId: batch.id, quantity: new Prisma.Decimal(v.opening_quantity) } });
+                await tx.stockMovement.create({ data: { batchId: batch.id, userId: user.id, type: "OPENING_BALANCE", quantity: new Prisma.Decimal(v.opening_quantity), balanceAfter: new Prisma.Decimal(v.opening_quantity), reason: `Migration import · ${input.sourceTitle || "spreadsheet"}` } });
+              } else openingStockSkipped++;
+            }
             count++;
           }
         }
@@ -350,13 +377,13 @@ export async function POST(request: Request) {
           reason:
             [input.sourceTitle, input.sheetTitle].filter(Boolean).join(" · ") ||
             undefined,
-          afterHash: `${input.dataset}:${count}`,
+          afterHash: `${input.dataset}:${count}:${skippedDuplicates}:${openingStockSkipped}`,
         });
-        return count;
+        return { count, skippedDuplicates, openingStockSkipped };
       },
       { timeout: 120000 },
     );
-    return NextResponse.json({ imported, dataset: input.dataset });
+    return NextResponse.json({ imported: imported.count, skippedDuplicates: imported.skippedDuplicates, openingStockSkipped: imported.openingStockSkipped, dataset: input.dataset });
   } catch (error) {
     return apiError(error);
   }

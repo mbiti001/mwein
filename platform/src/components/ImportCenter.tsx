@@ -22,12 +22,12 @@ const datasets: Record<Dataset, { label: string; headers: string }> = {
   },
   PROCEDURES: {
     label: "Procedures & imaging",
-    headers: "code,name,unit_price,modality,description,active",
+    headers: "code,name,cost_price,unit_price,department,modality,description,active",
   },
   PHARMACEUTICALS: {
     label: "Pharmaceuticals",
     headers:
-      "code,name,unit_price,generic_name,strength,dosage_form,unit_of_measure,reorder_level,description,active",
+      "code,name,generic_name,strength,dosage_form,unit_of_measure,cost_price,unit_price,opening_quantity,batch_number,expiry_date,store_code,reorder_level,description,active",
   },
   NON_PHARMACEUTICALS: {
     label: "Non-pharmaceuticals",
@@ -64,6 +64,7 @@ export default function ImportCenter() {
   } | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const sheetDatasets: Record<string, Dataset> = { Patients: "PATIENTS", Medicines: "PHARMACEUTICALS", Procedures: "PROCEDURES", "Laboratory tests": "LAB_TESTS", "Non-pharmaceuticals": "NON_PHARMACEUTICALS", "Laboratory reference intervals": "LAB_REFERENCE_RANGES" };
   async function send(publish: boolean, page = 1) {
     setError("");
     setNotice("");
@@ -76,7 +77,7 @@ export default function ImportCenter() {
         setPreview(data.preview);
         setSummary(data);
       } else {
-        setNotice(`${data.imported} ${datasets[dataset].label.toLowerCase()} row(s) published successfully.`);
+        setNotice(`${data.imported} ${datasets[dataset].label.toLowerCase()} row(s) published.${data.skippedDuplicates ? ` ${data.skippedDuplicates} duplicate patient row(s) skipped.` : ""}${data.openingStockSkipped ? ` ${data.openingStockSkipped} existing opening batch(es) were not added again.` : ""}`);
         setCsv("");
         setPreview([]);
         setSummary(null);
@@ -125,9 +126,7 @@ export default function ImportCenter() {
             operational register.
           </p>
         </div>
-        <button className="secondary" onClick={template}>
-          Download selected template
-        </button>
+        <div className="actions"><a className="primary buttonLink" href="/templates/mwein-data-migration-template.xlsx" download>Download migration workbook</a><button className="secondary" onClick={template}>CSV template</button></div>
       </header>
       {error && <div className="alert">{error}</div>}
       {notice && <div className="alert success">{notice}</div>}
@@ -181,6 +180,7 @@ export default function ImportCenter() {
               onChange={async (event) => {
                 const title = event.target.value;
                 setSheetTitle(title);
+                if (sheetDatasets[title]) setDataset(sheetDatasets[title]);
                 if (workbook && title) await readWorkbook(workbook, title);
               }}
             >
@@ -199,6 +199,7 @@ export default function ImportCenter() {
           <strong>Required CSV headers</strong>
           <span>{datasets[dataset].headers}</span>
         </div>
+        <div className="wide migrationSteps"><strong>Safe migration flow</strong><span>1. Download workbook</span><span>2. Complete one or more sheets</span><span>3. Upload and select a sheet</span><span>4. Validate</span><span>5. Publish only when all rows are ready</span></div>
         <div className="wide submitBar">
           <span>
             The preview does not alter facility data. Publishing is enabled only
