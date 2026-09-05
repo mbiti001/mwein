@@ -98,8 +98,6 @@ export const prescriptionSchema = z.object({
         quantity: z.coerce.number().positive().max(10000),
         quantityConfirmed: z.boolean().default(false),
         instructions: z.string().trim().min(2).max(500),
-        isPrn: z.boolean().default(false),
-        prnIndication: z.string().trim().max(240).optional(),
         doseTiming: z.enum(["SCHEDULED", "STAT", "STAT_THEN_SCHEDULED"]).default("SCHEDULED"),
         sequenceNote: z.string().trim().max(240).optional(),
       }),
@@ -111,7 +109,6 @@ export const prescriptionSchema = z.object({
   value.prescriptions.forEach((item, index) => {
     if (!item.duration && !item.stopDate) context.addIssue({ code: "custom", path: ["prescriptions", index, "duration"], message: "Duration or stop date is required" });
     if (item.stopDate && item.stopDate < item.startDate) context.addIssue({ code: "custom", path: ["prescriptions", index, "stopDate"], message: "Stop date cannot be before start date" });
-    if (item.isPrn && !item.prnIndication) context.addIssue({ code: "custom", path: ["prescriptions", index, "prnIndication"], message: "PRN indication is required" });
     if (item.doseTiming === "STAT_THEN_SCHEDULED" && !item.sequenceNote) context.addIssue({ code: "custom", path: ["prescriptions", index, "sequenceNote"], message: "Document the intended STAT-to-course sequence" });
     if (item.doseQuantity && item.frequencyPerDay && item.durationDays && !item.quantityConfirmed) context.addIssue({ code: "custom", path: ["prescriptions", index, "quantityConfirmed"], message: "Confirm the calculated dispensing quantity" });
   });

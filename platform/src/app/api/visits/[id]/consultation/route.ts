@@ -121,6 +121,8 @@ export async function POST(
             { status: 409 },
           );
         if (input.action === "SAVE_DIAGNOSIS") {
+          const duplicate = await tx.diagnosis.findFirst({ where: { encounterId: encounter.id, codingSystem: "ICD-11 MMS", code: input.data.code.toUpperCase() } });
+          if (duplicate) throw Object.assign(new Error(`${duplicate.code} · ${duplicate.description} is already recorded for this encounter`), { status: 409 });
           if (input.data.primary)
             await tx.diagnosis.updateMany({
               where: { encounterId: encounter.id, primary: true },
@@ -397,7 +399,7 @@ export async function POST(
                 dose: medicine.dose, route: medicine.route, frequency: medicine.frequency, duration: medicine.duration,
                 doseQuantity: medicine.doseQuantity ? new Prisma.Decimal(medicine.doseQuantity) : undefined, frequencyPerDay: medicine.frequencyPerDay, durationDays: medicine.durationDays, quantityConfirmed: medicine.quantityConfirmed,
                 startDate, stopDate, quantity: new Prisma.Decimal(medicine.quantity), instructions: medicine.instructions,
-                isPrn: medicine.isPrn, prnIndication: medicine.prnIndication, doseTiming: medicine.doseTiming, sequenceNote: medicine.sequenceNote,
+                isPrn: false, prnIndication: null, doseTiming: medicine.doseTiming, sequenceNote: medicine.sequenceNote,
                 encounterId: encounter.id, diagnosisId: primary.id, idempotencyKey: input.data.idempotencyKey,
                 ...(sameVisit ? { visitMedicationKey: sameVisitMedicationKey(id, medicationConceptId) } : {}),
               } });
@@ -437,8 +439,8 @@ export async function POST(
                     durationDays: medicine.durationDays,
                     startDate,
                     stopDate,
-                    isPrn: medicine.isPrn,
-                    prnIndication: medicine.prnIndication,
+                    isPrn: false,
+                    prnIndication: null,
                     doseTiming: medicine.doseTiming,
                     sequenceNote: medicine.sequenceNote,
                     quantity: new Prisma.Decimal(medicine.quantity),

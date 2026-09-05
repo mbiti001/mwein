@@ -299,7 +299,6 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
                 <span>
                   {o.prescription.genericName || o.displayName}{o.prescription.strength ? ` ${o.prescription.strength}` : ""} · {o.prescription.dosageForm || "medicine"} · {o.prescription.dose} · {o.prescription.route} ·{" "}
                   {o.prescription.frequency} · {o.prescription.duration || (o.prescription.stopDate ? `until ${new Date(o.prescription.stopDate).toLocaleDateString()}` : "duration not recorded")}
-                  {o.prescription.isPrn ? ` · PRN: ${o.prescription.prnIndication}` : ""}
                   {o.clinicalIndication ? ` · Indication: ${o.clinicalIndication}` : ""}
                   {o.prescription.instructions
                     ? ` · ${o.prescription.instructions}`

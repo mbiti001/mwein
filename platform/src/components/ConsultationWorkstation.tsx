@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { patientClinicalGroup } from "@/lib/domain";
 import { jsonRequest } from "@/lib/client-http";
 import { calculateDispenseQuantity } from "@/lib/medication";
+import {
+  SearchableMultiPicker,
+  SearchablePicker,
+} from "@/components/SearchablePicker";
 
 type Visit = {
   id: string;
@@ -62,14 +66,79 @@ type CatalogItem = {
   strength?: string | null;
   dosageForm?: string | null;
 };
-type DuplicateConflict = { code: "EXACT_DUPLICATE" | "SAME_VISIT_DUPLICATE"; existingOrderId: string; existingPrescriptionId: string; existing: Record<string, unknown> };
-type DiagnosisSearchResult = { code: string; title: string; foundationUri?: string; source: string };
-type HistoryVisit = { id: string; visitNumber: string; clinic: string; arrivedAt: string; status: string; encounters: { diagnoses: { description: string; code?: string | null; primary: boolean }[] }[]; orders: { type: string; displayName: string; prescription?: { genericName?: string | null; strength?: string | null; dose: string; frequency: string; duration?: string | null; dispenseStatus: string } | null; laboratory?: { result?: { status: string; items: { analyte: string; value: string; unit?: string | null; flag?: string | null }[] } | null } | null; imaging?: { result?: { status: string; conclusion: string } | null } | null }[] };
-function parseRecord(value?: string | null): Record<string, string> { try { return value ? JSON.parse(value) : {}; } catch { return {}; } }
-function parseFindings(value?: string) { return Object.fromEntries((value || "").split("\n").map(line => line.split(": ")).filter(parts => parts.length > 1).map(([label, ...rest]) => [label, rest.join(": ")])); }
+type DuplicateConflict = {
+  code: "EXACT_DUPLICATE" | "SAME_VISIT_DUPLICATE";
+  existingOrderId: string;
+  existingPrescriptionId: string;
+  existing: Record<string, unknown>;
+};
+type DiagnosisSearchResult = {
+  code: string;
+  title: string;
+  foundationUri?: string;
+  source: string;
+};
+type HistoryVisit = {
+  id: string;
+  visitNumber: string;
+  clinic: string;
+  arrivedAt: string;
+  status: string;
+  encounters: {
+    diagnoses: {
+      description: string;
+      code?: string | null;
+      primary: boolean;
+    }[];
+  }[];
+  orders: {
+    type: string;
+    displayName: string;
+    prescription?: {
+      genericName?: string | null;
+      strength?: string | null;
+      dose: string;
+      frequency: string;
+      duration?: string | null;
+      dispenseStatus: string;
+    } | null;
+    laboratory?: {
+      result?: {
+        status: string;
+        items: {
+          analyte: string;
+          value: string;
+          unit?: string | null;
+          flag?: string | null;
+        }[];
+      } | null;
+    } | null;
+    imaging?: { result?: { status: string; conclusion: string } | null } | null;
+  }[];
+};
+function parseRecord(value?: string | null): Record<string, string> {
+  try {
+    return value ? JSON.parse(value) : {};
+  } catch {
+    return {};
+  }
+}
+function parseFindings(value?: string) {
+  return Object.fromEntries(
+    (value || "")
+      .split("\n")
+      .map((line) => line.split(": "))
+      .filter((parts) => parts.length > 1)
+      .map(([label, ...rest]) => [label, rest.join(": ")]),
+  );
+}
 
 async function post(url: string, body: unknown) {
-  return jsonRequest<Record<string, any>>(url, { method: "POST", body: JSON.stringify(body) }, "The consultation could not be saved");
+  return jsonRequest<Record<string, any>>(
+    url,
+    { method: "POST", body: JSON.stringify(body) },
+    "The consultation could not be saved",
+  );
 }
 
 type FindingDefinition = {
@@ -901,8 +970,11 @@ export default function ConsultationWorkstation({
   const [active, setActive] = useState<Visit | null>(null);
   useEffect(() => {
     if (!initialVisitId) return;
-    const visit = visits.find(item => item.id === initialVisitId);
-    if (visit) { setActive(visit); onInitialVisitOpened?.(); }
+    const visit = visits.find((item) => item.id === initialVisitId);
+    if (visit) {
+      setActive(visit);
+      onInitialVisitOpened?.();
+    }
   }, [initialVisitId, visits, onInitialVisitOpened]);
   if (!active)
     return (
@@ -971,23 +1043,37 @@ function ConsultationForm({
   const [frequencyPerDay, setFrequencyPerDay] = useState(1);
   const [durationDays, setDurationDays] = useState(1);
   const [dispenseQuantity, setDispenseQuantity] = useState(1);
-  const [prescriptionKey, setPrescriptionKey] = useState(() => crypto.randomUUID());
+  const [prescriptionKey, setPrescriptionKey] = useState(() =>
+    crypto.randomUUID(),
+  );
   const [savingPrescription, setSavingPrescription] = useState(false);
-  const [duplicateConflict, setDuplicateConflict] = useState<DuplicateConflict | null>(null);
+  const [duplicateConflict, setDuplicateConflict] =
+    useState<DuplicateConflict | null>(null);
   const [catalogue, setCatalogue] = useState<CatalogItem[]>([]);
   const [diagnosisQuery, setDiagnosisQuery] = useState("");
   const [diagnosisCode, setDiagnosisCode] = useState("");
   const [diagnosisUri, setDiagnosisUri] = useState("");
-  const [diagnosisResults, setDiagnosisResults] = useState<DiagnosisSearchResult[]>([]);
+  const [diagnosisResults, setDiagnosisResults] = useState<
+    DiagnosisSearchResult[]
+  >([]);
   const [diagnosisSearching, setDiagnosisSearching] = useState(false);
+  const [diagnosisSourceWarning, setDiagnosisSourceWarning] = useState("");
   const [activeStep, setActiveStep] = useState(1);
-  const draft = visit.encounters?.find(item => item.status === "DRAFT") || visit.encounters?.[0];
+  const draft =
+    visit.encounters?.find((item) => item.status === "DRAFT") ||
+    visit.encounters?.[0];
   const savedSubjective = parseRecord(draft?.subjective);
   const savedObjective = parseRecord(draft?.objective);
   const savedPlan = parseRecord(draft?.plan);
   const [savedDiagnoses, setSavedDiagnoses] = useState(draft?.diagnoses || []);
   const [history, setHistory] = useState<HistoryVisit[]>([]);
-  useEffect(() => setDispenseQuantity(calculateDispenseQuantity(doseQuantity, frequencyPerDay, durationDays)), [doseQuantity, frequencyPerDay, durationDays]);
+  useEffect(
+    () =>
+      setDispenseQuantity(
+        calculateDispenseQuantity(doseQuantity, frequencyPerDay, durationDays),
+      ),
+    [doseQuantity, frequencyPerDay, durationDays],
+  );
   useEffect(() => {
     fetch("/api/catalog")
       .then((response) => response.json())
@@ -999,21 +1085,42 @@ function ConsultationForm({
       .catch(() => setError("The order catalogue could not be loaded"));
   }, []);
   useEffect(() => {
-    jsonRequest<{ visits: HistoryVisit[] }>(`/api/patients/${visit.patient.id}/history?exclude=${visit.id}`, undefined, "Previous clinical history could not be loaded")
-      .then(result => setHistory(result.visits)).catch(reason => setError((reason as Error).message));
+    jsonRequest<{ visits: HistoryVisit[] }>(
+      `/api/patients/${visit.patient.id}/history?exclude=${visit.id}`,
+      undefined,
+      "Previous clinical history could not be loaded",
+    )
+      .then((result) => setHistory(result.visits))
+      .catch((reason) => setError((reason as Error).message));
   }, [visit.id, visit.patient.id]);
   useEffect(() => {
-    if (diagnosisQuery.trim().length < 2 || diagnosisCode) return setDiagnosisResults([]);
+    if (diagnosisQuery.trim().length < 2 || diagnosisCode)
+      return setDiagnosisResults([]);
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       setDiagnosisSearching(true);
       try {
-        const response = await fetch(`/api/diagnoses/search?q=${encodeURIComponent(diagnosisQuery)}`, { signal: controller.signal });
+        const response = await fetch(
+          `/api/diagnoses/search?q=${encodeURIComponent(diagnosisQuery)}`,
+          { signal: controller.signal },
+        );
         const data = await response.json();
-        if (response.ok) setDiagnosisResults(data.results || []);
-      } finally { setDiagnosisSearching(false); }
+        if (response.ok) {
+          setDiagnosisResults(data.results || []);
+          setDiagnosisSourceWarning(
+            data.configurationRequired
+              ? "WHO ICD-11 live search needs API credentials. Only diagnoses previously used at this facility are currently shown."
+              : "",
+          );
+        }
+      } finally {
+        setDiagnosisSearching(false);
+      }
     }, 300);
-    return () => { clearTimeout(timer); controller.abort(); };
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [diagnosisQuery, diagnosisCode]);
   const focusedReview = reviewFindingsForClinic(visit.clinic);
   const focusedExaminations = examinationGroupsForClinic(visit.clinic);
@@ -1028,20 +1135,27 @@ function ConsultationForm({
         : "—")
     );
   };
-  async function run(
-    action: string,
-    data: unknown,
-    message: string,
-  ) {
+  async function run(action: string, data: unknown, message: string) {
     setError("");
     setNotice("");
     try {
-      const result = await post(`/api/visits/${visit.id}/consultation`, { action, data });
-      setNotice(result.warnings?.length ? `${message} ${result.warnings.join(" ")}` : message);
+      const result = await post(`/api/visits/${visit.id}/consultation`, {
+        action,
+        data,
+      });
+      setNotice(
+        result.warnings?.length
+          ? `${message} ${result.warnings.join(" ")}`
+          : message,
+      );
       return result;
     } catch (e) {
       const details = (e as Error & { details?: DuplicateConflict }).details;
-      if (details?.code === "EXACT_DUPLICATE" || details?.code === "SAME_VISIT_DUPLICATE") setDuplicateConflict(details);
+      if (
+        details?.code === "EXACT_DUPLICATE" ||
+        details?.code === "SAME_VISIT_DUPLICATE"
+      )
+        setDuplicateConflict(details);
       setError((e as Error).message);
       return false;
     }
@@ -1105,15 +1219,27 @@ function ConsultationForm({
         "Primary ICD-11 diagnosis recorded.",
       );
       if (result && result.diagnosis) {
-        setSavedDiagnoses(current => [...current.map(item => result.diagnosis.primary ? { ...item, primary: false } : item), result.diagnosis]);
-        setDiagnosisQuery(""); setDiagnosisCode(""); setDiagnosisUri("");
+        setSavedDiagnoses((current) => [
+          ...current.map((item) =>
+            result.diagnosis.primary ? { ...item, primary: false } : item,
+          ),
+          result.diagnosis,
+        ]);
+        setDiagnosisQuery("");
+        setDiagnosisCode("");
+        setDiagnosisUri("");
       }
       return result;
     }
     if (action === "SUBMIT_INVESTIGATIONS")
       return run(
         action,
-        { labs: f.getAll("labs"), imaging: f.getAll("imaging"), priority: f.get("investigationPriority"), indication: f.get("investigationIndication") },
+        {
+          labs: f.getAll("labs"),
+          imaging: f.getAll("imaging"),
+          priority: f.get("investigationPriority"),
+          indication: f.get("investigationIndication"),
+        },
         "Investigation requests submitted and billing updated.",
       );
     if (action === "SAVE_PRESCRIPTION") {
@@ -1136,8 +1262,6 @@ function ConsultationForm({
               quantity: f.get("quantity"),
               quantityConfirmed: f.get("quantityConfirmed") === "on",
               instructions: f.get("medicineInstructions"),
-              isPrn: f.get("isPrn") === "on",
-              prnIndication: f.get("prnIndication") || undefined,
               doseTiming: f.get("doseTiming"),
               sequenceNote: f.get("sequenceNote") || undefined,
             },
@@ -1146,12 +1270,25 @@ function ConsultationForm({
       try {
         const result = await run(
           action,
-          { submit: submitPrescription, idempotencyKey: prescriptionKey, duplicateAction: f.get("duplicateAction") || undefined, duplicateReason: f.get("duplicateReason") || undefined, prescriptions },
-          submitPrescription ? "Prescription signed and sent to pharmacy. Billing will use the confirmed supplied quantity." : "Prescription saved as a draft; it has not been billed.",
+          {
+            submit: submitPrescription,
+            idempotencyKey: prescriptionKey,
+            duplicateAction: f.get("duplicateAction") || undefined,
+            duplicateReason: f.get("duplicateReason") || undefined,
+            prescriptions,
+          },
+          submitPrescription
+            ? "Prescription signed and sent to pharmacy. Billing will use the confirmed supplied quantity."
+            : "Prescription saved as a draft; it has not been billed.",
         );
-        if (result) { setPrescriptionKey(crypto.randomUUID()); setDuplicateConflict(null); }
+        if (result) {
+          setPrescriptionKey(crypto.randomUUID());
+          setDuplicateConflict(null);
+        }
         return result;
-      } finally { setSavingPrescription(false); }
+      } finally {
+        setSavingPrescription(false);
+      }
     }
     if (
       await run(
@@ -1221,8 +1358,53 @@ function ConsultationForm({
         </div>
       )}
       <details className="card historyPanel">
-        <summary><strong>Recent clinical history</strong><span>{history.length ? `${history.length} previous visit${history.length === 1 ? "" : "s"}` : "No previous visits found"}</span></summary>
-        {history.map(previous => <article key={previous.id}><h3>{new Date(previous.arrivedAt).toLocaleDateString()} · {previous.clinic}</h3><p><strong>Diagnosis:</strong> {previous.encounters[0]?.diagnoses.map(item => `${item.code || ""} ${item.description}`.trim()).join(" · ") || "No signed diagnosis"}</p><p><strong>Medicines:</strong> {previous.orders.filter(item => item.prescription).map(item => `${item.prescription!.genericName || item.displayName}${item.prescription!.strength ? ` ${item.prescription!.strength}` : ""} — ${item.prescription!.dose}, ${item.prescription!.frequency}`).join(" · ") || "None recorded"}</p><p><strong>Results:</strong> {previous.orders.flatMap(item => item.laboratory?.result?.items || []).map(item => `${item.analyte} ${item.value}${item.unit ? ` ${item.unit}` : ""}${item.flag ? ` (${item.flag})` : ""}`).join(" · ") || previous.orders.map(item => item.imaging?.result?.conclusion).filter(Boolean).join(" · ") || "No verified results"}</p></article>)}
+        <summary>
+          <strong>Recent clinical history</strong>
+          <span>
+            {history.length
+              ? `${history.length} previous visit${history.length === 1 ? "" : "s"}`
+              : "No previous visits found"}
+          </span>
+        </summary>
+        {history.map((previous) => (
+          <article key={previous.id}>
+            <h3>
+              {new Date(previous.arrivedAt).toLocaleDateString()} ·{" "}
+              {previous.clinic}
+            </h3>
+            <p>
+              <strong>Diagnosis:</strong>{" "}
+              {previous.encounters[0]?.diagnoses
+                .map((item) => `${item.code || ""} ${item.description}`.trim())
+                .join(" · ") || "No signed diagnosis"}
+            </p>
+            <p>
+              <strong>Medicines:</strong>{" "}
+              {previous.orders
+                .filter((item) => item.prescription)
+                .map(
+                  (item) =>
+                    `${item.prescription!.genericName || item.displayName}${item.prescription!.strength ? ` ${item.prescription!.strength}` : ""} — ${item.prescription!.dose}, ${item.prescription!.frequency}`,
+                )
+                .join(" · ") || "None recorded"}
+            </p>
+            <p>
+              <strong>Results:</strong>{" "}
+              {previous.orders
+                .flatMap((item) => item.laboratory?.result?.items || [])
+                .map(
+                  (item) =>
+                    `${item.analyte} ${item.value}${item.unit ? ` ${item.unit}` : ""}${item.flag ? ` (${item.flag})` : ""}`,
+                )
+                .join(" · ") ||
+                previous.orders
+                  .map((item) => item.imaging?.result?.conclusion)
+                  .filter(Boolean)
+                  .join(" · ") ||
+                "No verified results"}
+            </p>
+          </article>
+        ))}
       </details>
       <form
         className="consultForm"
@@ -1231,9 +1413,23 @@ function ConsultationForm({
         {error && <div className="alert">{error}</div>}
         {notice && <div className="alert success">{notice}</div>}
         <nav className="consultNavigator" aria-label="Consultation sections">
-          {[[1, "History"], [2, "Background"], [3, "Examination"], [4, "Diagnosis"], [5, "Investigations"], [6, "Prescription"], [7, "Plan & sign"]].map(([step, label]) => (
-            <button type="button" className={activeStep === step ? "active" : ""} onClick={() => setActiveStep(Number(step))} key={step}>
-              <b>{step}</b><span>{label}</span>
+          {[
+            [1, "History"],
+            [2, "Background"],
+            [3, "Examination"],
+            [4, "Diagnosis"],
+            [5, "Investigations"],
+            [6, "Prescription"],
+            [7, "Plan & sign"],
+          ].map(([step, label]) => (
+            <button
+              type="button"
+              className={activeStep === step ? "active" : ""}
+              onClick={() => setActiveStep(Number(step))}
+              key={step}
+            >
+              <b>{step}</b>
+              <span>{label}</span>
             </button>
           ))}
         </nav>
@@ -1246,11 +1442,21 @@ function ConsultationForm({
         >
           <label>
             Chief complaint *
-            <textarea name="chiefComplaint" required minLength={2} rows={2} defaultValue={savedSubjective.chiefComplaint || ""} />
+            <textarea
+              name="chiefComplaint"
+              required
+              minLength={2}
+              rows={2}
+              defaultValue={savedSubjective.chiefComplaint || ""}
+            />
           </label>
           <label>
             Duration
-            <input name="symptomDuration" placeholder="e.g. 3 days" defaultValue={savedSubjective.symptomDuration || ""} />
+            <input
+              name="symptomDuration"
+              placeholder="e.g. 3 days"
+              defaultValue={savedSubjective.symptomDuration || ""}
+            />
           </label>
           <label className="span2">
             History of presenting illness *
@@ -1263,11 +1469,43 @@ function ConsultationForm({
             />
           </label>
           <details className="span2 findingsBlock progressiveDetails">
-            <summary><span><strong>Focused review of systems</strong><small>{focusedReview.length} prompts selected for {visit.clinic}; open when clinically relevant</small></span></summary>
-            <FindingsGrid prefix="ros" findings={focusedReview} values={parseFindings(savedSubjective.reviewOfSystems)} />
-            <label>Relevant review notes<textarea name="reviewNotes" rows={3} defaultValue={parseFindings(savedSubjective.reviewOfSystems)["Additional findings"] || ""} /></label>
+            <summary>
+              <span>
+                <strong>Focused review of systems</strong>
+                <small>
+                  {focusedReview.length} prompts selected for {visit.clinic};
+                  open when clinically relevant
+                </small>
+              </span>
+            </summary>
+            <FindingsGrid
+              prefix="ros"
+              findings={focusedReview}
+              values={parseFindings(savedSubjective.reviewOfSystems)}
+            />
+            <label>
+              Relevant review notes
+              <textarea
+                name="reviewNotes"
+                rows={3}
+                defaultValue={
+                  parseFindings(savedSubjective.reviewOfSystems)[
+                    "Additional findings"
+                  ] || ""
+                }
+              />
+            </label>
           </details>
-          <div className="span2 sectionAdvance"><span>Keep documentation concise and problem-oriented.</span><button type="button" className="primary" onClick={() => setActiveStep(2)}>Background →</button></div>
+          <div className="span2 sectionAdvance">
+            <span>Keep documentation concise and problem-oriented.</span>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => setActiveStep(2)}
+            >
+              Background →
+            </button>
+          </div>
         </ClinicalSection>
         <ClinicalSection
           number="2"
@@ -1278,17 +1516,44 @@ function ConsultationForm({
         >
           <label>
             Past medical and surgical history
-            <textarea name="pastMedicalHistory" rows={3} defaultValue={savedSubjective.pastMedicalHistory || ""} />
+            <textarea
+              name="pastMedicalHistory"
+              rows={3}
+              defaultValue={savedSubjective.pastMedicalHistory || ""}
+            />
           </label>
           <label>
             Current medicines
-            <textarea name="currentMedicines" rows={3} defaultValue={savedSubjective.currentMedicines || ""} />
+            <textarea
+              name="currentMedicines"
+              rows={3}
+              defaultValue={savedSubjective.currentMedicines || ""}
+            />
           </label>
           <label className="span2">
             Family and social history
-            <textarea name="familySocialHistory" rows={3} defaultValue={savedSubjective.familySocialHistory || ""} />
+            <textarea
+              name="familySocialHistory"
+              rows={3}
+              defaultValue={savedSubjective.familySocialHistory || ""}
+            />
           </label>
-          <div className="span2 sectionAdvance"><button type="button" className="secondary" onClick={() => setActiveStep(1)}>← History</button><button type="button" className="primary" onClick={() => setActiveStep(3)}>Examination →</button></div>
+          <div className="span2 sectionAdvance">
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => setActiveStep(1)}
+            >
+              ← History
+            </button>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => setActiveStep(3)}
+            >
+              Examination →
+            </button>
+          </div>
         </ClinicalSection>
         <ClinicalSection
           number="3"
@@ -1298,11 +1563,28 @@ function ConsultationForm({
           onOpen={() => setActiveStep(3)}
         >
           <details className="span2 findingsBlock progressiveDetails" open>
-            <summary><span><strong>General examination</strong><small>Core examination findings</small></span></summary>
-            <FindingsGrid prefix="general" findings={generalFindings} values={parseFindings(savedObjective.generalExamination)} />
+            <summary>
+              <span>
+                <strong>General examination</strong>
+                <small>Core examination findings</small>
+              </span>
+            </summary>
+            <FindingsGrid
+              prefix="general"
+              findings={generalFindings}
+              values={parseFindings(savedObjective.generalExamination)}
+            />
             <label>
               General examination notes
-              <textarea name="generalExamNotes" rows={3} defaultValue={parseFindings(savedObjective.generalExamination)["Additional findings"] || ""} />
+              <textarea
+                name="generalExamNotes"
+                rows={3}
+                defaultValue={
+                  parseFindings(savedObjective.generalExamination)[
+                    "Additional findings"
+                  ] || ""
+                }
+              />
             </label>
           </details>
           <div className="span2 findingsBlock">
@@ -1321,12 +1603,24 @@ function ConsultationForm({
                   {group.title}
                   <span>Open focused examination</span>
                 </summary>
-                <FindingsGrid prefix="exam" findings={group.findings} values={parseFindings(savedObjective.systemicExamination)} />
+                <FindingsGrid
+                  prefix="exam"
+                  findings={group.findings}
+                  values={parseFindings(savedObjective.systemicExamination)}
+                />
               </details>
             ))}
             <label>
               Abnormal findings / additional examination notes
-              <textarea name="systemExamNotes" rows={4} defaultValue={parseFindings(savedObjective.systemicExamination)["Additional findings"] || ""} />
+              <textarea
+                name="systemExamNotes"
+                rows={4}
+                defaultValue={
+                  parseFindings(savedObjective.systemicExamination)[
+                    "Additional findings"
+                  ] || ""
+                }
+              />
             </label>
           </div>
         </ClinicalSection>
@@ -1340,7 +1634,9 @@ function ConsultationForm({
           <button
             type="button"
             className="secondary"
-            onClick={async (event) => { if (await act(event, "SAVE_NOTES")) setActiveStep(4); }}
+            onClick={async (event) => {
+              if (await act(event, "SAVE_NOTES")) setActiveStep(4);
+            }}
           >
             Save clinical notes
           </button>
@@ -1352,15 +1648,60 @@ function ConsultationForm({
           active={activeStep === 4}
           onOpen={() => setActiveStep(4)}
         >
-          {savedDiagnoses.length > 0 && <div className="span2 diagnosisList"><strong>Recorded diagnoses</strong>{savedDiagnoses.map((item,index)=><div key={item.id || `${item.code}-${index}`}><span>{item.primary ? "PRIMARY" : item.type || "SECONDARY"}</span><b>{item.code} · {item.description}</b></div>)}</div>}
+          {savedDiagnoses.length > 0 && (
+            <div className="span2 diagnosisList">
+              <strong>Recorded diagnoses</strong>
+              {savedDiagnoses.map((item, index) => (
+                <div key={item.id || `${item.code}-${index}`}>
+                  <span>
+                    {item.primary ? "PRIMARY" : item.type || "SECONDARY"}
+                  </span>
+                  <b>
+                    {item.code} · {item.description}
+                  </b>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="span2 diagnosisSearch">
-            <label>Search diagnosis or ICD-11 code *
-              <input name="primaryDiagnosis" value={diagnosisQuery} onChange={e => { setDiagnosisQuery(e.target.value); setDiagnosisCode(""); setDiagnosisUri(""); }} required minLength={2} autoComplete="off" placeholder="Type a condition, symptom or ICD-11 code" />
+            <label>
+              Search diagnosis or ICD-11 code *
+              <input
+                name="primaryDiagnosis"
+                value={diagnosisQuery}
+                onChange={(e) => {
+                  setDiagnosisQuery(e.target.value);
+                  setDiagnosisCode("");
+                  setDiagnosisUri("");
+                }}
+                required
+                minLength={2}
+                autoComplete="off"
+                placeholder="Type a condition, symptom or ICD-11 code"
+              />
             </label>
             {diagnosisSearching && <small>Searching diagnoses…</small>}
-            {diagnosisResults.length > 0 && <div className="diagnosisResults" role="listbox">{diagnosisResults.map(result => <button type="button" key={`${result.code}-${result.title}`} onClick={() => { setDiagnosisQuery(result.title); setDiagnosisCode(result.code); setDiagnosisUri(result.foundationUri || ""); setDiagnosisResults([]); }}>
-              <strong>{result.title}</strong><span>{result.code} · {result.source}</span>
-            </button>)}</div>}
+            {diagnosisResults.length > 0 && (
+              <div className="diagnosisResults" role="listbox">
+                {diagnosisResults.map((result) => (
+                  <button
+                    type="button"
+                    key={`${result.code}-${result.title}`}
+                    onClick={() => {
+                      setDiagnosisQuery(result.title);
+                      setDiagnosisCode(result.code);
+                      setDiagnosisUri(result.foundationUri || "");
+                      setDiagnosisResults([]);
+                    }}
+                  >
+                    <strong>{result.title}</strong>
+                    <span>
+                      {result.code} · {result.source}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <label>
             ICD-11 MMS code *
@@ -1368,7 +1709,7 @@ function ConsultationForm({
               name="primaryIcd11"
               required
               value={diagnosisCode}
-              onChange={e => setDiagnosisCode(e.target.value.toUpperCase())}
+              onChange={(e) => setDiagnosisCode(e.target.value.toUpperCase())}
               placeholder="Selected automatically"
               autoCapitalize="characters"
             />
@@ -1382,17 +1723,37 @@ function ConsultationForm({
               <option value="FINAL">Confirmed / final</option>
             </select>
           </label>
-          <label>Diagnosis role<select name="diagnosisRole"><option value="PRIMARY">Primary diagnosis</option><option value="SECONDARY">Secondary / comorbidity</option></select></label>
+          <label>
+            Diagnosis role
+            <select name="diagnosisRole">
+              <option value="PRIMARY">Primary diagnosis</option>
+              <option value="SECONDARY">Secondary / comorbidity</option>
+            </select>
+          </label>
           <div className="span2 privacyNotice">
             <strong>ICD-11 coding</strong>
             <span>
-              Search by familiar clinical wording, then select the matching ICD-11 MMS diagnosis. Confirm the displayed title and code before saving.
+              Search by familiar clinical wording, then select the matching
+              ICD-11 MMS diagnosis. Confirm the displayed title and code before
+              saving.
             </span>
+            {diagnosisSourceWarning && (
+              <span className="dangerText">{diagnosisSourceWarning}</span>
+            )}
+            <a
+              href="https://icd.who.int/browse/2026-01/mms/en"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open the official WHO ICD-11 browser ↗
+            </a>
           </div>
           <button
             type="button"
             className="secondary span2"
-            onClick={async (event) => { if (await act(event, "SAVE_DIAGNOSIS")) setActiveStep(5); }}
+            onClick={async (event) => {
+              if (await act(event, "SAVE_DIAGNOSIS")) setActiveStep(5);
+            }}
           >
             Add ICD-11 diagnosis
           </button>
@@ -1405,25 +1766,36 @@ function ConsultationForm({
           onOpen={() => setActiveStep(5)}
         >
           <label>
-            Priority *<select name="investigationPriority" defaultValue={visit.priority}><option value="ROUTINE">Routine</option><option value="PRIORITY">Priority</option><option value="URGENT">Urgent</option><option value="EMERGENCY">Emergency</option></select>
+            Priority *
+            <select name="investigationPriority" defaultValue={visit.priority}>
+              <option value="ROUTINE">Routine</option>
+              <option value="PRIORITY">Priority</option>
+              <option value="URGENT">Urgent</option>
+              <option value="EMERGENCY">Emergency</option>
+            </select>
           </label>
           <label>
-            Clinical indication *<input name="investigationIndication" required defaultValue={savedDiagnoses.find(item => item.primary)?.description || ""} placeholder="Why the investigation is needed" />
+            Clinical indication *
+            <input
+              name="investigationIndication"
+              required
+              defaultValue={
+                savedDiagnoses.find((item) => item.primary)?.description || ""
+              }
+              placeholder="Why the investigation is needed"
+            />
           </label>
-          <div className="orderGroup">
-            <strong>Laboratory</strong>
-            {catalogue
+          <SearchableMultiPicker
+            name="labs"
+            label="Laboratory tests"
+            options={catalogue
               .filter((item) => item.category === "LABORATORY_TEST")
-              .map((item) => (
-                <label className="checkItem" key={item.code}>
-                  <input type="checkbox" name="labs" value={item.code} />
-                  <span>
-                    {item.name}
-                    <small>KES {Number(item.unitPrice).toLocaleString()}</small>
-                  </span>
-                </label>
-              ))}
-          </div>
+              .map((item) => ({
+                value: item.code,
+                label: item.name,
+                detail: `KES ${Number(item.unitPrice).toLocaleString()}`,
+              }))}
+          />
           <div className="span2 submitBar">
             <span>
               Submission creates service requests and adds their charges to the
@@ -1437,20 +1809,17 @@ function ConsultationForm({
               Submit investigation requests
             </button>
           </div>
-          <div className="orderGroup">
-            <strong>Imaging</strong>
-            {catalogue
+          <SearchableMultiPicker
+            name="imaging"
+            label="Imaging and procedures"
+            options={catalogue
               .filter((item) => item.category === "PROCEDURE")
-              .map((item) => (
-                <label className="checkItem" key={item.code}>
-                  <input type="checkbox" name="imaging" value={item.code} />
-                  <span>
-                    {item.name}
-                    <small>KES {Number(item.unitPrice).toLocaleString()}</small>
-                  </span>
-                </label>
-              ))}
-          </div>
+              .map((item) => ({
+                value: item.code,
+                label: item.name,
+                detail: `KES ${Number(item.unitPrice).toLocaleString()}`,
+              }))}
+          />
         </ClinicalSection>
         <ClinicalSection
           number="6"
@@ -1461,31 +1830,56 @@ function ConsultationForm({
         >
           <label className="span2">
             Medicine
-            <select
+            <SearchablePicker
               value={medicine}
-              onChange={(e) => { setMedicine(e.target.value); setDoseQuantity(1); setFrequencyPerDay(1); setDurationDays(1); setPrescriptionKey(crypto.randomUUID()); setDuplicateConflict(null); }}
-            >
-              <option value="">No medicine</option>
-              {catalogue
+              onChange={(value) => {
+                setMedicine(value);
+                setDoseQuantity(1);
+                setFrequencyPerDay(1);
+                setDurationDays(1);
+                setPrescriptionKey(crypto.randomUUID());
+                setDuplicateConflict(null);
+              }}
+              placeholder="Search medicine by generic, brand or strength…"
+              options={catalogue
                 .filter((item) => item.category === "PHARMACEUTICAL")
-                .map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.genericName || item.name}{item.strength ? ` ${item.strength}` : ""}{item.dosageForm ? ` · ${item.dosageForm}` : ""} · KES {Number(item.unitPrice).toLocaleString()}{" "}
-                    each
-                  </option>
-                ))}
-            </select>
+                .map((item) => ({
+                  value: item.code,
+                  label: `${item.genericName || item.name}${item.strength ? ` ${item.strength}` : ""}${item.dosageForm ? ` · ${item.dosageForm}` : ""}`,
+                  detail: `KES ${Number(item.unitPrice).toLocaleString()} each`,
+                }))}
+            />
           </label>
           {medicine && (
             <>
               <label className="span2">
-                Diagnosis / clinical indication *<input name="medicineIndication" required defaultValue={savedDiagnoses.find(item => item.primary)?.description || ""} />
+                Diagnosis / clinical indication *
+                <input
+                  name="medicineIndication"
+                  required
+                  defaultValue={
+                    savedDiagnoses.find((item) => item.primary)?.description ||
+                    ""
+                  }
+                />
               </label>
               <label>
-                Dose units per administration *<input name="doseQuantity" type="number" min="0.001" step="0.001" value={doseQuantity} onChange={event => setDoseQuantity(Number(event.target.value) || 0)} required />
+                Dose units per administration *
+                <input
+                  name="doseQuantity"
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  value={doseQuantity}
+                  onChange={(event) =>
+                    setDoseQuantity(Number(event.target.value) || 0)
+                  }
+                  required
+                />
               </label>
               <label>
-                Dose instruction *<input name="dose" required placeholder="e.g. 1 tablet" />
+                Dose instruction *
+                <input name="dose" required placeholder="e.g. 1 tablet" />
               </label>
               <label>
                 Route *
@@ -1499,19 +1893,62 @@ function ConsultationForm({
               </label>
               <label>
                 Frequency *
-                <select value={frequencyPerDay} onChange={event => setFrequencyPerDay(Number(event.target.value))}><option value={1}>Once daily</option><option value={2}>Twice daily</option><option value={3}>Three times daily</option><option value={4}>Four times daily</option></select>
-                <input name="frequency" type="hidden" value={frequencyPerDay === 1 ? "Once daily" : frequencyPerDay === 2 ? "Twice daily" : frequencyPerDay === 3 ? "Three times daily" : "Four times daily"} />
+                <select
+                  value={frequencyPerDay}
+                  onChange={(event) =>
+                    setFrequencyPerDay(Number(event.target.value))
+                  }
+                >
+                  <option value={1}>Once daily</option>
+                  <option value={2}>Twice daily</option>
+                  <option value={3}>Three times daily</option>
+                  <option value={4}>Four times daily</option>
+                </select>
+                <input
+                  name="frequency"
+                  type="hidden"
+                  value={
+                    frequencyPerDay === 1
+                      ? "Once daily"
+                      : frequencyPerDay === 2
+                        ? "Twice daily"
+                        : frequencyPerDay === 3
+                          ? "Three times daily"
+                          : "Four times daily"
+                  }
+                />
               </label>
               <label>
                 Duration in days *
-                <input name="durationDays" type="number" min="1" max="3650" value={durationDays} onChange={event => setDurationDays(Number(event.target.value) || 0)} required />
-                <input name="duration" type="hidden" value={`${durationDays} days`} />
+                <input
+                  name="durationDays"
+                  type="number"
+                  min="1"
+                  max="3650"
+                  value={durationDays}
+                  onChange={(event) =>
+                    setDurationDays(Number(event.target.value) || 0)
+                  }
+                  required
+                />
+                <input
+                  name="duration"
+                  type="hidden"
+                  value={`${durationDays} days`}
+                />
               </label>
               <label>
-                Start date *<input name="startDate" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
+                Start date *
+                <input
+                  name="startDate"
+                  type="date"
+                  required
+                  defaultValue={new Date().toISOString().slice(0, 10)}
+                />
               </label>
               <label>
-                Stop date<input name="stopDate" type="date" />
+                Stop date
+                <input name="stopDate" type="date" />
               </label>
               <label>
                 Quantity *
@@ -1522,26 +1959,97 @@ function ConsultationForm({
                   step="0.1"
                   required
                   value={dispenseQuantity}
-                  onChange={event => setDispenseQuantity(Number(event.target.value) || 0)}
+                  onChange={(event) =>
+                    setDispenseQuantity(Number(event.target.value) || 0)
+                  }
                 />
-                <small>Calculated as dose units × administrations/day × days. Adjust only when pack size or clinical instructions require it.</small>
+                <small>
+                  Calculated as dose units × administrations/day × days. Adjust
+                  only when pack size or clinical instructions require it.
+                </small>
               </label>
-              <label className="span2"><span><input name="quantityConfirmed" type="checkbox" required /> I reviewed and confirm the dispensing quantity *</span></label>
+              <label className="span2">
+                <span>
+                  <input name="quantityConfirmed" type="checkbox" required /> I
+                  reviewed and confirm the dispensing quantity *
+                </span>
+              </label>
               <label className="span2">
                 Patient instructions *
-                <input name="medicineInstructions" required placeholder="How and when the patient should take this medicine" />
+                <input
+                  name="medicineInstructions"
+                  required
+                  placeholder="How and when the patient should take this medicine"
+                />
               </label>
               <label>
-                Dose timing<select name="doseTiming"><option value="SCHEDULED">Scheduled course</option><option value="STAT">STAT dose</option><option value="STAT_THEN_SCHEDULED">STAT then scheduled course</option></select>
+                Dose timing
+                <select name="doseTiming">
+                  <option value="SCHEDULED">Scheduled course</option>
+                  <option value="STAT">STAT dose</option>
+                  <option value="STAT_THEN_SCHEDULED">
+                    STAT then scheduled course
+                  </option>
+                </select>
               </label>
               <label>
-                Sequence note<input name="sequenceNote" placeholder="Document STAT-to-course sequence" />
+                Sequence note
+                <input
+                  name="sequenceNote"
+                  placeholder="Document STAT-to-course sequence"
+                />
               </label>
-              <label className="span2"><span><input name="isPrn" type="checkbox" /> Use when required (PRN)</span></label>
-              <label className="span2">
-                PRN indication<input name="prnIndication" placeholder="Symptom or condition requiring the PRN dose" />
-              </label>
-              {duplicateConflict && <div className="span2 dangerPanel"><strong>{duplicateConflict.code === "SAME_VISIT_DUPLICATE" ? "Medicine already prescribed in this visit" : "Exact active duplicate detected"}</strong><span>{String(duplicateConflict.existing.genericName || "Medicine")} {String(duplicateConflict.existing.strength || "")} · {String(duplicateConflict.existing.dosageForm || "")} · {String(duplicateConflict.existing.route || "")} · {String(duplicateConflict.existing.frequency || "")}</span><span>{duplicateConflict.code === "SAME_VISIT_DUPLICATE" ? "A second order is not allowed. Edit the existing prescription or cancel." : "Choose what to do with the existing prescription. A clinical reason is mandatory."}</span><label>Decision *<select name="duplicateAction" required defaultValue=""><option value="">Cancel and review</option><option value="EDIT_EXISTING">Edit existing prescription</option>{duplicateConflict.code === "EXACT_DUPLICATE" && <><option value="REPLACE_EXISTING">Replace existing prescription</option><option value="KEEP_BOTH">Override and keep both</option></>}</select></label><label>Clinical justification *<textarea name="duplicateReason" required minLength={10} rows={2} /></label></div>}
+              {duplicateConflict && (
+                <div className="span2 dangerPanel">
+                  <strong>
+                    {duplicateConflict.code === "SAME_VISIT_DUPLICATE"
+                      ? "Medicine already prescribed in this visit"
+                      : "Exact active duplicate detected"}
+                  </strong>
+                  <span>
+                    {String(
+                      duplicateConflict.existing.genericName || "Medicine",
+                    )}{" "}
+                    {String(duplicateConflict.existing.strength || "")} ·{" "}
+                    {String(duplicateConflict.existing.dosageForm || "")} ·{" "}
+                    {String(duplicateConflict.existing.route || "")} ·{" "}
+                    {String(duplicateConflict.existing.frequency || "")}
+                  </span>
+                  <span>
+                    {duplicateConflict.code === "SAME_VISIT_DUPLICATE"
+                      ? "A second order is not allowed. Edit the existing prescription or cancel."
+                      : "Choose what to do with the existing prescription. A clinical reason is mandatory."}
+                  </span>
+                  <label>
+                    Decision *
+                    <select name="duplicateAction" required defaultValue="">
+                      <option value="">Cancel and review</option>
+                      <option value="EDIT_EXISTING">
+                        Edit existing prescription
+                      </option>
+                      {duplicateConflict.code === "EXACT_DUPLICATE" && (
+                        <>
+                          <option value="REPLACE_EXISTING">
+                            Replace existing prescription
+                          </option>
+                          <option value="KEEP_BOTH">
+                            Override and keep both
+                          </option>
+                        </>
+                      )}
+                    </select>
+                  </label>
+                  <label>
+                    Clinical justification *
+                    <textarea
+                      name="duplicateReason"
+                      required
+                      minLength={10}
+                      rows={2}
+                    />
+                  </label>
+                </div>
+              )}
             </>
           )}
           <div className="span2 submitBar">
@@ -1577,11 +2085,19 @@ function ConsultationForm({
         >
           <label className="span2">
             Management plan *
-            <textarea name="plan" minLength={2} rows={4} defaultValue={savedPlan.plan || ""} />
+            <textarea
+              name="plan"
+              minLength={2}
+              rows={4}
+              defaultValue={savedPlan.plan || ""}
+            />
           </label>
           <label>
             Disposition *
-            <select name="disposition" defaultValue={savedPlan.disposition || "OUTPATIENT"}>
+            <select
+              name="disposition"
+              defaultValue={savedPlan.disposition || "OUTPATIENT"}
+            >
               <option value="OUTPATIENT">Continue outpatient care</option>
               <option value="ADMIT">Admit</option>
               <option value="REFER">Refer</option>
@@ -1589,11 +2105,19 @@ function ConsultationForm({
           </label>
           <label>
             Follow-up date
-            <input name="followUpDate" type="date" defaultValue={savedPlan.followUpDate || ""} />
+            <input
+              name="followUpDate"
+              type="date"
+              defaultValue={savedPlan.followUpDate || ""}
+            />
           </label>
           <label className="span2 confidential">
             Confidential clinician note
-            <textarea name="confidentialNote" rows={3} defaultValue={savedPlan.confidentialNote || ""} />
+            <textarea
+              name="confidentialNote"
+              rows={3}
+              defaultValue={savedPlan.confidentialNote || ""}
+            />
             <small>
               Restricted clinical content; never shown in reception or public
               queues.
@@ -1635,7 +2159,14 @@ function FindingsGrid({
       {findings.map(({ key, label, options }) => (
         <label key={key}>
           {label}
-          <select name={`${prefix}_${key}`} defaultValue={values[label] && options.includes(values[label]) ? values[label] : options[0]}>
+          <select
+            name={`${prefix}_${key}`}
+            defaultValue={
+              values[label] && options.includes(values[label])
+                ? values[label]
+                : options[0]
+            }
+          >
             {options.map((option) => (
               <option key={option}>{option}</option>
             ))}
@@ -1663,7 +2194,12 @@ function ClinicalSection({
 }) {
   return (
     <section className={`clinicalSection ${active ? "expanded" : "collapsed"}`}>
-      <button type="button" className="clinicalSectionHeader" onClick={onOpen} aria-expanded={active}>
+      <button
+        type="button"
+        className="clinicalSectionHeader"
+        onClick={onOpen}
+        aria-expanded={active}
+      >
         <b>{number}</b>
         <span>
           <strong>{title}</strong>
@@ -1671,7 +2207,9 @@ function ClinicalSection({
         </span>
         <i>{active ? "−" : "+"}</i>
       </button>
-      <div className="sectionGrid" aria-hidden={!active}>{children}</div>
+      <div className="sectionGrid" aria-hidden={!active}>
+        {children}
+      </div>
     </section>
   );
 }
