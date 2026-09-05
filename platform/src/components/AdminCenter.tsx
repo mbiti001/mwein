@@ -1,17 +1,24 @@
 "use client";
 import { useEffect, useState } from "react";
 import { jsonRequest } from "@/lib/client-http";
+import StaffWorkstation from "@/components/StaffWorkstation";
+import CatalogManager from "@/components/CatalogManager";
+import ImportCenter from "@/components/ImportCenter";
 
 type Overview = { metrics: Record<string, number>; actionItems: { lowStock: string[]; expiringStock: string[] }; sessions: { id: string; userAgent: string | null; lastSeenAt: string; expiresAt: string; user: { displayName: string; email: string } }[]; audits: { id: string; action: string; entityType: string; entityId: string; reason: string | null; occurredAt: string; user: { displayName: string } | null }[] };
 const labels: Record<string, string> = { registeredToday: "Patients registered today", waiting: "Patients waiting now", visitsToday: "Visits today", activeStaff: "Active staff accounts", outstanding: "Outstanding bills (KES)", pendingClaims: "Claims requiring action", pendingOrders: "Purchase approvals", lowStock: "Low-stock medicines", expiringStock: "Expiring within 90 days", activeSessions: "Active login sessions" };
 
-export default function AdminCenter({ canAudit }: { canAudit: boolean }) {
+type Tab = "overview" | "access" | "catalogue" | "imports";
+export default function AdminCenter({ permissions }: { permissions: string[] }) {
   const [data, setData] = useState<Overview | null>(null); const [error, setError] = useState("");
+  const [tab, setTab] = useState<Tab>("overview");
+  const canAudit = permissions.includes("audit.view");
   useEffect(() => { void jsonRequest<Overview>("/api/admin/overview", undefined, "Administration dashboard could not be loaded").then(setData).catch(reason => setError(reason.message)); }, []);
-  return <><header><div><p className="eyebrow">Administration</p><h1>Facility control centre</h1><p>See current activity, required action and control exceptions without entering clinical records.</p></div></header>{error && <div className="alert">{error}</div>}{!data ? !error && <section className="card"><p>Loading administration controls…</p></section> : <>
+  const tabs: { key: Tab; label: string }[] = [{ key: "overview", label: "Overview" }, ...(permissions.includes("admin.users") ? [{ key: "access" as Tab, label: "Users & access" }] : []), ...(permissions.includes("admin.catalog") ? [{ key: "catalogue" as Tab, label: "Services & pricing" }, { key: "imports" as Tab, label: "Data imports" }] : [])];
+  return <><header><div><p className="eyebrow">Administration</p><h1>Facility control centre</h1><p>Manage operations, access, services and governance from one place.</p></div></header><nav className="workspaceTabs" aria-label="Administration sections">{tabs.map(item => <button className={tab === item.key ? "active" : ""} onClick={() => setTab(item.key)} key={item.key}>{item.label}</button>)}</nav>{tab === "access" && <div className="embeddedWorkspace"><StaffWorkstation/></div>}{tab === "catalogue" && <div className="embeddedWorkspace"><CatalogManager/></div>}{tab === "imports" && <div className="embeddedWorkspace"><ImportCenter/></div>}{tab === "overview" && <>{error && <div className="alert">{error}</div>}{!data ? !error && <section className="card"><p>Loading administration controls…</p></section> : <>
     <section className="metricGrid">{Object.entries(data.metrics).map(([key, value]) => <article className={`metric ${["pendingClaims", "pendingOrders", "lowStock", "expiringStock"].includes(key) && value ? "urgent" : ""}`} key={key}><span>{labels[key] || key}</span><strong>{key === "outstanding" ? value.toLocaleString() : value}</strong></article>)}</section>
     <div className="supplyGrid"><section className="card"><div className="cardHead"><div><h2>Stock requiring action</h2><p>Open the Inventory or Supply chain workspace to resolve these items.</p></div></div><div className="queue">{[...data.actionItems.lowStock.map(name => ({ name, issue: "LOW STOCK" })), ...data.actionItems.expiringStock.map(name => ({ name, issue: "EXPIRING" }))].slice(0, 12).map((item, index) => <div className="row" key={`${item.issue}-${item.name}-${index}`}><span className="dot"/><div><strong>{item.name}</strong><small>{item.issue}</small></div></div>)}{!data.actionItems.lowStock.length && !data.actionItems.expiringStock.length && <p>No current stock exceptions.</p>}</div></section>
       <section className="card"><div className="cardHead"><div><h2>Access oversight</h2><p>Current sessions; disable a staff account to revoke access immediately.</p></div><strong>{data.sessions.length}</strong></div><div className="queue">{data.sessions.map(session => <div className="row" key={session.id}><span className="dot"/><div><strong>{session.user.displayName}</strong><small>{session.user.email} · last seen {new Date(session.lastSeenAt).toLocaleString()}</small></div></div>)}</div></section></div>
     {canAudit && <section className="card"><div className="cardHead"><div><h2>Recent audit trail</h2><p>Append-only record of sensitive actions. Values cannot be edited here.</p></div><strong>{data.audits.length}</strong></div><div className="queue">{data.audits.map(event => <div className="row" key={event.id}><span className="dot"/><div><strong>{event.action.replaceAll("_", " ")}</strong><small>{event.user?.displayName || "System"} · {event.entityType} · {new Date(event.occurredAt).toLocaleString()}{event.reason ? ` · ${event.reason}` : ""}</small></div><code>{event.entityId.slice(0, 8)}</code></div>)}</div></section>}
-  </>}</>;
+  </>}</>}</>;
 }

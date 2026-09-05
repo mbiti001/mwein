@@ -9,12 +9,9 @@ import BillingWorkstation from "@/components/BillingWorkstation";
 import VisitSummaryWorkstation from "@/components/VisitSummaryWorkstation";
 import ImagingWorkstation from "@/components/ImagingWorkstation";
 import InventoryWorkstation from "@/components/InventoryWorkstation";
-import CatalogManager from "@/components/CatalogManager";
-import ImportCenter from "@/components/ImportCenter";
 import ReportingWorkstation from "@/components/ReportingWorkstation";
 import AppointmentWorkstation from "@/components/AppointmentWorkstation";
 import ServicePointMap from "@/components/ServicePointMap";
-import StaffWorkstation from "@/components/StaffWorkstation";
 import SupplyWorkstation from "@/components/SupplyWorkstation";
 import AdminCenter from "@/components/AdminCenter";
 import { currentServicePoint, isWaitingOverdue, waitingMinutes, type ServicePointCode } from "@/lib/service-points";
@@ -96,7 +93,6 @@ type Screen =
   | "registration"
   | "appointments"
   | "flow"
-  | "staff"
   | "visit"
   | "triage"
   | "consultation"
@@ -108,8 +104,6 @@ type Screen =
   | "billing"
   | "summaries"
   | "reports"
-  | "catalogue"
-  | "imports"
   | "admin";
 
 async function api<T>(url: string, options?: RequestInit): Promise<T> {
@@ -148,7 +142,6 @@ export default function ClinicalApp() {
       registration: "Patient registration",
       appointments: "Appointments",
       flow: "Patient flow",
-      staff: "Staff access",
       visit: "Clinic check-in",
       triage: "Triage",
       consultation: "Consultation",
@@ -158,10 +151,8 @@ export default function ClinicalApp() {
       inventory: "Inventory",
       supply: "Supply chain",
       billing: "Billing",
-      summaries: "Visit summaries",
+      summaries: "Patient records",
       reports: "Reports",
-      catalogue: "Admin catalogue",
-      imports: "Spreadsheet imports",
       admin: "Administration",
     };
     document.title = `${titles[screen]} · Mwein HMIS`;
@@ -193,7 +184,7 @@ export default function ClinicalApp() {
   const allNav: [Screen, string, string?][] = [
     ["dashboard", "Home"],
     ["flow", "Patient flow", "visit.read"],
-    ["registration", "Reception", "patient.create"],
+    ["registration", "Registration", "patient.create"],
     ["appointments", "Appointments", "visit.create"],
     ["triage", "Triage", "triage.write"],
     ["consultation", "Consultation", "encounter.write"],
@@ -201,19 +192,15 @@ export default function ClinicalApp() {
     ["imaging", "Imaging", "imaging.write"],
     ["pharmacy", "Pharmacy", "pharmacy.dispense"],
     ["inventory", "Inventory", "inventory.view"],
-    ["supply", "Supply chain", "inventory.view"],
+    ["supply", "Procurement", "inventory.view"],
     ["billing", "Billing", "billing.read"],
-    ["summaries", "Visit summaries", "patient.read"],
+    ["summaries", "Patient records", "patient.read"],
   ];
   const nav: [Screen, string][] = allNav.filter(([, , permission]) => !permission || user.permissions.includes(permission)).map(([key, label]) => [key, label]);
   if ((user.permissions || []).includes("billing.read"))
     nav.push(["reports", "Reports"]);
-  if ((user.permissions || []).includes("admin.users"))
-    nav.push(["staff", "Staff access"]);
   if ((user.permissions || []).includes("admin.dashboard"))
     nav.push(["admin", "Administration"]);
-  if ((user.permissions || []).includes("admin.catalog"))
-    nav.push(["catalogue", "Admin catalogue"], ["imports", "CSV imports"]);
   return (
     <main className="shell">
       <button className="mobileNavToggle" aria-expanded={mobileNavOpen} aria-controls="main-navigation" onClick={() => setMobileNavOpen(value => !value)}>{mobileNavOpen ? "Close menu" : "☰ Menu"}</button>
@@ -253,7 +240,7 @@ export default function ClinicalApp() {
       </aside>
       <section className="workspace">
         {screen !== "dashboard" &&
-          !["catalogue", "imports", "summaries", "reports", "appointments", "flow", "staff"].includes(screen) && (
+          !["summaries", "reports", "appointments", "flow", "admin"].includes(screen) && (
             <WorkflowSteps screen={screen} />
           )}{" "}
         {contextVisitId && (() => { const visit = visits.find(item => item.id === contextVisitId); return visit ? <PatientContextBar visit={visit} onClear={() => setContextVisitId(null)} /> : null; })()}
@@ -358,10 +345,7 @@ export default function ClinicalApp() {
         )}
         {screen === "summaries" && <VisitSummaryWorkstation canAddendum={user.permissions.includes("encounter.write")} />}
         {screen === "reports" && <ReportingWorkstation />}
-        {screen === "staff" && <StaffWorkstation />}
-        {screen === "catalogue" && <CatalogManager />}
-        {screen === "imports" && <ImportCenter />}
-        {screen === "admin" && <AdminCenter canAudit={user.permissions.includes("audit.view")} />}
+        {screen === "admin" && <AdminCenter permissions={user.permissions} />}
         {!(
           [
             "dashboard",
@@ -379,9 +363,7 @@ export default function ClinicalApp() {
             "billing",
             "summaries",
             "reports",
-            "staff",
-            "catalogue",
-            "imports",
+            "admin",
           ] as Screen[]
         ).includes(screen) && <Workstation screen={screen} visits={visits} />}
       </section>
