@@ -736,6 +736,14 @@ model PurchaseOrder {
   createdById String @db.Uuid
   createdAt DateTime @default(now())
   receivedAt DateTime?
+  submittedAt DateTime?
+  submittedById String? @db.Uuid
+  approvedAt DateTime?
+  approvedById String? @db.Uuid
+  cancelledAt DateTime?
+  cancelledById String? @db.Uuid
+  cancellationReason String?
+  idempotencyKey String? @unique
   facility Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   lines PurchaseOrderLine[]
@@ -764,8 +772,24 @@ model InventoryControlEvent {
   variance Decimal? @db.Decimal(12, 3)
   reason String
   recordedById String @db.Uuid
+  status String @default("POSTED")
+  approvedById String? @db.Uuid
+  approvedAt DateTime?
+  idempotencyKey String? @unique
   occurredAt DateTime @default(now())
   @@index([facilityId, type, occurredAt])
+}
+
+model SupplyOperation {
+  id String @id @default(uuid()) @db.Uuid
+  facilityId String @db.Uuid
+  idempotencyKey String @unique
+  action String
+  entityType String
+  entityId String
+  createdById String @db.Uuid
+  createdAt DateTime @default(now())
+  @@index([facilityId, action, createdAt])
 }
 
 model StockMovement {

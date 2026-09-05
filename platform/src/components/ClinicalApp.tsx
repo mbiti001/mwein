@@ -197,8 +197,8 @@ export default function ClinicalApp() {
     ["diagnostics", "Laboratory", "laboratory.write"],
     ["imaging", "Imaging", "imaging.write"],
     ["pharmacy", "Pharmacy", "pharmacy.dispense"],
-    ["inventory", "Inventory", "inventory.write"],
-    ["supply", "Supply chain", "inventory.write"],
+    ["inventory", "Inventory", "inventory.view"],
+    ["supply", "Supply chain", "inventory.view"],
     ["billing", "Billing", "billing.read"],
     ["summaries", "Visit summaries", "patient.read"],
   ];
@@ -347,7 +347,7 @@ export default function ClinicalApp() {
           <PharmacyWorkstation visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />
         )}
         {screen === "inventory" && <InventoryWorkstation />}
-        {screen === "supply" && <SupplyWorkstation />}
+        {screen === "supply" && <SupplyWorkstation permissions={user.permissions} />}
         {screen === "billing" && (
           <BillingWorkstation visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />
         )}
