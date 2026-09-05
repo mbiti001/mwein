@@ -1555,7 +1555,7 @@ function ConsultationForm({
                 disabled={savingPrescription}
                 onClick={(event) => act(event, "SAVE_PRESCRIPTION")}
               >
-                Save prescription draft
+                Save for later
               </button>{" "}
               <button
                 type="button"
@@ -1563,7 +1563,7 @@ function ConsultationForm({
                 disabled={savingPrescription}
                 onClick={(event) => act(event, "SAVE_PRESCRIPTION", true)}
               >
-                {savingPrescription ? "Saving…" : "Submit prescription"}
+                {savingPrescription ? "Sending…" : "Send to pharmacy"}
               </button>
             </div>
           </div>

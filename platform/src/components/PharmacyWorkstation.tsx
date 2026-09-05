@@ -24,7 +24,7 @@ type Visit = {
 };
 
 async function post(id: string, body: unknown) {
-  return jsonRequest<{ allocations: BatchAllocation[]; replayed?: boolean }>(`/api/orders/${id}/dispense`, { method: "POST", body: JSON.stringify(body) }, "Dispensing could not be recorded");
+  return jsonRequest<{ allocations: BatchAllocation[]; remainingOrders: number; remainingQuantity: number; dispenseStatus: string; replayed?: boolean }>(`/api/orders/${id}/dispense`, { method: "POST", body: JSON.stringify(body) }, "Dispensing could not be recorded");
 }
 
 export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId, onInitialVisitOpened }: { visits: Visit[]; onUpdated: () => Promise<void>; initialVisitId?: string | null; onInitialVisitOpened?: () => void }) {
@@ -46,6 +46,12 @@ export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId,
     if (visit) { setActive(visit); onInitialVisitOpened?.(); }
   }, [initialVisitId, medicationVisits, onInitialVisitOpened]);
 
+  useEffect(() => {
+    if (!active) return;
+    const refreshed = visits.find(visit => visit.id === active.id);
+    if (refreshed) setActive(refreshed);
+  }, [visits]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function loadStock(orderId: string, quantity?: number) {
     const response = await fetch(`/api/orders/${orderId}/dispense${quantity ? `?quantity=${quantity}` : ""}`);
     const data = await response.json();
@@ -66,9 +72,8 @@ export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId,
       const result = await post(order.id, { action: form.get("action"), idempotencyKey, quantity: form.get("quantity") || undefined, counsellingCompleted: form.get("counsellingCompleted") === "on", notes: form.get("notes") || undefined });
       if (result.allocations?.length) setLabel({ patient: active!.patient.fullName, medicine: `${order.prescription!.genericName || order.displayName}${order.prescription!.strength ? ` ${order.prescription!.strength}` : ""}`, directions: order.prescription!.instructions || `${order.prescription!.dose} · ${order.prescription!.frequency}`, batches: result.allocations.map(item => item.batchNumber).join(", ") });
       delete requestKeys.current[order.id];
+      setNotice(result.replayed ? "Already recorded. Stock and billing were not changed again." : result.allocations?.length ? `Dispensed from ${result.allocations.map(item => `${item.batchNumber} (${item.quantity})`).join(", ")}. Stock and billing are updated.` : "Decision recorded. No stock was deducted.");
       await onUpdated();
-      setActive(null);
-      setNotice(result.replayed ? "This dispensing request was already recorded; stock and billing were not changed again." : result.allocations?.length ? `Dispensed from ${result.allocations.map(item => `${item.batchNumber} (${item.quantity})`).join(", ")}. Counselling confirmed and billing updated.` : "Dispensing decision recorded.");
     } catch (e) { setError((e as Error).message); } finally { setBusy(""); }
   }
 
@@ -86,6 +91,8 @@ export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId,
     <header><div><p className="eyebrow">Prescription review</p><h1>{active.patient.fullName}</h1><p>{active.patient.patientNumber} · {active.visitNumber} · {active.patient.dateOfBirth ? `${Math.floor((Date.now() - new Date(active.patient.dateOfBirth).getTime()) / 31557600000)} years` : active.patient.estimatedAgeYears != null ? `About ${active.patient.estimatedAgeYears} years` : "Age not recorded"} · Weight {active.triage?.observations.find(item => item.code === "WEIGHT")?.valueDecimal || "not recorded"} {active.triage?.observations.find(item => item.code === "WEIGHT")?.unit || ""}</p></div><button className="secondary" onClick={() => setActive(null)}>← Back to queue</button></header>
     {active.patient.allergies?.length ? <div className="allergyAlert"><strong>Allergy alert</strong>{active.patient.allergies.map(a => <span key={a.substance}>{a.substance}{a.reaction ? ` — ${a.reaction}` : ""}{a.severity ? ` (${a.severity})` : ""}</span>)}</div> : <div className="privacyNotice"><strong>No active allergies recorded</strong><span>Confirm allergy status with the patient before supply.</span></div>}
     {error && <div className="alert">{error}</div>}
+    {notice && <div className="alert success">{notice}</div>}
+    {!prescriptions.length && <section className="card empty"><strong>Pharmacy work complete for this patient</strong><p>The patient remains open so you can verify the result. Return to the queue when ready.</p></section>}
     <div className="queue compact">{prescriptions.map(order => {
       const prescribed = Number(order.prescription!.quantity);
       const supplied = Number(order.prescription!.dispensedQuantity || 0);

@@ -18,23 +18,25 @@ const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("RECEIVE"), idempotencyKey: key, lineId: z.uuid(), storeId: z.uuid(), batchNumber: z.string().trim().min(1).max(80), expiryDate: z.coerce.date(), quantity: z.coerce.number().positive() }),
   z.object({ action: z.literal("COUNT"), idempotencyKey: key, storeId: z.uuid(), batchId: z.uuid(), countedQuantity: z.coerce.number().nonnegative(), reason: z.string().trim().min(5).max(240) }),
   z.object({ action: z.literal("APPROVE_COUNT"), eventId: z.uuid() }),
+  z.object({ action: z.literal("EMERGENCY_ADJUST"), idempotencyKey: key, storeId: z.uuid(), batchId: z.uuid(), newQuantity: z.coerce.number().nonnegative(), reason: z.string().trim().min(10).max(240) }),
   z.object({ action: z.literal("TRANSFER"), idempotencyKey: key, sourceStoreId: z.uuid(), destinationStoreId: z.uuid(), batchId: z.uuid(), quantity: z.coerce.number().positive(), reason: z.string().trim().min(5).max(240) }),
 ]);
-const permissions: Record<string, string> = { SUPPLIER: "procurement.manage_suppliers", STORE: "inventory.manage_stores", PURCHASE_ORDER: "procurement.create", SUBMIT_PURCHASE_ORDER: "procurement.create", APPROVE_PURCHASE_ORDER: "procurement.approve", CANCEL_PURCHASE_ORDER: "procurement.approve", RECEIVE: "inventory.receive", COUNT: "inventory.count", APPROVE_COUNT: "inventory.adjust", TRANSFER: "inventory.transfer" };
+const permissions: Record<string, string> = { SUPPLIER: "procurement.manage_suppliers", STORE: "inventory.manage_stores", PURCHASE_ORDER: "procurement.create", SUBMIT_PURCHASE_ORDER: "procurement.create", APPROVE_PURCHASE_ORDER: "procurement.approve", CANCEL_PURCHASE_ORDER: "procurement.approve", RECEIVE: "inventory.receive", COUNT: "inventory.count", APPROVE_COUNT: "inventory.adjust", EMERGENCY_ADJUST: "inventory.adjust", TRANSFER: "inventory.transfer" };
 function fail(message: string, status = 422): never { throw Object.assign(new Error(message), { status }); }
 
 export async function GET() {
   try {
     const user = await requirePermission("inventory.view");
-    const [suppliers, stores, purchaseOrders, items, batches, pendingCounts] = await Promise.all([
+    const [suppliers, stores, purchaseOrders, items, batches, pendingCounts, emergencyAdjustments] = await Promise.all([
       db.supplier.findMany({ where: { facilityId: user.facilityId, active: true }, orderBy: { name: "asc" } }),
       db.store.findMany({ where: { facilityId: user.facilityId, active: true }, include: { balances: { include: { batch: { include: { catalogItem: { select: { name: true, code: true } } } } } } }, orderBy: { name: "asc" } }),
       db.purchaseOrder.findMany({ where: { facilityId: user.facilityId }, include: { supplier: true, lines: true }, orderBy: { createdAt: "desc" }, take: 30 }),
       db.catalogItem.findMany({ where: { facilityId: user.facilityId, category: "PHARMACEUTICAL", active: true }, select: { id: true, code: true, name: true }, orderBy: { name: "asc" } }),
       db.inventoryBatch.findMany({ where: { catalogItem: { facilityId: user.facilityId }, active: true }, include: { catalogItem: { select: { name: true, code: true } }, locationBalances: { include: { store: true } } }, orderBy: { expiryDate: "asc" } }),
       db.inventoryControlEvent.findMany({ where: { facilityId: user.facilityId, type: "STOCK_COUNT", status: "PENDING" }, orderBy: { occurredAt: "asc" } }),
+      db.inventoryControlEvent.findMany({ where: { facilityId: user.facilityId, type: "EMERGENCY_ADJUSTMENT", status: "RECONCILIATION_REQUIRED" }, orderBy: { occurredAt: "asc" } }),
     ]);
-    return NextResponse.json({ suppliers, stores, purchaseOrders, items, batches, pendingCounts, currentUserId: user.id });
+    return NextResponse.json({ suppliers, stores, purchaseOrders, items, batches, pendingCounts, emergencyAdjustments, currentUserId: user.id });
   } catch (error) { return apiError(error); }
 }
 
@@ -86,12 +88,16 @@ export async function POST(request: Request) {
       if (input.action === "COUNT") {
         const balance = await tx.inventoryLocationBalance.findFirst({ where: { storeId: input.storeId, batchId: input.batchId, store: { facilityId: user.facilityId } } });
         if (!balance) fail("This batch is not held in the selected store", 404);
+        const emergency = await tx.inventoryControlEvent.findFirst({ where: { facilityId: user.facilityId, storeId: input.storeId, batchId: input.batchId, type: "EMERGENCY_ADJUSTMENT", status: "RECONCILIATION_REQUIRED" } });
+        if (emergency?.recordedById === user.id) fail("The person who made an emergency adjustment cannot perform its reconciliation count.", 403);
         const variance = input.countedQuantity - Number(balance.quantity);
         const record = await tx.inventoryControlEvent.create({ data: { facilityId: user.facilityId, type: "STOCK_COUNT", storeId: input.storeId, batchId: input.batchId, quantity: input.countedQuantity, variance, reason: input.reason, recordedById: user.id, status: countDisposition(variance), idempotencyKey: input.idempotencyKey } });
+        if (variance === 0) await tx.inventoryControlEvent.updateMany({ where: { facilityId: user.facilityId, storeId: input.storeId, batchId: input.batchId, type: "EMERGENCY_ADJUSTMENT", status: "RECONCILIATION_REQUIRED" }, data: { status: "RECONCILED", approvedById: user.id, approvedAt: new Date() } });
         await operation(tx, user, input.idempotencyKey, input.action, "InventoryControlEvent", record.id);
         await appendAudit(tx, { userId: user.id, action: variance === 0 ? "STOCK_COUNT_MATCHED" : "STOCK_COUNT_SUBMITTED", entityType: "InventoryControlEvent", entityId: record.id, reason: input.reason, afterHash: `${input.countedQuantity}:${variance}` }); return record;
       }
       if (input.action === "APPROVE_COUNT") return approveCount(tx, user, input.eventId);
+      if (input.action === "EMERGENCY_ADJUST") return emergencyAdjust(tx, user, input);
       return transfer(tx, user, input);
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return NextResponse.json({ result }, { status: 201 });
@@ -129,10 +135,27 @@ async function approveCount(tx: Tx, user: User, eventId: string) {
   const balance = await tx.inventoryLocationBalance.findUnique({ where: { storeId_batchId: { storeId: event.storeId, batchId: event.batchId } } }); if (!balance) fail("The counted stock balance no longer exists", 409);
   const variance = Number(event.quantity) - Number(balance.quantity);
   const batch = await tx.inventoryBatch.update({ where: { id: event.batchId }, data: { quantityAvailable: { increment: variance } } });
+  await tx.inventoryBatch.update({ where: { id: event.batchId }, data: { active: Number(batch.quantityAvailable) > 0 } });
   await tx.inventoryLocationBalance.update({ where: { id: balance.id }, data: { quantity: event.quantity } });
   const record = await tx.inventoryControlEvent.update({ where: { id: event.id }, data: { variance, status: "APPROVED", approvedById: user.id, approvedAt: new Date() } });
   await tx.stockMovement.create({ data: { batchId: event.batchId, userId: user.id, type: "ADJUSTMENT", quantity: variance, balanceAfter: batch.quantityAvailable, reason: event.reason } });
+  await tx.inventoryControlEvent.updateMany({ where: { facilityId: user.facilityId, storeId: event.storeId, batchId: event.batchId, type: "EMERGENCY_ADJUSTMENT", status: "RECONCILIATION_REQUIRED" }, data: { status: "RECONCILED", approvedById: user.id, approvedAt: new Date() } });
   await appendAudit(tx, { userId: user.id, action: "STOCK_COUNT_APPROVED", entityType: "InventoryControlEvent", entityId: record.id, reason: record.reason, afterHash: `${record.quantity}:${variance}` }); return record;
+}
+
+async function emergencyAdjust(tx: Tx, user: User, input: Extract<z.infer<typeof actionSchema>, { action: "EMERGENCY_ADJUST" }>) {
+  const balance = await tx.inventoryLocationBalance.findFirst({ where: { storeId: input.storeId, batchId: input.batchId, store: { facilityId: user.facilityId } } });
+  if (!balance) fail("This batch is not held in the selected store", 404);
+  const pending = await tx.inventoryControlEvent.findFirst({ where: { facilityId: user.facilityId, storeId: input.storeId, batchId: input.batchId, type: "EMERGENCY_ADJUSTMENT", status: "RECONCILIATION_REQUIRED" } });
+  if (pending) fail("This batch already has an emergency correction awaiting physical count. Reconcile it before another correction.", 409);
+  const variance = input.newQuantity - Number(balance.quantity);
+  const batch = await tx.inventoryBatch.update({ where: { id: input.batchId }, data: { quantityAvailable: { increment: variance } } });
+  await tx.inventoryBatch.update({ where: { id: input.batchId }, data: { active: Number(batch.quantityAvailable) > 0 } });
+  await tx.inventoryLocationBalance.update({ where: { id: balance.id }, data: { quantity: input.newQuantity } });
+  const record = await tx.inventoryControlEvent.create({ data: { facilityId: user.facilityId, type: "EMERGENCY_ADJUSTMENT", storeId: input.storeId, batchId: input.batchId, quantity: input.newQuantity, variance, reason: input.reason, recordedById: user.id, status: "RECONCILIATION_REQUIRED", idempotencyKey: input.idempotencyKey } });
+  await tx.stockMovement.create({ data: { batchId: input.batchId, userId: user.id, type: "EMERGENCY_ADJUSTMENT", quantity: variance, balanceAfter: batch.quantityAvailable, reason: input.reason } });
+  await operation(tx, user, input.idempotencyKey, input.action, "InventoryControlEvent", record.id);
+  await appendAudit(tx, { userId: user.id, action: "EMERGENCY_STOCK_ADJUSTED", entityType: "InventoryControlEvent", entityId: record.id, reason: input.reason, afterHash: `${input.newQuantity}:${variance}` }); return record;
 }
 
 async function transfer(tx: Tx, user: User, input: Extract<z.infer<typeof actionSchema>, { action: "TRANSFER" }>) {

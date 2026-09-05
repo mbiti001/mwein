@@ -219,7 +219,7 @@ export default function ClinicalApp() {
           {nav.map(([key, label]) => (
             <button
               className={screen === key ? "active" : ""}
-              onClick={() => { setScreen(key); setFocusedVisitId(null); setContextVisitId(null); setMobileNavOpen(false); }}
+              onClick={() => { setScreen(key); setFocusedVisitId(null); setMobileNavOpen(false); }}
               key={key}
             >
               {label}
@@ -245,7 +245,7 @@ export default function ClinicalApp() {
           !["summaries", "reports", "appointments", "flow", "admin"].includes(screen) && (
             <WorkflowSteps screen={screen} />
           )}{" "}
-        {contextVisitId && (() => { const visit = visits.find(item => item.id === contextVisitId); return visit ? <PatientContextBar visit={visit} onClear={() => setContextVisitId(null)} /> : null; })()}
+        {contextVisitId && (() => { const visit = visits.find(item => item.id === contextVisitId); return visit ? <PatientContextBar visit={visit} onClear={() => setContextVisitId(null)} onOpen={(target) => { setFocusedVisitId(visit.id); setScreen(target); }} /> : null; })()}
         {notice && <div className="alert success">{notice}</div>}
         {screen === "dashboard" && (
           <Dashboard
@@ -578,10 +578,12 @@ function Dashboard({
   );
 }
 
-function PatientContextBar({ visit, onClear }: { visit: Visit; onClear: () => void }) {
-  const point = currentServicePoint(visit)?.replaceAll("_", " ") || visit.status.replaceAll("_", " ");
+function PatientContextBar({ visit, onClear, onOpen }: { visit: Visit; onClear: () => void; onOpen: (target: Screen) => void }) {
+  const servicePoint = currentServicePoint(visit);
+  const point = servicePoint?.replaceAll("_", " ") || visit.status.replaceAll("_", " ");
+  const targets: Partial<Record<ServicePointCode, Screen>> = { TRIAGE: "triage", CONSULTATION: "consultation", LABORATORY: "diagnostics", IMAGING: "imaging", PHARMACY: "pharmacy", BILLING: "billing" };
   const balance = visit.invoice ? visit.invoice.items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0) - visit.invoice.payments.filter(item => item.status === "CONFIRMED").reduce((sum, item) => sum + Number(item.amount), 0) : 0;
-  return <aside className="patientContext" aria-label="Current patient context"><div><strong>{visit.patient.fullName}</strong><span>{visit.patient.patientNumber} · {visit.visitNumber} · {visit.clinic}</span></div><div><small>Current location</small><b>{point}</b></div><div><small>Allergies</small><b className={visit.patient.allergies?.length ? "dangerText" : ""}>{visit.patient.allergies?.length ? visit.patient.allergies.map(item => item.substance).join(", ") : "None recorded"}</b></div><div><small>Payment</small><b>{visit.invoice?.status || "OPEN"} · KES {Math.max(0, balance).toLocaleString()}</b></div><button className="contextClose" onClick={onClear} aria-label="Clear patient context">×</button></aside>;
+  return <aside className="patientContext" aria-label="Current patient context"><div><strong>{visit.patient.fullName}</strong><span>{visit.patient.patientNumber} · {visit.visitNumber} · {visit.clinic}</span></div><div><small>Current location</small><b>{point}</b></div><div><small>Allergies</small><b className={visit.patient.allergies?.length ? "dangerText" : ""}>{visit.patient.allergies?.length ? visit.patient.allergies.map(item => item.substance).join(", ") : "None recorded"}</b></div><div><small>Payment</small><b>{visit.invoice?.status || "OPEN"} · KES {Math.max(0, balance).toLocaleString()}</b></div>{servicePoint && targets[servicePoint] && <button className="contextAction" onClick={() => onOpen(targets[servicePoint]!)}>Open current task</button>}<button className="contextClose" onClick={onClear} aria-label="Clear patient context">×</button></aside>;
 }
 
 function PatientRegister({
