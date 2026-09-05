@@ -46,6 +46,8 @@ const permissionDefinitions = [
   ["claims.write", "Prepare and submit payer claims"],
   ["admin.users", "Manage users and roles"],
   ["admin.catalog", "Manage services and commodity catalogue"],
+  ["admin.dashboard", "View the facility administration dashboard"],
+  ["audit.view", "View append-only audit and session records"],
 ];
 for (const [code, description] of permissionDefinitions)
   await db.permission.upsert({
@@ -77,6 +79,11 @@ const operationalRoles = {
   PHARMACY: ["patient.read", "visit.read", "pharmacy.dispense", "inventory.view"],
   INVENTORY_CLERK: ["patient.read", "visit.read", "inventory.view", "inventory.receive", "inventory.count", "inventory.transfer", "inventory.manage_stores", "procurement.manage_suppliers", "procurement.create"],
   PROCUREMENT_APPROVER: ["patient.read", "visit.read", "inventory.view", "inventory.adjust", "procurement.approve"],
+  FACILITY_ADMIN: ["patient.read", "visit.read", "billing.read", "admin.dashboard", "admin.users", "admin.catalog", "audit.view", "inventory.view", "procurement.approve"],
+  MEDICAL_DIRECTOR: ["patient.read", "visit.read", "encounter.write", "order.write", "admin.dashboard", "audit.view"],
+  FINANCE_MANAGER: ["patient.read", "visit.read", "billing.read", "billing.write", "billing.reverse", "claims.write", "admin.dashboard", "audit.view"],
+  HR_ADMIN: ["admin.dashboard", "admin.users", "audit.view"],
+  AUDITOR: ["admin.dashboard", "audit.view", "billing.read", "inventory.view"],
   BILLING: ["patient.read", "visit.read", "billing.read", "billing.write", "billing.reverse", "claims.write"],
 };
 for (const [code, permissionCodes] of Object.entries(operationalRoles)) {

@@ -16,6 +16,7 @@ import AppointmentWorkstation from "@/components/AppointmentWorkstation";
 import ServicePointMap from "@/components/ServicePointMap";
 import StaffWorkstation from "@/components/StaffWorkstation";
 import SupplyWorkstation from "@/components/SupplyWorkstation";
+import AdminCenter from "@/components/AdminCenter";
 import { currentServicePoint, isWaitingOverdue, waitingMinutes, type ServicePointCode } from "@/lib/service-points";
 import { jsonRequest } from "@/lib/client-http";
 
@@ -108,7 +109,8 @@ type Screen =
   | "summaries"
   | "reports"
   | "catalogue"
-  | "imports";
+  | "imports"
+  | "admin";
 
 async function api<T>(url: string, options?: RequestInit): Promise<T> {
   return jsonRequest<T>(url, options);
@@ -160,6 +162,7 @@ export default function ClinicalApp() {
       reports: "Reports",
       catalogue: "Admin catalogue",
       imports: "Spreadsheet imports",
+      admin: "Administration",
     };
     document.title = `${titles[screen]} · Mwein HMIS`;
   }, [screen]);
@@ -207,6 +210,8 @@ export default function ClinicalApp() {
     nav.push(["reports", "Reports"]);
   if ((user.permissions || []).includes("admin.users"))
     nav.push(["staff", "Staff access"]);
+  if ((user.permissions || []).includes("admin.dashboard"))
+    nav.push(["admin", "Administration"]);
   if ((user.permissions || []).includes("admin.catalog"))
     nav.push(["catalogue", "Admin catalogue"], ["imports", "CSV imports"]);
   return (
@@ -356,6 +361,7 @@ export default function ClinicalApp() {
         {screen === "staff" && <StaffWorkstation />}
         {screen === "catalogue" && <CatalogManager />}
         {screen === "imports" && <ImportCenter />}
+        {screen === "admin" && <AdminCenter canAudit={user.permissions.includes("audit.view")} />}
         {!(
           [
             "dashboard",

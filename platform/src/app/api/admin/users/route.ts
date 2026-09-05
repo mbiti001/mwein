@@ -8,7 +8,7 @@ import { apiError } from "@/lib/http";
 import { hashPassword } from "@/lib/security";
 import { staffChangeIsSafe } from "@/lib/staff";
 
-const roleCode = z.enum(["SYSTEM_ADMIN", "RECEPTION", "NURSE", "CLINICIAN", "LABORATORY", "IMAGING", "PHARMACY", "BILLING"]);
+const roleCode = z.enum(["SYSTEM_ADMIN", "FACILITY_ADMIN", "MEDICAL_DIRECTOR", "FINANCE_MANAGER", "HR_ADMIN", "AUDITOR", "RECEPTION", "NURSE", "CLINICIAN", "LABORATORY", "IMAGING", "PHARMACY", "BILLING", "INVENTORY_CLERK", "PROCUREMENT_APPROVER"]);
 const createSchema = z.object({
   displayName: z.string().trim().min(2).max(120),
   email: z.email().transform((value) => value.toLowerCase()),
