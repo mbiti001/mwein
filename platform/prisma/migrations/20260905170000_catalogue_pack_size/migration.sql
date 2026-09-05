@@ -1,0 +1,1 @@
+ALTER TABLE "CatalogItem" ADD COLUMN "packSize" DECIMAL(12,3);

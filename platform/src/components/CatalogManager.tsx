@@ -16,6 +16,7 @@ type Item = {
   description?: string | null;
   unitPrice: string;
   costPrice?: string | null;
+  packSize?: string | null;
   currency: string;
   active: boolean;
   specimenType?: string | null;
@@ -65,6 +66,7 @@ export default function CatalogManager() {
     body.active = form.get("active") === "on";
     if (!body.reorderLevel) delete body.reorderLevel;
     if (!body.costPrice) delete body.costPrice;
+    if (!body.packSize) delete body.packSize;
     try {
       await request("/api/catalog", {
         method: editing ? "PATCH" : "POST",
@@ -87,6 +89,7 @@ export default function CatalogManager() {
           ...item,
           unitPrice: Number(item.unitPrice),
           costPrice: item.costPrice ? Number(item.costPrice) : undefined,
+          packSize: item.packSize ? Number(item.packSize) : undefined,
           reorderLevel: item.reorderLevel
             ? Number(item.reorderLevel)
             : undefined,
@@ -169,6 +172,7 @@ export default function CatalogManager() {
             />
           </label>
           {["PROCEDURE", "PHARMACEUTICAL"].includes(category) && <label>Cost price (KES)<input name="costPrice" type="number" min="0" step="0.01" defaultValue={editing?.costPrice || ""}/></label>}
+          {["PHARMACEUTICAL", "NON_PHARMACEUTICAL"].includes(category) && <label>Pack size<input name="packSize" type="number" min="0.001" step="0.001" defaultValue={editing?.packSize || ""}/></label>}
           {category === "LABORATORY_TEST" && (
             <label>
               Specimen type *
@@ -307,6 +311,7 @@ export default function CatalogManager() {
                     })}
                     {item.unitOfMeasure ? ` / ${item.unitOfMeasure}` : ""}
                     {item.costPrice ? ` · cost KES ${Number(item.costPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : ""}
+                    {item.packSize ? ` · pack ${Number(item.packSize)}` : ""}
                   </span>
                 </div>
                 <b>{item.active ? "ACTIVE" : "INACTIVE"}</b>

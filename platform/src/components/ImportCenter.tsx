@@ -27,12 +27,12 @@ const datasets: Record<Dataset, { label: string; headers: string }> = {
   PHARMACEUTICALS: {
     label: "Pharmaceuticals",
     headers:
-      "code,name,generic_name,strength,dosage_form,unit_of_measure,cost_price,unit_price,opening_quantity,batch_number,expiry_date,store_code,reorder_level,description,active",
+      "code,name,generic_name,strength,dosage_form,unit_of_measure,pack_size,cost_price,unit_price,opening_quantity,batch_number,expiry_date,store_code,reorder_level,description,active",
   },
   NON_PHARMACEUTICALS: {
     label: "Non-pharmaceuticals",
     headers:
-      "code,name,unit_price,unit_of_measure,reorder_level,description,active",
+      "code,name,unit_price,unit_of_measure,pack_size,reorder_level,description,active",
   },
   LAB_REFERENCE_RANGES: {
     label: "Laboratory reference intervals",
@@ -47,7 +47,7 @@ type Preview = {
 };
 
 export default function ImportCenter() {
-  const [dataset, setDataset] = useState<Dataset>("PATIENTS");
+  const [dataset, setDataset] = useState<Dataset>("PHARMACEUTICALS");
   const [csv, setCsv] = useState("");
   const [workbook, setWorkbook] = useState<File | null>(null);
   const [workbookTitle, setWorkbookTitle] = useState("");
@@ -97,6 +97,7 @@ export default function ImportCenter() {
       setSheetTitles(data.sheetTitles || []);
       if (data.csv) {
         setSheetTitle(data.sheetTitle);
+        if (data.suggestedDataset) setDataset(data.suggestedDataset as Dataset);
         setCsv(data.csv);
         setPreview([]);
         setSummary(null);
@@ -141,7 +142,7 @@ export default function ImportCenter() {
               setSummary(null);
             }}
           >
-            {(Object.keys(datasets) as Dataset[]).map((value) => (
+            {(Object.keys(datasets) as Dataset[]).filter(value => value !== "PATIENTS").map((value) => (
               <option value={value} key={value}>
                 {datasets[value].label}
               </option>

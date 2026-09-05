@@ -30,6 +30,7 @@ const itemSchema = z
     description: z.string().trim().max(1000).optional(),
     unitPrice: z.coerce.number().min(0).max(100000000),
     costPrice: z.coerce.number().min(0).max(100000000).optional(),
+    packSize: z.coerce.number().positive().max(1000000).optional(),
     specimenType: z.string().trim().max(80).optional(),
     modality: z.string().trim().max(80).optional(),
     genericName: z.string().trim().max(180).optional(),
@@ -103,6 +104,7 @@ export async function POST(request: Request) {
           name: normalizedName,
           unitPrice: new Prisma.Decimal(input.unitPrice),
           costPrice: input.costPrice === undefined ? undefined : new Prisma.Decimal(input.costPrice),
+          packSize: input.packSize === undefined ? undefined : new Prisma.Decimal(input.packSize),
           reorderLevel:
             input.reorderLevel === undefined
               ? undefined
@@ -149,6 +151,7 @@ export async function PATCH(request: Request) {
           name: normalizedCode === "FBC" ? laboratoryDisplayName(normalizedCode) : input.name,
           unitPrice: new Prisma.Decimal(input.unitPrice),
           costPrice: input.costPrice === undefined ? null : new Prisma.Decimal(input.costPrice),
+          packSize: input.packSize === undefined ? null : new Prisma.Decimal(input.packSize),
           reorderLevel:
             input.reorderLevel === undefined
               ? null

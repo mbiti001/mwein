@@ -14,6 +14,7 @@ import AppointmentWorkstation from "@/components/AppointmentWorkstation";
 import ServicePointMap from "@/components/ServicePointMap";
 import SupplyWorkstation from "@/components/SupplyWorkstation";
 import AdminCenter from "@/components/AdminCenter";
+import SaveFeedback from "@/components/SaveFeedback";
 import { currentServicePoint, isWaitingOverdue, waitingMinutes, type ServicePointCode } from "@/lib/service-points";
 import { jsonRequest } from "@/lib/client-http";
 
@@ -203,6 +204,7 @@ export default function ClinicalApp() {
     nav.push(["admin", "Administration"]);
   return (
     <main className="shell">
+      <SaveFeedback />
       <button className="mobileNavToggle" aria-expanded={mobileNavOpen} aria-controls="main-navigation" onClick={() => setMobileNavOpen(value => !value)}>{mobileNavOpen ? "Close menu" : "☰ Menu"}</button>
       {mobileNavOpen && <button className="navScrim" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
       <aside className={`sidebar ${mobileNavOpen ? "mobileOpen" : ""}`} id="main-navigation">

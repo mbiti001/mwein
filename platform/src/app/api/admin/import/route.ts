@@ -78,6 +78,7 @@ function validate(row: Row, dataset: z.infer<typeof datasetSchema>) {
     "reorder_level",
     "display_order",
     "turnaround_minutes",
+    "pack_size",
   ])
     if (value[field] && !Number.isFinite(Number(value[field])))
       errors.push(`${field} must be numeric`);
@@ -303,6 +304,7 @@ export async function POST(request: Request) {
                 description: v.description || null,
                 unitPrice: new Prisma.Decimal(v.unit_price),
                 costPrice: v.cost_price ? new Prisma.Decimal(v.cost_price) : null,
+                packSize: v.pack_size ? new Prisma.Decimal(v.pack_size) : null,
                 active: v.active?.toLowerCase() !== "false",
                 specimenType: v.specimen_type || null,
                 synonyms: v.synonyms || null,
@@ -332,6 +334,7 @@ export async function POST(request: Request) {
                 description: v.description || null,
                 unitPrice: new Prisma.Decimal(v.unit_price),
                 costPrice: v.cost_price ? new Prisma.Decimal(v.cost_price) : null,
+                packSize: v.pack_size ? new Prisma.Decimal(v.pack_size) : null,
                 active: v.active?.toLowerCase() !== "false",
                 specimenType: v.specimen_type || null,
                 synonyms: v.synonyms || null,
