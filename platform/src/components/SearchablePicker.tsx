@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export type PickerOption = { value: string; label: string; detail?: string };
 
@@ -19,6 +19,7 @@ export function SearchablePicker({
   placeholder?: string;
   required?: boolean;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const selected = options.find((option) => option.value === value);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -31,12 +32,17 @@ export function SearchablePicker({
       )
       .slice(0, 12);
   }, [options, query]);
+  useEffect(() => {
+    inputRef.current?.setCustomValidity(required && !value ? "Select an item from the search results" : "");
+  }, [required, value]);
   return (
     <div className="searchablePicker">
       {name && (
         <input type="hidden" name={name} value={value} required={required} />
       )}
       <input
+        ref={inputRef}
+        required={required}
         value={open ? query : selected?.label || ""}
         onFocus={() => {
           setQuery("");
@@ -168,14 +174,16 @@ export function FormSearchablePicker({
   required?: boolean;
 }) {
   const [value, setValue] = useState("");
+  const host = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const form = host.current?.closest("form");
+    const reset = () => setValue("");
+    form?.addEventListener("reset", reset);
+    return () => form?.removeEventListener("reset", reset);
+  }, []);
   return (
-    <SearchablePicker
-      name={name}
-      options={options}
-      value={value}
-      onChange={setValue}
-      placeholder={placeholder}
-      required={required}
-    />
+    <div ref={host}>
+      <SearchablePicker name={name} options={options} value={value} onChange={setValue} placeholder={placeholder} required={required}/>
+    </div>
   );
 }
