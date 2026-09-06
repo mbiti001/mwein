@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { appointmentClinics } from "@/lib/appointments";
 import { jsonRequest } from "@/lib/client-http";
 
@@ -46,6 +46,11 @@ export default function AppointmentWorkstation({
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [reminder, setReminder] = useState<{ contact: string; message: string } | null>(null);
+  const [query, setQuery] = useState("");
+  const visibleAppointments = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    return appointments.filter(item => !term || `${item.patient.fullName} ${item.patient.patientNumber} ${item.clinic} ${item.status}`.toLowerCase().includes(term)).slice(0, 50);
+  }, [appointments, query]);
 
   async function load() {
     setAppointments((await request<{ appointments: Appointment[] }>("/api/appointments")).appointments);
@@ -98,7 +103,7 @@ export default function AppointmentWorkstation({
       {error && <div className="alert">{error}</div>}
       {notice && <div className="alert success">{notice}</div>}
       {reminder && <section className="card reminderPreview"><div className="cardHead"><div><h2>Reminder ready</h2><p>Send to {reminder.contact} using the facility&apos;s approved messaging channel.</p></div><button className="secondary" type="button" onClick={() => setReminder(null)}>Close</button></div><textarea value={reminder.message} rows={4} readOnly aria-label="Prepared appointment reminder" /><button className="primary" type="button" onClick={async () => { try { await navigator.clipboard.writeText(reminder.message); setNotice("Reminder copied."); } catch { setError("Copy failed; select the reminder text manually."); } }}>Copy reminder</button></section>}
-      <form className="card dataForm" onSubmit={submit}>
+      <details className="card managementPanel"><summary><span><strong>Book appointment</strong><small>Open the booking form when needed</small></span><b>Open</b></summary><form className="dataForm managementBody" onSubmit={submit}>
         <div className="wide"><h2>Book appointment</h2><p>Search the existing patient register before selecting a clinic and time.</p></div>
         {patient ? (
           <div className="patientBanner wide"><div><strong>{patient.fullName}</strong><span>{patient.patientNumber}</span></div><button type="button" onClick={() => setPatient(null)}>Change patient</button></div>
@@ -115,16 +120,18 @@ export default function AppointmentWorkstation({
         <label>Date and time *<input name="scheduledAt" type="datetime-local" min={kenyaInputTime()} defaultValue={kenyaInputTime()} required /></label>
         <label className="wide">Reception note<textarea name="notes" rows={2} maxLength={300} placeholder="Optional administrative note; do not record clinical history here" /></label>
         <button className="primary wide" disabled={busy}>{busy ? "Booking…" : "Book appointment"}</button>
-      </form>
+      </form></details>
       <section className="card compact">
         <div className="cardHead"><div><h2>Upcoming appointments</h2><p>Today and the next 30 days.</p></div></div>
-        {appointments.length ? <div className="queue">{appointments.map((appointment) => (
+        <label className="listSearch">Search appointments<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Patient, number, clinic or status" /></label>
+        <p className="listCount">Showing {visibleAppointments.length} of {appointments.length} appointments</p>
+        {visibleAppointments.length ? <div className="queue">{visibleAppointments.map((appointment) => (
           <div className={`row appointmentRow ${appointment.status === "SCHEDULED" ? "" : "mutedRow"}`} key={appointment.id}>
             <span className="dot" /><div><strong>{appointment.patient.fullName}</strong><small>{appointment.patient.patientNumber} · {appointment.clinic}{appointment.notes ? ` · ${appointment.notes}` : ""}</small></div>
             <time>{new Date(appointment.scheduledAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</time>
             {appointment.status === "SCHEDULED" ? <div className="appointmentActions"><button className="primary" type="button" onClick={() => onCheckIn(appointment)}>Check in</button>{appointment.patient.consents?.length ? <button className="secondary" type="button" disabled={busy} onClick={() => void prepareReminder(appointment.id)}>{appointment.reminderPreparedAt ? "Reminder again" : "Reminder"}</button> : null}<button className="secondary" type="button" disabled={busy} onClick={() => void update(appointment.id, "CANCELLED")}>Cancel</button></div> : <b>{appointment.status.replaceAll("_", " ")}</b>}
           </div>
-        ))}</div> : <div className="empty"><strong>No upcoming appointments</strong><p>Booked patients will appear here.</p></div>}
+        ))}</div> : <div className="empty"><strong>{query ? "No matching appointments" : "No upcoming appointments"}</strong><p>{query ? "Try a different patient or clinic." : "Booked patients will appear here."}</p></div>}
       </section>
     </>
   );

@@ -58,15 +58,17 @@ export default function BillingWorkstation({
   initialVisitId?: string | null;
   onInitialVisitOpened?: () => void;
 }) {
-  const queue = useMemo(
-    () => visits.filter((v) => v.invoice && v.invoice.status !== "PAID"),
-    [visits],
-  );
+  const queue = useMemo(() => visits.filter((v) => v.invoice && ["AWAITING_PAYMENT", "DISCHARGED", "REFERRED"].includes(v.status)), [visits]);
   const [active, setActive] = useState<Visit | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [lastReceipt, setLastReceipt] = useState("");
   const [claimPayer, setClaimPayer] = useState("SHA");
+  const [query, setQuery] = useState("");
+  const visibleQueue = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    return queue.filter(v => !term || `${v.patient.fullName} ${v.patient.patientNumber} ${v.visitNumber} ${v.invoice?.invoiceNumber || ""}`.toLowerCase().includes(term)).slice(0, 50);
+  }, [queue, query]);
   const [shaReady, setShaReady] = useState(false);
   useEffect(() => { void jsonRequest<{ ready: boolean }>("/api/integrations/sha/readiness", undefined, "SHA readiness could not be checked").then(result => setShaReady(result.ready)).catch(() => setShaReady(false)); }, []);
   const [receiptView, setReceiptView] = useState<{
@@ -156,6 +158,17 @@ export default function BillingWorkstation({
     } finally {
       setBusy(false);
     }
+  }
+  async function completeVisit() {
+    if (!active) return;
+    setBusy(true); setError("");
+    try {
+      await jsonRequest(`/api/visits/${active.id}/complete`, { method: "POST" }, "Visit could not be completed");
+      setLastReceipt(`${active.visitNumber} completed and removed from active patient flow.`);
+      setActive(null);
+      await onUpdated();
+    } catch (reason) { setError((reason as Error).message); }
+    finally { setBusy(false); }
   }
   async function updateClaim(
     event: FormEvent<HTMLFormElement>,
@@ -269,9 +282,10 @@ export default function BillingWorkstation({
           </div>
         )}
         <section className="card">
-          {queue.length ? (
+          <label className="listSearch">Find a visit<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Patient, patient number, visit or invoice" /></label>
+          {visibleQueue.length ? (
             <div className="queue">
-              {queue.map((v) => {
+              {visibleQueue.map((v) => {
                 const t = v.invoice!.items.reduce(
                     (s, i) => s + Number(i.quantity) * Number(i.unitPrice),
                     0,
@@ -301,8 +315,8 @@ export default function BillingWorkstation({
             </div>
           ) : (
             <div className="empty">
-              <strong>No unpaid active-visit invoices</strong>
-              <p>New visit charges appear here automatically.</p>
+              <strong>{query ? "No matching visit" : "No active visits awaiting billing closure"}</strong>
+              <p>{query ? "Try a different patient name or reference." : "Settled visits disappear after they are completed."}</p>
             </div>
           )}
         </section>
@@ -415,6 +429,7 @@ export default function BillingWorkstation({
           </div>
         )}
       </section>
+      {balance <= 0.001 && <section className="card noPrint visitClosure"><div><h2>Finish this visit</h2><p>Completion removes the patient from active queues. The system will stop and explain what remains if consultation, orders or financial cover are incomplete.</p></div><button className="primary" type="button" disabled={busy} onClick={() => void completeVisit()}>{busy ? "Checking…" : "Complete visit"}</button></section>}
       <form className="card dataForm noPrint" onSubmit={submit}>
         <div className="wide">
           <h2>Receive payment</h2>

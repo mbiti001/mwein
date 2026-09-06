@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { jsonRequest } from "@/lib/client-http";
 
 type Role = { id: string; code: string; name: string };
@@ -16,6 +16,11 @@ export default function StaffWorkstation() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [query, setQuery] = useState("");
+  const visibleStaff = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    return staff.filter(person => !term || `${person.displayName} ${person.email} ${person.status} ${person.roles[0]?.role.name || ""}`.toLowerCase().includes(term)).slice(0, 50);
+  }, [staff, query]);
 
   async function load() {
     const data = await request<{ users: Staff[]; roles: Role[] }>();
@@ -48,22 +53,24 @@ export default function StaffWorkstation() {
   return <>
     <header><div><p className="eyebrow">Administration</p><h1>Staff access</h1><p>Create facility accounts and assign one clear operational role.</p></div></header>
     {error && <div className="alert">{error}</div>}{notice && <div className="alert success">{notice}</div>}
-    <form className="card dataForm" onSubmit={create}>
+    <details className="card managementPanel"><summary><span><strong>Add staff member</strong><small>Create a new individual facility account</small></span><b>Open</b></summary><form className="dataForm managementBody" onSubmit={create}>
       <div className="wide"><h2>Add staff member</h2><p>Use an individual account for every person. Passwords must contain at least 16 characters.</p></div>
       <label>Full name *<input name="displayName" minLength={2} required /></label>
       <label>Work email *<input name="email" type="email" autoComplete="off" required /></label>
       <label>Role *<select name="roleCode">{roles.map((role) => <option value={role.code} key={role.id}>{role.name}</option>)}</select></label>
       <label>Temporary password *<input name="temporaryPassword" type="password" minLength={16} autoComplete="new-password" required /></label>
       <button className="primary wide" disabled={busy}>{busy ? "Creating…" : "Create staff account"}</button>
-    </form>
+    </form></details>
     <section className="card compact"><div className="cardHead"><div><h2>Facility staff</h2><p>Role or status changes sign the staff member out immediately.</p></div><strong>{staff.length} accounts</strong></div>
-      <div className="staffList">{staff.map((person) => <form className="staffRow" key={person.id} onSubmit={(event) => void update(event, person.id)}>
+      <label className="listSearch">Search staff<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, email, role or status" /></label>
+      <p className="listCount">Showing {visibleStaff.length} of {staff.length} accounts</p>
+      <div className="staffList">{visibleStaff.map((person) => <details className="staffDisclosure" key={person.id}><summary><span><strong>{person.displayName}</strong><small>{person.email} · {person.roles[0]?.role.name || "No role"} · {person.status}</small></span><b>Manage</b></summary><form className="staffRow" onSubmit={(event) => void update(event, person.id)}>
         <div><strong>{person.displayName}</strong><small>{person.email}</small></div>
         <label>Role<select name="roleCode" defaultValue={person.roles[0]?.role.code}>{roles.map((role) => <option value={role.code} key={role.id}>{role.name}</option>)}</select></label>
         <label>Status<select name="status" defaultValue={person.status === "ACTIVE" ? "ACTIVE" : "DISABLED"}><option value="ACTIVE">Active</option><option value="DISABLED">Disabled</option></select></label>
         <label>New temporary password<input name="temporaryPassword" type="password" minLength={16} autoComplete="new-password" placeholder="Leave blank to keep current" /></label>
         <button className="secondary" disabled={busy}>Save access</button>
-      </form>)}</div>
+      </form></details>)}</div>
     </section>
   </>;
 }

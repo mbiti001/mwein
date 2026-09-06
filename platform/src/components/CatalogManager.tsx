@@ -46,16 +46,18 @@ export default function CatalogManager() {
   const [editing, setEditing] = useState<Item | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [query, setQuery] = useState("");
   async function load() {
     setItems((await request("/api/catalog")).items);
   }
   useEffect(() => {
     load().catch((error) => setError(error.message));
   }, []);
-  const visible = useMemo(
-    () => items.filter((item) => item.category === category),
-    [items, category],
-  );
+  const categoryItems = useMemo(() => items.filter((item) => item.category === category), [items, category]);
+  const visible = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    return categoryItems.filter(item => !term || `${item.code} ${item.name} ${item.genericName || ""} ${item.strength || ""} ${item.description || ""}`.toLowerCase().includes(term)).slice(0, 50);
+  }, [categoryItems, query]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -132,8 +134,8 @@ export default function CatalogManager() {
       {error && <div className="alert">{error}</div>}
       {notice && <div className="alert success">{notice}</div>}
       <section className="catalogLayout">
-        <form
-          className="card dataForm catalogForm"
+        <details className="card managementPanel" open={Boolean(editing)}><summary><span><strong>{editing ? "Edit catalogue item" : "Add catalogue item"}</strong><small>Open only when you need to maintain services or pricing</small></span><b>Open</b></summary><form
+          className="dataForm catalogForm managementBody"
           key={editing?.id || category}
           onSubmit={submit}
         >
@@ -283,17 +285,19 @@ export default function CatalogManager() {
               {editing ? "Save changes" : "Add to catalogue"}
             </button>
           </div>
-        </form>
+        </form></details>
         <section className="card catalogList">
           <div className="cardHead">
             <div>
               <h2>{labels[category]}</h2>
               <p>
-                {visible.filter((item) => item.active).length} active ·{" "}
-                {visible.length} total
+                {categoryItems.filter((item) => item.active).length} active ·{" "}
+                {categoryItems.length} total
               </p>
             </div>
           </div>
+          <label className="listSearch">Search this catalogue<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Code, name, generic, strength or description" /></label>
+          <p className="listCount">Showing {visible.length} of {categoryItems.length} items</p>
           {visible.length === 0 ? (
             <div className="empty">
               <strong>No items in this category</strong>
