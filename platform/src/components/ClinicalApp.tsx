@@ -241,6 +241,16 @@ export default function ClinicalApp() {
         </div>
       </aside>
       <section className="workspace">
+        {user.permissions.includes("patient.read") && (
+          <GlobalPatientFinder onSelect={(patient) => {
+            const activeVisit = visits.find(visit => visit.patient.id === patient.id);
+            if (activeVisit) {
+              setContextVisitId(activeVisit.id);
+              setNotice(`${patient.fullName} is open in visit ${activeVisit.visitNumber}. Use “Open current task” to continue.`);
+              setScreen("dashboard");
+            } else openVisit(patient);
+          }}/>
+        )}
         {screen !== "dashboard" &&
           !["summaries", "reports", "appointments", "flow", "admin"].includes(screen) && (
             <WorkflowSteps screen={screen} />
@@ -371,6 +381,14 @@ export default function ClinicalApp() {
       </section>
     </main>
   );
+}
+
+function GlobalPatientFinder({ onSelect }: { onSelect: (patient: Patient) => void }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Patient[]>([]);
+  const [error, setError] = useState("");
+  useEffect(() => { if (query.trim().length < 2) { setResults([]); return; } const controller = new AbortController(); const timer = window.setTimeout(() => { api<{ patients: Patient[] }>(`/api/patients?q=${encodeURIComponent(query)}`, { signal: controller.signal }).then(data => { setResults(data.patients); setError(""); }).catch(reason => { if ((reason as Error).name !== "AbortError") setError("Patient search is temporarily unavailable"); }); }, 250); return () => { clearTimeout(timer); controller.abort(); }; }, [query]);
+  return <div className="globalPatientFinder noPrint"><label><span>Find a patient anywhere</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, patient number, phone, National ID or SHA number" autoComplete="off"/></label>{error && <small className="dangerText">{error}</small>}{results.length > 0 && <div className="globalPatientResults">{results.slice(0, 8).map(patient => <button type="button" key={patient.id} onClick={() => { onSelect(patient); setQuery(""); setResults([]); }}><strong>{patient.fullName}</strong><span>{patient.patientNumber} · {patientClinicalGroup(patient).label}</span></button>)}</div>}</div>;
 }
 
 function WorkflowSteps({ screen }: { screen: Screen }) {
@@ -674,9 +692,9 @@ function PatientRegister({
           <p>Required fields are marked with an asterisk.</p>
           {error && <div className="alert">{error}</div>}
         </div>
-        <label className="wide">
-          Full name *<input name="fullName" required minLength={3} />
-        </label>
+        <label>First name *<input name="givenName" required autoComplete="given-name" /></label>
+        <label>Middle name<input name="middleName" autoComplete="additional-name" /></label>
+        <label>Surname *<input name="familyName" required autoComplete="family-name" /></label>
         <label>
           Date of birth
           <input name="dateOfBirth" type="date" />

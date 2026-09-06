@@ -286,6 +286,9 @@ model Patient {
   id String @id @default(uuid()) @db.Uuid
   facilityId String @db.Uuid
   patientNumber String
+  givenName String?
+  middleName String?
+  familyName String?
   fullName String
   normalizedName String
   dateOfBirth DateTime? @db.Date

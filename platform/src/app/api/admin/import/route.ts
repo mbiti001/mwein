@@ -176,10 +176,14 @@ export async function POST(request: Request) {
               year,
               sequence.nextValue - 1n,
             );
+            const nameParts = v.full_name.trim().split(/\s+/);
             await tx.patient.create({
               data: {
                 facilityId: user.facilityId,
                 patientNumber: assigned,
+                givenName: nameParts[0] || null,
+                middleName: nameParts.length > 2 ? nameParts.slice(1, -1).join(" ") : null,
+                familyName: nameParts.length > 1 ? nameParts.at(-1) : null,
                 fullName: v.full_name,
                 normalizedName: normalizeName(v.full_name),
                 dateOfBirth: v.date_of_birth ? new Date(v.date_of_birth) : null,

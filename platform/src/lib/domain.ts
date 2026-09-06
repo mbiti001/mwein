@@ -29,7 +29,10 @@ export function assertVisitTransition(from: VisitStatus, to: VisitStatus) {
 }
 
 export const patientRegistrationSchema = z.object({
-  fullName: z.string().trim().min(3).max(160),
+  givenName: z.string().trim().min(1).max(60).optional(),
+  middleName: z.string().trim().max(60).optional(),
+  familyName: z.string().trim().min(1).max(60).optional(),
+  fullName: z.string().trim().min(3).max(160).optional(),
   dateOfBirth: z.iso.date().optional(),
   estimatedAgeYears: z.coerce.number().int().min(0).max(120).optional(),
   sexAtBirth: z.enum(["FEMALE", "MALE", "INTERSEX", "UNKNOWN"]),
@@ -45,7 +48,7 @@ export const patientRegistrationSchema = z.object({
   treatmentConsent: z.literal(true),
   electronicRecordConsent: z.literal(true),
   messagingConsent: z.boolean().default(false)
-}).refine(value => value.dateOfBirth || value.estimatedAgeYears !== undefined, { message: "Date of birth or estimated age is required", path: ["dateOfBirth"] });
+}).refine(value => value.fullName || (value.givenName && value.familyName), { message: "First name and surname are required", path: ["givenName"] }).refine(value => value.dateOfBirth || value.estimatedAgeYears !== undefined, { message: "Date of birth or estimated age is required", path: ["dateOfBirth"] });
 
 export const triageSchema = z.object({
   temperatureC: z.coerce.number().min(25).max(45),

@@ -39,6 +39,11 @@ describe("Phase 1 domain rules", () => {
     });
     expect(result.success).toBe(false);
   });
+  it("accepts structured patient names and requires first name plus surname", () => {
+    const base = { sexAtBirth: "FEMALE", phone: "+254700000001", county: "Busia", subcounty: "Nambale", estimatedAgeYears: 30, treatmentConsent: true, electronicRecordConsent: true };
+    expect(patientRegistrationSchema.safeParse({ ...base, givenName: "Amina", middleName: "Naliaka", familyName: "Wekesa" }).success).toBe(true);
+    expect(patientRegistrationSchema.safeParse({ ...base, givenName: "Amina" }).success).toBe(false);
+  });
   it("raises critical triage alerts for dangerous observations", () => {
     const alerts = assessTriageVitals({
       temperatureC: 37,
