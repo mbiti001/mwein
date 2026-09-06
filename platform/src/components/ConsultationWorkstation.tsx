@@ -52,7 +52,7 @@ type Visit = {
       type?: string;
     }[];
   }[];
-  orders?: { id: string; type: string; status: string; displayName: string }[];
+  orders?: { id: string; type: string; status: string; displayName: string; clinicalIndication?: string | null; prescription?: { id?: string; medicineCode: string; genericName?: string | null; strength?: string | null; dosageForm?: string | null; dose: string; route: string; frequency: string; duration?: string | null; quantity: string; instructions: string; dispenseStatus: string } | null }[];
 };
 type CatalogItem = {
   code: string;
@@ -1828,6 +1828,7 @@ function ConsultationForm({
           active={activeStep === 6}
           onOpen={() => setActiveStep(6)}
         >
+          {visit.orders?.some(order => order.type === "MEDICATION" && order.prescription && !["COMPLETED", "CANCELLED"].includes(order.status)) && <div className="span2 currentOrders"><strong>Current prescriptions</strong>{visit.orders.filter(order => order.type === "MEDICATION" && order.prescription && !["COMPLETED", "CANCELLED"].includes(order.status)).map(order => <div className="summaryLine" key={order.id}><span><b>{order.displayName}</b> · {order.prescription!.dose} · {order.prescription!.route} · {order.prescription!.frequency} · {order.prescription!.duration || "duration pending"} · Qty {Number(order.prescription!.quantity)}</span><button type="button" className="secondary" onClick={() => { const prescription = order.prescription!; setMedicine(prescription.medicineCode); setDuplicateConflict({ code: "SAME_VISIT_DUPLICATE", existingOrderId: order.id, existingPrescriptionId: prescription.id || "", existing: { genericName: prescription.genericName || order.displayName, strength: prescription.strength, dosageForm: prescription.dosageForm, dose: prescription.dose, route: prescription.route, frequency: prescription.frequency, duration: prescription.duration, quantity: prescription.quantity, instructions: prescription.instructions } }); }}>Correct</button></div>)}</div>}
           <label className="span2">
             Medicine
             <SearchablePicker
@@ -2137,7 +2138,7 @@ function ConsultationForm({
             className="primary"
             onClick={(event) => act(event, "SIGN")}
           >
-            Sign completed consultation
+            Sign &amp; send to next service
           </button>
         </div>
       </form>
