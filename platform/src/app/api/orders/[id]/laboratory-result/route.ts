@@ -184,22 +184,21 @@ export async function POST(
           where: { id },
           data: { status: "COMPLETED", completedAt: new Date() },
         });
-        const remaining = await tx.clinicalOrder.count({
+        const remainingLaboratory = await tx.clinicalOrder.count({
+          where: { visitId: order.visitId, type: "LABORATORY", status: { in: ["REQUESTED", "IN_PROGRESS"] } },
+        });
+        if (remainingLaboratory === 0) await tx.queueEntry.updateMany({
+          where: { visitId: order.visitId, servicePoint: "LABORATORY", status: { in: ["WAITING", "CALLED", "IN_PROGRESS"] } },
+          data: { status: "COMPLETED", completedAt: new Date() },
+        });
+        const remainingDiagnostics = await tx.clinicalOrder.count({
           where: {
             visitId: order.visitId,
             type: { in: ["LABORATORY", "IMAGING"] },
             status: { in: ["REQUESTED", "IN_PROGRESS"] },
           },
         });
-        if (remaining === 0) {
-          await tx.queueEntry.updateMany({
-            where: {
-              visitId: order.visitId,
-              servicePoint: { in: ["LABORATORY", "IMAGING"] },
-              status: { in: ["WAITING", "CALLED", "IN_PROGRESS"] },
-            },
-            data: { status: "COMPLETED", completedAt: new Date() },
-          });
+        if (remainingDiagnostics === 0) {
           await tx.queueEntry.create({
             data: {
               visitId: order.visitId,
@@ -209,7 +208,7 @@ export async function POST(
           });
           await tx.visit.update({
             where: { id: order.visitId },
-            data: { status: "UNDER_CONSULTATION" },
+            data: { status: "AWAITING_CLINICIAN" },
           });
         }
       } else if (order.status === "REQUESTED")

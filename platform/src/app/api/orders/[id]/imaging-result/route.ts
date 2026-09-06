@@ -100,22 +100,21 @@ export async function POST(
         },
       });
       if (verified) {
-        const remaining = await tx.clinicalOrder.count({
+        const remainingImaging = await tx.clinicalOrder.count({
+          where: { visitId: order.visitId, type: "IMAGING", status: { in: ["REQUESTED", "IN_PROGRESS"] } },
+        });
+        if (remainingImaging === 0) await tx.queueEntry.updateMany({
+          where: { visitId: order.visitId, servicePoint: "IMAGING", status: { in: ["WAITING", "CALLED", "IN_PROGRESS"] } },
+          data: { status: "COMPLETED", completedAt: new Date() },
+        });
+        const remainingDiagnostics = await tx.clinicalOrder.count({
           where: {
             visitId: order.visitId,
             type: { in: ["LABORATORY", "IMAGING"] },
             status: { in: ["REQUESTED", "IN_PROGRESS"] },
           },
         });
-        if (!remaining) {
-          await tx.queueEntry.updateMany({
-            where: {
-              visitId: order.visitId,
-              servicePoint: { in: ["LABORATORY", "IMAGING"] },
-              status: { in: ["WAITING", "CALLED", "IN_PROGRESS"] },
-            },
-            data: { status: "COMPLETED", completedAt: new Date() },
-          });
+        if (!remainingDiagnostics) {
           await tx.visit.update({
             where: { id: order.visitId },
             data: { status: "AWAITING_CLINICIAN" },

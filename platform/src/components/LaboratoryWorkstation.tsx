@@ -151,7 +151,7 @@ export default function LaboratoryWorkstation({
   const orders = visits.flatMap((visit) =>
     (visit.orders || [])
       .filter(
-        (order) => order.type === "LABORATORY" && order.status !== "CANCELLED",
+        (order) => order.type === "LABORATORY" && !["COMPLETED", "CANCELLED"].includes(order.status),
       )
       .map((order) => ({ visit, order })),
   );
@@ -159,6 +159,8 @@ export default function LaboratoryWorkstation({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [tests, setTests] = useState<CatalogTest[]>([]);
+  const [query, setQuery] = useState("");
+  const visibleOrders = orders.filter(({ visit, order }) => !query.trim() || `${visit.patient.fullName} ${visit.patient.patientNumber} ${visit.visitNumber} ${order.displayName} ${order.laboratory?.testCode || ""} ${order.laboratory?.accessionNumber || ""}`.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 50);
   useEffect(() => {
     if (!initialVisitId) return;
     const target = orders.find(item => item.visit.id === initialVisitId && item.order.status !== "COMPLETED");
@@ -264,15 +266,19 @@ export default function LaboratoryWorkstation({
             </p>
           </div>
         </header>
+        {error && <div className="alert">{error}</div>}
+        {notice && <div className="alert success">{notice}</div>}
         <section className="card">
-          {orders.length === 0 ? (
+          <label className="listSearch">Find a laboratory request<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Patient, visit, test or accession number" /></label>
+          <p className="listCount">Showing {visibleOrders.length} of {orders.length} pending tests</p>
+          {visibleOrders.length === 0 ? (
             <div className="empty">
-              <strong>No laboratory requests</strong>
-              <p>Submitted consultation orders appear here automatically.</p>
+              <strong>{query ? "No matching laboratory requests" : "Laboratory queue is clear"}</strong>
+              <p>{query ? "Try a different patient, visit or test reference." : "Submitted consultation orders appear here automatically. Verified findings remain in the patient record."}</p>
             </div>
           ) : (
             <div className="queue">
-              {orders.map(({ visit, order }) => (
+              {visibleOrders.map(({ visit, order }) => (
                 <button
                   className={`row ${visit.priority.toLowerCase()}`}
                   key={order.id}

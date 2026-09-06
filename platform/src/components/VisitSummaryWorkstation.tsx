@@ -259,7 +259,9 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
           ) : (
             <p>No investigations requested.</p>
           )}
-          {verifiedLabs.map((o: Summary) => (
+        </SummarySection>
+        <SummarySection title="Laboratory findings">
+          {verifiedLabs.length ? verifiedLabs.map((o: Summary) => (
             <table className="reportResults" key={o.id}>
               <caption>
                 {o.displayName} · Verified by{" "}
@@ -286,7 +288,9 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
                 ))}
               </tbody>
             </table>
-          ))}
+          )) : <p>No verified laboratory findings for this visit.</p>}
+        </SummarySection>
+        <SummarySection title="Imaging findings">
           {investigations.filter((o: Summary) => o.type === "IMAGING" && o.imaging?.result?.status === "VERIFIED").map((o: Summary) => (
             <div className="reportComment" key={`report-${o.id}`}><strong>{o.displayName} conclusion</strong><p>{o.imaging.result.conclusion}</p><small>Verified by {o.imaging.result.verifiedBy?.displayName || "Imaging service"}</small></div>
           ))}
