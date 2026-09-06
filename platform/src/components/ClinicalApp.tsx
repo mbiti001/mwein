@@ -405,9 +405,11 @@ function WorkflowSteps({ screen }: { screen: Screen }) {
 
 function Login({ onLogin }: { onLogin: (user: User) => void }) {
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setSubmitting(true);
     const form = new FormData(event.currentTarget);
     try {
       onLogin(
@@ -423,36 +425,50 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
       );
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setSubmitting(false);
     }
   }
   return (
-    <main className="login">
-      <form className="formCard" onSubmit={submit}>
+    <main className="publicEntry">
+      <nav className="publicNav" aria-label="Public navigation">
         <div className="brand dark">
           <span>M</span>
           <div>
             <strong>Mwein HMIS</strong>
-            <small>Secure clinical workspace</small>
+            <small>Connected outpatient care</small>
           </div>
         </div>
-        <h1>Welcome back</h1>
-        <p>Sign in with your staff account to continue.</p>
-        {error && <div className="alert">{error}</div>}
-        <label>
-          Email
-          <input name="email" type="email" autoComplete="username" required />
-        </label>
-        <label>
-          Password
-          <input
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-          />
-        </label>
-        <button className="primary">Sign in</button>
-      </form>
+        <a href="#sign-in">Staff sign in</a>
+      </nav>
+      <section className="publicHero">
+        <div className="heroCopy">
+          <p className="eyebrow">Exceptional care, close to you</p>
+          <h1>One calm workspace for every outpatient visit.</h1>
+          <p className="heroLead">Mwein connects reception, consultation, laboratory, pharmacy, billing and reporting around one patient journey—so teams spend less time searching and more time caring.</p>
+          <div className="heroActions">
+            <a className="heroPrimary" href="#sign-in">Open clinical workspace</a>
+            <span>Secure · Role-based · Audit-ready</span>
+          </div>
+          <div className="publicFeatures" aria-label="Platform benefits">
+            <article><b>01</b><strong>Follow the patient</strong><span>Clear queues and direct handoffs at every service point.</span></article>
+            <article><b>02</b><strong>Work safely</strong><span>Clinical checks, duplicate prevention and traceable actions.</span></article>
+            <article><b>03</b><strong>Know the facility</strong><span>Live stock, billing and monthly reporting in one system.</span></article>
+          </div>
+        </div>
+        <aside className="loginVisual" id="sign-in">
+          <div className="loginImage" role="img" aria-label="Clinician reviewing care information with a patient" />
+          <form className="formCard landingLogin" onSubmit={submit}>
+            <div><p className="eyebrow">Secure access</p><h2>Welcome back</h2><p>Sign in with your staff account.</p></div>
+            {error && <div className="alert" role="alert">{error}</div>}
+            <label>Email<input name="email" type="email" autoComplete="username" required /></label>
+            <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
+            <button className="primary" disabled={submitting}>{submitting ? "Signing in…" : "Sign in securely"}</button>
+            <small className="privacyLine">Authorised facility staff only. All access is recorded.</small>
+          </form>
+        </aside>
+      </section>
+      <footer className="publicFooter"><span>© {new Date().getFullYear()} Mwein Medical Services</span><span>Built for clear, connected care.</span></footer>
     </main>
   );
 }

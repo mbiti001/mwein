@@ -11,8 +11,8 @@ import "./catalogue.css";
 import "./mobile.css";
 
 export const metadata: Metadata = {
-  title: "Mwein Medical Services HMIS",
-  description: "Exceptional care close to you.",
+  title: "Mwein HMIS · Connected outpatient care",
+  description: "One secure workspace for reception, consultation, diagnostics, pharmacy, billing and reporting.",
 };
 
 export default function RootLayout({
