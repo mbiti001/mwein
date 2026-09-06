@@ -42,6 +42,7 @@ type Visit = {
       status: string;
       notes?: string | null;
       createdAt: string;
+      lines?: { invoiceItemId: string; amount: string }[];
     }[];
   } | null;
 };
@@ -90,7 +91,8 @@ export default function BillingWorkstation({
     invoice?.payments
       .filter((p) => p.status === "CONFIRMED")
       .reduce((s, p) => s + Number(p.amount), 0) || 0;
-  const balance = Math.max(0, total - paid);
+  const claimed = invoice?.claims.filter(c => ["DRAFT", "SUBMITTED", "APPROVED", "PAID"].includes(c.status)).reduce((sum, c) => sum + Number(c.amount), 0) || 0;
+  const balance = Math.max(0, total - paid - claimed);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!invoice) return;
@@ -127,12 +129,12 @@ export default function BillingWorkstation({
           body: JSON.stringify({
             payer: f.get("payer"),
             memberNumber: f.get("memberNumber"),
-            amount: f.get("claimAmount"),
+            coveredItemIds: f.getAll("coveredItemIds"),
             notes: f.get("claimNotes") || undefined,
             submit: f.get("payer") === "SHA" ? shaReady : true,
           }),
         }, "Claim could not be created");
-      setLastReceipt(`Claim ${d.claim.claimNumber} ${d.claim.status === "DRAFT" ? "saved as draft" : "submitted"}`);
+      setLastReceipt(`Claim ${d.claim.claimNumber} ${d.claim.status === "DRAFT" ? "saved as draft; visit remains awaiting submission" : d.visitCompleted ? "submitted; visit completed" : "submitted; collect any patient-pay balance before completing the visit"}`);
       await onUpdated();
       setActive(null);
     } catch (e) {
@@ -385,7 +387,10 @@ export default function BillingWorkstation({
             Paid <strong>{money(paid, invoice.currency)}</strong>
           </span>
           <span>
-            Balance <strong>{money(balance, invoice.currency)}</strong>
+            Insurance allocated <strong>{money(claimed, invoice.currency)}</strong>
+          </span>
+          <span>
+            Patient pays <strong>{money(balance, invoice.currency)}</strong>
           </span>
         </div>
         {invoice.payments.length > 0 && (
@@ -492,18 +497,7 @@ export default function BillingWorkstation({
         <label>
           Member / policy number *<input name="memberNumber" required />
         </label>
-        <label>
-          Claim amount *
-          <input
-            name="claimAmount"
-            type="number"
-            min="0.01"
-            max={balance}
-            step="0.01"
-            defaultValue={balance.toFixed(2)}
-            required
-          />
-        </label>
+        <fieldset className="wide coverageItems"><legend>Services covered by this insurer *</legend><p>Untick anything the insurer does not cover. Unticked lines remain on the facility invoice and become payable by the patient.</p>{invoice.items.map(item => { const allocated = invoice.claims.some(c => ["DRAFT", "SUBMITTED", "APPROVED", "PAID"].includes(c.status) && c.lines?.some(line => line.invoiceItemId === item.id)); return <label key={item.id}><input type="checkbox" name="coveredItemIds" value={item.id} defaultChecked={!allocated} disabled={allocated}/><span><strong>{item.description}</strong><small>{money(Number(item.quantity) * Number(item.unitPrice), invoice.currency)}{allocated ? " · already allocated" : ""}</small></span></label>; })}</fieldset>
         <label>
           Claim note
           <input name="claimNotes" />
@@ -529,6 +523,7 @@ export default function BillingWorkstation({
                   <small>
                     {c.payer} · Member {c.memberNumber} · {c.status}
                   </small>
+                  <small>{c.lines?.length || 0} covered invoice item{c.lines?.length === 1 ? "" : "s"}</small>
                 </div>
                 <b>{money(Number(c.amount), invoice.currency)}</b>
                 {allowedClaimStatuses(c.status as ClaimStatus).length > 0 && c.payer !== "SHA" && (

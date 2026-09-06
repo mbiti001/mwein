@@ -84,7 +84,7 @@ type Visit = {
     id: string; invoiceNumber: string; status: string; currency: string;
     items: { id: string; serviceCode: string; description: string; quantity: string; unitPrice: string }[];
     payments: { id: string; method: string; status: string; amount: string; externalReference?: string | null; receivedAt: string; reversalReason?: string | null; receipt?: { receiptNumber: string; issuedAt: string } | null }[];
-    claims: { id: string; payer: string; memberNumber: string; claimNumber: string; amount: string; status: string; notes?: string | null; createdAt: string }[];
+    claims: { id: string; payer: string; memberNumber: string; claimNumber: string; amount: string; status: string; notes?: string | null; createdAt: string; lines?: { invoiceItemId: string; amount: string }[] }[];
   } | null;
 };
 type Screen =

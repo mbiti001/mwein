@@ -11,4 +11,9 @@ describe("visit completion", () => {
     expect(blockers.join(" ")).toContain("X-ray");
     expect(blockers.join(" ")).toContain("500.00");
   });
+  it("allows submitted cover but keeps draft insurance claims in the submission queue", () => {
+    const insured = { ...ready, invoice: { ...ready.invoice, payments: [], claims: [{ status: "SUBMITTED", amount: 500 }] } };
+    expect(visitCompletionBlockers(insured)).toEqual([]);
+    expect(visitCompletionBlockers({ ...insured, invoice: { ...insured.invoice, claims: [{ status: "DRAFT", amount: 500 }] } }).join(" ")).toContain("500.00");
+  });
 });

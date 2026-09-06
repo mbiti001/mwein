@@ -23,10 +23,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const { id } = await context.params;
     const input = schema.parse(await request.json());
     const result = await db.$transaction(async tx => {
-      const invoice = await tx.invoice.findFirst({ where: { id, visit: { facilityId: user.facilityId }, status: { not: "VOID" } }, include: { items: true, payments: { where: { status: "CONFIRMED" } }, visit: { include: { orders: true, encounters: true, facility: true } } } });
+      const invoice = await tx.invoice.findFirst({ where: { id, visit: { facilityId: user.facilityId }, status: { not: "VOID" } }, include: { items: true, payments: { where: { status: "CONFIRMED" } }, claims: { where: { status: { in: ["DRAFT", "SUBMITTED", "APPROVED", "PAID"] } } }, visit: { include: { orders: true, encounters: true, facility: true } } } });
       if (!invoice) throw Object.assign(new Error("Invoice not found"), { status: 404 });
-      const { total, paid, balance } = invoiceTotals(invoice.items, invoice.payments);
-      if (!paymentFitsBalance(input.amount, balance)) throw Object.assign(new Error(`Payment exceeds the outstanding balance of ${invoice.currency} ${balance.toFixed(2)}`), { status: 422 });
+      const { total, paid } = invoiceTotals(invoice.items, invoice.payments);
+      const allocatedToClaims = invoice.claims.reduce((sum, claim) => sum + Number(claim.amount), 0);
+      const patientBalance = Math.max(0, total - paid - allocatedToClaims);
+      if (!paymentFitsBalance(input.amount, patientBalance)) throw Object.assign(new Error(`Payment exceeds the patient-pay balance of ${invoice.currency} ${patientBalance.toFixed(2)}; insurer-allocated services cannot be collected from the patient`), { status: 422 });
       const year = new Date().getFullYear();
       const sequence = await tx.referenceSequence.upsert({
         where: { facilityId_kind_year: { facilityId: user.facilityId, kind: "RECEIPT", year } },
@@ -39,10 +41,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         receipt: { create: { receiptNumber } },
       }, include: { receipt: true } });
       const newPaid = paid + input.amount;
-      const settled = newPaid >= total - 0.001;
-      await tx.invoice.update({ where: { id }, data: { status: settled ? "PAID" : "PART_PAID" } });
+      const submittedCover = invoice.claims.filter(claim => ["SUBMITTED", "APPROVED", "PAID"].includes(claim.status)).reduce((sum, claim) => sum + Number(claim.amount), 0);
+      const paidClaimCover = invoice.claims.filter(claim => claim.status === "PAID").reduce((sum, claim) => sum + Number(claim.amount), 0);
+      const settled = newPaid + allocatedToClaims >= total - 0.001;
+      const fullyPaid = newPaid + paidClaimCover >= total - 0.001;
+      await tx.invoice.update({ where: { id }, data: { status: fullyPaid ? "PAID" : settled ? "READY" : "PART_PAID" } });
       let visitCompleted = false;
-      if (settled) {
+      if (newPaid + submittedCover >= total - 0.001) {
         const outstandingOrders = invoice.visit.orders.some(order => ["DRAFT", "REQUESTED", "IN_PROGRESS"].includes(order.status));
         const signed = invoice.visit.encounters.some(encounter => encounter.status === "SIGNED");
         if (!outstandingOrders && signed) {
@@ -52,7 +57,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         }
       }
       await appendAudit(tx, { userId: user.id, action: "PAYMENT_RECEIVED", entityType: "Invoice", entityId: id, afterHash: `${payment.reference}:${input.method}:${input.amount}:${settled}`, reason: input.externalReference });
-      return { payment, total, paid: newPaid, balance: Math.max(0, total - newPaid), settled, visitCompleted };
+      return { payment, total, paid: newPaid, balance: Math.max(0, total - newPaid - allocatedToClaims), settled, visitCompleted };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return NextResponse.json(result, { status: 201 });
   } catch (error) { return apiError(error); }

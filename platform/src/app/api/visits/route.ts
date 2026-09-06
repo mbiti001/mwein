@@ -68,7 +68,7 @@ export async function GET() {
           orderBy: { enteredAt: "desc" },
           take: 1,
         },
-        invoice: { include: { items: true, payments: { include: { receipt: true }, orderBy: { receivedAt: "asc" } }, claims: { orderBy: { createdAt: "desc" } } } },
+        invoice: { include: { items: true, payments: { include: { receipt: true }, orderBy: { receivedAt: "asc" } }, claims: { include: { lines: true }, orderBy: { createdAt: "desc" } } } },
       },
       orderBy: [{ priority: "desc" }, { arrivedAt: "asc" }],
     });

@@ -20,7 +20,7 @@ export function visitCompletionBlockers(visit: CompletionVisit) {
   if (visit.invoice) {
     const total = visit.invoice.items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0);
     const paid = visit.invoice.payments.filter(item => item.status === "CONFIRMED").reduce((sum, item) => sum + Number(item.amount), 0);
-    const covered = visit.invoice.claims.filter(item => ["APPROVED", "PAID"].includes(item.status)).reduce((sum, item) => sum + Number(item.amount), 0);
+    const covered = visit.invoice.claims.filter(item => ["SUBMITTED", "APPROVED", "PAID"].includes(item.status)).reduce((sum, item) => sum + Number(item.amount), 0);
     const balance = Math.max(0, total - paid - covered);
     if (balance > 0.001) blockers.push(`Invoice has an uncovered balance of ${balance.toFixed(2)}`);
   }

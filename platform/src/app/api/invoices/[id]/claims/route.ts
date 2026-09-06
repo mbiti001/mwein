@@ -10,7 +10,7 @@ import { shaGatewayReadiness } from "@/lib/sha";
 const schema = z.object({
   payer: z.enum(["SHA", "PRIVATE_INSURER", "EMPLOYER"]),
   memberNumber: z.string().trim().min(2).max(100),
-  amount: z.coerce.number().positive().max(100000000),
+  coveredItemIds: z.array(z.uuid()).min(1).max(100),
   notes: z.string().trim().max(1000).optional(),
   submit: z.boolean().default(false),
 });
@@ -34,6 +34,7 @@ export async function POST(
           payments: { where: { status: "CONFIRMED" } },
           claims: {
             where: { status: { in: ["DRAFT", "SUBMITTED", "APPROVED"] } },
+            include: { lines: true },
           },
           visit: { include: { facility: true, patient: { include: { identifiers: true } }, encounters: { include: { diagnoses: true } }, orders: true } },
         },
@@ -50,20 +51,12 @@ export async function POST(
         if (invoice.visit.orders.some(order => !["COMPLETED", "CANCELLED"].includes(order.status))) throw Object.assign(new Error("Complete or cancel all clinical orders before preparing an SHA claim"), { status: 409 });
         if (input.submit && !shaGatewayReadiness().ready) throw Object.assign(new Error("SHA gateway is not configured. Save the claim as a draft; do not mark it submitted."), { status: 503 });
       }
-      const total = invoice.items.reduce(
-          (s, i) => s + Number(i.quantity) * Number(i.unitPrice),
-          0,
-        ),
-        paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0),
-        claimed = invoice.claims.reduce((s, c) => s + Number(c.amount), 0),
-        available = Math.max(0, total - paid - claimed);
-      if (input.amount > available + 0.001)
-        throw Object.assign(
-          new Error(
-            `Claim exceeds unallocated balance of ${invoice.currency} ${available.toFixed(2)}`,
-          ),
-          { status: 422 },
-        );
+      const selected = invoice.items.filter(item => input.coveredItemIds.includes(item.id));
+      if (selected.length !== new Set(input.coveredItemIds).size) throw Object.assign(new Error("One or more selected claim items do not belong to this invoice"), { status: 422 });
+      const alreadyAllocated = new Set(invoice.claims.flatMap(claim => claim.lines.map(line => line.invoiceItemId)));
+      const duplicate = selected.find(item => alreadyAllocated.has(item.id));
+      if (duplicate) throw Object.assign(new Error(`${duplicate.description} is already allocated to an active claim`), { status: 409 });
+      const amount = selected.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0);
       const year = new Date().getFullYear();
       const seq = await tx.referenceSequence.upsert({
         where: {
@@ -93,10 +86,11 @@ export async function POST(
             year,
             seq.nextValue - 1n,
           ),
-          amount: new Prisma.Decimal(input.amount),
+          amount: new Prisma.Decimal(amount),
           notes: input.notes,
           status: input.submit ? "SUBMITTED" : "DRAFT",
           submittedAt: input.submit ? new Date() : undefined,
+          lines: { create: selected.map(item => ({ invoiceItemId: item.id, amount: new Prisma.Decimal(Number(item.quantity) * Number(item.unitPrice)) })) },
         },
       });
       await appendAudit(tx, {
@@ -104,11 +98,22 @@ export async function POST(
         action: input.submit ? "CLAIM_SUBMITTED" : "CLAIM_DRAFT_CREATED",
         entityType: "Claim",
         entityId: claim.id,
-        afterHash: `${claim.claimNumber}:${claim.payer}:${claim.amount}`,
+        afterHash: `${claim.claimNumber}:${claim.payer}:${claim.amount}:${selected.map(item => item.id).join(",")}`,
       });
-      return claim;
+      const paid = invoice.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+      const existingSubmitted = invoice.claims.filter(existing => ["SUBMITTED", "APPROVED", "PAID"].includes(existing.status)).reduce((sum, existing) => sum + Number(existing.amount), 0);
+      const total = invoice.items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0);
+      const clinicallyComplete = invoice.visit.encounters.some(encounter => encounter.status === "SIGNED") && invoice.visit.orders.every(order => ["COMPLETED", "CANCELLED"].includes(order.status));
+      const visitCompleted = input.submit && clinicallyComplete && paid + existingSubmitted + amount >= total - 0.001;
+      if (visitCompleted) {
+        const completedAt = new Date();
+        await tx.queueEntry.updateMany({ where: { visitId: invoice.visitId, status: { in: ["WAITING", "CALLED", "IN_PROGRESS"] } }, data: { status: "COMPLETED", completedAt } });
+        await tx.visit.update({ where: { id: invoice.visitId }, data: { status: "COMPLETED", completedAt } });
+        await appendAudit(tx, { userId: user.id, action: "VISIT_COMPLETED_AFTER_CLAIM_SUBMISSION", entityType: "Visit", entityId: invoice.visitId, afterHash: claim.claimNumber });
+      }
+      return { claim, visitCompleted };
     });
-    return NextResponse.json({ claim: result }, { status: 201 });
+    return NextResponse.json(result, { status: 201 });
   } catch (e) {
     return apiError(e);
   }

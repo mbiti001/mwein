@@ -872,6 +872,7 @@ model InvoiceItem {
   unitPrice Decimal @db.Decimal(14, 2)
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   order ClinicalOrder? @relation(fields: [orderId], references: [id])
+  claimLines ClaimLine[]
 }
 
 model Payment {
@@ -906,7 +907,19 @@ model Claim {
   updatedAt DateTime @updatedAt
   invoice Invoice @relation(fields: [invoiceId], references: [id])
   createdBy User @relation(fields: [createdById], references: [id])
+  lines ClaimLine[]
   @@index([invoiceId, status])
+}
+
+model ClaimLine {
+  id String @id @default(uuid()) @db.Uuid
+  claimId String @db.Uuid
+  invoiceItemId String @db.Uuid
+  amount Decimal @db.Decimal(14, 2)
+  claim Claim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  invoiceItem InvoiceItem @relation(fields: [invoiceItemId], references: [id], onDelete: Restrict)
+  @@unique([claimId, invoiceItemId])
+  @@index([invoiceItemId])
 }
 
 model Receipt {
