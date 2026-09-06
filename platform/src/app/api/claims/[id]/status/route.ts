@@ -22,6 +22,8 @@ export async function POST(
     });
     if (!existing)
       throw Object.assign(new Error("Claim not found"), { status: 404 });
+    if (existing.payer === "SHA" && input.status !== "CANCELLED")
+      throw Object.assign(new Error("SHA claim status must come from an authenticated SHA ClaimResponse; it cannot be changed manually"), { status: 403 });
     if (!canTransitionClaim(existing.status as ClaimStatus, input.status))
       throw Object.assign(
         new Error(`Claim cannot move from ${existing.status} to ${input.status}`),

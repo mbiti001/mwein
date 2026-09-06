@@ -66,6 +66,9 @@ export default function BillingWorkstation({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [lastReceipt, setLastReceipt] = useState("");
+  const [claimPayer, setClaimPayer] = useState("SHA");
+  const [shaReady, setShaReady] = useState(false);
+  useEffect(() => { void jsonRequest<{ ready: boolean }>("/api/integrations/sha/readiness", undefined, "SHA readiness could not be checked").then(result => setShaReady(result.ready)).catch(() => setShaReady(false)); }, []);
   const [receiptView, setReceiptView] = useState<{
     visit: Visit;
     payment: any;
@@ -124,10 +127,10 @@ export default function BillingWorkstation({
             memberNumber: f.get("memberNumber"),
             amount: f.get("claimAmount"),
             notes: f.get("claimNotes") || undefined,
-            submit: true,
+            submit: f.get("payer") === "SHA" ? shaReady : true,
           }),
         }, "Claim could not be created");
-      setLastReceipt(`Claim ${d.claim.claimNumber} submitted`);
+      setLastReceipt(`Claim ${d.claim.claimNumber} ${d.claim.status === "DRAFT" ? "saved as draft" : "submitted"}`);
       await onUpdated();
       setActive(null);
     } catch (e) {
@@ -465,7 +468,7 @@ export default function BillingWorkstation({
         </div>
         <label>
           Payer *
-          <select name="payer">
+          <select name="payer" value={claimPayer} onChange={event => setClaimPayer(event.target.value)}>
             <option value="SHA">SHA</option>
             <option value="PRIVATE_INSURER">Private insurer</option>
             <option value="EMPLOYER">Employer</option>
@@ -490,8 +493,9 @@ export default function BillingWorkstation({
           Claim note
           <input name="claimNotes" />
         </label>
+        {claimPayer === "SHA" && <div className={`wide ${shaReady ? "privacyNotice" : "allergyAlert"}`}><strong>{shaReady ? "SHA gateway configured" : "SHA gateway not yet connected"}</strong><span>{shaReady ? "Submission will require verified identity, a signed encounter, ICD-11 coding and completed orders." : "This will save a local draft only. It will not be represented as submitted to SHA."}</span></div>}
         <button className="primary wide" disabled={busy}>
-          Submit claim
+          {claimPayer === "SHA" && !shaReady ? "Save SHA claim draft" : "Submit claim"}
         </button>
       </form>
       {invoice.claims?.length > 0 && (
@@ -512,7 +516,7 @@ export default function BillingWorkstation({
                   </small>
                 </div>
                 <b>{money(Number(c.amount), invoice.currency)}</b>
-                {allowedClaimStatuses(c.status as ClaimStatus).length > 0 && (
+                {allowedClaimStatuses(c.status as ClaimStatus).length > 0 && c.payer !== "SHA" && (
                   <div className="claimActions">
                     <select name="status" aria-label={`Status for ${c.claimNumber}`}>
                       {allowedClaimStatuses(c.status as ClaimStatus).map((status) => (
