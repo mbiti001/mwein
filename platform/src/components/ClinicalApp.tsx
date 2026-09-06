@@ -8,11 +8,9 @@ import PharmacyWorkstation from "@/components/PharmacyWorkstation";
 import BillingWorkstation from "@/components/BillingWorkstation";
 import VisitSummaryWorkstation from "@/components/VisitSummaryWorkstation";
 import ImagingWorkstation from "@/components/ImagingWorkstation";
-import InventoryWorkstation from "@/components/InventoryWorkstation";
 import ReportingWorkstation from "@/components/ReportingWorkstation";
 import AppointmentWorkstation from "@/components/AppointmentWorkstation";
-import ServicePointMap from "@/components/ServicePointMap";
-import SupplyWorkstation from "@/components/SupplyWorkstation";
+import StockCenter from "@/components/StockCenter";
 import AdminCenter from "@/components/AdminCenter";
 import SaveFeedback from "@/components/SaveFeedback";
 import { currentServicePoint, isWaitingOverdue, waitingMinutes, type ServicePointCode } from "@/lib/service-points";
@@ -93,7 +91,6 @@ type Screen =
   | "dashboard"
   | "registration"
   | "appointments"
-  | "flow"
   | "visit"
   | "triage"
   | "consultation"
@@ -101,7 +98,6 @@ type Screen =
   | "imaging"
   | "pharmacy"
   | "inventory"
-  | "supply"
   | "billing"
   | "summaries"
   | "reports"
@@ -142,15 +138,13 @@ export default function ClinicalApp() {
       dashboard: "Home",
       registration: "Patient registration",
       appointments: "Appointments",
-      flow: "Patient flow",
       visit: "Clinic check-in",
       triage: "Triage",
       consultation: "Consultation",
       diagnostics: "Laboratory",
       imaging: "Imaging",
       pharmacy: "Pharmacy",
-      inventory: "Inventory",
-      supply: "Supply chain",
+      inventory: "Stock & supply",
       billing: "Billing",
       summaries: "Patient records",
       reports: "Reports",
@@ -184,7 +178,6 @@ export default function ClinicalApp() {
   };
   const allNav: [Screen, string, string?][] = [
     ["dashboard", "Home"],
-    ["flow", "Patient flow", "visit.read"],
     ["registration", "Registration", "patient.create"],
     ["appointments", "Appointments", "visit.create"],
     ["triage", "Triage", "triage.write"],
@@ -192,8 +185,7 @@ export default function ClinicalApp() {
     ["diagnostics", "Laboratory", "laboratory.write"],
     ["imaging", "Imaging", "imaging.write"],
     ["pharmacy", "Pharmacy", "pharmacy.dispense"],
-    ["inventory", "Inventory", "inventory.view"],
-    ["supply", "Procurement", "inventory.view"],
+    ["inventory", "Stock & supply", "inventory.view"],
     ["billing", "Billing", "billing.read"],
     ["summaries", "Patient records", "patient.read"],
   ];
@@ -252,7 +244,7 @@ export default function ClinicalApp() {
           }}/>
         )}
         {screen !== "dashboard" &&
-          !["summaries", "reports", "appointments", "flow", "admin"].includes(screen) && (
+          !["summaries", "reports", "appointments", "admin"].includes(screen) && (
             <WorkflowSteps screen={screen} />
           )}{" "}
         {contextVisitId && (() => { const visit = visits.find(item => item.id === contextVisitId); return visit ? <PatientContextBar visit={visit} onClear={() => setContextVisitId(null)} onOpen={(target) => { setFocusedVisitId(visit.id); setScreen(target); }} /> : null; })()}
@@ -267,13 +259,6 @@ export default function ClinicalApp() {
             }}
             onOpenTask={(target, visitId) => { setFocusedVisitId(visitId); setContextVisitId(visitId); setScreen(target); }}
           />
-        )}
-        {screen === "flow" && (
-          <ServicePointMap visits={visits} onOpen={(target, visitId) => {
-            const targetScreen = target as Screen;
-            if (!nav.some(([key]) => key === targetScreen)) return setNotice("This task belongs to another service-point role.");
-            setFocusedVisitId(visitId || null); setContextVisitId(visitId || null); setScreen(targetScreen);
-          }} />
         )}
         {screen === "registration" && (
           <PatientRegister
@@ -350,34 +335,13 @@ export default function ClinicalApp() {
         {screen === "pharmacy" && (
           <PharmacyWorkstation visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />
         )}
-        {screen === "inventory" && <InventoryWorkstation />}
-        {screen === "supply" && <SupplyWorkstation permissions={user.permissions} />}
+        {screen === "inventory" && <StockCenter permissions={user.permissions} />}
         {screen === "billing" && (
           <BillingWorkstation visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />
         )}
         {screen === "summaries" && <VisitSummaryWorkstation canAddendum={user.permissions.includes("encounter.write")} />}
         {screen === "reports" && <ReportingWorkstation />}
         {screen === "admin" && <AdminCenter permissions={user.permissions} />}
-        {!(
-          [
-            "dashboard",
-            "registration",
-            "appointments",
-            "flow",
-            "visit",
-            "triage",
-            "consultation",
-            "diagnostics",
-            "imaging",
-            "pharmacy",
-            "inventory",
-            "supply",
-            "billing",
-            "summaries",
-            "reports",
-            "admin",
-          ] as Screen[]
-        ).includes(screen) && <Workstation screen={screen} visits={visits} />}
       </section>
     </main>
   );
@@ -1233,51 +1197,6 @@ function TriageWorkstation({
           <button className="primary">Complete triage</button>
         </div>
       </form>
-    </>
-  );
-}
-
-function Workstation({ screen, visits }: { screen: Screen; visits: Visit[] }) {
-  const labels: Record<string, string> = {
-    triage: "Triage queue",
-    consultation: "Consultation",
-    diagnostics: "Laboratory & imaging",
-    pharmacy: "Pharmacy",
-    billing: "Billing",
-  };
-  return (
-    <>
-      <header>
-        <div>
-          <p className="eyebrow">Clinical workstation</p>
-          <h1>{labels[screen]}</h1>
-          <p>This service view follows the same patient visit.</p>
-        </div>
-      </header>
-      <section className="card">
-        <h2>
-          {visits.length} active visit{visits.length === 1 ? "" : "s"}
-        </h2>
-        <p>
-          The next build step adds documentation and visit-routing controls
-          here.
-        </p>
-        <div className="queue compact">
-          {visits.map((v) => (
-            <div className={`row ${v.priority.toLowerCase()}`} key={v.id}>
-              <span className="dot" />
-              <div>
-                <strong>{v.patient.fullName}</strong>
-                <small>
-                  {v.clinic} · {v.status.replaceAll("_", " ")}
-                </small>
-              </div>
-              <b>{v.priority}</b>
-              <time>{v.visitNumber}</time>
-            </div>
-          ))}
-        </div>
-      </section>
     </>
   );
 }

@@ -1,36 +1,5 @@
 import { z } from "zod";
 
-export const serviceCatalog = {
-  labs: {
-    FBC: { name: "Full blood count (FBC) / Full haemogram (hemogram)", specimen: "Blood", price: "600.00" },
-    MALARIA: { name: "Malaria test", specimen: "Blood", price: "300.00" },
-    GLUCOSE: { name: "Blood glucose", specimen: "Blood", price: "200.00" },
-    HBA1C: { name: "HbA1c", specimen: "Blood", price: "1200.00" },
-    RENAL: {
-      name: "Renal function tests",
-      specimen: "Blood",
-      price: "1200.00",
-    },
-    URINALYSIS: { name: "Urinalysis", specimen: "Urine", price: "300.00" },
-    UPT: { name: "Urine pregnancy test", specimen: "Urine", price: "300.00" },
-  },
-  imaging: {
-    XRAY_CHEST: { name: "Chest X-ray", modality: "X-RAY", price: "1500.00" },
-    ULTRASOUND: {
-      name: "Ultrasound",
-      modality: "ULTRASOUND",
-      price: "2000.00",
-    },
-  },
-  medicines: {
-    PARACETAMOL_500: { name: "Paracetamol 500 mg tablet", price: "5.00" },
-    AMOXICILLIN_500: { name: "Amoxicillin 500 mg capsule", price: "15.00" },
-    METFORMIN_500: { name: "Metformin 500 mg tablet", price: "8.00" },
-    AMLODIPINE_5: { name: "Amlodipine 5 mg tablet", price: "10.00" },
-    ORS: { name: "Oral rehydration salts sachet", price: "25.00" },
-  },
-} as const;
-
 export const consultationNotesSchema = z.object({
   chiefComplaint: z.string().trim().min(2).max(1000),
   historyPresentingIllness: z.string().trim().min(2).max(5000),
