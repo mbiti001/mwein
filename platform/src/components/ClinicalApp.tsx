@@ -4,13 +4,13 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { assessTriageVitals, patientClinicalGroup } from "@/lib/domain";
 import ConsultationWorkstation from "@/components/ConsultationWorkstation";
 import LaboratoryWorkstation from "@/components/LaboratoryWorkstation";
-import PharmacyWorkstation from "@/components/PharmacyWorkstation";
+import PharmacyCenter from "@/components/PharmacyCenter";
+import type { StockFocus } from "@/components/InventoryWorkstation";
 import BillingWorkstation from "@/components/BillingWorkstation";
 import VisitSummaryWorkstation from "@/components/VisitSummaryWorkstation";
 import ImagingWorkstation from "@/components/ImagingWorkstation";
 import ReportingWorkstation from "@/components/ReportingWorkstation";
 import AppointmentWorkstation from "@/components/AppointmentWorkstation";
-import StockCenter from "@/components/StockCenter";
 import AdminCenter from "@/components/AdminCenter";
 import ServicePointsWorkstation from "@/components/ServicePointsWorkstation";
 import SaveFeedback from "@/components/SaveFeedback";
@@ -105,7 +105,6 @@ type Screen =
   | "diagnostics"
   | "imaging"
   | "pharmacy"
-  | "inventory"
   | "billing"
   | "summaries"
   | "reports"
@@ -126,6 +125,7 @@ export default function ClinicalApp() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [focusedVisitId, setFocusedVisitId] = useState<string | null>(null);
   const [contextVisitId, setContextVisitId] = useState<string | null>(null);
+  const [stockFocus, setStockFocus] = useState<StockFocus | null>(null);
   const loadVisits = useCallback(
     async () =>
       setVisits((await api<{ visits: Visit[] }>("/api/visits")).visits),
@@ -152,8 +152,7 @@ export default function ClinicalApp() {
       consultation: "Consultation",
       diagnostics: "Laboratory",
       imaging: "Imaging",
-      pharmacy: "Pharmacy",
-      inventory: "Stock & supply",
+      pharmacy: "Pharmacy & stock",
       billing: "Billing",
       summaries: "Patient records",
       reports: "Reports",
@@ -194,8 +193,7 @@ export default function ClinicalApp() {
     ["consultation", "Consultation", "encounter.write"],
     ["diagnostics", "Laboratory", "laboratory.write"],
     ["imaging", "Imaging", "imaging.write"],
-    ["pharmacy", "Pharmacy", "pharmacy.dispense"],
-    ["inventory", "Stock & supply", "inventory.view"],
+    ["pharmacy", "Pharmacy & stock", "inventory.view"],
     ["billing", "Billing", "billing.read"],
     ["summaries", "Patient records", "patient.read"],
   ];
@@ -221,7 +219,7 @@ export default function ClinicalApp() {
           {nav.map(([key, label]) => (
             <button
               className={screen === key ? "active" : ""}
-              onClick={() => { setScreen(key); setFocusedVisitId(null); setMobileNavOpen(false); }}
+              onClick={() => { setScreen(key); setFocusedVisitId(null); setStockFocus(null); setMobileNavOpen(false); }}
               key={key}
             >
               {label}
@@ -356,15 +354,14 @@ export default function ClinicalApp() {
         )}{" "}
         {screen === "imaging" && <ImagingWorkstation visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />}
         {screen === "pharmacy" && (
-          <PharmacyWorkstation visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />
+          <PharmacyCenter permissions={user.permissions} visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} stockFocus={stockFocus} onStockFocusConsumed={() => setStockFocus(null)} />
         )}
-        {screen === "inventory" && <StockCenter permissions={user.permissions} />}
         {screen === "billing" && (
           <BillingWorkstation visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />
         )}
         {screen === "summaries" && <VisitSummaryWorkstation canAddendum={user.permissions.includes("encounter.write")} />}
         {screen === "reports" && <ReportingWorkstation />}
-        {screen === "admin" && <AdminCenter permissions={user.permissions} />}
+        {screen === "admin" && <AdminCenter permissions={user.permissions} onOpenStock={(focus) => { setStockFocus(focus); setFocusedVisitId(null); setScreen("pharmacy"); }} />}
       </section>
     </main>
   );
@@ -399,7 +396,7 @@ function WorkflowSteps({ screen }: { screen: Screen }) {
       detail: "Complaint, examination & plan",
     },
     {
-      keys: ["diagnostics", "imaging", "pharmacy", "inventory", "billing"],
+      keys: ["diagnostics", "imaging", "pharmacy", "billing"],
       number: 4,
       label: "Complete visit",
       detail: "Orders, medicines & billing",

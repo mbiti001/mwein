@@ -11,6 +11,7 @@ type Data = {
   batches: any[];
   pendingCounts: any[];
   emergencyAdjustments: any[];
+  movements: any[];
   currentUserId: string;
 };
 const empty: Data = {
@@ -21,18 +22,22 @@ const empty: Data = {
   batches: [],
   pendingCounts: [],
   emergencyAdjustments: [],
+  movements: [],
   currentUserId: "",
 };
 
 export default function SupplyWorkstation({
   permissions,
+  view = "controls",
 }: {
   permissions: string[];
+  view?: "receive" | "history" | "controls";
 }) {
   const [data, setData] = useState<Data>(empty);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [movementQuery, setMovementQuery] = useState("");
   const can = (permission: string) => permissions.includes(permission);
   async function load() {
     setData(
@@ -103,15 +108,43 @@ export default function SupplyWorkstation({
         )
         .map((line: any) => ({ ...line, orderNumber: order.orderNumber })),
     );
+  const receiptForm = can("inventory.receive") ? (
+    <form className="card dataForm" onSubmit={(event) => submit(event, "RECEIVE")}>
+      <div className="wide"><h2>Goods receipt (GRN)</h2><p>Receive a supplier delivery against an independently approved purchase order.</p></div>
+      <label>Approved PO line *<FormSearchablePicker name="lineId" required placeholder="Search purchase order or medicine…" options={receivable.map(line => ({ value: line.id, label: `${line.orderNumber} · ${data.items.find(item => item.id === line.catalogItemId)?.name || "Medicine"}` }))}/></label>
+      <label>Receiving store *<select name="storeId" required><option value="">Select</option>{data.stores.map(item => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label>
+      <label>Batch number *<input name="batchNumber" required /></label>
+      <label>Expiry date *<input name="expiryDate" type="date" required /></label>
+      <label>Quantity received *<input name="quantity" type="number" min="0.001" step="0.001" required /></label>
+      <button className="primary wide" disabled={busy || receivable.length === 0}>{receivable.length ? "Post goods receipt" : "No approved order awaiting receipt"}</button>
+    </form>
+  ) : null;
+  if (view === "receive") return <>
+    <header><div><p className="eyebrow">Pharmacy inventory</p><h1>Receive stock</h1><p>Record the batch, expiry, quantity and destination store at the moment goods arrive.</p></div></header>
+    {error && <div className="alert">{error}</div>}{notice && <div className="alert success">{notice}</div>}
+    {receiptForm || <section className="card"><p>Your role cannot receive stock.</p></section>}
+  </>;
+  if (view === "history") {
+    const term = movementQuery.trim().toLowerCase();
+    const movements = data.movements.filter(movement => `${movement.batch.catalogItem.name} ${movement.batch.catalogItem.code} ${movement.batch.batchNumber} ${movement.type} ${movement.sourceStore?.name || ""} ${movement.destinationStore?.name || ""} ${movement.user.displayName}`.toLowerCase().includes(term));
+    return <>
+      <header><div><p className="eyebrow">Pharmacy inventory</p><h1>Stock movement history</h1><p>Trace receipts, dispensing, transfers, stock corrections and expiry corrections.</p></div></header>
+      {error && <div className="alert">{error}</div>}
+      <section className="card compact"><div className="cardHead"><div><h2>Movement ledger</h2><p>Latest 150 events for this facility.</p></div><strong>{movements.length}</strong></div>
+        <label className="listSearch">Search movements<input type="search" value={movementQuery} onChange={event => setMovementQuery(event.target.value)} placeholder="Medicine, batch, movement, store or staff" /></label>
+        <div className="queue movementList">{movements.map(movement => <article className="row movementRow" key={movement.id}><span className="dot"/><div><strong>{movement.batch.catalogItem.name} · {movement.type.replaceAll("_", " ")}</strong><small>Batch {movement.batch.batchNumber} · {movement.sourceStore?.name || "External"} → {movement.destinationStore?.name || "Dispensed / adjusted"}</small><small>{movement.reason || "No reason recorded"} · {movement.user.displayName} · {new Date(movement.occurredAt).toLocaleString()}</small></div><div className="movementQuantity"><b>{["DISPENSE", "ADJUSTMENT"].includes(movement.type) && Number(movement.quantity) > 0 ? "−" : movement.type === "RECEIPT" ? "+" : ""}{Number(movement.quantity)}</b><small>Batch balance {Number(movement.balanceAfter)}</small></div></article>)}{!movements.length && <div className="empty"><strong>No matching movements</strong><p>Receipts and stock activity will appear here.</p></div>}</div>
+      </section>
+    </>;
+  }
   return (
     <>
       <header>
         <div>
-          <p className="eyebrow">Procurement & logistics</p>
-          <h1>Supply chain control</h1>
+          <p className="eyebrow">Pharmacy inventory</p>
+          <h1>Ordering & stock controls</h1>
           <p>
-            Draft, independently approve, receive and reconcile medicines with
-            batch traceability.
+            Draft and independently approve purchase orders, count stock and
+            transfer medicines with batch traceability.
           </p>
         </div>
       </header>
@@ -320,48 +353,6 @@ export default function SupplyWorkstation({
             </label>
             <button className="primary wide" disabled={busy}>
               Save draft
-            </button>
-          </form>
-        )}
-        {can("inventory.receive") && (
-          <form
-            className="card dataForm"
-            onSubmit={(event) => submit(event, "RECEIVE")}
-          >
-            <h2 className="wide">Goods receipt (GRN)</h2>
-            <label>
-              Approved PO line *
-              <FormSearchablePicker name="lineId" required placeholder="Search purchase order or medicine…" options={receivable.map(line => ({ value: line.id, label: `${line.orderNumber} · ${data.items.find(item => item.id === line.catalogItemId)?.name || "Medicine"}` }))}/>
-            </label>
-            <label>
-              Store *
-              <select name="storeId" required>
-                <option value="">Select</option>
-                {data.stores.map((item) => (
-                  <option value={item.id} key={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Batch *<input name="batchNumber" required />
-            </label>
-            <label>
-              Expiry *<input name="expiryDate" type="date" required />
-            </label>
-            <label>
-              Quantity received *
-              <input
-                name="quantity"
-                type="number"
-                min="0.001"
-                step="0.001"
-                required
-              />
-            </label>
-            <button className="primary wide" disabled={busy}>
-              Post GRN
             </button>
           </form>
         )}

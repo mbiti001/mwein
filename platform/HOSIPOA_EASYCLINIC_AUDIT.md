@@ -6,6 +6,8 @@ Audited on 7 September 2026 against the public capability descriptions for [Hosi
 
 Mwein has the connected outpatient core: registration, appointments, queueing, triage, consultation, patient history, laboratory, imaging, pharmacy, billing, payments, claims preparation, inventory, procurement, users/roles, audit, operational reporting and visit completion. The current work also adds specialty service points for ANC, MCH/PNC, diabetes, dialysis, cancer, sickle-cell care and walk-ins, plus linked mother/child records and a tracked referral workflow.
 
+Pharmacy and stock are now one role-aware workspace rather than overlapping modules. The operating flow follows the public [Maisha Meds app](https://maishameds.org/app/) model of Manage Inventory, Receive Inventory and History, adapted to Mwein's clinical dispensing and maker-checker controls. Authorized pharmacy staff can dispense, inspect clickable medicine/batch records, correct an erroneous expiry with a mandatory reason, receive approved purchase orders, count and transfer stock, and inspect a store-aware movement ledger. Pharmacy operator, pharmacy manager, inventory clerk and procurement approver duties are distinct; purchase-order and variance maker-checker controls remain enforced.
+
 This matches the strongest shared model in both references: one patient record, one workflow across departments, and charges/stock/results following care instead of being re-entered.
 
 ## Remaining work
@@ -22,7 +24,7 @@ This matches the strongest shared model in both references: one patient record, 
 
 - Inpatient operations: admission, wards/beds, nursing administration, theatre, newborn unit, discharge and morgue.
 - Enterprise administration: full accounting, HR, attendance, leave, payroll and statutory deductions.
-- Multi-facility control: central catalogue/pricing policy, cross-site analytics, stock movement and tenant administration.
+- Multi-facility control: central catalogue/pricing policy, cross-site analytics, cross-facility stock movement and tenant administration. Movement within a facility is now ledgered by source and destination store.
 - Patient engagement: actual SMS/email/WhatsApp delivery, confirmations, recalls, campaigns and a patient portal.
 - Broader programmes and specialties: ART, TB, immunisation, dental, optical, nutrition, physiotherapy and gynaecology templates and reports.
 - Teleconsultation, configurable workflow/template builder and room/resource scheduling.

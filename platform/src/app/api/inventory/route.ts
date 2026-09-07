@@ -16,5 +16,5 @@ export async function GET() {
 }
 
 export async function POST() {
-  return NextResponse.json({ error: "Direct stock receipt is disabled. Receive goods against an independently approved purchase order in Supply chain." }, { status: 405 });
+  return NextResponse.json({ error: "Direct stock receipt is disabled. Use Pharmacy & stock → Receive stock against an independently approved purchase order." }, { status: 405 });
 }

@@ -7,8 +7,9 @@ import { db } from "@/lib/db";
 import { apiError } from "@/lib/http";
 import { hashPassword } from "@/lib/security";
 import { staffChangeIsSafe } from "@/lib/staff";
+import { canAssignRole, canManageStaff } from "@/lib/staff-access";
 
-const roleCode = z.enum(["SYSTEM_ADMIN", "FACILITY_ADMIN", "MEDICAL_DIRECTOR", "FINANCE_MANAGER", "HR_ADMIN", "AUDITOR", "RECEPTION", "NURSE", "CLINICIAN", "LABORATORY", "IMAGING", "PHARMACY", "BILLING", "INVENTORY_CLERK", "PROCUREMENT_APPROVER"]);
+const roleCode = z.enum(["SYSTEM_ADMIN", "FACILITY_ADMIN", "MEDICAL_DIRECTOR", "FINANCE_MANAGER", "HR_ADMIN", "AUDITOR", "RECEPTION", "NURSE", "CLINICIAN", "LABORATORY", "IMAGING", "PHARMACY", "PHARMACY_MANAGER", "BILLING", "INVENTORY_CLERK", "PROCUREMENT_APPROVER"]);
 const createSchema = z.object({
   displayName: z.string().trim().min(2).max(120),
   email: z.email().transform((value) => value.toLowerCase()),
@@ -29,11 +30,12 @@ export async function GET() {
     const user = await requirePermission("admin.users");
     const [users, roles] = await Promise.all([
       db.user.findMany({ where: { facilityId: user.facilityId }, include: staffInclude, orderBy: { displayName: "asc" } }),
-      db.role.findMany({ where: { code: { in: roleCode.options } }, orderBy: { name: "asc" } }),
+      db.role.findMany({ where: { code: { in: roleCode.options } }, include: { permissions: { include: { permission: { select: { code: true, description: true } } } } }, orderBy: { name: "asc" } }),
     ]);
+    const access = { actorRoles: user.roles, canAssignGovernance: user.permissions.includes("admin.assign_governance") };
     return NextResponse.json({
-      users: users.map(({ passwordHash: _passwordHash, ...staff }) => staff),
-      roles,
+      users: users.map(({ passwordHash: _passwordHash, ...staff }) => ({ ...staff, manageable: canManageStaff({ ...access, targetRoleCodes: staff.roles.map(item => item.role.code) }) })),
+      roles: roles.map(role => ({ ...role, assignable: canAssignRole({ ...access, roleCode: role.code }) })),
     });
   } catch (error) { return apiError(error); }
 }
@@ -42,6 +44,8 @@ export async function POST(request: Request) {
   try {
     const user = await requirePermission("admin.users");
     const input = createSchema.parse(await request.json());
+    if (!canAssignRole({ actorRoles: user.roles, canAssignGovernance: user.permissions.includes("admin.assign_governance"), roleCode: input.roleCode }))
+      throw Object.assign(new Error("Your role cannot assign this governance level"), { status: 403 });
     const role = await db.role.findUnique({ where: { code: input.roleCode } });
     if (!role) throw Object.assign(new Error("Selected staff role is not configured"), { status: 422 });
     const created = await db.$transaction(async (tx) => {
@@ -70,6 +74,11 @@ export async function PATCH(request: Request) {
     const input = updateSchema.parse(await request.json());
     const target = await db.user.findFirst({ where: { id: input.id, facilityId: user.facilityId }, include: staffInclude });
     if (!target) throw Object.assign(new Error("Staff account not found"), { status: 404 });
+    const access = { actorRoles: user.roles, canAssignGovernance: user.permissions.includes("admin.assign_governance") };
+    if (!canManageStaff({ ...access, targetRoleCodes: target.roles.map(item => item.role.code) }))
+      throw Object.assign(new Error("Your role cannot change this governance account"), { status: 403 });
+    if (input.roleCode && !canAssignRole({ ...access, roleCode: input.roleCode }))
+      throw Object.assign(new Error("Your role cannot assign this governance level"), { status: 403 });
     const targetIsAdmin = target.roles.some((item) => item.role.code === "SYSTEM_ADMIN");
     const activeAdminCount = await db.user.count({ where: { facilityId: user.facilityId, status: "ACTIVE", roles: { some: { role: { code: "SYSTEM_ADMIN" } } } } });
     const safety = staffChangeIsSafe({ targetUserId: target.id, actingUserId: user.id, targetIsAdmin, activeAdminCount, nextStatus: input.status, nextRoleCode: input.roleCode });

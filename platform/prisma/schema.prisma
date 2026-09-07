@@ -826,13 +826,15 @@ model Supplier {
 }
 
 model Store {
-  id         String                     @id @default(uuid()) @db.Uuid
-  facilityId String                     @db.Uuid
-  code       String
-  name       String
-  active     Boolean                    @default(true)
-  facility   Facility                   @relation(fields: [facilityId], references: [id], onDelete: Cascade)
-  balances   InventoryLocationBalance[]
+  id                String                     @id @default(uuid()) @db.Uuid
+  facilityId        String                     @db.Uuid
+  code              String
+  name              String
+  active            Boolean                    @default(true)
+  facility          Facility                   @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  balances          InventoryLocationBalance[]
+  outgoingMovements StockMovement[]            @relation("StockMovementSourceStore")
+  incomingMovements StockMovement[]            @relation("StockMovementDestinationStore")
 
   @@unique([facilityId, code])
 }
@@ -922,22 +924,30 @@ model SupplyOperation {
 }
 
 model StockMovement {
-  id             String         @id @default(uuid()) @db.Uuid
-  batchId        String         @db.Uuid
-  userId         String         @db.Uuid
-  prescriptionId String?        @db.Uuid
-  dispensationId String?        @db.Uuid
-  type           String
-  quantity       Decimal        @db.Decimal(12, 3)
-  balanceAfter   Decimal        @db.Decimal(12, 3)
-  reason         String?
-  occurredAt     DateTime       @default(now())
-  batch          InventoryBatch @relation(fields: [batchId], references: [id])
-  user           User           @relation(fields: [userId], references: [id])
-  prescription   Prescription?  @relation(fields: [prescriptionId], references: [id])
-  dispensation   Dispensation?  @relation(fields: [dispensationId], references: [id])
+  id                      String         @id @default(uuid()) @db.Uuid
+  batchId                 String         @db.Uuid
+  userId                  String         @db.Uuid
+  prescriptionId          String?        @db.Uuid
+  dispensationId          String?        @db.Uuid
+  sourceStoreId           String?        @db.Uuid
+  destinationStoreId      String?        @db.Uuid
+  type                    String
+  quantity                Decimal        @db.Decimal(12, 3)
+  balanceAfter            Decimal        @db.Decimal(12, 3)
+  sourceBalanceAfter      Decimal?       @db.Decimal(12, 3)
+  destinationBalanceAfter Decimal?       @db.Decimal(12, 3)
+  reason                  String?
+  occurredAt              DateTime       @default(now())
+  batch                   InventoryBatch @relation(fields: [batchId], references: [id])
+  user                    User           @relation(fields: [userId], references: [id])
+  prescription            Prescription?  @relation(fields: [prescriptionId], references: [id])
+  dispensation            Dispensation?  @relation(fields: [dispensationId], references: [id])
+  sourceStore             Store?         @relation("StockMovementSourceStore", fields: [sourceStoreId], references: [id], onDelete: SetNull)
+  destinationStore        Store?         @relation("StockMovementDestinationStore", fields: [destinationStoreId], references: [id], onDelete: SetNull)
 
   @@index([batchId, occurredAt])
+  @@index([sourceStoreId, occurredAt])
+  @@index([destinationStoreId, occurredAt])
   @@index([prescriptionId, occurredAt])
   @@index([dispensationId])
 }

@@ -33,6 +33,8 @@ Legend: `[x]` implemented, `[~]` partial, `[ ]` missing or requires a product de
 - [x] Pharmacy invoice quantities follow cumulative confirmed dispensing, including partial supply; prescribing alone no longer creates a medicine charge.
 - [ ] Pharmacist override of the FEFO batch and medicine substitution with a recorded reason.
 - [x] Low-stock/expiry visibility, operations reporting, periodic physical counts and independent variance authorization are implemented.
+- [x] Stock exceptions are clickable to the exact medicine/batch; authorized staff can correct an erroneous expiry with a mandatory reason and immutable audit/movement records.
+- [x] Goods receipt against approved purchase orders, within-facility transfers and a source/destination-aware stock movement history are available in the unified pharmacy workspace.
 - [~] Billing uses immutable invoice line prices; dated multi-payer medicine price history is not implemented.
 - [ ] Stand-alone pharmacy sale with prescription-only controls.
 
@@ -46,6 +48,6 @@ Legend: `[x]` implemented, `[~]` partial, `[ ]` missing or requires a product de
 
 ## Verification
 
-- `npm test`: 70 tests passed.
+- `npm test`: 73 tests passed.
 - `npm run lint`: TypeScript validation passed.
 - `npm run build`: Next.js production build passed.

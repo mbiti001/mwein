@@ -3,21 +3,6 @@ import { randomBytes, scryptSync } from "node:crypto";
 
 const db = new PrismaClient();
 const password = (process.env.BOOTSTRAP_ADMIN_PASSWORD || "").trim();
-if (!password) process.exit(0);
-if (password.length < 16)
-  throw new Error(
-    "BOOTSTRAP_ADMIN_PASSWORD must contain at least 16 characters",
-  );
-
-const facility = await db.facility.upsert({
-  where: { code: process.env.FACILITY_CODE || "MMS" },
-  update: { name: "Mwein Medical Services", timezone: "Africa/Nairobi" },
-  create: {
-    code: process.env.FACILITY_CODE || "MMS",
-    name: "Mwein Medical Services",
-    timezone: "Africa/Nairobi",
-  },
-});
 
 const permissionDefinitions = [
   ["patient.read", "View patient records"],
@@ -34,6 +19,7 @@ const permissionDefinitions = [
   ["inventory.view", "View stock and supply records"],
   ["inventory.receive", "Receive approved purchase orders"],
   ["inventory.count", "Record physical stock counts"],
+  ["inventory.correct_metadata", "Correct batch expiry metadata with a reason"],
   ["inventory.adjust", "Approve stock variances"],
   ["inventory.transfer", "Transfer stock between stores"],
   ["inventory.manage_stores", "Create and manage stores"],
@@ -45,6 +31,7 @@ const permissionDefinitions = [
   ["billing.reverse", "Reverse payments with a documented reason"],
   ["claims.write", "Prepare and submit payer claims"],
   ["admin.users", "Manage users and roles"],
+  ["admin.assign_governance", "Assign facility governance roles"],
   ["admin.catalog", "Manage services and commodity catalogue"],
   ["admin.dashboard", "View the facility administration dashboard"],
   ["audit.view", "View append-only audit and session records"],
@@ -61,47 +48,58 @@ const role = await db.role.upsert({
   create: { code: "SYSTEM_ADMIN", name: "System administrator", system: true },
 });
 const permissions = await db.permission.findMany();
-for (const permission of permissions)
-  await db.rolePermission.upsert({
-    where: {
-      roleId_permissionId: { roleId: role.id, permissionId: permission.id },
-    },
-    update: {},
-    create: { roleId: role.id, permissionId: permission.id },
-  });
-
 const operationalRoles = {
-  RECEPTION: ["patient.read", "patient.create", "visit.read", "visit.create"],
-  NURSE: ["patient.read", "visit.read", "triage.write"],
-  CLINICIAN: ["patient.read", "visit.read", "encounter.write", "order.write"],
-  LABORATORY: ["patient.read", "visit.read", "laboratory.write"],
-  IMAGING: ["patient.read", "visit.read", "imaging.write"],
-  PHARMACY: ["patient.read", "visit.read", "pharmacy.dispense", "inventory.view"],
-  INVENTORY_CLERK: ["patient.read", "visit.read", "inventory.view", "inventory.receive", "inventory.count", "inventory.transfer", "inventory.manage_stores", "procurement.manage_suppliers", "procurement.create"],
-  PROCUREMENT_APPROVER: ["patient.read", "visit.read", "inventory.view", "inventory.adjust", "procurement.approve"],
-  FACILITY_ADMIN: ["patient.read", "visit.read", "billing.read", "admin.dashboard", "admin.users", "admin.catalog", "audit.view", "inventory.view", "procurement.approve"],
-  MEDICAL_DIRECTOR: ["patient.read", "visit.read", "encounter.write", "order.write", "admin.dashboard", "audit.view"],
-  FINANCE_MANAGER: ["patient.read", "visit.read", "billing.read", "billing.write", "billing.reverse", "claims.write", "admin.dashboard", "audit.view"],
-  HR_ADMIN: ["admin.dashboard", "admin.users", "audit.view"],
-  AUDITOR: ["admin.dashboard", "audit.view", "billing.read", "inventory.view"],
-  BILLING: ["patient.read", "visit.read", "billing.read", "billing.write", "billing.reverse", "claims.write"],
+  RECEPTION: { name: "Reception", grants: ["patient.read", "patient.create", "visit.read", "visit.create"] },
+  NURSE: { name: "Nurse", grants: ["patient.read", "visit.read", "triage.write"] },
+  CLINICIAN: { name: "Clinician", grants: ["patient.read", "visit.read", "encounter.write", "order.write"] },
+  LABORATORY: { name: "Laboratory", grants: ["patient.read", "visit.read", "laboratory.write"] },
+  IMAGING: { name: "Imaging", grants: ["patient.read", "visit.read", "imaging.write"] },
+  PHARMACY: { name: "Pharmacy operator", grants: ["patient.read", "visit.read", "pharmacy.dispense", "inventory.view", "inventory.receive", "inventory.count", "inventory.correct_metadata", "inventory.transfer", "procurement.create"] },
+  PHARMACY_MANAGER: { name: "Pharmacy manager", grants: ["patient.read", "visit.read", "pharmacy.dispense", "inventory.view", "inventory.receive", "inventory.count", "inventory.correct_metadata", "inventory.adjust", "inventory.transfer", "inventory.manage_stores", "procurement.manage_suppliers", "procurement.create", "procurement.approve", "admin.dashboard", "audit.view"] },
+  INVENTORY_CLERK: { name: "Inventory clerk", grants: ["inventory.view", "inventory.receive", "inventory.count", "inventory.correct_metadata", "inventory.transfer", "inventory.manage_stores", "procurement.manage_suppliers", "procurement.create"] },
+  PROCUREMENT_APPROVER: { name: "Procurement approver", grants: ["inventory.view", "inventory.adjust", "procurement.approve", "admin.dashboard", "audit.view"] },
+  FACILITY_ADMIN: { name: "Facility administrator", grants: ["patient.read", "visit.read", "billing.read", "admin.dashboard", "admin.users", "admin.assign_governance", "admin.catalog", "audit.view", "inventory.view"] },
+  MEDICAL_DIRECTOR: { name: "Medical director", grants: ["patient.read", "visit.read", "encounter.write", "order.write", "admin.dashboard", "audit.view"] },
+  FINANCE_MANAGER: { name: "Finance manager", grants: ["patient.read", "visit.read", "billing.read", "billing.write", "billing.reverse", "claims.write", "admin.dashboard", "audit.view"] },
+  HR_ADMIN: { name: "HR administrator", grants: ["admin.dashboard", "admin.users", "audit.view"] },
+  AUDITOR: { name: "Auditor", grants: ["admin.dashboard", "audit.view", "billing.read", "inventory.view"] },
+  BILLING: { name: "Billing", grants: ["patient.read", "visit.read", "billing.read", "billing.write", "billing.reverse", "claims.write"] },
 };
-for (const [code, permissionCodes] of Object.entries(operationalRoles)) {
+await db.rolePermission.deleteMany({ where: { roleId: role.id, permissionId: { notIn: permissions.map(item => item.id) } } });
+for (const permission of permissions)
+  await db.rolePermission.upsert({ where: { roleId_permissionId: { roleId: role.id, permissionId: permission.id } }, update: {}, create: { roleId: role.id, permissionId: permission.id } });
+
+for (const [code, definition] of Object.entries(operationalRoles)) {
   const operationalRole = await db.role.upsert({
     where: { code },
-    update: { name: code.charAt(0) + code.slice(1).toLowerCase() },
-    create: { code, name: code.charAt(0) + code.slice(1).toLowerCase(), system: true },
+    update: { name: definition.name },
+    create: { code, name: definition.name, system: true },
   });
-  for (const permissionCode of permissionCodes) {
+  const grantedIds = definition.grants.map(permissionCode => {
     const permission = permissions.find((item) => item.code === permissionCode);
     if (!permission) throw new Error(`Missing permission ${permissionCode}`);
+    return permission.id;
+  });
+  await db.rolePermission.deleteMany({ where: { roleId: operationalRole.id, permissionId: { notIn: grantedIds } } });
+  for (const permissionId of grantedIds) {
     await db.rolePermission.upsert({
-      where: { roleId_permissionId: { roleId: operationalRole.id, permissionId: permission.id } },
+      where: { roleId_permissionId: { roleId: operationalRole.id, permissionId } },
       update: {},
-      create: { roleId: operationalRole.id, permissionId: permission.id },
+      create: { roleId: operationalRole.id, permissionId },
     });
   }
 }
+
+if (!password) {
+  await db.$disconnect();
+  process.exit(0);
+}
+if (password.length < 16) throw new Error("BOOTSTRAP_ADMIN_PASSWORD must contain at least 16 characters");
+const facility = await db.facility.upsert({
+  where: { code: process.env.FACILITY_CODE || "MMS" },
+  update: { name: "Mwein Medical Services", timezone: "Africa/Nairobi" },
+  create: { code: process.env.FACILITY_CODE || "MMS", name: "Mwein Medical Services", timezone: "Africa/Nairobi" },
+});
 
 const salt = randomBytes(24);
 const passwordHash = `scrypt$${salt.toString("base64url")}$${scryptSync(password, salt, 64).toString("base64url")}`;

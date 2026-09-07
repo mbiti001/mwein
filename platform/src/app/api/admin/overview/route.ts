@@ -17,12 +17,16 @@ export async function GET() {
       db.purchaseOrder.count({ where: { facilityId: user.facilityId, status: "SUBMITTED" } }),
       db.session.findMany({ where: { user: { facilityId: user.facilityId }, expiresAt: { gt: new Date() } }, include: { user: { select: { displayName: true, email: true } } }, orderBy: { lastSeenAt: "desc" }, take: 20 }),
       db.auditEvent.findMany({ where: { user: { facilityId: user.facilityId } }, include: { user: { select: { displayName: true } } }, orderBy: { occurredAt: "desc" }, take: 40 }),
-      db.catalogItem.findMany({ where: { facilityId: user.facilityId, category: "PHARMACEUTICAL", active: true }, select: { name: true, reorderLevel: true, inventoryBatches: { where: { active: true }, select: { quantityAvailable: true, expiryDate: true } } } }),
+      db.catalogItem.findMany({ where: { facilityId: user.facilityId, category: "PHARMACEUTICAL", active: true }, select: { id: true, code: true, name: true, reorderLevel: true, inventoryBatches: { where: { active: true }, select: { id: true, batchNumber: true, quantityAvailable: true, expiryDate: true } } } }),
     ]);
     const outstanding = openInvoices.reduce((sum, invoice) => sum + invoice.items.reduce((value, item) => value + Number(item.quantity) * Number(item.unitPrice), 0) - invoice.payments.reduce((value, payment) => value + Number(payment.amount), 0), 0);
     const inNinetyDays = new Date(Date.now() + 90 * 86400000);
     const lowStock = stock.filter(item => item.reorderLevel != null && item.inventoryBatches.reduce((sum, batch) => sum + Number(batch.quantityAvailable), 0) <= Number(item.reorderLevel));
     const expiringStock = stock.filter(item => item.inventoryBatches.some(batch => batch.expiryDate <= inNinetyDays && Number(batch.quantityAvailable) > 0));
-    return NextResponse.json({ metrics: { registeredToday, waiting, visitsToday, activeStaff, outstanding, pendingClaims, pendingOrders, lowStock: lowStock.length, expiringStock: expiringStock.length, activeSessions: sessions.length }, actionItems: { lowStock: lowStock.map(item => item.name), expiringStock: expiringStock.map(item => item.name) }, sessions, audits });
+    const stockActions = [
+      ...lowStock.map(item => ({ issue: "LOW_STOCK", catalogItemId: item.id, batchId: null, code: item.code, name: item.name, detail: `Available ${item.inventoryBatches.reduce((sum, batch) => sum + Number(batch.quantityAvailable), 0)} · reorder level ${Number(item.reorderLevel)}` })),
+      ...stock.flatMap(item => item.inventoryBatches.filter(batch => batch.expiryDate <= inNinetyDays && Number(batch.quantityAvailable) > 0).map(batch => ({ issue: "EXPIRING", catalogItemId: item.id, batchId: batch.id, code: item.code, name: item.name, detail: `Batch ${batch.batchNumber} · expiry ${batch.expiryDate.toISOString().slice(0, 10)} · available ${Number(batch.quantityAvailable)}` }))),
+    ];
+    return NextResponse.json({ metrics: { registeredToday, waiting, visitsToday, activeStaff, outstanding, pendingClaims, pendingOrders, lowStock: lowStock.length, expiringStock: expiringStock.length, activeSessions: sessions.length }, actionItems: { stock: stockActions }, sessions, audits });
   } catch (error) { return apiError(error); }
 }

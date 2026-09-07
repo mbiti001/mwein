@@ -97,9 +97,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           const batch = batches.find(candidate => candidate.id === allocation.id)!;
           const batchBalance = Number(batch.quantityAvailable) - allocation.quantity;
           await tx.inventoryBatch.update({ where: { id: batch.id }, data: { quantityAvailable: new Prisma.Decimal(batchBalance), active: batchBalance > 0 } });
-          await tx.inventoryLocationBalance.update({ where: { storeId_batchId: { storeId: mainStore.id, batchId: batch.id } }, data: { quantity: { decrement: allocation.quantity } } });
+          const storeBalance = await tx.inventoryLocationBalance.update({ where: { storeId_batchId: { storeId: mainStore.id, batchId: batch.id } }, data: { quantity: { decrement: allocation.quantity } } });
           await tx.dispensationItem.create({ data: { dispensationId: dispensation.id, batchId: batch.id, quantity: new Prisma.Decimal(allocation.quantity), unitPrice: catalogItem.unitPrice, unitCost: batch.unitCost } });
-          await tx.stockMovement.create({ data: { batchId: batch.id, userId: user.id, prescriptionId: order.prescription.id, dispensationId: dispensation.id, type: "DISPENSE", quantity: new Prisma.Decimal(-allocation.quantity), balanceAfter: new Prisma.Decimal(batchBalance), reason: `${order.visit.visitNumber} · ${order.displayName}` } });
+          await tx.stockMovement.create({ data: { batchId: batch.id, userId: user.id, prescriptionId: order.prescription.id, dispensationId: dispensation.id, sourceStoreId: mainStore.id, type: "DISPENSE", quantity: new Prisma.Decimal(-allocation.quantity), balanceAfter: new Prisma.Decimal(batchBalance), sourceBalanceAfter: storeBalance.quantity, reason: `${order.visit.visitNumber} · ${order.displayName}` } });
         }
       } else {
         await tx.dispensation.create({ data: { prescriptionId: order.prescription.id, dispensedById: user.id, idempotencyKey: input.idempotencyKey, status: "NOT_DISPENSED", quantity: new Prisma.Decimal(0), notes: input.notes } });
