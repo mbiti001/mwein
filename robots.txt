@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /
+
+# Prototype EMR demo. Do not index demo clinical screens.

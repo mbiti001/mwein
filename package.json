@@ -1,0 +1,18 @@
+{
+  "name": "mwein-cloud-emr-legacy",
+  "version": "0.7.0",
+  "private": true,
+  "description": "Legacy SQLite compatibility pilot; use ./platform for the canonical Mwein HMIS.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test test/*.test.js",
+    "backup": "node scripts/backup.js",
+    "verify-backup": "node scripts/verify-backup.js",
+    "package-release": "sh scripts/package-release.sh"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}

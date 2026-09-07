@@ -1,0 +1,26 @@
+{
+  "name": "Mwein Cloud EMR",
+  "short_name": "Mwein EMR",
+  "description": "Kenya-ready cloud EMR prototype for outpatient, lab, pharmacy, SHA billing, analytics, and compliance workflows.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#e9eef0",
+  "theme_color": "#0f766e",
+  "orientation": "any",
+  "categories": ["medical", "productivity"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='36' fill='%230f766e'/%3E%3Cpath d='M48 116h28V76h40v40h28V48h-28v28H76V48H48v68Z' fill='white'/%3E%3Cpath d='M48 138h96v16H48z' fill='%23ccfbf1'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%230f766e'/%3E%3Cpath d='M128 310h74V202h108v108h74V128h-74v74H202v-74h-74v182Z' fill='white'/%3E%3Cpath d='M128 368h256v42H128z' fill='%23ccfbf1'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

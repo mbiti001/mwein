@@ -1,0 +1,41 @@
+services:
+  emr:
+    build: .
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 8080
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN to the public HTTPS URL}
+      TRUST_PROXY: "true"
+      DATA_DIR: /app/data
+      SESSION_HOURS: "8"
+      SESSION_IDLE_MINUTES: "30"
+      SEED_DEMO_DATA: "false"
+      EMR_BOOTSTRAP_PASSWORD_FILE: /run/secrets/emr_bootstrap_password
+    secrets:
+      - emr_bootstrap_password
+    volumes:
+      - emr_data:/app/data
+    ports:
+      - "127.0.0.1:8080:8080"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+secrets:
+  emr_bootstrap_password:
+    file: ./secrets/emr_bootstrap_password.txt
+
+volumes:
+  emr_data:

@@ -1,0 +1,15 @@
+.git
+.github
+.DS_Store
+.env
+.env.*
+!.env.example
+data
+secrets
+node_modules
+npm-debug.log*
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite-journal
+coverage
