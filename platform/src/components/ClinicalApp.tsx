@@ -12,8 +12,11 @@ import ReportingWorkstation from "@/components/ReportingWorkstation";
 import AppointmentWorkstation from "@/components/AppointmentWorkstation";
 import StockCenter from "@/components/StockCenter";
 import AdminCenter from "@/components/AdminCenter";
+import ServicePointsWorkstation from "@/components/ServicePointsWorkstation";
 import SaveFeedback from "@/components/SaveFeedback";
 import { currentServicePoint, isWaitingOverdue, waitingMinutes, type ServicePointCode } from "@/lib/service-points";
+import { appointmentClinics } from "@/lib/appointments";
+import { careServiceForClinic } from "@/lib/care-service-points";
 import { jsonRequest } from "@/lib/client-http";
 
 type User = {
@@ -41,11 +44,15 @@ type Visit = {
   id: string;
   visitNumber: string;
   clinic: string;
+  visitType?: string;
   priority: string;
   status: string;
   reason: string;
   arrivedAt: string;
   patient: Patient;
+  encounters?: {
+    diagnoses: { description: string; code?: string | null; primary: boolean }[];
+  }[];
   facility?: { name: string; code: string };
   queues?: { servicePoint: string; status: string; enteredAt?: string }[];
   orders?: {
@@ -93,6 +100,7 @@ type Screen =
   | "appointments"
   | "visit"
   | "triage"
+  | "servicePoints"
   | "consultation"
   | "diagnostics"
   | "imaging"
@@ -140,6 +148,7 @@ export default function ClinicalApp() {
       appointments: "Appointments",
       visit: "Clinic check-in",
       triage: "Triage",
+      servicePoints: "Service points",
       consultation: "Consultation",
       diagnostics: "Laboratory",
       imaging: "Imaging",
@@ -181,6 +190,7 @@ export default function ClinicalApp() {
     ["registration", "Registration", "patient.create"],
     ["appointments", "Appointments", "visit.create"],
     ["triage", "Triage", "triage.write"],
+    ["servicePoints", "Service points", "encounter.write"],
     ["consultation", "Consultation", "encounter.write"],
     ["diagnostics", "Laboratory", "laboratory.write"],
     ["imaging", "Imaging", "imaging.write"],
@@ -289,8 +299,11 @@ export default function ClinicalApp() {
             onCreated={async (visit) => {
               await loadVisits();
               setAppointment(null);
-              setNotice(`${visit.visitNumber} started and sent to triage.`);
-              setScreen("triage");
+              setContextVisitId(visit.id);
+              setFocusedVisitId(visit.id);
+              const direct = visit.clinic === "Walk-in";
+              setNotice(`${visit.visitNumber} started and sent to ${direct ? "the walk-in clinical review" : "triage"}.`);
+              setScreen(direct ? "servicePoints" : "triage");
             }}
           />
         )}
@@ -310,6 +323,15 @@ export default function ClinicalApp() {
             onInitialVisitOpened={() => setFocusedVisitId(null)}
           />
         )}
+        {screen === "servicePoints" && (
+          <ServicePointsWorkstation
+            visits={visits}
+            initialVisitId={focusedVisitId}
+            onInitialVisitOpened={() => setFocusedVisitId(null)}
+            onOpenClinical={(visitId) => { setFocusedVisitId(visitId); setContextVisitId(visitId); setScreen("consultation"); }}
+            onUpdated={loadVisits}
+          />
+        )}
         {screen === "consultation" && (
           <ConsultationWorkstation
             visits={visits.filter((visit) =>
@@ -324,6 +346,7 @@ export default function ClinicalApp() {
               );
               setFocusedVisitId(null); setContextVisitId(null); setScreen("consultation");
             }}
+            onOpenServicePoints={(visitId) => { setFocusedVisitId(visitId); setContextVisitId(visitId); setScreen("servicePoints"); }}
             initialVisitId={focusedVisitId}
             onInitialVisitOpened={() => setFocusedVisitId(null)}
           />
@@ -370,7 +393,7 @@ function WorkflowSteps({ screen }: { screen: Screen }) {
       detail: "Vitals & priority",
     },
     {
-      keys: ["consultation"],
+      keys: ["servicePoints", "consultation"],
       number: 3,
       label: "Consultation",
       detail: "Complaint, examination & plan",
@@ -558,7 +581,7 @@ function Dashboard({
         ) : (
           <div className="queue">
             {tasks.map(({ visit: v, point, wait }) => { const task = access[point!]; const overdue = isWaitingOverdue(v.priority, wait); return (
-              <button className={`row taskRow ${v.priority.toLowerCase()} ${overdue ? "overdue" : ""}`} key={v.id} onClick={() => onOpenTask(task!.screen, v.id)}>
+              <button className={`row taskRow ${v.priority.toLowerCase()} ${overdue ? "overdue" : ""}`} key={v.id} onClick={() => onOpenTask(point === "CONSULTATION" && careServiceForClinic(v.clinic) ? "servicePoints" : task!.screen, v.id)}>
                 <span className="dot" />
                 <div>
                   <strong>{v.patient.fullName}</strong>
@@ -579,7 +602,7 @@ function Dashboard({
 function PatientContextBar({ visit, onClear, onOpen }: { visit: Visit; onClear: () => void; onOpen: (target: Screen) => void }) {
   const servicePoint = currentServicePoint(visit);
   const point = servicePoint?.replaceAll("_", " ") || visit.status.replaceAll("_", " ");
-  const targets: Partial<Record<ServicePointCode, Screen>> = { TRIAGE: "triage", CONSULTATION: "consultation", LABORATORY: "diagnostics", IMAGING: "imaging", PHARMACY: "pharmacy", BILLING: "billing" };
+  const targets: Partial<Record<ServicePointCode, Screen>> = { TRIAGE: "triage", CONSULTATION: careServiceForClinic(visit.clinic) ? "servicePoints" : "consultation", LABORATORY: "diagnostics", IMAGING: "imaging", PHARMACY: "pharmacy", BILLING: "billing" };
   const balance = visit.invoice ? visit.invoice.items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0) - visit.invoice.payments.filter(item => item.status === "CONFIRMED").reduce((sum, item) => sum + Number(item.amount), 0) : 0;
   return <aside className="patientContext" aria-label="Current patient context"><div><strong>{visit.patient.fullName}</strong><span>{visit.patient.patientNumber} · {visit.visitNumber} · {visit.clinic}</span></div><div><small>Current location</small><b>{point}</b></div><div><small>Allergies</small><b className={visit.patient.allergies?.length ? "dangerText" : ""}>{visit.patient.allergies?.length ? visit.patient.allergies.map(item => item.substance).join(", ") : "None recorded"}</b></div><div><small>Payment</small><b>{visit.invoice?.status || "OPEN"} · KES {Math.max(0, balance).toLocaleString()}</b></div>{servicePoint && targets[servicePoint] && <button className="contextAction" onClick={() => onOpen(targets[servicePoint]!)}>Open current task</button>}<button className="contextClose" onClick={onClear} aria-label="Clear patient context">×</button></aside>;
 }
@@ -790,8 +813,8 @@ function StartVisit({
           <p className="eyebrow">Reception</p>
           <h1>Clinic check-in</h1>
           <p>
-            Confirm the destination clinic and arrival type, then send the
-            registered patient to triage.
+            Confirm the destination clinic and arrival type. Specialty and
+            walk-in services use their focused clinical workflow.
           </p>
         </div>
       </header>
@@ -844,15 +867,7 @@ function StartVisit({
         <label>
           Clinic *
           <select name="clinic" defaultValue={appointment?.clinic || "Outpatient"} disabled={Boolean(appointment)}>
-            {[
-              "Outpatient",
-              "ANC",
-              "HTN",
-              "DM",
-              "Paediatrics",
-              "Emergency",
-              "Other",
-            ].map((x) => (
+            {appointmentClinics.map((x) => (
               <option key={x}>{x}</option>
             ))}
           </select>
@@ -872,7 +887,7 @@ function StartVisit({
             obtain the complaint and history in the consultation room.
           </span>
         </div>
-        <button className="primary wide">Check in and send to triage</button>
+        <button className="primary wide">Check in patient</button>
       </form>
     </>
   );

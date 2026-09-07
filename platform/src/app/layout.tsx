@@ -8,6 +8,7 @@ import "./findings.css";
 import "./clinical-terms.css";
 import "./targeted-review.css";
 import "./catalogue.css";
+import "./service-points.css";
 import "./mobile.css";
 
 export const metadata: Metadata = {

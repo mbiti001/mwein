@@ -108,7 +108,7 @@ export function patientNumber(code: string, year: number, sequence: bigint) {
   return `${code}-${year}-${sequence.toString().padStart(6, "0")}`;
 }
 
-export function operationalReference(code: string, kind: "V" | "INV" | "RCT" | "CLM", year: number, sequence: bigint) {
+export function operationalReference(code: string, kind: "V" | "INV" | "RCT" | "CLM" | "REF", year: number, sequence: bigint) {
   if (!/^[A-Z]{2,8}$/.test(code) || sequence < 1n) throw new Error("Invalid reference input");
   return `${code}-${kind}-${year}-${sequence.toString().padStart(6, "0")}`;
 }

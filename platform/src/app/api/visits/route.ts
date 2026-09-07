@@ -6,19 +6,12 @@ import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
 import { operationalReference } from "@/lib/domain";
+import { appointmentClinics } from "@/lib/appointments";
 
 const visitInput = z.object({
   patientId: z.uuid(),
   appointmentId: z.uuid().optional(),
-  clinic: z.enum([
-    "Outpatient",
-    "ANC",
-    "HTN",
-    "DM",
-    "Paediatrics",
-    "Emergency",
-    "Other",
-  ]),
+  clinic: z.union([z.enum(appointmentClinics), z.literal("DM")]),
   priority: z.enum(["ROUTINE", "PRIORITY", "URGENT", "EMERGENCY"]),
   visitType: z.enum(["WALK_IN", "APPOINTMENT", "EMERGENCY"]).default("WALK_IN"),
 });
@@ -155,6 +148,7 @@ export async function POST(request: Request) {
             nextValue: 2,
           },
         });
+        const directWalkIn = (appointment?.clinic || input.clinic) === "Walk-in";
         const visit = await tx.visit.create({
           data: {
             facilityId: user.facilityId,
@@ -169,11 +163,11 @@ export async function POST(request: Request) {
             clinic: appointment?.clinic || input.clinic,
             visitType: appointment ? "APPOINTMENT" : input.visitType,
             priority: input.priority,
-            status: "AWAITING_TRIAGE",
+            status: directWalkIn ? "AWAITING_CLINICIAN" : "AWAITING_TRIAGE",
             reason: "Clinical complaint deferred to private consultation",
             queues: {
               create: {
-                servicePoint: "TRIAGE",
+                servicePoint: directWalkIn ? "CONSULTATION" : "TRIAGE",
                 priority: input.priority,
                 status: "WAITING",
               },

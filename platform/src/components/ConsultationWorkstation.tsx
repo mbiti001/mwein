@@ -959,11 +959,13 @@ function serializeFindings(
 export default function ConsultationWorkstation({
   visits,
   onCompleted,
+  onOpenServicePoints,
   initialVisitId,
   onInitialVisitOpened,
 }: {
   visits: Visit[];
   onCompleted: (patientName: string) => void;
+  onOpenServicePoints?: (visitId: string) => void;
   initialVisitId?: string | null;
   onInitialVisitOpened?: () => void;
 }) {
@@ -1023,6 +1025,7 @@ export default function ConsultationWorkstation({
       visit={active}
       onBack={() => setActive(null)}
       onCompleted={onCompleted}
+      onOpenServicePoints={onOpenServicePoints}
     />
   );
 }
@@ -1031,10 +1034,12 @@ function ConsultationForm({
   visit,
   onBack,
   onCompleted,
+  onOpenServicePoints,
 }: {
   visit: Visit;
   onBack: () => void;
   onCompleted: (name: string) => void;
+  onOpenServicePoints?: (visitId: string) => void;
 }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -2124,6 +2129,7 @@ function ConsultationForm({
               queues.
             </small>
           </label>
+          {onOpenServicePoints && <div className="span2 clinicalBoundary"><strong>Referral or specialty record</strong><span>Save the clinical notes first, then open the connected service-point record. A referral must be sent before a REFER disposition can be signed.</span><button className="secondary" type="button" onClick={() => onOpenServicePoints(visit.id)}>Open service points</button></div>}
         </ClinicalSection>
         <div className={`signBar ${activeStep === 7 ? "" : "stepHidden"}`}>
           <div>

@@ -17,7 +17,7 @@ export async function currentUser() {
     facilityId: session.user.facilityId,
     email: session.user.email,
     displayName: session.user.displayName,
-    facility: { id: session.user.facility.id, code: session.user.facility.code, name: session.user.facility.name },
+    facility: { id: session.user.facility.id, code: session.user.facility.code, name: session.user.facility.name, timezone: session.user.facility.timezone },
     roles: session.user.roles.map(item => item.role.code),
     permissions: [...new Set(session.user.roles.flatMap(item => item.role.permissions.map(value => value.permission.code)))]
   };

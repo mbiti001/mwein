@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { jsonRequest } from "@/lib/client-http";
+import { careServiceProfile } from "@/lib/care-service-points";
 
 type Summary = any;
 const display = (value?: string | null) => value || "Not recorded";
@@ -110,6 +111,8 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
       </>
     );
   const e = active.encounter;
+  const serviceProfile = e?.servicePointRecord ? careServiceProfile(e.servicePointRecord.servicePoint) : null;
+  const serviceFields = serviceProfile?.sections.flatMap((section) => section.fields) || [];
   const verifiedLabs = active.orders.filter(
     (o: Summary) =>
       o.type === "LABORATORY" && o.laboratory?.result?.status === "VERIFIED",
@@ -228,6 +231,15 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
           <pre>{display(e?.objective.generalExamination)}</pre>
           <pre>{display(e?.objective.systemicExamination)}</pre>
         </SummarySection>
+        {e?.servicePointRecord && serviceProfile && <SummarySection title={`${serviceProfile.label} assessment`}>
+          <div className="summaryLine"><strong>Risk</strong><span>{display(e.servicePointRecord.riskLevel)}</span></div>
+          {serviceFields.filter((field) => {
+            const value = e.servicePointRecord.data?.[field.key];
+            return value !== undefined && value !== "" && value !== false;
+          }).map((field) => <div className="summaryLine" key={field.key}><strong>{field.label}</strong><span>{String(e.servicePointRecord.data[field.key])}{field.unit ? ` ${field.unit}` : ""}</span></div>)}
+          {e.servicePointRecord.followUpAt && <div className="summaryLine"><strong>Specialty follow-up</strong><span>{new Date(e.servicePointRecord.followUpAt).toLocaleDateString()}</span></div>}
+          <small>Template {e.servicePointRecord.templateVersion}</small>
+        </SummarySection>}
         <SummarySection title="Diagnoses">
           {e?.diagnoses.length ? (
             e.diagnoses.map((d: Summary) => (
@@ -330,6 +342,9 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
                 : "Not scheduled"}
             </span>
           </div>
+        </SummarySection>
+        <SummarySection title="Referrals">
+          {active.referrals?.length ? active.referrals.map((referral: Summary) => <div className="summaryLine" key={referral.id}><strong>{referral.referralNumber} · {referral.status}</strong><span>{referral.urgency} · {referral.reason} · To {referral.receivingFacility}{referral.receivingDepartment ? ` / ${referral.receivingDepartment}` : ""}{referral.feedback ? ` · Feedback: ${referral.feedback}` : ""}</span></div>) : <p>No referrals recorded for this visit.</p>}
         </SummarySection>
         {active.invoice && (
           <SummarySection title="Billing">

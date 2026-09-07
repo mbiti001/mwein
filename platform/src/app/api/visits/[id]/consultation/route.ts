@@ -498,6 +498,14 @@ export async function POST(
         const medicines = await tx.clinicalOrder.count({
           where: { visitId: id, type: "MEDICATION", status: "REQUESTED" },
         });
+        if (input.data.disposition === "REFER") {
+          const sentReferral = await tx.referral.findFirst({
+            where: { visitId: id, status: { in: ["SENT", "ACCEPTED", "ATTENDED", "RETURNED", "CLOSED"] } },
+            select: { id: true },
+          });
+          if (!sentReferral)
+            throw Object.assign(new Error("Create and send the referral before signing a REFER disposition"), { status: 409 });
+        }
         const target =
           input.data.disposition === "ADMIT"
             ? "ADMITTED"

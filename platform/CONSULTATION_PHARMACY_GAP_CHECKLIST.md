@@ -14,7 +14,7 @@ Legend: `[x]` implemented, `[~]` partial, `[ ]` missing or requires a product de
 - [~] Searchable coded diagnosis, diagnosis type and one primary diagnosis. The build intentionally uses WHO ICD-11 MMS; the supplied specification says ICD-10. Confirm the Kenyan reporting/interoperability requirement before changing the coding system.
 - [x] Laboratory and imaging ordering captures priority and clinical indication, then routes catalogue-backed requests to worklists and billing.
 - [x] Prescription transfer to the pharmacy queue and billing synchronization.
-- [~] Referral/admission/follow-up. Disposition and follow-up are captured, but a full referral document/workflow is not implemented.
+- [x] Referral/admission/follow-up. Follow-up and disposition are captured; referrals have a printable document, controlled lifecycle, receiving-provider feedback and are linked to the visit summary.
 - [x] Signed encounter locking, audit author/timestamp and visit summary.
 - [x] Signed-note addenda are append-only, author/timestamp attributed and audit logged without rewriting the original encounter.
 
@@ -32,7 +32,7 @@ Legend: `[x]` implemented, `[~]` partial, `[ ]` missing or requires a product de
 - [x] Every confirmed supply creates an idempotent immutable dispensation with batch lines; network replay cannot deduct stock or bill twice.
 - [x] Pharmacy invoice quantities follow cumulative confirmed dispensing, including partial supply; prescribing alone no longer creates a medicine charge.
 - [ ] Pharmacist override of the FEFO batch and medicine substitution with a recorded reason.
-- [~] Low-stock/expiry visibility and operations reporting exist; periodic physical counts and variance authorization need a dedicated workflow.
+- [x] Low-stock/expiry visibility, operations reporting, periodic physical counts and independent variance authorization are implemented.
 - [~] Billing uses immutable invoice line prices; dated multi-payer medicine price history is not implemented.
 - [ ] Stand-alone pharmacy sale with prescription-only controls.
 
@@ -41,10 +41,11 @@ Legend: `[x]` implemented, `[~]` partial, `[ ]` missing or requires a product de
 1. Add controlled FEFO override and substitution reasons.
 2. Complete the consultation banner and structured multiple complaints.
 3. Decide ICD-10 versus ICD-11 mapping/reporting with the clinical and interoperability owner.
-4. Defer stand-alone pharmacy sales until the connected OPD workflow passes UAT.
+4. Run timed clinician UAT across general and specialty workflows.
+5. Defer stand-alone pharmacy sales until the connected OPD workflow passes UAT.
 
 ## Verification
 
-- `npm test -- --reporter=dot`: 44 tests passed.
+- `npm test`: 70 tests passed.
 - `npm run lint`: TypeScript validation passed.
 - `npm run build`: Next.js production build passed.
