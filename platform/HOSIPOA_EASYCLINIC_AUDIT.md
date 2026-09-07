@@ -39,8 +39,8 @@ This matches the strongest shared model in both references: one patient record, 
 
 - Custom dashboards and scheduled reports, AI-assisted documentation/analysis, fraud/pilferage analytics and advanced patient engagement automation.
 
-## Repository state to close
+## Repository state
 
-- The working tree still contains the large legacy-site consolidation (tracked deletions plus replacement root files) and the uncommitted platform feature. Review and commit these as separate changes.
-- Local `main` is 48 commits ahead of and 1 commit behind `origin/main`; reconcile the remote commit before publishing.
-- The root SQLite prototype and the PostgreSQL/Next.js platform are both present. Declare the platform as canonical and archive or isolate the legacy runtime to prevent deployment and test ambiguity.
+- The specialty/referral feature and the legacy-site consolidation are committed separately so they can be reviewed independently.
+- The remote-only legacy overhaul has been merged; local `main` contains the full `origin/main` history and is ready to push after final review.
+- The root README declares the PostgreSQL/Next.js application in `platform/` as canonical. The root SQLite application remains only as an explicitly labelled compatibility pilot.
