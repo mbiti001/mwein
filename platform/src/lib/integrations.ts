@@ -11,7 +11,16 @@ export type IntegrationReadiness = {
 
 export function integrationReadiness(): IntegrationReadiness[] {
   const icdConfigured = Boolean(process.env.ICD11_CLIENT_ID && process.env.ICD11_CLIENT_SECRET);
+  const identity = externalIdentityConfiguration();
   return [
+    {
+      key: "workforce-identity",
+      name: "Workforce identity and MFA",
+      state: identity.configured ? "PREPARED_ON_HOLD" : "NOT_CONFIGURED",
+      purpose: "OIDC sign-in, provider-group mapping and workforce MFA",
+      reason: identity.configured ? "OIDC settings and governed role mappings are prepared; production sign-in remains held until provider discovery, callback and MFA acceptance tests are completed." : "Local staff sign-in remains active while the OIDC provider settings and formal acceptance evidence are incomplete.",
+      requirements: identity.configured ? ["Provider discovery validation", "Callback and logout acceptance testing", "MFA enforcement evidence", "Break-glass access rehearsal"] : ["OIDC issuer", "Client ID and secret", "HTTPS redirect URI", "Provider group names", "MFA enforcement evidence"],
+    },
     {
       key: "sha",
       name: "SHA claims",
@@ -54,3 +63,4 @@ export function integrationReadiness(): IntegrationReadiness[] {
     },
   ];
 }
+import { externalIdentityConfiguration } from "./external-identity";

@@ -14,16 +14,22 @@ const inputSchema = z.object({
   notes: z.string().trim().max(300).optional(),
 });
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await requirePermission("visit.read");
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 31);
+    const now = new Date();
+    const start = new Date(now); start.setDate(start.getDate() - 90);
+    const end = new Date(now); end.setDate(end.getDate() + 31);
+    const scope = new URL(request.url).searchParams.get("scope") || "upcoming";
+    if (!["upcoming", "recall", "all"].includes(scope)) throw Object.assign(new Error("Invalid appointment scope"), { status: 422 });
+    const where = scope === "upcoming"
+      ? { facilityId: user.facilityId, scheduledAt: { gte: now, lt: end } }
+      : scope === "recall"
+        ? { facilityId: user.facilityId, scheduledAt: { gte: start, lt: now }, status: { in: ["NO_SHOW" as const, "SCHEDULED" as const] } }
+        : { facilityId: user.facilityId, scheduledAt: { gte: start, lt: end } };
     const appointments = await db.appointment.findMany({
-      where: { facilityId: user.facilityId, scheduledAt: { gte: start, lt: end } },
-      include: { patient: { include: { contacts: { where: { primary: true }, take: 1 }, consents: { where: { type: "MESSAGING", granted: true, withdrawnAt: null }, take: 1 } } } },
+      where,
+      include: { patient: { include: { contacts: { where: { primary: true }, take: 1 }, consents: { where: { type: "MESSAGING", granted: true, withdrawnAt: null }, take: 1 } } }, reminderDeliveries: { orderBy: { preparedAt: "desc" }, take: 3 } },
       orderBy: { scheduledAt: "asc" },
     });
     return NextResponse.json({ appointments });
@@ -45,7 +51,7 @@ export async function POST(request: Request) {
     const appointment = await db.$transaction(async (tx) => {
       const created = await tx.appointment.create({
         data: { facilityId: user.facilityId, patientId: patient.id, scheduledAt, clinic: input.clinic, notes: input.notes },
-        include: { patient: { include: { contacts: { where: { primary: true }, take: 1 }, consents: { where: { type: "MESSAGING", granted: true, withdrawnAt: null }, take: 1 } } } },
+        include: { patient: { include: { contacts: { where: { primary: true }, take: 1 }, consents: { where: { type: "MESSAGING", granted: true, withdrawnAt: null }, take: 1 } } }, reminderDeliveries: true },
       });
       await appendAudit(tx, { userId: user.id, action: "APPOINTMENT_BOOKED", entityType: "Appointment", entityId: created.id, afterHash: `${created.scheduledAt.toISOString()}:${created.clinic}` });
       return created;

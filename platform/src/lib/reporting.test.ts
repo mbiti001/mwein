@@ -1,11 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { isIsoCalendarDate, summarizeOperations } from "./reporting";
+import { isIsoCalendarDate, summarizeCashierActivity, summarizeOperations, summarizeQueuePerformance, summarizeReferralFlow } from "./reporting";
 
 describe("report dates", () => {
   it("accepts real ISO calendar dates and rejects normalized dates", () => {
     expect(isIsoCalendarDate("2026-09-03")).toBe(true);
     expect(isIsoCalendarDate("2026-02-29")).toBe(false);
     expect(isIsoCalendarDate("2026-13-01")).toBe(false);
+  });
+});
+
+describe("department performance", () => {
+  it("calculates queue averages and p90 per service point", () => {
+    const queue = summarizeQueuePerformance([
+      { servicePoint: "TRIAGE", status: "COMPLETED", enteredAt: "2026-09-03T09:00:00Z", completedAt: "2026-09-03T09:10:00Z" },
+      { servicePoint: "TRIAGE", status: "COMPLETED", enteredAt: "2026-09-03T09:00:00Z", completedAt: "2026-09-03T09:30:00Z" },
+    ]);
+    expect(queue[0]).toMatchObject({ servicePoint: "TRIAGE", count: 2, completed: 2, averageMinutes: 20, p90Minutes: 30 });
+  });
+  it("measures closed-loop referrals", () => {
+    expect(summarizeReferralFlow([{ status: "SENT" }, { status: "RETURNED" }, { status: "DRAFT" }])).toEqual({ created: 3, sent: 2, attended: 1, closedLoop: 1, closureRate: 50 });
+  });
+  it("attributes confirmed and reversed payments to cashiers", () => {
+    const rows = summarizeCashierActivity([{ amount: 400, status: "CONFIRMED", method: "MPESA", receivedBy: { displayName: "Amina" } }, { amount: 100, status: "REVERSED", method: "CASH", receivedBy: { displayName: "Amina" } }]);
+    expect(rows[0]).toMatchObject({ cashier: "Amina", confirmed: 400, reversed: 100, transactions: 2, methods: { MPESA: 400 } });
   });
 });
 

@@ -21,6 +21,12 @@ type Report = {
       reason: string;
     }[];
   };
+  departments: {
+    queues: { servicePoint: string; count: number; completed: number; averageMinutes: number; p90Minutes: number }[];
+    referrals: { created: number; sent: number; attended: number; closedLoop: number; closureRate: number };
+    pharmacy: { consumption: { code: string; name: string; quantity: number; revenue: number; cost: number }[]; lowStock: { code: string; name: string }[]; expiring30Days: number; expiring90Days: number };
+    cashiers: { cashier: string; confirmed: number; reversed: number; transactions: number; methods: Record<string, number> }[];
+  };
 };
 type MohReport = { month: string; reportType: string; submissionStatus: string; facility: { name: string; code: string }; attendance: Record<string, number>; diagnoses: { code: string; description: string; male: number; female: number; other: number; total: number }[]; services: { visits: number; laboratoryOrders: number; imagingOrders: number; medicinesDispensed: number; referrals: number }; completeness: { signedEncounters: number; unsignedVisits: number; visitsWithCodedDiagnosis: number; visitsWithoutCodedDiagnosis: number } };
 
@@ -96,6 +102,14 @@ export default function ReportingWorkstation() {
               </div>
             ) : <div className="empty"><strong>No claim exceptions</strong><p>The selected period has no rejected or stale submitted claims.</p></div>}
           </section>
+          <div className="supplyGrid">
+            <section className="card"><div className="cardHead"><div><h2>Service-point performance</h2><p>Elapsed time from queue entry to completion. P90 highlights the slowest patient experience.</p></div></div><div className="queue compact">{report.departments.queues.map(point => <div className="row" key={point.servicePoint}><span className="dot"/><div><strong>{point.servicePoint.replaceAll("_", " ")}</strong><small>{point.completed}/{point.count} completed · average {point.averageMinutes} min</small></div><b>P90 {point.p90Minutes} min</b></div>)}{!report.departments.queues.length && <p>No queue activity in this period.</p>}</div></section>
+            <section className="card"><div className="cardHead"><div><h2>Referral closure</h2><p>Track whether outbound referrals return actionable feedback.</p></div></div><div className="metrics"><article><small>Sent</small><strong>{report.departments.referrals.sent}</strong></article><article><small>Attended</small><strong>{report.departments.referrals.attended}</strong></article><article><small>Closed loop</small><strong>{report.departments.referrals.closureRate}%</strong><span>{report.departments.referrals.closedLoop} returned or closed</span></article></div></section>
+          </div>
+          <div className="supplyGrid">
+            <section className="card"><div className="cardHead"><div><h2>Medicine consumption</h2><p>Top dispensed items with recorded revenue and cost.</p></div><small>{report.departments.pharmacy.expiring30Days} batch group(s) expiring within 30 days</small></div><div className="queue compact">{report.departments.pharmacy.consumption.map(item => <div className="row" key={item.code}><span className="dot"/><div><strong>{item.name}</strong><small>{item.code} · quantity {item.quantity.toLocaleString()} · cost {money(item.cost)}</small></div><b>{money(item.revenue)}</b></div>)}{!report.departments.pharmacy.consumption.length && <p>No dispensing activity in this period.</p>}</div>{report.departments.pharmacy.lowStock.length > 0 && <div className="notice">Low stock: {report.departments.pharmacy.lowStock.map(item => item.name).join(", ")}</div>}</section>
+            <section className="card"><div className="cardHead"><div><h2>Cashier reconciliation</h2><p>Receipts attributed to the staff member who recorded each payment.</p></div></div><div className="queue compact">{report.departments.cashiers.map(cashier => <div className="row" key={cashier.cashier}><span className="dot"/><div><strong>{cashier.cashier}</strong><small>{cashier.transactions} transaction(s) · {Object.entries(cashier.methods).map(([method, amount]) => `${method} ${money(amount)}`).join(" · ") || "No confirmed receipts"}</small></div><div><b>{money(cashier.confirmed)}</b>{cashier.reversed > 0 && <small>Reversed {money(cashier.reversed)}</small>}</div></div>)}{!report.departments.cashiers.length && <p>No payment activity in this period.</p>}</div></section>
+          </div>
         </>
       )}
       <section className="card noPrint">

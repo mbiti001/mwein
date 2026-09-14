@@ -125,29 +125,34 @@ enum CatalogCategory {
 }
 
 model Facility {
-  id                 String              @id @default(uuid()) @db.Uuid
-  code               String              @unique
-  name               String
-  timezone           String              @default("Africa/Nairobi")
-  users              User[]
-  patients           Patient[]
-  visits             Visit[]
-  sequences          ReferenceSequence[]
-  catalogItems       CatalogItem[]
-  appointments       Appointment[]
-  suppliers          Supplier[]
-  stores             Store[]
-  purchaseOrders     PurchaseOrder[]
-  stocktakes         Stocktake[]
-  accountingJournals AccountingJournal[]
-  referrals          Referral[]
-  auditEvents        AuditEvent[]
-  auditChainHead     AuditChainHead?
-  loginThrottles     LoginThrottle[]
-  governanceEvidence GovernanceEvidence[]
-  patientProblems    PatientProblem[]
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  id                    String                 @id @default(uuid()) @db.Uuid
+  code                  String                 @unique
+  name                  String
+  timezone              String                 @default("Africa/Nairobi")
+  users                 User[]
+  patients              Patient[]
+  visits                Visit[]
+  sequences             ReferenceSequence[]
+  catalogItems          CatalogItem[]
+  appointments          Appointment[]
+  suppliers             Supplier[]
+  stores                Store[]
+  purchaseOrders        PurchaseOrder[]
+  stocktakes            Stocktake[]
+  accountingJournals    AccountingJournal[]
+  referrals             Referral[]
+  auditEvents           AuditEvent[]
+  auditChainHead        AuditChainHead?
+  loginThrottles        LoginThrottle[]
+  governanceEvidence    GovernanceEvidence[]
+  patientProblems       PatientProblem[]
+  servicePointControls  ServicePointControl[]
+  medicationSafetyRules MedicationSafetyRule[]
+  externalIdentities    ExternalIdentity[]
+  identityRoleMappings  IdentityRoleMapping[]
+  aiGenerations         AiGeneration[]
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
 }
 
 model CatalogItem {
@@ -274,6 +279,14 @@ model User {
   auditEvents                 AuditEvent[]
   recordedPatientProblems     PatientProblem[]           @relation("PatientProblemRecordedBy")
   updatedGovernanceEvidence   GovernanceEvidence[]       @relation("GovernanceEvidenceUpdatedBy")
+  updatedServicePointControls ServicePointControl[]      @relation("ServicePointControlUpdatedBy")
+  preparedReminderDeliveries  ReminderDelivery[]         @relation("ReminderDeliveryPreparedBy")
+  receivedPayments            Payment[]                  @relation("PaymentReceivedBy")
+  approvedMedicationRules     MedicationSafetyRule[]     @relation("MedicationSafetyRuleApprovedBy")
+  externalIdentities          ExternalIdentity[]
+  updatedIdentityRoleMappings IdentityRoleMapping[]      @relation("IdentityRoleMappingUpdatedBy")
+  requestedAiGenerations      AiGeneration[]             @relation("AiGenerationRequestedBy")
+  reviewedAiGenerations       AiGeneration[]             @relation("AiGenerationReviewedBy")
   createdAt                   DateTime                   @default(now())
   updatedAt                   DateTime                   @updatedAt
 
@@ -481,6 +494,7 @@ model Visit {
   orders        ClinicalOrder[]
   invoice       Invoice?
   referrals     Referral[]
+  aiGenerations AiGeneration[]
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
@@ -489,22 +503,42 @@ model Visit {
 }
 
 model Appointment {
-  id                 String            @id @default(uuid()) @db.Uuid
-  facilityId         String            @db.Uuid
-  patientId          String            @db.Uuid
+  id                 String             @id @default(uuid()) @db.Uuid
+  facilityId         String             @db.Uuid
+  patientId          String             @db.Uuid
   scheduledAt        DateTime
   clinic             String
-  status             AppointmentStatus @default(SCHEDULED)
+  status             AppointmentStatus  @default(SCHEDULED)
   notes              String?
   reminderPreparedAt DateTime?
-  facility           Facility          @relation(fields: [facilityId], references: [id])
-  patient            Patient           @relation(fields: [patientId], references: [id])
+  facility           Facility           @relation(fields: [facilityId], references: [id])
+  patient            Patient            @relation(fields: [patientId], references: [id])
   visit              Visit?
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  reminderDeliveries ReminderDelivery[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   @@unique([facilityId, patientId, scheduledAt])
   @@index([facilityId, status, scheduledAt])
+}
+
+model ReminderDelivery {
+  id                String      @id @default(uuid()) @db.Uuid
+  appointmentId     String      @db.Uuid
+  preparedById      String      @db.Uuid
+  channel           String      @default("MANUAL")
+  destinationMasked String
+  messageHash       String
+  status            String      @default("PREPARED")
+  providerReference String?
+  failureReason     String?
+  preparedAt        DateTime    @default(now())
+  sentAt            DateTime?
+  appointment       Appointment @relation(fields: [appointmentId], references: [id], onDelete: Restrict)
+  preparedBy        User        @relation("ReminderDeliveryPreparedBy", fields: [preparedById], references: [id], onDelete: Restrict)
+
+  @@index([appointmentId, preparedAt])
+  @@index([status, preparedAt])
 }
 
 model QueueEntry {
@@ -520,6 +554,23 @@ model QueueEntry {
   visit        Visit       @relation(fields: [visitId], references: [id], onDelete: Cascade)
 
   @@index([servicePoint, status, priority, enteredAt])
+}
+
+model ServicePointControl {
+  id           String    @id @default(uuid()) @db.Uuid
+  facilityId   String    @db.Uuid
+  servicePoint String
+  paused       Boolean   @default(false)
+  pauseReason  String?
+  pausedAt     DateTime?
+  updatedById  String    @db.Uuid
+  facility     Facility  @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  updatedBy    User      @relation("ServicePointControlUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([facilityId, servicePoint])
+  @@index([facilityId, paused])
 }
 
 model TriageRecord {
@@ -827,10 +878,10 @@ model ImagingResult {
 }
 
 model Prescription {
-  id                   String                     @id @default(uuid()) @db.Uuid
-  orderId              String                     @unique @db.Uuid
+  id                   String                       @id @default(uuid()) @db.Uuid
+  orderId              String                       @unique @db.Uuid
   medicineCode         String
-  catalogItemId        String?                    @db.Uuid
+  catalogItemId        String?                      @db.Uuid
   medicationConceptId  String?
   genericName          String?
   strength             String?
@@ -839,40 +890,86 @@ model Prescription {
   route                String
   frequency            String
   duration             String?
-  doseQuantity         Decimal?                   @db.Decimal(12, 3)
+  doseQuantity         Decimal?                     @db.Decimal(12, 3)
   frequencyPerDay      Int?
   durationDays         Int?
-  quantityConfirmed    Boolean                    @default(false)
-  startDate            DateTime                   @default(now()) @db.Date
-  stopDate             DateTime?                  @db.Date
-  isPrn                Boolean                    @default(false)
+  quantityConfirmed    Boolean                      @default(false)
+  startDate            DateTime                     @default(now()) @db.Date
+  stopDate             DateTime?                    @db.Date
+  isPrn                Boolean                      @default(false)
   prnIndication        String?
-  doseTiming           String                     @default("SCHEDULED")
+  doseTiming           String                       @default("SCHEDULED")
   sequenceNote         String?
-  quantity             Decimal                    @db.Decimal(12, 3)
+  quantity             Decimal                      @db.Decimal(12, 3)
   instructions         String
-  encounterId          String?                    @db.Uuid
-  diagnosisId          String?                    @db.Uuid
-  idempotencyKey       String?                    @unique
-  visitMedicationKey   String?                    @unique
-  dispensedQuantity    Decimal?                   @db.Decimal(12, 3)
-  dispenseStatus       String                     @default("PENDING")
+  encounterId          String?                      @db.Uuid
+  diagnosisId          String?                      @db.Uuid
+  idempotencyKey       String?                      @unique
+  visitMedicationKey   String?                      @unique
+  dispensedQuantity    Decimal?                     @db.Decimal(12, 3)
+  dispenseStatus       String                       @default("PENDING")
   dispenseNotes        String?
-  counsellingCompleted Boolean                    @default(false)
+  counsellingCompleted Boolean                      @default(false)
   counselledAt         DateTime?
   dispensedAt          DateTime?
-  dispensedById        String?                    @db.Uuid
-  order                ClinicalOrder              @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  catalogItem          CatalogItem?               @relation(fields: [catalogItemId], references: [id])
-  encounter            Encounter?                 @relation(fields: [encounterId], references: [id])
-  diagnosis            Diagnosis?                 @relation(fields: [diagnosisId], references: [id])
-  dispensedBy          User?                      @relation("PrescriptionDispensedBy", fields: [dispensedById], references: [id])
+  dispensedById        String?                      @db.Uuid
+  order                ClinicalOrder                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  catalogItem          CatalogItem?                 @relation(fields: [catalogItemId], references: [id])
+  encounter            Encounter?                   @relation(fields: [encounterId], references: [id])
+  diagnosis            Diagnosis?                   @relation(fields: [diagnosisId], references: [id])
+  dispensedBy          User?                        @relation("PrescriptionDispensedBy", fields: [dispensedById], references: [id])
   stockMovements       StockMovement[]
   dispensations        Dispensation[]
-  safetyOverrides      MedicationSafetyOverride[] @relation("OverridePrescription")
-  duplicateOverrides   MedicationSafetyOverride[] @relation("ExistingPrescription")
+  safetyOverrides      MedicationSafetyOverride[]   @relation("OverridePrescription")
+  duplicateOverrides   MedicationSafetyOverride[]   @relation("ExistingPrescription")
+  safetyAssessments    MedicationSafetyAssessment[]
 
   @@index([medicationConceptId, strength, dosageForm, startDate, stopDate])
+}
+
+model MedicationSafetyRule {
+  id                   String                       @id @default(uuid()) @db.Uuid
+  facilityId           String                       @db.Uuid
+  code                 String
+  kind                 String
+  severity             String
+  status               String                       @default("DRAFT")
+  primaryConceptId     String?
+  interactingConceptId String?
+  rule                 Json
+  sourceReference      String
+  version              String
+  approvedById         String?                      @db.Uuid
+  approvedAt           DateTime?
+  activeFrom           DateTime?
+  activeTo             DateTime?
+  facility             Facility                     @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  approvedBy           User?                        @relation("MedicationSafetyRuleApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
+  assessments          MedicationSafetyAssessment[]
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
+
+  @@unique([facilityId, code, version])
+  @@index([facilityId, status, kind])
+  @@index([primaryConceptId, interactingConceptId])
+}
+
+model MedicationSafetyAssessment {
+  id             String                @id @default(uuid()) @db.Uuid
+  prescriptionId String                @db.Uuid
+  ruleId         String?               @db.Uuid
+  warningCode    String
+  severity       String
+  outcome        String
+  message        String
+  ruleVersion    String?
+  contextHash    String
+  evaluatedAt    DateTime              @default(now())
+  prescription   Prescription          @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  rule           MedicationSafetyRule? @relation(fields: [ruleId], references: [id], onDelete: Restrict)
+
+  @@index([prescriptionId, evaluatedAt])
+  @@index([ruleId, evaluatedAt])
 }
 
 model MedicationSafetyOverride {
@@ -1211,10 +1308,48 @@ model Payment {
   reversedAt        DateTime?
   reversalReason    String?
   reversedById      String?       @db.Uuid
+  receivedById      String?       @db.Uuid
   invoice           Invoice       @relation(fields: [invoiceId], references: [id])
   reversedBy        User?         @relation("PaymentReversedBy", fields: [reversedById], references: [id])
+  receivedBy        User?         @relation("PaymentReceivedBy", fields: [receivedById], references: [id])
   receipt           Receipt?
   receivedAt        DateTime      @default(now())
+
+  @@index([receivedById, receivedAt])
+}
+
+model ExternalIdentity {
+  id          String    @id @default(uuid()) @db.Uuid
+  facilityId  String    @db.Uuid
+  userId      String    @db.Uuid
+  issuer      String
+  subject     String
+  email       String?
+  lastLoginAt DateTime?
+  facility    Facility  @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([issuer, subject])
+  @@unique([facilityId, userId, issuer])
+  @@index([facilityId, email])
+}
+
+model IdentityRoleMapping {
+  id            String   @id @default(uuid()) @db.Uuid
+  facilityId    String   @db.Uuid
+  providerGroup String
+  roleCode      String
+  active        Boolean  @default(true)
+  updatedById   String   @db.Uuid
+  facility      Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  updatedBy     User     @relation("IdentityRoleMappingUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([facilityId, providerGroup, roleCode])
+  @@index([facilityId, active])
 }
 
 model Claim {
@@ -1288,6 +1423,43 @@ model AuditChainHead {
   eventHash    String   @default("GENESIS")
   updatedAt    DateTime @updatedAt
   facility     Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+}
+
+model AiGeneration {
+  id                     String    @id @default(uuid()) @db.Uuid
+  facilityId             String    @db.Uuid
+  visitId                String    @db.Uuid
+  requestedById          String    @db.Uuid
+  reviewedById           String?   @db.Uuid
+  idempotencyKey         String    @unique
+  purpose                String    @default("VISIT_SUMMARY")
+  model                  String
+  promptVersion          String
+  status                 String    @default("REQUESTED")
+  providerResponseId     String?
+  inputHash              String
+  outputHash             String?
+  reviewedOutputHash     String?
+  draft                  Json?
+  reviewedDraft          Json?
+  inputTokens            Int?
+  outputTokens           Int?
+  totalTokens            Int?
+  latencyMs              Int?
+  failureCode            String?
+  dataGovernanceReference String
+  clinicalSafetyReference String
+  createdAt              DateTime  @default(now())
+  completedAt            DateTime?
+  reviewedAt             DateTime?
+  facility               Facility  @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  visit                  Visit     @relation(fields: [visitId], references: [id], onDelete: Restrict)
+  requestedBy            User      @relation("AiGenerationRequestedBy", fields: [requestedById], references: [id], onDelete: Restrict)
+  reviewedBy             User?     @relation("AiGenerationReviewedBy", fields: [reviewedById], references: [id], onDelete: Restrict)
+
+  @@index([facilityId, createdAt])
+  @@index([visitId, createdAt])
+  @@index([requestedById, status, createdAt])
 }
 
 model GovernanceEvidence {

@@ -21,6 +21,7 @@ const ReportingWorkstation = dynamic(() => import("@/components/ReportingWorksta
 const AppointmentWorkstation = dynamic(() => import("@/components/AppointmentWorkstation"), { loading: workspaceLoading });
 const AdminCenter = dynamic(() => import("@/components/AdminCenter"), { loading: workspaceLoading });
 const ServicePointsWorkstation = dynamic(() => import("@/components/ServicePointsWorkstation"), { loading: workspaceLoading });
+const QueueOperationsPanel = dynamic(() => import("@/components/QueueOperationsPanel"), { loading: workspaceLoading });
 
 type User = {
   displayName: string;
@@ -302,6 +303,7 @@ export default function ClinicalApp() {
               setNotice("");
             }}
             onOpenTask={(target, visitId) => { setFocusedVisitId(visitId); setContextVisitId(visitId); setScreen(target); }}
+            onUpdated={loadVisits}
           />
         )}
         {screen === "registration" && (
@@ -567,11 +569,13 @@ function Dashboard({
   user,
   onStart,
   onOpenTask,
+  onUpdated,
 }: {
   visits: Visit[];
   user: User;
   onStart: () => void;
   onOpenTask: (screen: Screen, visitId: string) => void;
+  onUpdated: () => Promise<void>;
 }) {
   const access: Partial<Record<ServicePointCode, { permission: string; screen: Screen; action: string }>> = {
     TRIAGE: { permission: "triage.write", screen: "triage", action: "Start triage" },
@@ -661,6 +665,7 @@ function Dashboard({
           </div>
         )}
       </section>
+      <QueueOperationsPanel permissions={user.permissions} onOpenTask={onOpenTask} onUpdated={onUpdated} />
     </>
   );
 }

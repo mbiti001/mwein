@@ -40,6 +40,7 @@ const permissionDefinitions = [
   ["admin.assign_governance", "Assign facility governance roles"],
   ["admin.catalog", "Manage services and commodity catalogue"],
   ["admin.dashboard", "View the facility administration dashboard"],
+  ["admin.clinical_safety", "Govern versioned medication safety rules"],
   ["audit.view", "View append-only audit and session records"],
 ];
 for (const [code, description] of permissionDefinitions)
@@ -63,7 +64,7 @@ const operationalRoles = {
   PHARMACY: { name: "Pharmacy & inventory officer", grants: ["patient.read", "visit.read", "pharmacy.dispense", "inventory.view", "inventory.receive", "inventory.count", "inventory.correct_metadata", "inventory.transfer", "procurement.manage_suppliers", "procurement.create"] },
   PHARMACY_MANAGER: { name: "Pharmacy & inventory manager", grants: ["patient.read", "visit.read", "pharmacy.dispense", "inventory.view", "inventory.receive", "inventory.count", "inventory.correct_metadata", "inventory.adjust", "inventory.reconcile", "inventory.transfer", "inventory.manage_stores", "procurement.manage_suppliers", "procurement.create", "procurement.approve", "accounting.view", "admin.dashboard", "audit.view"] },
   FACILITY_ADMIN: { name: "Facility administrator", grants: ["patient.read", "visit.read", "billing.read", "accounting.view", "admin.dashboard", "admin.users", "admin.assign_governance", "admin.catalog", "audit.view", "inventory.view"] },
-  MEDICAL_DIRECTOR: { name: "Medical director", grants: ["patient.read", "visit.read", "encounter.write", "clinical.history.read", "clinical.results.read", "clinical.summary.read", "referral.read", "order.write", "admin.dashboard", "audit.view"] },
+  MEDICAL_DIRECTOR: { name: "Medical director", grants: ["patient.read", "visit.read", "encounter.write", "clinical.history.read", "clinical.results.read", "clinical.summary.read", "referral.read", "order.write", "admin.dashboard", "admin.clinical_safety", "audit.view"] },
   FINANCE_MANAGER: { name: "Finance manager", grants: ["patient.read", "visit.read", "billing.read", "billing.write", "billing.reverse", "claims.write", "inventory.view", "accounting.view", "admin.dashboard", "audit.view"] },
   HR_ADMIN: { name: "HR administrator", grants: ["admin.dashboard", "admin.users", "audit.view"] },
   AUDITOR: { name: "Auditor", grants: ["admin.dashboard", "audit.view", "billing.read", "inventory.view", "accounting.view"] },

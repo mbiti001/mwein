@@ -4,6 +4,12 @@ import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiError } from "@/lib/http";
 import { appointmentReminder } from "@/lib/reminders";
+import { createHash } from "node:crypto";
+
+function maskContact(value: string) {
+  const visible = value.replace(/\s/g, "");
+  return visible.length <= 4 ? "****" : `${visible.slice(0, 3)}***${visible.slice(-3)}`;
+}
 
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   try {
@@ -36,6 +42,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     const preparedAt = new Date();
     await db.$transaction(async (tx) => {
       await tx.appointment.update({ where: { id }, data: { reminderPreparedAt: preparedAt } });
+      await tx.reminderDelivery.create({ data: { appointmentId: id, preparedById: user.id, destinationMasked: maskContact(contact), messageHash: createHash("sha256").update(message).digest("hex"), preparedAt } });
       await appendAudit(tx, { userId: user.id, action: "APPOINTMENT_REMINDER_PREPARED", entityType: "Appointment", entityId: id, afterHash: preparedAt.toISOString() });
     });
     return NextResponse.json({ contact, message, preparedAt });

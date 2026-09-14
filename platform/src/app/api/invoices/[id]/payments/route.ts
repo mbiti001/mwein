@@ -37,7 +37,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       const receiptNumber = operationalReference(invoice.visit.facility.code, "RCT", year, sequence.nextValue - 1n);
       const payment = await tx.payment.create({ data: {
         invoiceId: id, reference: `${receiptNumber}-PAY`, method: input.method,
-        amount: new Prisma.Decimal(input.amount), externalReference: input.externalReference,
+        amount: new Prisma.Decimal(input.amount), externalReference: input.externalReference, receivedById: user.id,
         receipt: { create: { receiptNumber } },
       }, include: { receipt: true } });
       const newPaid = paid + input.amount;

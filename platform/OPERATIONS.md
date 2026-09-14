@@ -17,7 +17,7 @@ Run `npm run db:bootstrap` only for explicit first-time provisioning or a review
 - `DATABASE_URL`: least-privilege application database role; TLS required at the provider.
 - `AUTH_SECRET`: at least 32 random characters, stored in the deployment secret manager.
 - `APP_ORIGIN`: exact public HTTPS origin used by same-origin mutation protection.
-- `EXTERNAL_IDENTITY_PROVIDER`: approved workforce identity/MFA provider reference.
+- `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URI`: approved workforce identity provider configuration. Provider groups must be mapped to operational roles in Administration; external identity can never grant `SYSTEM_ADMIN`.
 - `AUDIT_RETENTION_TARGET`: approved immutable external retention target.
 - `DATABASE_BACKUP_TARGET`: approved encrypted backup target.
 - `VERCEL_GIT_COMMIT_SHA` or `DEPLOYMENT_VERSION`: immutable release identity.
@@ -31,6 +31,17 @@ At the agreed cadence, create a disposable isolated PostgreSQL database, set `RE
 ## Audit retention
 
 An authorized auditor downloads `/api/admin/audit/export`. The response verifies the serialized facility chain before returning and includes its SHA-256 in `x-audit-export-sha256`. Run `npm run ops:audit-verify -- /absolute/path/to/export.json` independently, then place the export and digest in the approved immutable retention target. Legacy version-1 event count is reported separately because events predating facility-scoped chain version 2 cannot be retroactively re-chained without destroying original evidence.
+
+## Required operating schedule
+
+Configure these in the approved infrastructure scheduler after the external destinations and credentials exist. Do not run them inside the request-serving deployment:
+
+- Encrypted database backup: at least daily, with provider retention and failure alerting; run `npm run ops:backup` and transfer both dump and checksum.
+- Independent restore drill: quarterly and before material database-provider changes; run `npm run ops:restore-drill` against a disposable database.
+- Verified audit export: daily for active facilities; download the authorized facility export, run `npm run ops:audit-verify`, and retain the export plus digest immutably.
+- Readiness and liveness probes: every minute from an external monitor; `/api/health` detects service/database failure and `/api/ready` deliberately stays blocked until every production gate is approved.
+
+Record every successful run, failure, recovery time and retained evidence reference in the facility operations register. Environment-variable placeholders are readiness checks, not proof that backups, retention or MFA are operating.
 
 ## Incident and downtime rules
 

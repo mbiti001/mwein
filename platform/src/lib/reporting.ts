@@ -79,3 +79,58 @@ export function summarizeOperations(visits: ReportVisit[], now = new Date()) {
     claimExceptions,
   };
 }
+
+export function summarizeQueuePerformance(entries: { servicePoint: string; status: string; enteredAt: Date | string; completedAt: Date | string | null }[]) {
+  const grouped = new Map<string, number[]>();
+  const counts = new Map<string, number>();
+  for (const entry of entries) {
+    counts.set(entry.servicePoint, (counts.get(entry.servicePoint) || 0) + 1);
+    if (!entry.completedAt) continue;
+    const minutes = Math.max(0, Math.round((new Date(entry.completedAt).getTime() - new Date(entry.enteredAt).getTime()) / 60000));
+    grouped.set(entry.servicePoint, [...(grouped.get(entry.servicePoint) || []), minutes]);
+  }
+  return [...counts.entries()].map(([servicePoint, count]) => {
+    const durations = [...(grouped.get(servicePoint) || [])].sort((a, b) => a - b);
+    return {
+      servicePoint, count, completed: durations.length,
+      averageMinutes: durations.length ? Math.round(durations.reduce((sum, value) => sum + value, 0) / durations.length) : 0,
+      p90Minutes: durations.length ? durations[Math.max(0, Math.ceil(durations.length * 0.9) - 1)] : 0,
+    };
+  }).sort((left, right) => right.p90Minutes - left.p90Minutes || left.servicePoint.localeCompare(right.servicePoint));
+}
+
+export function summarizeReferralFlow(referrals: { status: string }[]) {
+  const counted = (statuses: string[]) => referrals.filter(item => statuses.includes(item.status)).length;
+  const sent = counted(["SENT", "ACCEPTED", "ATTENDED", "RETURNED", "CLOSED"]);
+  const closedLoop = counted(["RETURNED", "CLOSED"]);
+  return { created: referrals.length, sent, attended: counted(["ATTENDED", "RETURNED", "CLOSED"]), closedLoop, closureRate: sent ? Math.round(closedLoop / sent * 100) : 0 };
+}
+
+export function summarizeCashierActivity(payments: { amount: unknown; status: string; method: string; receivedBy: { displayName: string } | null }[]) {
+  const grouped = new Map<string, { cashier: string; confirmed: number; reversed: number; transactions: number; methods: Record<string, number> }>();
+  for (const payment of payments) {
+    const cashier = payment.receivedBy?.displayName || "Legacy / unassigned";
+    const row = grouped.get(cashier) || { cashier, confirmed: 0, reversed: 0, transactions: 0, methods: {} };
+    const amount = Number(payment.amount);
+    row.transactions += 1;
+    if (payment.status === "CONFIRMED") { row.confirmed += amount; row.methods[payment.method] = (row.methods[payment.method] || 0) + amount; }
+    if (["REVERSED", "REFUNDED"].includes(payment.status)) row.reversed += amount;
+    grouped.set(cashier, row);
+  }
+  return [...grouped.values()].sort((left, right) => right.confirmed - left.confirmed);
+}
+
+export function summarizeDispensing(dispensations: { quantity: unknown; catalogItem: { code: string; name: string } | null; items: { quantity: unknown; unitPrice: unknown; unitCost: unknown }[] }[]) {
+  const grouped = new Map<string, { code: string; name: string; quantity: number; revenue: number; cost: number }>();
+  for (const dispensation of dispensations) {
+    const code = dispensation.catalogItem?.code || "UNMAPPED";
+    const row = grouped.get(code) || { code, name: dispensation.catalogItem?.name || "Unmapped medicine", quantity: 0, revenue: 0, cost: 0 };
+    row.quantity += Number(dispensation.quantity);
+    for (const item of dispensation.items) {
+      row.revenue += Number(item.quantity) * Number(item.unitPrice);
+      row.cost += Number(item.quantity) * Number(item.unitCost || 0);
+    }
+    grouped.set(code, row);
+  }
+  return [...grouped.values()].sort((left, right) => right.quantity - left.quantity);
+}

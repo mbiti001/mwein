@@ -8,6 +8,7 @@ import { appendAudit } from "@/lib/audit";
 import { canonicalLaboratoryCode } from "@/lib/laboratory";
 import { verifyDiagnosisSelectionToken } from "@/lib/diagnosis-selection";
 import { normalizeMedicationConcept, periodsOverlap, prescriptionSnapshot, sameVisitMedicationKey, treatmentStopDate } from "@/lib/medication";
+import { evaluateMedicationSafety, medicationSafetyContextHash } from "@/lib/medication-safety";
 import {
   consultationNotesSchema,
   diagnosisSchema,
@@ -360,6 +361,12 @@ export async function POST(
               active: true,
             },
           });
+          const now = new Date();
+          const [safetyRules, activePatientPrescriptions] = await Promise.all([
+            tx.medicationSafetyRule.findMany({ where: { facilityId: user.facilityId, status: "APPROVED", OR: [{ activeFrom: null }, { activeFrom: { lte: now } }], AND: [{ OR: [{ activeTo: null }, { activeTo: { gt: now } }] }] } }),
+            tx.prescription.findMany({ where: { medicationConceptId: { not: null }, order: { visit: { patientId: visit.patientId }, status: { in: ["DRAFT", "REQUESTED", "IN_PROGRESS"] } } }, select: { medicationConceptId: true } }),
+          ]);
+          const activeMedicationConcepts = activePatientPrescriptions.flatMap(item => item.medicationConceptId ? [item.medicationConceptId] : []);
           for (const medicine of input.data.prescriptions) {
             const item = catalogue.find(
               (value) => value.code === medicine.medicineCode.toUpperCase(),
@@ -374,6 +381,17 @@ export async function POST(
             if (!item.genericName || !item.strength || !item.dosageForm)
               throw Object.assign(new Error(`${item.name} is missing generic name, strength or dosage form in the medicine catalogue`), { status: 422 });
             const medicationConceptId = item.medicationConceptId || normalizeMedicationConcept(item.genericName);
+            const safetyContext = {
+              medicationConceptId,
+              patientAllergyConcepts: visit.patient.allergies.map(record => normalizeMedicationConcept(record.substance)),
+              activeMedicationConcepts,
+              dailyDoseQuantity: medicine.doseQuantity && medicine.frequencyPerDay ? medicine.doseQuantity * medicine.frequencyPerDay : undefined,
+            };
+            const safetyResults = evaluateMedicationSafety(safetyRules, safetyContext);
+            const hardStops = safetyResults.filter(result => result.outcome === "BLOCK");
+            if (hardStops.length) throw Object.assign(new Error(hardStops.map(result => result.message).join(" ")), { status: 422, details: { code: "MEDICATION_HARD_STOP", warnings: hardStops.map(result => ({ code: result.warningCode, message: result.message })) } });
+            warnings.push(...safetyResults.filter(result => result.outcome === "WARN").map(result => result.message));
+            const contextHash = medicationSafetyContextHash(safetyContext);
             const startDate = medicine.startDate;
             const stopDate = treatmentStopDate(startDate, medicine.duration, medicine.stopDate);
             const activeCandidates = await tx.prescription.findMany({
@@ -431,7 +449,9 @@ export async function POST(
                 else await tx.invoiceItem.delete({ where: { id: duplicate.order.invoiceItem.id } });
               }
               await tx.medicationSafetyOverride.create({ data: { prescriptionId: updated.id, existingPrescriptionId: duplicate.id, prescriberId: user.id, warningCode: sameVisit ? "SAME_VISIT_EDIT" : input.data.duplicateAction!, justification: input.data.duplicateReason!, originalDetails: original, revisedDetails: revised } });
+              if (safetyResults.length) await tx.medicationSafetyAssessment.createMany({ data: safetyResults.map(result => ({ prescriptionId: updated.id, ruleId: result.ruleId, warningCode: result.warningCode, severity: result.severity, outcome: result.outcome, message: result.message, ruleVersion: result.ruleVersion, contextHash })) });
               created.push(item.name);
+              if (!activeMedicationConcepts.includes(medicationConceptId)) activeMedicationConcepts.push(medicationConceptId);
               continue;
             }
             const order = await tx.clinicalOrder.create({
@@ -476,6 +496,8 @@ export async function POST(
               include: { prescription: true },
             });
             created.push(item.name);
+            if (safetyResults.length) await tx.medicationSafetyAssessment.createMany({ data: safetyResults.map(result => ({ prescriptionId: order.prescription!.id, ruleId: result.ruleId, warningCode: result.warningCode, severity: result.severity, outcome: result.outcome, message: result.message, ruleVersion: result.ruleVersion, contextHash })) });
+            if (!activeMedicationConcepts.includes(medicationConceptId)) activeMedicationConcepts.push(medicationConceptId);
             if (exact && input.data.duplicateAction === "KEEP_BOTH")
               await tx.medicationSafetyOverride.create({ data: { prescriptionId: order.prescription!.id, existingPrescriptionId: exact.id, prescriberId: user.id, warningCode: "EXACT_DUPLICATE_OVERRIDDEN", justification: input.data.duplicateReason!, originalDetails: prescriptionSnapshot({ ...exact, quantity: Number(exact.quantity) }), revisedDetails: revised } });
             const sameClass = item.therapeuticClass ? await tx.prescription.findFirst({ where: { id: { not: order.prescription!.id }, catalogItem: { therapeuticClass: item.therapeuticClass }, order: { visit: { patientId: visit.patientId }, status: { in: ["DRAFT", "REQUESTED", "IN_PROGRESS"] } } }, include: { order: true } }) : null;

@@ -193,10 +193,22 @@ try {
     `INSERT INTO "UserRole" ("userId", "roleId") VALUES ($1, (SELECT "id" FROM "Role" WHERE "code" = 'SYSTEM_ADMIN'))`,
     [systemOnlyUserId],
   );
+  for (const [email, displayName, roleCode] of [
+    ["nurse@example.test", "MMS nurse", "NURSE"],
+    ["clinician@example.test", "MMS clinician", "CLINICIAN"],
+    ["imaging@example.test", "MMS imaging", "IMAGING"],
+    ["pharmacy@example.test", "MMS pharmacy manager", "PHARMACY_MANAGER"],
+    ["billing@example.test", "MMS billing", "BILLING"],
+    ["medical.director@example.test", "MMS medical director", "MEDICAL_DIRECTOR"],
+  ]) {
+    const roleUserId = randomUUID();
+    await pg.query(`INSERT INTO "User" ("id", "facilityId", "email", "displayName", "passwordHash", "mustChangePassword", "updatedAt") VALUES ($1, $2, $3, $4, $5, false, CURRENT_TIMESTAMP)`, [roleUserId, facility.id, email, displayName, admin.passwordHash]);
+    await pg.query(`INSERT INTO "UserRole" ("userId", "roleId") VALUES ($1, (SELECT "id" FROM "Role" WHERE "code" = $2))`, [roleUserId, roleCode]);
+  }
   await pg.query(
     `INSERT INTO "UserRole" ("userId", "roleId")
      SELECT $1, "id" FROM "Role"
-     WHERE "code" IN ('RECEPTION', 'NURSE', 'CLINICIAN', 'LABORATORY', 'IMAGING', 'PHARMACY_MANAGER', 'BILLING')
+     WHERE "code" IN ('RECEPTION', 'NURSE', 'CLINICIAN', 'LABORATORY', 'IMAGING', 'PHARMACY_MANAGER', 'BILLING', 'MEDICAL_DIRECTOR')
      ON CONFLICT DO NOTHING`,
     [admin.id],
   );
@@ -289,6 +301,14 @@ try {
   sessionCookie = login.response.headers.get("set-cookie")?.split(";")[0] || "";
   assert(sessionCookie, "Login did not issue a session cookie");
 
+  const identityBoundary = await api("verify workforce identity boundary", "/api/admin/identity");
+  assert(identityBoundary.body.configuration.configured === false && identityBoundary.body.roles.every((item) => item.code !== "SYSTEM_ADMIN"), "Identity boundary was enabled without OIDC or exposed system-administrator mapping");
+  const safetyDraft = await api("create governed medication safety draft", "/api/admin/medication-safety", { method: "POST", body: JSON.stringify({ action: "CREATE_DRAFT", code: "E2E-SAFETY", version: "1.0", severity: "WARNING", primaryConceptId: "paracetamol", sourceReference: "E2E governed protocol version 1", rule: { kind: "ALLERGY", message: "E2E governed allergy test warning." } }) });
+  const medicalDirector = await authenticate("MMS", "medical.director@example.test");
+  const safetyApproval = await requestWithCookie("/api/admin/medication-safety", medicalDirector.cookie, { method: "POST", body: JSON.stringify({ action: "APPROVE", id: safetyDraft.body.rule.id, reason: "Independent E2E clinical governance review completed" }) });
+  assert(safetyApproval.response.ok && safetyApproval.body.rule.status === "APPROVED", `Independent medication-rule approval failed: ${JSON.stringify(safetyApproval.body)}`);
+  steps.push("verify two-person medication safety governance");
+
   const patientResult = await api("register patient", "/api/patients", {
     method: "POST",
     body: JSON.stringify({
@@ -303,11 +323,22 @@ try {
       preferredLanguage: "English",
       treatmentConsent: true,
       electronicRecordConsent: true,
-      messagingConsent: false,
+      messagingConsent: true,
     }),
   });
   const patient = patientResult.body.patient;
   assert(patient.patientNumber?.startsWith("MMS-"), "Patient number was not assigned");
+
+  const appointmentTime = new Date(Date.now() + 7 * 86400000);
+  appointmentTime.setUTCHours(7, 0, 0, 0);
+  const appointmentResult = await api("book follow-up appointment", "/api/appointments", { method: "POST", body: JSON.stringify({ patientId: patient.id, scheduledAt: appointmentTime.toISOString(), clinic: "Outpatient", notes: "E2E follow-up" }) });
+  const appointmentId = appointmentResult.body.appointment.id;
+  const reminder = await api("prepare consented appointment reminder", `/api/appointments/${appointmentId}/reminder`, { method: "POST" });
+  assert(reminder.body.contact === "+254700000001" && reminder.body.message, "Appointment reminder was not prepared for the consented contact");
+  const rescheduledTime = new Date(appointmentTime.getTime() + 86400000);
+  await api("reschedule follow-up appointment", `/api/appointments/${appointmentId}/status`, { method: "PATCH", body: JSON.stringify({ action: "RESCHEDULE", scheduledAt: rescheduledTime.toISOString(), reason: "Patient requested a different clinic day" }) });
+  const appointments = await api("verify appointment reminder history", "/api/appointments?scope=all");
+  assert(appointments.body.appointments.some(item => item.id === appointmentId && item.reminderDeliveries.length === 1), "Reminder delivery history was not retained after rescheduling");
 
   const visitResult = await api("open outpatient visit", "/api/visits", {
     method: "POST",
@@ -340,6 +371,13 @@ try {
       notes: "Stable for routine consultation",
     }),
   });
+
+  await api("pause consultation service point", "/api/queues", { method: "POST", body: JSON.stringify({ action: "SET_PAUSED", servicePoint: "CONSULTATION", paused: true, reason: "E2E operational pause check" }) });
+  const pausedCall = await requestWithCookie("/api/queues", sessionCookie, { method: "POST", body: JSON.stringify({ action: "CALL_NEXT", servicePoint: "CONSULTATION" }) });
+  assert(pausedCall.response.status === 409, "A paused service point called the next patient");
+  await api("resume consultation service point", "/api/queues", { method: "POST", body: JSON.stringify({ action: "SET_PAUSED", servicePoint: "CONSULTATION", paused: false }) });
+  const calledQueue = await api("call next consultation by priority", "/api/queues", { method: "POST", body: JSON.stringify({ action: "CALL_NEXT", servicePoint: "CONSULTATION" }) });
+  await api("start called consultation", "/api/queues", { method: "POST", body: JSON.stringify({ action: "START", queueEntryId: calledQueue.body.entry.id }) });
 
   await api("save consultation notes", `/api/visits/${visit.id}/consultation`, {
     method: "POST",
@@ -502,6 +540,10 @@ try {
   });
   assert(payment.body.visitCompleted === true, "Settled visit did not close automatically");
   assert(payment.body.balance === 0, "Invoice retained a balance after full payment");
+  const reportDate = new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Nairobi" });
+  const operationsReport = await api("verify department operational reporting", `/api/reports/operations?from=${reportDate}&to=${reportDate}`);
+  assert(operationsReport.body.departments.queues.some(item => item.servicePoint === "CONSULTATION"), "Queue performance was missing from operational reporting");
+  assert(operationsReport.body.departments.cashiers.some(item => item.cashier === "Mwein System Administrator" && item.confirmed > 0), "Cashier payment attribution was missing from operational reporting");
 
   const state = (
     await pg.query(
@@ -510,6 +552,7 @@ try {
               lb."quantity"::text AS "storeQuantity",
               (SELECT COUNT(*)::int FROM "Referral" r WHERE r."visitId" = v."id" AND r."status" = 'SENT') AS "sentReferrals",
               (SELECT COUNT(*)::int FROM "Dispensation" d JOIN "Prescription" p ON p."id" = d."prescriptionId" JOIN "ClinicalOrder" o ON o."id" = p."orderId" WHERE o."visitId" = v."id" AND d."status" = 'DISPENSED') AS "dispensations",
+              (SELECT COUNT(*)::int FROM "MedicationSafetyAssessment" msa JOIN "Prescription" p ON p."id" = msa."prescriptionId" JOIN "ClinicalOrder" o ON o."id" = p."orderId" WHERE o."visitId" = v."id" AND msa."outcome" = 'PASS') AS "safetyAssessments",
               (SELECT COUNT(*)::int FROM "AccountingJournal" j WHERE j."sourceType" = 'STOCK_MOVEMENT') AS "inventoryJournals"
        FROM "Visit" v
        JOIN "Invoice" i ON i."visitId" = v."id"
@@ -524,6 +567,7 @@ try {
   assert(Number(state.batchQuantity) === 90 && Number(state.storeQuantity) === 90, "Dispensing did not decrement both stock balances");
   assert(state.sentReferrals === 1, "Sent referral was not persisted");
   assert(state.dispensations === 1, "Dispensation trace was not persisted");
+  assert(state.safetyAssessments === 1, "Approved medication safety assessment was not persisted");
   assert(state.inventoryJournals === 1, "Dispensing accounting journal was not posted");
   steps.push("verify final clinical, referral, stock, accounting, billing and closure state");
 
@@ -547,7 +591,7 @@ try {
 
   const productionReadiness = await requestWithCookie("/api/ready", "");
   assert(productionReadiness.response.status === 503 && productionReadiness.body.status === "blocked", "Production readiness did not fail closed without approvals and external controls");
-  assert(productionReadiness.body.facilities.every((item) => item.missing.length === 9), "Production readiness omitted governance gates");
+  assert(productionReadiness.body.facilities.every((item) => item.missing.length === 11), "Production readiness omitted governance gates");
   steps.push("verify production readiness fails closed until external evidence exists");
 
   console.log(`Outpatient E2E passed (${steps.length} checks)`);
