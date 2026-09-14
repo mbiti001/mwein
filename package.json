@@ -1,6 +1,6 @@
 {
   "name": "mwein-cloud-emr-legacy",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "description": "Legacy SQLite compatibility pilot; use ./platform for the canonical Mwein HMIS.",
   "type": "module",

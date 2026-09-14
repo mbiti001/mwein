@@ -46,6 +46,7 @@ test("authenticated clinical API persists patients and encounters", async t => {
   assert.doesNotMatch(csp, /script-src[^;]*unsafe-inline/);
   const unauthenticated = await fetch(`${base}/api/bootstrap`);
   assert.equal(unauthenticated.status, 401);
+  assert.equal((await fetch(`${base}/api/metrics`)).status, 401);
   const crossOriginLogin = await fetch(`${base}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json", origin: "https://example.test" }, body: JSON.stringify({ email: "clinician@mwein.local", password }) });
   assert.equal(crossOriginLogin.status, 403);
   const invalidLogin = await fetch(`${base}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "clinician@mwein.local", password: "incorrect" }) });
@@ -63,6 +64,9 @@ test("authenticated clinical API persists patients and encounters", async t => {
   assert.equal(bootstrap.workflow.labCatalog.length, 6);
   assert.equal(bootstrap.workflow.labCatalog.find(item => item.test === "Urinalysis").resultFields.length, 8);
   assert.equal(bootstrap.workflow.labResultCommonFields.some(field => field.id === "notes"), true);
+  assert.equal(bootstrap.metrics.totalPatients, 4);
+  assert.equal(bootstrap.metrics.visitsByDay.length, 7);
+  assert.equal(typeof bootstrap.metrics.dataQuality.score, "number");
   const allergyPatient = bootstrap.patients.find(patient => patient.id === "CHU-4481-029");
   const blockedScreen = await fetch(`${base}/api/prescriptions/screen`, { method: "POST", headers, body: JSON.stringify({ patientUuid: allergyPatient.uuid, medicine: "Amoxicillin 500mg", dose: "1 tablet", frequency: "TDS", duration: "5 days" }) }).then(r => r.json());
   assert.equal(blockedScreen.screening.overall, "block");
@@ -72,6 +76,9 @@ test("authenticated clinical API persists patients and encounters", async t => {
   const createdResponse = await fetch(`${base}/api/patients`, { method: "POST", headers, body: JSON.stringify({ id: "TEST-001", name: "API Test Patient", phone: "+254700000001", sex: "Female", age: 30, county: "Busia", consent: "Care and claims consent recorded" }) });
   assert.equal(createdResponse.status, 201);
   const created = await createdResponse.json();
+  const registrationMetrics = await fetch(`${base}/api/metrics`, { headers }).then(r => r.json());
+  assert.equal(registrationMetrics.metrics.totalPatients, 5);
+  assert.equal(registrationMetrics.metrics.dataQuality.missingNextOfKin, 1);
   const arrivalResponse = await fetch(`${base}/api/arrivals`, { method: "POST", headers, body: JSON.stringify({ patientUuid: created.patient.uuid, clinic: "DM", priority: "Urgent", reason: "Glucose review and medication refill" }) });
   assert.equal(arrivalResponse.status, 201);
   const arrivalPayload = await arrivalResponse.json();
@@ -152,6 +159,11 @@ test("authenticated clinical API persists patients and encounters", async t => {
   const signedWorkflow = await fetch(`${base}/api/patients/${created.patient.uuid}/workflow`, { headers }).then(r => r.json());
   assert.equal(signedWorkflow.workflow.invoices[0].status, "Ready");
   assert.equal(signedWorkflow.workflow.invoices[0].items.length, 3);
+  const finalMetrics = await fetch(`${base}/api/metrics`, { headers }).then(r => r.json());
+  assert.equal(finalMetrics.metrics.signedEncountersToday, 1);
+  assert.equal(finalMetrics.metrics.completedLabsToday, 2);
+  assert.equal(finalMetrics.metrics.openLabOrders, 0);
+  assert.equal(finalMetrics.metrics.pharmacyQueue, 0);
   const logoutResponse = await fetch(`${base}/api/auth/logout`, { method: "POST", headers });
   assert.equal(logoutResponse.status, 200);
   const expiredSession = await fetch(`${base}/api/bootstrap`, { headers });

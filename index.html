@@ -2520,6 +2520,7 @@
       formulary: [],
       workflow: { arrivals: [], labCatalog: [], imagingCatalog: [], labWorklist: [], imagingWorklist: [], pharmacyQueue: [], invoices: [] },
       activeWorkflow: { labOrders: [], imagingOrders: [], pharmacyOrders: [], invoices: [] },
+      metrics: { visitsByDay: [], dataQuality: {} },
       lastPrescriptionScreening: null
     };
 
@@ -2658,6 +2659,7 @@
       state.formulary = [];
       state.workflow = { arrivals: [], labCatalog: [], imagingCatalog: [], labWorklist: [], imagingWorklist: [], pharmacyQueue: [], invoices: [] };
       state.activeWorkflow = { labOrders: [], imagingOrders: [], pharmacyOrders: [], invoices: [] };
+      state.metrics = { visitsByDay: [], dataQuality: {} };
       state.lastPrescriptionScreening = null;
       state.activePatientUuid = null;
       localStorage.removeItem("mweinPatients");
@@ -2690,6 +2692,7 @@
         state.prescriptionPlugins = payload.prescriptionPlugins || [];
         state.formulary = payload.formulary || [];
         state.workflow = payload.workflow || state.workflow;
+        state.metrics = payload.metrics || state.metrics;
         applyAuthenticatedUser(payload.user);
         saveState();
         renderPatients(document.getElementById("globalSearch").value);
@@ -2699,6 +2702,7 @@
         populateImagingCatalog();
         renderPrescriptionPlugins();
         renderWorkflowBoards();
+        renderOperationalMetrics();
         renderQueue();
         setSyncStatus(true);
         await setActivePatient(state.patients[0]?.uuid || state.patients[0]?.name);
@@ -2721,7 +2725,6 @@
 
     function renderQueue() {
       const arrivals = state.workflow.arrivals || [];
-      document.getElementById("todayCount").textContent = arrivals.length;
       document.getElementById("triageQueue").innerHTML = arrivals.length ? arrivals.map(arrival => {
         const waitMinutes = Math.max(0, Math.floor((Date.now() - new Date(arrival.arrived_at).getTime()) / 60000));
         return `<div class="queue-row arrival ${escapeHtml(arrival.priority.toLowerCase())}">
@@ -2736,6 +2739,25 @@
           </div>
         </div>`;
       }).join("") : `<div class="muted">No patients are waiting. Register or check in a patient to begin.</div>`;
+    }
+
+    function renderOperationalMetrics() {
+      const metrics = state.metrics || {};
+      document.getElementById("todayCount").textContent = metrics.patientsToday || 0;
+      document.getElementById("openLabCount").textContent = metrics.openLabOrders || 0;
+      document.getElementById("urgentLabCount").textContent = `${metrics.urgentLabOrders || 0} urgent`;
+      document.getElementById("pharmacyTaskCount").textContent = metrics.pharmacyQueue || 0;
+    }
+
+    async function refreshOperationalMetrics() {
+      if (!state.user || document.visibilityState === "hidden") return;
+      try {
+        const payload = await apiRequest("/api/metrics");
+        state.metrics = payload.metrics || state.metrics;
+        renderOperationalMetrics();
+      } catch (error) {
+        if (error.status !== 401) setSyncStatus(false, "Metrics refresh delayed");
+      }
     }
 
     function riskClass(risk) {
@@ -3631,6 +3653,9 @@
       offset = (offset + 1) % 80;
       document.getElementById("waveLine").style.transform = `translateX(-${offset}px)`;
     }, 120);
+
+    setInterval(refreshOperationalMetrics, 30000);
+    document.addEventListener("visibilitychange", refreshOperationalMetrics);
 
     renderQueue();
     renderPatients();
