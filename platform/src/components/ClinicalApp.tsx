@@ -606,7 +606,7 @@ function Dashboard({
   const financial = visits.reduce((totals, visit) => {
     const billed = visit.invoice?.items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0) || 0;
     const paid = visit.invoice?.payments.filter(item => item.status === "CONFIRMED").reduce((sum, item) => sum + Number(item.amount), 0) || 0;
-    const claims = visit.invoice?.claims.filter(item => !["PAID", "REJECTED", "CANCELLED"].includes(item.status)).reduce((sum, item) => sum + Number(item.amount), 0) || 0;
+    const claims = visit.invoice?.claims.filter(item => !["PAID", "RECOVERED", "REJECTED", "CANCELLED"].includes(item.status)).reduce((sum, item) => sum + Number(item.amount), 0) || 0;
     return { billed: totals.billed + billed, paid: totals.paid + paid, claims: totals.claims + claims };
   }, { billed: 0, paid: 0, claims: 0 });
   const serviceCounts = tasks.reduce<Record<string, number>>((counts, item) => ({ ...counts, [item.point!]: (counts[item.point!] || 0) + 1 }), {});

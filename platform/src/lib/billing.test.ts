@@ -4,6 +4,7 @@ import {
   canTransitionClaim,
   invoiceTotals,
   paymentFitsBalance,
+  patientPayBalance,
 } from "./billing";
 
 describe("billing safeguards", () => {
@@ -14,6 +15,10 @@ describe("billing safeguards", () => {
     expect(paymentFitsBalance(0, 500)).toBe(false);
     expect(paymentFitsBalance(500.01, 500)).toBe(false);
     expect(paymentFitsBalance(500, 500)).toBe(true);
+  });
+  it("reserves patient balance while a claim is being corrected or reviewed", () => {
+    expect(patientPayBalance(1000, 100, [{ amount: 600, status: "RETURNED" }])).toBe(300);
+    expect(patientPayBalance(1000, 100, [{ amount: 600, status: "REJECTED" }])).toBe(900);
   });
 });
 
@@ -27,11 +32,11 @@ describe("claim workflow safeguards", () => {
   it("blocks skipped, backward and terminal-state transitions", () => {
     expect(canTransitionClaim("DRAFT", "PAID")).toBe(false);
     expect(canTransitionClaim("APPROVED", "SUBMITTED")).toBe(false);
-    expect(allowedClaimStatuses("PAID")).toEqual([]);
+    expect(allowedClaimStatuses("PAID")).toEqual(["RECOVERED"]);
     expect(allowedClaimStatuses("CANCELLED")).toEqual([]);
   });
 
   it("allows a rejected claim to be corrected and resubmitted", () => {
-    expect(allowedClaimStatuses("REJECTED")).toEqual(["SUBMITTED", "CANCELLED"]);
+    expect(allowedClaimStatuses("REJECTED")).toEqual(["UNDER_REVIEW", "CANCELLED"]);
   });
 });

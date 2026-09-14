@@ -6,7 +6,7 @@ import { apiError } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
 import { canTransitionClaim, type ClaimStatus } from "@/lib/billing";
 const schema = z.object({
-  status: z.enum(["SUBMITTED", "APPROVED", "REJECTED", "PAID", "CANCELLED"]),
+  status: z.enum(["SUBMITTED", "RETURNED", "APPROVED", "REDUCED", "REJECTED", "UNDER_REVIEW", "WITHHELD", "PAID", "RECOVERED", "CANCELLED"]),
   notes: z.string().trim().min(2).max(1000),
 });
 export async function POST(
