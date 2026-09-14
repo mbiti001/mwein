@@ -22,6 +22,7 @@ const AppointmentWorkstation = dynamic(() => import("@/components/AppointmentWor
 const AdminCenter = dynamic(() => import("@/components/AdminCenter"), { loading: workspaceLoading });
 const ServicePointsWorkstation = dynamic(() => import("@/components/ServicePointsWorkstation"), { loading: workspaceLoading });
 const QueueOperationsPanel = dynamic(() => import("@/components/QueueOperationsPanel"), { loading: workspaceLoading });
+const FollowUpWorkstation = dynamic(() => import("@/components/FollowUpWorkstation"), { loading: workspaceLoading });
 
 type User = {
   displayName: string;
@@ -123,6 +124,7 @@ type Screen =
   | "pharmacy"
   | "billing"
   | "summaries"
+  | "followUps"
   | "reports"
   | "admin";
 
@@ -186,6 +188,7 @@ export default function ClinicalApp() {
       pharmacy: "Pharmacy & stock",
       billing: "Billing",
       summaries: "Patient records",
+      followUps: "Follow-up work",
       reports: "Reports",
       admin: "Administration",
     };
@@ -225,6 +228,7 @@ export default function ClinicalApp() {
     ["dashboard", "Home"],
     ["registration", "Registration", "patient.create"],
     ["appointments", "Appointments", "visit.create"],
+    ["followUps", "Follow-up work", "visit.read"],
     ["triage", "Triage", "triage.write"],
     ["servicePoints", "Service points", "encounter.write"],
     ["consultation", "Consultation", "encounter.write"],
@@ -395,9 +399,10 @@ export default function ClinicalApp() {
           <PharmacyCenter permissions={user.permissions} visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} stockFocus={stockFocus} onStockFocusConsumed={() => setStockFocus(null)} />
         )}
         {screen === "billing" && (
-          <BillingWorkstation visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />
+          <BillingWorkstation visits={visits} permissions={user.permissions} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />
         )}
         {screen === "summaries" && <VisitSummaryWorkstation canAddendum={user.permissions.includes("encounter.write")} />}
+        {screen === "followUps" && <FollowUpWorkstation/>}
         {screen === "reports" && <ReportingWorkstation />}
         {screen === "admin" && <AdminCenter permissions={user.permissions} onOpenStock={(focus) => { setStockFocus(focus); setFocusedVisitId(null); setScreen("pharmacy"); }} />}
       </section>

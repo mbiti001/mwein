@@ -5,6 +5,7 @@ import {
   type ClaimStatus,
 } from "@/lib/billing";
 import { jsonRequest } from "@/lib/client-http";
+import CashierShiftPanel from "@/components/CashierShiftPanel";
 type Visit = {
   id: string;
   visitNumber: string;
@@ -50,11 +51,13 @@ const money = (value: number, currency = "KES") =>
   `${currency} ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 export default function BillingWorkstation({
   visits,
+  permissions,
   onUpdated,
   initialVisitId,
   onInitialVisitOpened,
 }: {
   visits: Visit[];
+  permissions: string[];
   onUpdated: () => Promise<void>;
   initialVisitId?: string | null;
   onInitialVisitOpened?: () => void;
@@ -283,6 +286,7 @@ export default function BillingWorkstation({
             Payment recorded · Receipt {lastReceipt}
           </div>
         )}
+        {permissions.includes("billing.write") && <CashierShiftPanel permissions={permissions} />}
         <section className="card">
           <label className="listSearch">Find a visit<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Patient, patient number, visit or invoice" /></label>
           {visibleQueue.length ? (

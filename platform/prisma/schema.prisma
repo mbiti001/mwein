@@ -151,6 +151,8 @@ model Facility {
   externalIdentities    ExternalIdentity[]
   identityRoleMappings  IdentityRoleMapping[]
   aiGenerations         AiGeneration[]
+  cashierShifts         CashierShift[]
+  operationsEvidence    OperationsEvidence[]
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 }
@@ -287,6 +289,10 @@ model User {
   updatedIdentityRoleMappings IdentityRoleMapping[]      @relation("IdentityRoleMappingUpdatedBy")
   requestedAiGenerations      AiGeneration[]             @relation("AiGenerationRequestedBy")
   reviewedAiGenerations       AiGeneration[]             @relation("AiGenerationReviewedBy")
+  cashierShifts               CashierShift[]             @relation("CashierShiftCashier")
+  approvedCashierShifts       CashierShift[]             @relation("CashierShiftApprovedBy")
+  recordedOperationsEvidence  OperationsEvidence[]       @relation("OperationsEvidenceRecordedBy")
+  verifiedOperationsEvidence  OperationsEvidence[]       @relation("OperationsEvidenceVerifiedBy")
   createdAt                   DateTime                   @default(now())
   updatedAt                   DateTime                   @updatedAt
 
@@ -557,17 +563,18 @@ model QueueEntry {
 }
 
 model ServicePointControl {
-  id           String    @id @default(uuid()) @db.Uuid
-  facilityId   String    @db.Uuid
-  servicePoint String
-  paused       Boolean   @default(false)
-  pauseReason  String?
-  pausedAt     DateTime?
-  updatedById  String    @db.Uuid
-  facility     Facility  @relation(fields: [facilityId], references: [id], onDelete: Cascade)
-  updatedBy    User      @relation("ServicePointControlUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id            String    @id @default(uuid()) @db.Uuid
+  facilityId    String    @db.Uuid
+  servicePoint  String
+  paused        Boolean   @default(false)
+  pauseReason   String?
+  pausedAt      DateTime?
+  targetMinutes Int       @default(30)
+  updatedById   String    @db.Uuid
+  facility      Facility  @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  updatedBy     User      @relation("ServicePointControlUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@unique([facilityId, servicePoint])
   @@index([facilityId, paused])
@@ -1309,13 +1316,39 @@ model Payment {
   reversalReason    String?
   reversedById      String?       @db.Uuid
   receivedById      String?       @db.Uuid
+  cashierShiftId    String?       @db.Uuid
   invoice           Invoice       @relation(fields: [invoiceId], references: [id])
   reversedBy        User?         @relation("PaymentReversedBy", fields: [reversedById], references: [id])
   receivedBy        User?         @relation("PaymentReceivedBy", fields: [receivedById], references: [id])
+  cashierShift      CashierShift? @relation(fields: [cashierShiftId], references: [id], onDelete: Restrict)
   receipt           Receipt?
   receivedAt        DateTime      @default(now())
 
   @@index([receivedById, receivedAt])
+  @@index([cashierShiftId, receivedAt])
+}
+
+model CashierShift {
+  id             String    @id @default(uuid()) @db.Uuid
+  facilityId     String    @db.Uuid
+  cashierId      String    @db.Uuid
+  status         String    @default("OPEN")
+  openingFloat   Decimal   @db.Decimal(14, 2)
+  expectedCash   Decimal?  @db.Decimal(14, 2)
+  countedCash    Decimal?  @db.Decimal(14, 2)
+  variance       Decimal?  @db.Decimal(14, 2)
+  varianceReason String?
+  openedAt       DateTime  @default(now())
+  submittedAt    DateTime?
+  approvedAt     DateTime?
+  approvedById   String?   @db.Uuid
+  facility       Facility  @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  cashier        User      @relation("CashierShiftCashier", fields: [cashierId], references: [id], onDelete: Restrict)
+  approvedBy     User?     @relation("CashierShiftApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
+  payments       Payment[]
+
+  @@index([facilityId, status, openedAt])
+  @@index([cashierId, openedAt])
 }
 
 model ExternalIdentity {
@@ -1426,36 +1459,36 @@ model AuditChainHead {
 }
 
 model AiGeneration {
-  id                     String    @id @default(uuid()) @db.Uuid
-  facilityId             String    @db.Uuid
-  visitId                String    @db.Uuid
-  requestedById          String    @db.Uuid
-  reviewedById           String?   @db.Uuid
-  idempotencyKey         String    @unique
-  purpose                String    @default("VISIT_SUMMARY")
-  model                  String
-  promptVersion          String
-  status                 String    @default("REQUESTED")
-  providerResponseId     String?
-  inputHash              String
-  outputHash             String?
-  reviewedOutputHash     String?
-  draft                  Json?
-  reviewedDraft          Json?
-  inputTokens            Int?
-  outputTokens           Int?
-  totalTokens            Int?
-  latencyMs              Int?
-  failureCode            String?
+  id                      String    @id @default(uuid()) @db.Uuid
+  facilityId              String    @db.Uuid
+  visitId                 String    @db.Uuid
+  requestedById           String    @db.Uuid
+  reviewedById            String?   @db.Uuid
+  idempotencyKey          String    @unique
+  purpose                 String    @default("VISIT_SUMMARY")
+  model                   String
+  promptVersion           String
+  status                  String    @default("REQUESTED")
+  providerResponseId      String?
+  inputHash               String
+  outputHash              String?
+  reviewedOutputHash      String?
+  draft                   Json?
+  reviewedDraft           Json?
+  inputTokens             Int?
+  outputTokens            Int?
+  totalTokens             Int?
+  latencyMs               Int?
+  failureCode             String?
   dataGovernanceReference String
   clinicalSafetyReference String
-  createdAt              DateTime  @default(now())
-  completedAt            DateTime?
-  reviewedAt             DateTime?
-  facility               Facility  @relation(fields: [facilityId], references: [id], onDelete: Restrict)
-  visit                  Visit     @relation(fields: [visitId], references: [id], onDelete: Restrict)
-  requestedBy            User      @relation("AiGenerationRequestedBy", fields: [requestedById], references: [id], onDelete: Restrict)
-  reviewedBy             User?     @relation("AiGenerationReviewedBy", fields: [reviewedById], references: [id], onDelete: Restrict)
+  createdAt               DateTime  @default(now())
+  completedAt             DateTime?
+  reviewedAt              DateTime?
+  facility                Facility  @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  visit                   Visit     @relation(fields: [visitId], references: [id], onDelete: Restrict)
+  requestedBy             User      @relation("AiGenerationRequestedBy", fields: [requestedById], references: [id], onDelete: Restrict)
+  reviewedBy              User?     @relation("AiGenerationReviewedBy", fields: [reviewedById], references: [id], onDelete: Restrict)
 
   @@index([facilityId, createdAt])
   @@index([visitId, createdAt])
@@ -1480,4 +1513,27 @@ model GovernanceEvidence {
 
   @@unique([facilityId, gateCode])
   @@index([facilityId, status, reviewDueAt])
+}
+
+model OperationsEvidence {
+  id                String    @id @default(uuid()) @db.Uuid
+  facilityId        String    @db.Uuid
+  kind              String
+  status            String
+  title             String
+  occurredAt        DateTime
+  evidenceReference String?
+  notes             String?
+  recordedById      String    @db.Uuid
+  verifiedById      String?   @db.Uuid
+  verifiedAt        DateTime?
+  nextReviewAt      DateTime?
+  facility          Facility  @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  recordedBy        User      @relation("OperationsEvidenceRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+  verifiedBy        User?     @relation("OperationsEvidenceVerifiedBy", fields: [verifiedById], references: [id], onDelete: Restrict)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([facilityId, kind, occurredAt])
+  @@index([facilityId, status, verifiedAt])
 }

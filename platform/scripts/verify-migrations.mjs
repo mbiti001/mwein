@@ -38,6 +38,15 @@ const requiredTables = [
   "LoginThrottle",
   "GovernanceEvidence",
   "PatientProblem",
+  "ServicePointControl",
+  "ReminderDelivery",
+  "MedicationSafetyRule",
+  "MedicationSafetyAssessment",
+  "ExternalIdentity",
+  "IdentityRoleMapping",
+  "AiGeneration",
+  "CashierShift",
+  "OperationsEvidence",
 ];
 const tableResult = await db.query(
   "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename",
@@ -50,11 +59,12 @@ const triggerResult = await db.query(
   `SELECT tgname FROM pg_trigger WHERE NOT tgisinternal AND tgname IN (
     'ReferralAttachment_immutable',
     'ReferralAcknowledgement_immutable',
-    'AuditEvent_immutable'
+    'AuditEvent_immutable',
+    'MedicationSafetyAssessment_immutable'
   ) ORDER BY tgname`,
 );
-if (triggerResult.rows.length !== 3)
-  throw new Error(`Expected 3 immutable clinical/audit-record triggers, found ${triggerResult.rows.length}`);
+if (triggerResult.rows.length !== 4)
+  throw new Error(`Expected 4 immutable clinical/audit-record triggers, found ${triggerResult.rows.length}`);
 
 await db.exec(`
   INSERT INTO "Facility" ("id", "code", "name", "updatedAt")
@@ -78,6 +88,22 @@ try {
 }
 if (!activeStocktakeConstraintHeld)
   throw new Error("The one-active-stocktake-per-store constraint did not reject a second open count");
+
+await db.exec(`
+  INSERT INTO "CashierShift" ("id", "facilityId", "cashierId", "openingFloat")
+  VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', 1000);
+`);
+let activeCashierShiftConstraintHeld = false;
+try {
+  await db.exec(`
+    INSERT INTO "CashierShift" ("id", "facilityId", "cashierId", "openingFloat")
+    VALUES ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', '11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', 500);
+  `);
+} catch (error) {
+  activeCashierShiftConstraintHeld = String(error).includes("CashierShift_cashier_active_key");
+}
+if (!activeCashierShiftConstraintHeld)
+  throw new Error("The one-active-cashier-shift constraint did not reject a second open shift");
 
 await db.exec(`
   INSERT INTO "AuditEvent" (
@@ -109,5 +135,5 @@ const balanceResult = await db.query(
 if (balanceResult.rows[0]?.debit !== balanceResult.rows[0]?.credit)
   throw new Error("Migration smoke journal is not balanced");
 
-console.log(`verified ${migrations.length} migrations, ${requiredTables.length} required tables, immutable triggers, stocktake uniqueness, and balanced journal constraints`);
+console.log(`verified ${migrations.length} migrations, ${requiredTables.length} required tables, immutable triggers, stocktake and cashier-shift uniqueness, and balanced journal constraints`);
 await db.close();

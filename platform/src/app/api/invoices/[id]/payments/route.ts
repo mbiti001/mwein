@@ -25,6 +25,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const result = await db.$transaction(async tx => {
       const invoice = await tx.invoice.findFirst({ where: { id, visit: { facilityId: user.facilityId }, status: { not: "VOID" } }, include: { items: true, payments: { where: { status: "CONFIRMED" } }, claims: { where: { status: { in: ["DRAFT", "SUBMITTED", "APPROVED", "PAID"] } } }, visit: { include: { orders: true, encounters: true, facility: true } } } });
       if (!invoice) throw Object.assign(new Error("Invoice not found"), { status: 404 });
+      const cashierShift = input.method === "CASH" ? await tx.cashierShift.findFirst({ where: { facilityId: user.facilityId, cashierId: user.id, status: "OPEN" } }) : null;
+      if (input.method === "CASH" && !cashierShift) throw Object.assign(new Error("Open a cashier shift before receiving cash"), { status: 409 });
       const { total, paid } = invoiceTotals(invoice.items, invoice.payments);
       const allocatedToClaims = invoice.claims.reduce((sum, claim) => sum + Number(claim.amount), 0);
       const patientBalance = Math.max(0, total - paid - allocatedToClaims);
@@ -37,7 +39,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       const receiptNumber = operationalReference(invoice.visit.facility.code, "RCT", year, sequence.nextValue - 1n);
       const payment = await tx.payment.create({ data: {
         invoiceId: id, reference: `${receiptNumber}-PAY`, method: input.method,
-        amount: new Prisma.Decimal(input.amount), externalReference: input.externalReference, receivedById: user.id,
+        amount: new Prisma.Decimal(input.amount), externalReference: input.externalReference, receivedById: user.id, cashierShiftId: cashierShift?.id,
         receipt: { create: { receiptNumber } },
       }, include: { receipt: true } });
       const newPaid = paid + input.amount;

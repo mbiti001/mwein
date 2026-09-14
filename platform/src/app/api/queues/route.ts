@@ -20,6 +20,7 @@ const inputSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("START"), queueEntryId: z.uuid() }),
   z.object({ action: z.literal("TRANSFER"), queueEntryId: z.uuid(), targetServicePoint: servicePoint, reason: z.string().trim().min(5).max(300) }),
   z.object({ action: z.literal("SET_PAUSED"), servicePoint, paused: z.boolean(), reason: z.string().trim().min(5).max(300).optional() }),
+  z.object({ action: z.literal("SET_TARGET"), servicePoint, targetMinutes: z.coerce.number().int().min(5).max(480) }),
 ]);
 
 function assertPointAccess(permissions: string[], point: OperationalServicePoint) {
@@ -47,7 +48,7 @@ export async function GET() {
     const ordered = active.sort((left, right) => queueSortValue(left.priority, left.enteredAt) - queueSortValue(right.priority, right.enteredAt));
     return NextResponse.json({
       entries: ordered,
-      controls: operationalServicePoints.map((point) => controls.find((item) => item.servicePoint === point) || { servicePoint: point, paused: false, pauseReason: null, pausedAt: null }),
+      controls: operationalServicePoints.map((point) => controls.find((item) => item.servicePoint === point) || { servicePoint: point, paused: false, pauseReason: null, pausedAt: null, targetMinutes: 30 }),
       history: history.map((entry) => ({ ...entry, durationMinutes: queueDurationMinutes(entry.enteredAt, entry.completedAt || new Date()) })),
     });
   } catch (error) { return apiError(error); }
@@ -67,6 +68,17 @@ export async function POST(request: Request) {
           create: { facilityId: user.facilityId, servicePoint: input.servicePoint, paused: input.paused, pauseReason: input.paused ? input.reason : null, pausedAt: input.paused ? new Date() : null, updatedById: user.id },
         });
         await appendAudit(tx, { userId: user.id, action: input.paused ? "SERVICE_POINT_PAUSED" : "SERVICE_POINT_RESUMED", entityType: "ServicePointControl", entityId: control.id, reason: input.reason, afterHash: `${input.servicePoint}:${input.paused}` });
+        return { control };
+      }
+
+      if (input.action === "SET_TARGET") {
+        if (!user.permissions.includes("admin.dashboard")) throw Object.assign(new Error("Administration permission is required to change service targets"), { status: 403 });
+        const control = await tx.servicePointControl.upsert({
+          where: { facilityId_servicePoint: { facilityId: user.facilityId, servicePoint: input.servicePoint } },
+          update: { targetMinutes: input.targetMinutes, updatedById: user.id },
+          create: { facilityId: user.facilityId, servicePoint: input.servicePoint, targetMinutes: input.targetMinutes, updatedById: user.id },
+        });
+        await appendAudit(tx, { userId: user.id, sessionId: user.sessionId, action: "SERVICE_POINT_TARGET_UPDATED", entityType: "ServicePointControl", entityId: control.id, afterHash: `${input.servicePoint}:${input.targetMinutes}` });
         return { control };
       }
 

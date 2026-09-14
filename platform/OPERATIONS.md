@@ -43,6 +43,12 @@ Configure these in the approved infrastructure scheduler after the external dest
 
 Record every successful run, failure, recovery time and retained evidence reference in the facility operations register. Environment-variable placeholders are readiness checks, not proof that backups, retention or MFA are operating.
 
+Administration → Operations evidence is the in-application register for backups, restore drills, audit exports, incidents and downtime rehearsals. Successful or resolved entries require a retained evidence reference, and a second administrator must verify each entry. The register records evidence metadata; it does not replace the encrypted external artifact or immutable retention target.
+
+## Daily financial close
+
+Each cashier opens a shift before accepting cash. At close, the cashier records counted cash and explains every non-zero variance; a different user with the finance-manager approval permission must approve the submitted reconciliation. Card, bank and mobile-money receipts remain traceable to their payment references but are excluded from physical cash expectations.
+
 ## Incident and downtime rules
 
 Alert on 5xx rate, `/api/health` failure, `/api/ready` failure, repeated login throttles, audit-chain export failure, backup failure, and migration failure. Logs must be shipped off-host with access controls and must never include request bodies, passwords, session cookies, clinical notes, or patient identifiers.

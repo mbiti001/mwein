@@ -142,6 +142,7 @@ type PatientProblem = {
   updatedAt: string;
   recordedBy: { displayName: string };
 };
+type TimelineEvent = { id: string; type: string; occurredAt: string; title: string; detail: string };
 type ComplaintDurationUnit = "HOURS" | "DAYS" | "WEEKS" | "MONTHS" | "YEARS";
 type ComplaintDraft = {
   key: string;
@@ -1162,6 +1163,7 @@ export function ConsultationForm({
   const [savedDiagnoses, setSavedDiagnoses] = useState(draft?.diagnoses || []);
   const [history, setHistory] = useState<HistoryVisit[]>([]);
   const [problems, setProblems] = useState<PatientProblem[]>([]);
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [problemDescription, setProblemDescription] = useState("");
   useEffect(
     () =>
@@ -1181,12 +1183,12 @@ export function ConsultationForm({
       .catch(() => setError("The order catalogue could not be loaded"));
   }, []);
   useEffect(() => {
-    jsonRequest<{ visits: HistoryVisit[]; problems: PatientProblem[] }>(
+    jsonRequest<{ visits: HistoryVisit[]; problems: PatientProblem[]; timeline: TimelineEvent[] }>(
       `/api/patients/${visit.patient.id}/history?exclude=${visit.id}`,
       undefined,
       "Previous clinical history could not be loaded",
     )
-      .then((result) => { setHistory(result.visits); setProblems(result.problems); })
+      .then((result) => { setHistory(result.visits); setProblems(result.problems); setTimeline(result.timeline); })
       .catch((reason) => setError((reason as Error).message));
   }, [visit.id, visit.patient.id]);
   async function addProblem(event: React.FormEvent<HTMLFormElement>) {
@@ -1560,6 +1562,10 @@ export function ConsultationForm({
           <button className="secondary">Add problem</button>
         </form>
       </section>
+      <details className="card historyPanel">
+        <summary><strong>Patient clinical timeline</strong><span>{timeline.length} longitudinal event(s)</span></summary>
+        <div className="timelineList">{timeline.map(item => <article key={item.id}><time>{new Date(item.occurredAt).toLocaleString()}</time><h3>{item.title}</h3><p><strong>{item.type.replaceAll("_", " ")}</strong> · {item.detail}</p></article>)}{!timeline.length && <p>No earlier longitudinal events found.</p>}</div>
+      </details>
       <details className="card historyPanel">
         <summary>
           <strong>Recent clinical history</strong>

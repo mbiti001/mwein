@@ -4,9 +4,10 @@ import { ComponentProps, useEffect, useMemo, useState } from "react";
 import PharmacyWorkstation from "@/components/PharmacyWorkstation";
 import InventoryWorkstation, { type StockFocus } from "@/components/InventoryWorkstation";
 import SupplyWorkstation from "@/components/SupplyWorkstation";
+import InventoryForecastPanel from "@/components/InventoryForecastPanel";
 
 type PharmacyProps = ComponentProps<typeof PharmacyWorkstation>;
-type Tab = "dispensing" | "inventory" | "receive" | "history" | "controls";
+type Tab = "dispensing" | "inventory" | "forecast" | "receive" | "history" | "controls";
 
 export default function PharmacyCenter({
   permissions,
@@ -23,6 +24,7 @@ export default function PharmacyCenter({
     if (permissions.includes("pharmacy.dispense")) allowed.push({ key: "dispensing", label: "Dispensing" });
     if (permissions.includes("inventory.view")) {
       allowed.push({ key: "inventory", label: "Inventory" });
+      allowed.push({ key: "forecast", label: "Forecast & reorder" });
     }
     if (permissions.includes("inventory.receive")) allowed.push({ key: "receive", label: "Receive stock" });
     if (permissions.includes("inventory.view")) allowed.push({ key: "history", label: "Movement history" });
@@ -42,6 +44,7 @@ export default function PharmacyCenter({
     <div className="embeddedWorkspace pharmacyHub">
       {tab === "dispensing" && <PharmacyWorkstation {...pharmacyProps}/>} 
       {tab === "inventory" && <InventoryWorkstation permissions={permissions} focus={stockFocus} onFocusConsumed={onStockFocusConsumed}/>} 
+      {tab === "forecast" && <InventoryForecastPanel/>}
       {tab === "receive" && <SupplyWorkstation permissions={permissions} view="receive"/>}
       {tab === "history" && <SupplyWorkstation permissions={permissions} view="history"/>}
       {tab === "controls" && <SupplyWorkstation permissions={permissions} view="controls"/>}

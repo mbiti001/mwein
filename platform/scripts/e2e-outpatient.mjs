@@ -200,6 +200,8 @@ try {
     ["pharmacy@example.test", "MMS pharmacy manager", "PHARMACY_MANAGER"],
     ["billing@example.test", "MMS billing", "BILLING"],
     ["medical.director@example.test", "MMS medical director", "MEDICAL_DIRECTOR"],
+    ["finance.manager@example.test", "MMS finance manager", "FINANCE_MANAGER"],
+    ["facility.admin@example.test", "MMS facility administrator", "FACILITY_ADMIN"],
   ]) {
     const roleUserId = randomUUID();
     await pg.query(`INSERT INTO "User" ("id", "facilityId", "email", "displayName", "passwordHash", "mustChangePassword", "updatedAt") VALUES ($1, $2, $3, $4, $5, false, CURRENT_TIMESTAMP)`, [roleUserId, facility.id, email, displayName, admin.passwordHash]);
@@ -308,6 +310,11 @@ try {
   const safetyApproval = await requestWithCookie("/api/admin/medication-safety", medicalDirector.cookie, { method: "POST", body: JSON.stringify({ action: "APPROVE", id: safetyDraft.body.rule.id, reason: "Independent E2E clinical governance review completed" }) });
   assert(safetyApproval.response.ok && safetyApproval.body.rule.status === "APPROVED", `Independent medication-rule approval failed: ${JSON.stringify(safetyApproval.body)}`);
   steps.push("verify two-person medication safety governance");
+  const operationsEvidence = await api("record operations evidence", "/api/admin/operations-evidence", { method: "POST", body: JSON.stringify({ action: "CREATE", kind: "AUDIT_EXPORT", status: "SUCCESS", title: "E2E verified audit export", occurredAt: new Date().toISOString(), evidenceReference: "e2e://audit-export/checksum", notes: "Integration-test evidence only" }) });
+  const facilityAdministrator = await authenticate("MMS", "facility.admin@example.test");
+  const evidenceVerification = await requestWithCookie("/api/admin/operations-evidence", facilityAdministrator.cookie, { method: "POST", body: JSON.stringify({ action: "VERIFY", id: operationsEvidence.body.record.id, note: "Independent E2E verification complete" }) });
+  assert(evidenceVerification.response.ok && evidenceVerification.body.record.verifiedAt, `Operations evidence verification failed: ${JSON.stringify(evidenceVerification.body)}`);
+  steps.push("verify two-person operations evidence register");
 
   const patientResult = await api("register patient", "/api/patients", {
     method: "POST",
@@ -339,6 +346,7 @@ try {
   await api("reschedule follow-up appointment", `/api/appointments/${appointmentId}/status`, { method: "PATCH", body: JSON.stringify({ action: "RESCHEDULE", scheduledAt: rescheduledTime.toISOString(), reason: "Patient requested a different clinic day" }) });
   const appointments = await api("verify appointment reminder history", "/api/appointments?scope=all");
   assert(appointments.body.appointments.some(item => item.id === appointmentId && item.reminderDeliveries.length === 1), "Reminder delivery history was not retained after rescheduling");
+  await api("mark missed follow-up appointment", `/api/appointments/${appointmentId}/status`, { method: "PATCH", body: JSON.stringify({ status: "NO_SHOW" }) });
 
   const visitResult = await api("open outpatient visit", "/api/visits", {
     method: "POST",
@@ -376,6 +384,7 @@ try {
   const pausedCall = await requestWithCookie("/api/queues", sessionCookie, { method: "POST", body: JSON.stringify({ action: "CALL_NEXT", servicePoint: "CONSULTATION" }) });
   assert(pausedCall.response.status === 409, "A paused service point called the next patient");
   await api("resume consultation service point", "/api/queues", { method: "POST", body: JSON.stringify({ action: "SET_PAUSED", servicePoint: "CONSULTATION", paused: false }) });
+  await api("set consultation queue target", "/api/queues", { method: "POST", body: JSON.stringify({ action: "SET_TARGET", servicePoint: "CONSULTATION", targetMinutes: 25 }) });
   const calledQueue = await api("call next consultation by priority", "/api/queues", { method: "POST", body: JSON.stringify({ action: "CALL_NEXT", servicePoint: "CONSULTATION" }) });
   await api("start called consultation", "/api/queues", { method: "POST", body: JSON.stringify({ action: "START", queueEntryId: calledQueue.body.entry.id }) });
 
@@ -483,6 +492,7 @@ try {
   });
   const clinicalHistory = await api("load longitudinal clinical history", `/api/patients/${patient.id}/history?exclude=${visit.id}`);
   assert(clinicalHistory.body.problems.some((problem) => problem.id === problemResult.body.problem.id && problem.clinicalStatus === "ACTIVE"), "Longitudinal problem did not persist across the patient record");
+  assert(clinicalHistory.body.timeline.some((event) => event.type === "APPOINTMENT"), "Longitudinal patient timeline omitted appointment events");
 
   const [mmsReception, otherReception, laboratory] = await Promise.all([
     authenticate("MMS", "shared.user@example.test"),
@@ -534,16 +544,31 @@ try {
   });
   assert(dispensation.body.dispenseStatus === "DISPENSED", "Medicine was not fully dispensed");
 
+  const forecast = await api("generate stock forecast and reorder worklist", "/api/inventory/forecast?days=90");
+  assert(forecast.body.forecasts.some(item => item.code === "PARACETAMOL_500" && item.consumed === 10), "Stock forecast omitted recorded medicine consumption");
+
+  const cashierShift = await api("open cashier shift", "/api/billing/shifts", { method: "POST", body: JSON.stringify({ action: "OPEN", openingFloat: 1000 }) });
+
   const payment = await api("receive payment and close visit", `/api/invoices/${invoice.id}/payments`, {
     method: "POST",
     body: JSON.stringify({ method: "CASH", amount: 550 }),
   });
   assert(payment.body.visitCompleted === true, "Settled visit did not close automatically");
   assert(payment.body.balance === 0, "Invoice retained a balance after full payment");
+  const submittedShift = await api("submit cashier shift reconciliation", "/api/billing/shifts", { method: "POST", body: JSON.stringify({ action: "SUBMIT", id: cashierShift.body.shift.id, countedCash: 1550 }) });
+  assert(Number(submittedShift.body.shift.variance) === 0, "Cashier shift did not reconcile expected cash");
+  const financeManager = await authenticate("MMS", "finance.manager@example.test");
+  const approvedShift = await requestWithCookie("/api/billing/shifts", financeManager.cookie, { method: "POST", body: JSON.stringify({ action: "APPROVE", id: cashierShift.body.shift.id, reason: "Independent E2E cash review" }) });
+  assert(approvedShift.response.ok && approvedShift.body.shift.status === "APPROVED", `Cashier shift approval failed: ${JSON.stringify(approvedShift.body)}`);
+  steps.push("verify independent cashier shift reconciliation");
   const reportDate = new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Nairobi" });
   const operationsReport = await api("verify department operational reporting", `/api/reports/operations?from=${reportDate}&to=${reportDate}`);
   assert(operationsReport.body.departments.queues.some(item => item.servicePoint === "CONSULTATION"), "Queue performance was missing from operational reporting");
   assert(operationsReport.body.departments.cashiers.some(item => item.cashier === "Mwein System Administrator" && item.confirmed > 0), "Cashier payment attribution was missing from operational reporting");
+  const followUps = await api("load recall and follow-up worklists", "/api/follow-ups");
+  assert(followUps.body.worklists.appointments.some(item => item.id === appointmentId), "Missed appointment was absent from the recall worklist");
+  const dataQuality = await api("scan facility data quality", "/api/admin/data-quality");
+  assert(typeof dataQuality.body.summary.incompleteVisits === "number", "Data-quality workbench did not return operational issue counts");
 
   const state = (
     await pg.query(

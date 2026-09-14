@@ -9,6 +9,7 @@ const systemAdministrationPermissions = new Set([
   "admin.catalog",
   "admin.dashboard",
   "audit.view",
+  "admin.operations",
 ]);
 
 export function roleScopedPermissions(roles: RoleGrant[]) {

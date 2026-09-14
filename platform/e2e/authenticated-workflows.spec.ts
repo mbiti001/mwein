@@ -84,6 +84,8 @@ for (const role of [
   { email: "imaging@example.test", visible: ["Imaging"], hidden: ["Laboratory", "Pharmacy & stock", "Billing"] },
   { email: "pharmacy@example.test", visible: ["Pharmacy & stock", "Administration"], hidden: ["Registration", "Consultation", "Billing"] },
   { email: "billing@example.test", visible: ["Billing", "Reports"], hidden: ["Registration", "Consultation", "Pharmacy & stock"] },
+  { email: "finance.manager@example.test", visible: ["Billing", "Reports", "Administration"], hidden: ["Registration", "Consultation"] },
+  { email: "facility.admin@example.test", visible: ["Billing", "Reports", "Administration"], hidden: ["Registration", "Consultation"] },
 ] as const) {
   test(`shows only the intended work areas for ${role.email}`, async ({ page }) => {
     await login(page, role.email);
@@ -100,6 +102,15 @@ test("lets the medical director govern medication safety without user administra
   await expect(page.getByRole("button", { name: "Users & access" })).toHaveCount(0);
   await page.getByRole("button", { name: "Medication safety" }).click();
   await expect(page.getByRole("heading", { name: "Medication safety governance" })).toBeVisible();
+});
+
+test("shows the new administration workbenches to an authorised administrator", async ({ page }) => {
+  await login(page, "facility.admin@example.test");
+  await page.getByRole("button", { name: "Administration" }).click();
+  await expect(page.getByRole("button", { name: "Data quality" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Operations evidence" })).toBeVisible();
+  await page.getByRole("button", { name: "Data quality" }).click();
+  await expect(page.getByRole("heading", { name: "Potential duplicate patients" })).toBeVisible();
 });
 
 test("completes registration and triage through the browser and routes to consultation", async ({ page }) => {
