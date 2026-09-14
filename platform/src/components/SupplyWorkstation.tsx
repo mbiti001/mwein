@@ -12,6 +12,16 @@ type Data = {
   pendingCounts: any[];
   emergencyAdjustments: any[];
   movements: any[];
+  stocktakes: any[];
+  accounting: null | {
+    inventoryValue: number;
+    unvaluedUnits: number;
+    sales: number;
+    costOfGoodsSold: number;
+    grossProfit: number;
+    fastMoving: any[];
+    journals: any[];
+  };
   currentUserId: string;
 };
 const empty: Data = {
@@ -23,6 +33,8 @@ const empty: Data = {
   pendingCounts: [],
   emergencyAdjustments: [],
   movements: [],
+  stocktakes: [],
+  accounting: null,
   currentUserId: "",
 };
 
@@ -83,6 +95,7 @@ export default function SupplyWorkstation({
       "COUNT",
       "TRANSFER",
       "EMERGENCY_ADJUST",
+      "START_STOCKTAKE",
     ].includes(action);
     if (
       await save(
@@ -95,6 +108,27 @@ export default function SupplyWorkstation({
       )
     )
       form.reset();
+  }
+  async function submitStocktake(event: FormEvent<HTMLFormElement>, stocktake: any) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const lines = stocktake.lines.map((line: any) => ({
+      lineId: line.id,
+      countedQuantity: form.get(`count-${line.id}`),
+      reason: form.get(`reason-${line.id}`) || undefined,
+    }));
+    await save(
+      { action: "SUBMIT_STOCKTAKE", idempotencyKey: crypto.randomUUID(), stocktakeId: stocktake.id, lines },
+      `${stocktake.stocktakeNumber} submitted for independent approval.`,
+    );
+  }
+  async function cancelStocktake(stocktake: any) {
+    const reason = window.prompt(`Why are you cancelling ${stocktake.stocktakeNumber}?`);
+    if (!reason) return;
+    await save(
+      { action: "CANCEL_STOCKTAKE", stocktakeId: stocktake.id, reason },
+      `${stocktake.stocktakeNumber} cancelled. Stock movements are available again.`,
+    );
   }
   const receivable = data.purchaseOrders
     .filter((order) =>
@@ -272,7 +306,89 @@ export default function SupplyWorkstation({
           </div>
         </section>
       )}
+      {data.stocktakes.length > 0 && (
+        <section className="card">
+          <div className="cardHead">
+            <div>
+              <h2>Full-store stocktakes</h2>
+              <p>Counts are blind while open. Store movements remain frozen until approval or cancellation.</p>
+            </div>
+            <strong>{data.stocktakes.length}</strong>
+          </div>
+          <div className="queue">
+            {data.stocktakes.map((stocktake) => (
+              <article className="card compact" key={stocktake.id}>
+                <div className="cardHead">
+                  <div>
+                    <h3>{stocktake.stocktakeNumber} · {stocktake.store.name}</h3>
+                    <p>{stocktake.status} · opened by {stocktake.openedBy.displayName} · {new Date(stocktake.openedAt).toLocaleString()}</p>
+                  </div>
+                  <b>{stocktake.lines.length} batches</b>
+                </div>
+                {stocktake.status === "OPEN" && can("inventory.count") && (
+                  <form className="dataForm" onSubmit={(event) => void submitStocktake(event, stocktake)}>
+                    <div className="wide privacyNotice">
+                      <strong>Blind physical count</strong>
+                      <span>Enter every physical quantity. Add a reason where you observed damage, loss, an unrecorded receipt, or another likely variance.</span>
+                    </div>
+                    {stocktake.lines.map((line: any) => (
+                      <div className="wide stocktakeLine" key={line.id}>
+                        <label>{line.batch.catalogItem.name} · batch {line.batch.batchNumber}
+                          <input name={`count-${line.id}`} type="number" min="0" step="0.001" required aria-label={`Counted quantity for ${line.batch.catalogItem.name} batch ${line.batch.batchNumber}`} />
+                        </label>
+                        <label>Variance reason if different
+                          <input name={`reason-${line.id}`} minLength={5} maxLength={240} />
+                        </label>
+                      </div>
+                    ))}
+                    <div className="wide submitBar">
+                      <button type="button" className="secondary" disabled={busy} onClick={() => void cancelStocktake(stocktake)}>Cancel stocktake</button>
+                      <button className="primary" disabled={busy}>{busy ? "Submitting…" : "Submit complete count"}</button>
+                    </div>
+                  </form>
+                )}
+                {stocktake.status === "SUBMITTED" && (
+                  <>
+                    <div className="queue compact">
+                      {stocktake.lines.map((line: any) => (
+                        <div className="row" key={line.id}>
+                          <span className="dot" />
+                          <div><strong>{line.batch.catalogItem.name} · {line.batch.batchNumber}</strong><small>System {Number(line.systemQuantity)} · counted {Number(line.countedQuantity)} · variance {Number(line.variance)}{line.reason ? ` · ${line.reason}` : ""}</small></div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="submitBar">
+                      {can("inventory.reconcile") && <button type="button" className="secondary" disabled={busy} onClick={() => void cancelStocktake(stocktake)}>Cancel stocktake</button>}
+                      {can("inventory.reconcile") && stocktake.openedById !== data.currentUserId && stocktake.submittedById !== data.currentUserId && <button type="button" className="primary" disabled={busy} onClick={() => void save({ action: "APPROVE_STOCKTAKE", idempotencyKey: crypto.randomUUID(), stocktakeId: stocktake.id }, `${stocktake.stocktakeNumber} approved and posted.`)}>Approve and post variances</button>}
+                    </div>
+                  </>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+      {data.accounting && (
+        <section className="card">
+          <div className="cardHead"><div><h2>Pharmacy inventory accounting</h2><p>Perpetual inventory value, dispensing margin and balanced journal entries.</p></div><strong>KES {data.accounting.inventoryValue.toLocaleString()}</strong></div>
+          <div className="metricGrid">
+            <article className="metric"><span>30-day sales</span><strong>KES {data.accounting.sales.toLocaleString()}</strong></article>
+            <article className="metric"><span>Cost of goods sold</span><strong>KES {data.accounting.costOfGoodsSold.toLocaleString()}</strong></article>
+            <article className="metric"><span>Gross profit</span><strong>KES {data.accounting.grossProfit.toLocaleString()}</strong></article>
+            <article className={`metric ${data.accounting.unvaluedUnits ? "urgent" : ""}`}><span>Unvalued units</span><strong>{data.accounting.unvaluedUnits.toLocaleString()}</strong></article>
+          </div>
+          <div className="queue compact">{data.accounting.journals.slice(0, 20).map((journal: any) => <div className="row" key={journal.id}><span className="dot"/><div><strong>{journal.entryNumber} · {journal.description}</strong><small>{new Date(journal.occurredAt).toLocaleString()} · {journal.lines.map((line: any) => `${line.accountCode} ${Number(line.debit) ? `Dr ${Number(line.debit)}` : `Cr ${Number(line.credit)}`}`).join(" · ")}</small></div></div>)}</div>
+        </section>
+      )}
       <div className="supplyGrid">
+        {can("inventory.count") && (
+          <form className="card dataForm" onSubmit={(event) => submit(event, "START_STOCKTAKE")}>
+            <div className="wide"><h2>Start full-store stocktake</h2><p>Starting a count freezes receipts, dispensing, transfers and adjustments for the selected store.</p></div>
+            <label>Store *<select name="storeId" required><option value="">Select</option>{data.stores.filter(store => !data.stocktakes.some(stocktake => stocktake.storeId === store.id && ["OPEN", "SUBMITTED"].includes(stocktake.status))).map(store => <option value={store.id} key={store.id}>{store.name}</option>)}</select></label>
+            <label>Count note<input name="notes" maxLength={500} placeholder="Scheduled month-end count" /></label>
+            <button className="primary wide" disabled={busy}>Start blind count</button>
+          </form>
+        )}
         {can("procurement.manage_suppliers") && (
           <form
             className="card dataForm"

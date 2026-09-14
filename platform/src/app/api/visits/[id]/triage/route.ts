@@ -25,7 +25,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       if (visit.triage) throw Object.assign(new Error("Triage has already been completed for this visit"), { status: 409 });
       assertVisitTransition(visit.status, "AWAITING_CLINICIAN");
       await tx.triageRecord.create({ data: {
-        visitId: visit.id, chiefComplaint: "Deferred to private consultation", triageCategory: input.triageCategory, notes: input.notes,
+        visitId: visit.id, chiefComplaint: input.chiefComplaint, triageCategory: input.triageCategory, notes: input.notes,
         pregnancyStatus: input.pregnancyStatus, lastMenstrualPeriod: input.lastMenstrualPeriod ? new Date(input.lastMenstrualPeriod) : null,
         completedAt: new Date(), observations: { create: [
           ...observationDefinitions.filter(([, key]) => input[key] !== undefined).map(([code, key, unit]) => ({ code, unit, valueDecimal: new Prisma.Decimal(input[key] as number), abnormal: alerts.length > 0, critical: code === "SPO2" ? input.oxygenSaturation < 90 : code === "BP_SYS" ? input.systolicBp < 90 || input.systolicBp >= 180 : code === "BP_DIA" ? input.diastolicBp >= 120 : false })),

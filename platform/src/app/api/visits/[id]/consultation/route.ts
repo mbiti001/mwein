@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
 import { canonicalLaboratoryCode } from "@/lib/laboratory";
+import { verifyDiagnosisSelectionToken } from "@/lib/diagnosis-selection";
 import { normalizeMedicationConcept, periodsOverlap, prescriptionSnapshot, sameVisitMedicationKey, treatmentStopDate } from "@/lib/medication";
 import {
   consultationNotesSchema,
@@ -64,6 +65,15 @@ export async function POST(
             noteFormat: "STRUCTURED",
             subjective: JSON.stringify({
               chiefComplaint: input.data.chiefComplaint,
+              complaints:
+                input.data.complaints.length > 0
+                  ? input.data.complaints
+                  : [
+                      {
+                        complaint: input.data.chiefComplaint,
+                        legacyDuration: input.data.symptomDuration,
+                      },
+                    ],
               historyPresentingIllness: input.data.historyPresentingIllness,
               symptomDuration: input.data.symptomDuration,
               reviewOfSystems: input.data.reviewOfSystems,
@@ -121,6 +131,16 @@ export async function POST(
             { status: 409 },
           );
         if (input.action === "SAVE_DIAGNOSIS") {
+          try {
+            verifyDiagnosisSelectionToken(input.data.selectionToken, {
+              facilityId: user.facilityId,
+              code: input.data.code,
+              title: input.data.title,
+              foundationUri: input.data.foundationUri,
+            });
+          } catch (reason) {
+            throw Object.assign(new Error((reason as Error).message), { status: 422 });
+          }
           const duplicate = await tx.diagnosis.findFirst({ where: { encounterId: encounter.id, codingSystem: "ICD-11 MMS", code: input.data.code.toUpperCase() } });
           if (duplicate) throw Object.assign(new Error(`${duplicate.code} · ${duplicate.description} is already recorded for this encounter`), { status: 409 });
           if (input.data.primary)

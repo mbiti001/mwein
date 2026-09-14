@@ -9,7 +9,7 @@ import {
   SearchablePicker,
 } from "@/components/SearchablePicker";
 
-type Visit = {
+export type ConsultationVisit = {
   id: string;
   visitNumber: string;
   clinic: string;
@@ -23,6 +23,15 @@ type Visit = {
     sexAtBirth: "FEMALE" | "MALE" | "INTERSEX" | "UNKNOWN";
     dateOfBirth?: string | null;
     estimatedAgeYears?: number | null;
+    contacts?: {
+      type?: string;
+      value: string;
+      primary?: boolean;
+    }[];
+    identifiers?: {
+      type: string;
+      value: string;
+    }[];
     allergies?: {
       substance: string;
       reaction?: string | null;
@@ -53,6 +62,13 @@ type Visit = {
     }[];
   }[];
   orders?: { id: string; type: string; status: string; displayName: string; clinicalIndication?: string | null; prescription?: { id?: string; medicineCode: string; genericName?: string | null; strength?: string | null; dosageForm?: string | null; dose: string; route: string; frequency: string; duration?: string | null; quantity: string; instructions: string; dispenseStatus: string } | null }[];
+  invoice?: {
+    claims: {
+      payer: string;
+      memberNumber: string;
+      status: string;
+    }[];
+  } | null;
 };
 type CatalogItem = {
   code: string;
@@ -116,12 +132,81 @@ type HistoryVisit = {
     imaging?: { result?: { status: string; conclusion: string } | null } | null;
   }[];
 };
+type PatientProblem = {
+  id: string;
+  description: string;
+  codeSystem: string;
+  code?: string | null;
+  clinicalStatus: string;
+  onsetDate?: string | null;
+  updatedAt: string;
+  recordedBy: { displayName: string };
+};
+type ComplaintDurationUnit = "HOURS" | "DAYS" | "WEEKS" | "MONTHS" | "YEARS";
+type ComplaintDraft = {
+  key: string;
+  complaint: string;
+  durationValue: string;
+  durationUnit: ComplaintDurationUnit | "";
+};
+const complaintDurationOptions: {
+  value: ComplaintDurationUnit;
+  label: string;
+}[] = [
+  { value: "HOURS", label: "Hours" },
+  { value: "DAYS", label: "Days" },
+  { value: "WEEKS", label: "Weeks" },
+  { value: "MONTHS", label: "Months" },
+  { value: "YEARS", label: "Years" },
+];
 function parseRecord(value?: string | null): Record<string, string> {
   try {
     return value ? JSON.parse(value) : {};
   } catch {
     return {};
   }
+}
+function parseSavedComplaints(
+  subjective: Record<string, string>,
+): ComplaintDraft[] {
+  const raw = (subjective as Record<string, unknown>).complaints;
+  if (Array.isArray(raw) && raw.length > 0) {
+    return raw.slice(0, 8).map((value, index) => {
+      const item = value as Record<string, unknown>;
+      const legacyDuration = String(item.legacyDuration || "");
+      const legacyMatch = legacyDuration.match(
+        /^([0-9]+(?:\.[0-9]+)?)\s+(hours?|days?|weeks?|months?|years?)$/i,
+      );
+      const savedUnit = String(item.durationUnit || "").toUpperCase();
+      const durationUnit = complaintDurationOptions.some(
+        (option) => option.value === savedUnit,
+      )
+        ? (savedUnit as ComplaintDurationUnit)
+        : legacyMatch
+          ? (`${legacyMatch[2].replace(/s$/i, "")}S`.toUpperCase() as ComplaintDurationUnit)
+          : "";
+      return {
+        key: `saved-${index}`,
+        complaint: String(item.complaint || ""),
+        durationValue: String(item.durationValue || legacyMatch?.[1] || ""),
+        durationUnit,
+      };
+    });
+  }
+  const legacyDuration = subjective.symptomDuration || "";
+  const legacyMatch = legacyDuration.match(
+    /^([0-9]+(?:\.[0-9]+)?)\s+(hours?|days?|weeks?|months?|years?)$/i,
+  );
+  return [
+    {
+      key: "saved-0",
+      complaint: subjective.chiefComplaint || "",
+      durationValue: legacyMatch?.[1] || "",
+      durationUnit: legacyMatch
+        ? (`${legacyMatch[2].replace(/s$/i, "")}S`.toUpperCase() as ComplaintDurationUnit)
+        : "",
+    },
+  ];
 }
 function parseFindings(value?: string) {
   return Object.fromEntries(
@@ -963,13 +1048,13 @@ export default function ConsultationWorkstation({
   initialVisitId,
   onInitialVisitOpened,
 }: {
-  visits: Visit[];
+  visits: ConsultationVisit[];
   onCompleted: (patientName: string) => void;
   onOpenServicePoints?: (visitId: string) => void;
   initialVisitId?: string | null;
   onInitialVisitOpened?: () => void;
 }) {
-  const [active, setActive] = useState<Visit | null>(null);
+  const [active, setActive] = useState<ConsultationVisit | null>(null);
   useEffect(() => {
     if (!initialVisitId) return;
     const visit = visits.find((item) => item.id === initialVisitId);
@@ -1030,13 +1115,13 @@ export default function ConsultationWorkstation({
   );
 }
 
-function ConsultationForm({
+export function ConsultationForm({
   visit,
   onBack,
   onCompleted,
   onOpenServicePoints,
 }: {
-  visit: Visit;
+  visit: ConsultationVisit;
   onBack: () => void;
   onCompleted: (name: string) => void;
   onOpenServicePoints?: (visitId: string) => void;
@@ -1058,8 +1143,9 @@ function ConsultationForm({
   const [diagnosisQuery, setDiagnosisQuery] = useState("");
   const [diagnosisCode, setDiagnosisCode] = useState("");
   const [diagnosisUri, setDiagnosisUri] = useState("");
+  const [diagnosisSelectionToken, setDiagnosisSelectionToken] = useState("");
   const [diagnosisResults, setDiagnosisResults] = useState<
-    DiagnosisSearchResult[]
+    (DiagnosisSearchResult & { selectionToken: string })[]
   >([]);
   const [diagnosisSearching, setDiagnosisSearching] = useState(false);
   const [diagnosisSourceWarning, setDiagnosisSourceWarning] = useState("");
@@ -1070,8 +1156,13 @@ function ConsultationForm({
   const savedSubjective = parseRecord(draft?.subjective);
   const savedObjective = parseRecord(draft?.objective);
   const savedPlan = parseRecord(draft?.plan);
+  const [complaints, setComplaints] = useState<ComplaintDraft[]>(() =>
+    parseSavedComplaints(savedSubjective),
+  );
   const [savedDiagnoses, setSavedDiagnoses] = useState(draft?.diagnoses || []);
   const [history, setHistory] = useState<HistoryVisit[]>([]);
+  const [problems, setProblems] = useState<PatientProblem[]>([]);
+  const [problemDescription, setProblemDescription] = useState("");
   useEffect(
     () =>
       setDispenseQuantity(
@@ -1090,14 +1181,38 @@ function ConsultationForm({
       .catch(() => setError("The order catalogue could not be loaded"));
   }, []);
   useEffect(() => {
-    jsonRequest<{ visits: HistoryVisit[] }>(
+    jsonRequest<{ visits: HistoryVisit[]; problems: PatientProblem[] }>(
       `/api/patients/${visit.patient.id}/history?exclude=${visit.id}`,
       undefined,
       "Previous clinical history could not be loaded",
     )
-      .then((result) => setHistory(result.visits))
+      .then((result) => { setHistory(result.visits); setProblems(result.problems); })
       .catch((reason) => setError((reason as Error).message));
   }, [visit.id, visit.patient.id]);
+  async function addProblem(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    try {
+      const result = await jsonRequest<{ problem: PatientProblem }>(`/api/patients/${visit.patient.id}/problems`, {
+        method: "POST",
+        body: JSON.stringify({ description: problemDescription }),
+      });
+      setProblems((current) => [result.problem, ...current]);
+      setProblemDescription("");
+      setNotice("The problem was added to the longitudinal record.");
+    } catch (reason) { setError((reason as Error).message); }
+  }
+  async function resolveProblem(problem: PatientProblem) {
+    const reason = window.prompt("Reason for resolving this problem");
+    if (!reason) return;
+    try {
+      const result = await jsonRequest<{ problem: PatientProblem }>(`/api/patients/${visit.patient.id}/problems/${problem.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ clinicalStatus: "RESOLVED", reason }),
+      });
+      setProblems((current) => current.map((item) => item.id === problem.id ? result.problem : item));
+      setNotice("The problem was marked resolved.");
+    } catch (reasonValue) { setError((reasonValue as Error).message); }
+  }
   useEffect(() => {
     if (diagnosisQuery.trim().length < 2 || diagnosisCode)
       return setDiagnosisResults([]);
@@ -1137,9 +1252,41 @@ function ConsultationForm({
       item?.valueText ||
       (item?.valueDecimal
         ? `${Number(item.valueDecimal)}${item.unit ? ` ${item.unit}` : ""}`
-        : "—")
+      : "—")
     );
   };
+  const primaryPhone =
+    visit.patient.contacts?.find((contact) => contact.primary)?.value ||
+    visit.patient.contacts?.[0]?.value ||
+    "Not recorded";
+  const latestClaim = visit.invoice?.claims?.[0];
+  const shaNumber = visit.patient.identifiers?.find(
+    (identifier) => identifier.type === "SHA",
+  )?.value;
+  const coverage = latestClaim
+    ? `${latestClaim.payer.replaceAll("_", " ")} · ${latestClaim.status}`
+    : shaNumber
+      ? `SHA · ${shaNumber}`
+      : "Not recorded";
+  const recentDiagnoses = [
+    ...new Set(
+      history.flatMap((previous) =>
+        previous.encounters.flatMap((encounter) =>
+          encounter.diagnoses.map((diagnosis) => diagnosis.description),
+        ),
+      ),
+    ),
+  ];
+  function updateComplaint(
+    index: number,
+    patch: Partial<Omit<ComplaintDraft, "key">>,
+  ) {
+    setComplaints((current) =>
+      current.map((complaint, itemIndex) =>
+        itemIndex === index ? { ...complaint, ...patch } : complaint,
+      ),
+    );
+  }
   async function run(action: string, data: unknown, message: string) {
     setError("");
     setNotice("");
@@ -1166,10 +1313,22 @@ function ConsultationForm({
     }
   }
   function notes(f: FormData) {
+    const structuredComplaints = complaints.map((item) => ({
+      complaint: item.complaint.trim(),
+      ...(item.durationValue
+        ? { durationValue: Number(item.durationValue) }
+        : {}),
+      ...(item.durationUnit ? { durationUnit: item.durationUnit } : {}),
+    }));
+    const firstComplaint = structuredComplaints[0];
     return {
-      chiefComplaint: f.get("chiefComplaint"),
+      chiefComplaint: firstComplaint?.complaint || "",
+      complaints: structuredComplaints,
       historyPresentingIllness: f.get("historyPresentingIllness"),
-      symptomDuration: f.get("symptomDuration") || undefined,
+      symptomDuration:
+        firstComplaint?.durationValue && firstComplaint.durationUnit
+          ? `${firstComplaint.durationValue} ${firstComplaint.durationUnit.toLowerCase()}`
+          : undefined,
       reviewOfSystems: serializeFindings(
         f,
         "ros",
@@ -1217,6 +1376,7 @@ function ConsultationForm({
         {
           code: f.get("primaryIcd11"),
           title: f.get("primaryDiagnosis"),
+          selectionToken: f.get("diagnosisSelectionToken"),
           foundationUri: f.get("foundationUri") || undefined,
           type: f.get("diagnosisType"),
           primary: f.get("diagnosisRole") === "PRIMARY",
@@ -1233,6 +1393,7 @@ function ConsultationForm({
         setDiagnosisQuery("");
         setDiagnosisCode("");
         setDiagnosisUri("");
+        setDiagnosisSelectionToken("");
       }
       return result;
     }
@@ -1347,6 +1508,30 @@ function ConsultationForm({
           <strong>{observation("TEMP")}</strong>
         </div>
       </section>
+      <section className="consultationContext" aria-label="Patient context">
+        <div>
+          <small>Phone</small>
+          <strong>{primaryPhone}</strong>
+        </div>
+        <div>
+          <small>Coverage</small>
+          <strong>{coverage}</strong>
+        </div>
+        <div>
+          <small>Last visit</small>
+          <strong>
+            {history[0]
+              ? new Date(history[0].arrivedAt).toLocaleDateString()
+              : "None found"}
+          </strong>
+        </div>
+        <div>
+          <small>Recent diagnoses</small>
+          <strong title={recentDiagnoses.join(" · ")}>
+            {recentDiagnoses.slice(0, 2).join(" · ") || "None recorded"}
+          </strong>
+        </div>
+      </section>
       {visit.patient.allergies?.length ? (
         <div className="allergyAlert">
           <strong>Allergy alert</strong>
@@ -1362,6 +1547,19 @@ function ConsultationForm({
           No active allergies recorded — verify with the patient.
         </div>
       )}
+      <section className="card historyPanel">
+        <div className="cardHead"><div><h2>Longitudinal problem list</h2><p>Active conditions persist across visits until a clinician resolves them.</p></div></div>
+        {problems.filter((problem) => problem.clinicalStatus === "ACTIVE").map((problem) => <article key={problem.id}>
+          <h3>{problem.code ? `${problem.code} · ` : ""}{problem.description}</h3>
+          <p>{problem.codeSystem} · recorded by {problem.recordedBy.displayName}</p>
+          <button type="button" className="secondary" onClick={() => resolveProblem(problem)}>Mark resolved</button>
+        </article>)}
+        {!problems.some((problem) => problem.clinicalStatus === "ACTIVE") && <p>No active problems recorded.</p>}
+        <form className="inlineForm" onSubmit={addProblem}>
+          <label>New active problem<input value={problemDescription} onChange={(event) => setProblemDescription(event.target.value)} minLength={2} maxLength={500} required placeholder="Condition or persistent clinical concern" /></label>
+          <button className="secondary">Add problem</button>
+        </form>
+      </section>
       <details className="card historyPanel">
         <summary>
           <strong>Recent clinical history</strong>
@@ -1445,24 +1643,103 @@ function ConsultationForm({
           active={activeStep === 1}
           onOpen={() => setActiveStep(1)}
         >
-          <label>
-            Chief complaint *
-            <textarea
-              name="chiefComplaint"
-              required
-              minLength={2}
-              rows={2}
-              defaultValue={savedSubjective.chiefComplaint || ""}
-            />
-          </label>
-          <label>
-            Duration
-            <input
-              name="symptomDuration"
-              placeholder="e.g. 3 days"
-              defaultValue={savedSubjective.symptomDuration || ""}
-            />
-          </label>
+          <div className="span2 complaintList">
+            <div className="complaintListHeader">
+              <div>
+                <h3>Presenting complaints</h3>
+                <p>Record each problem separately with its duration.</p>
+              </div>
+              <button
+                type="button"
+                className="secondary"
+                disabled={complaints.length >= 8}
+                onClick={() =>
+                  setComplaints((current) => [
+                    ...current,
+                    {
+                      key: `added-${crypto.randomUUID()}`,
+                      complaint: "",
+                      durationValue: "",
+                      durationUnit: "",
+                    },
+                  ])
+                }
+              >
+                + Add complaint
+              </button>
+            </div>
+            {complaints.map((item, index) => (
+              <article className="complaintRow" key={item.key}>
+                <span className="complaintNumber" aria-hidden="true">
+                  {index + 1}
+                </span>
+                <label className="complaintDescription">
+                  Complaint {index + 1} *
+                  <input
+                    required
+                    minLength={2}
+                    maxLength={500}
+                    value={item.complaint}
+                    onChange={(event) =>
+                      updateComplaint(index, {
+                        complaint: event.target.value,
+                      })
+                    }
+                    placeholder="Patient’s main symptom or concern"
+                  />
+                </label>
+                <label>
+                  Duration
+                  <input
+                    type="number"
+                    min="0.1"
+                    max="10000"
+                    step="0.1"
+                    value={item.durationValue}
+                    onChange={(event) =>
+                      updateComplaint(index, {
+                        durationValue: event.target.value,
+                      })
+                    }
+                    placeholder="Value"
+                  />
+                </label>
+                <label>
+                  Unit
+                  <select
+                    value={item.durationUnit}
+                    required={Boolean(item.durationValue)}
+                    onChange={(event) =>
+                      updateComplaint(index, {
+                        durationUnit: event.target
+                          .value as ComplaintDurationUnit,
+                      })
+                    }
+                  >
+                    <option value="">Select unit</option>
+                    {complaintDurationOptions.map((option) => (
+                      <option value={option.value} key={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="secondary removeComplaint"
+                  disabled={complaints.length === 1}
+                  onClick={() =>
+                    setComplaints((current) =>
+                      current.filter((_, itemIndex) => itemIndex !== index),
+                    )
+                  }
+                  aria-label={`Remove complaint ${index + 1}`}
+                >
+                  Remove
+                </button>
+              </article>
+            ))}
+          </div>
           <label className="span2">
             History of presenting illness *
             <textarea
@@ -1678,6 +1955,7 @@ function ConsultationForm({
                   setDiagnosisQuery(e.target.value);
                   setDiagnosisCode("");
                   setDiagnosisUri("");
+                  setDiagnosisSelectionToken("");
                 }}
                 required
                 minLength={2}
@@ -1696,6 +1974,7 @@ function ConsultationForm({
                       setDiagnosisQuery(result.title);
                       setDiagnosisCode(result.code);
                       setDiagnosisUri(result.foundationUri || "");
+                      setDiagnosisSelectionToken(result.selectionToken);
                       setDiagnosisResults([]);
                     }}
                   >
@@ -1707,6 +1986,9 @@ function ConsultationForm({
                 ))}
               </div>
             )}
+            {!diagnosisSearching && diagnosisQuery.trim().length >= 2 && !diagnosisCode && diagnosisResults.length === 0 && (
+              <small className="dangerText">No validated match is available. Try another term or ask the terminology administrator; free-text codes cannot be saved.</small>
+            )}
           </div>
           <label>
             ICD-11 MMS code *
@@ -1714,12 +1996,13 @@ function ConsultationForm({
               name="primaryIcd11"
               required
               value={diagnosisCode}
-              onChange={(e) => setDiagnosisCode(e.target.value.toUpperCase())}
               placeholder="Selected automatically"
               autoCapitalize="characters"
+              readOnly
             />
           </label>
           <input type="hidden" name="foundationUri" value={diagnosisUri} />
+          <input type="hidden" name="diagnosisSelectionToken" value={diagnosisSelectionToken} />
           <label>
             Diagnostic certainty
             <select name="diagnosisType">
@@ -1756,6 +2039,7 @@ function ConsultationForm({
           <button
             type="button"
             className="secondary span2"
+            disabled={!diagnosisSelectionToken}
             onClick={async (event) => {
               if (await act(event, "SAVE_DIAGNOSIS")) setActiveStep(5);
             }}

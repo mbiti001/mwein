@@ -1,23 +1,26 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { assessTriageVitals, patientClinicalGroup } from "@/lib/domain";
-import ConsultationWorkstation from "@/components/ConsultationWorkstation";
-import LaboratoryWorkstation from "@/components/LaboratoryWorkstation";
-import PharmacyCenter from "@/components/PharmacyCenter";
 import type { StockFocus } from "@/components/InventoryWorkstation";
-import BillingWorkstation from "@/components/BillingWorkstation";
-import VisitSummaryWorkstation from "@/components/VisitSummaryWorkstation";
-import ImagingWorkstation from "@/components/ImagingWorkstation";
-import ReportingWorkstation from "@/components/ReportingWorkstation";
-import AppointmentWorkstation from "@/components/AppointmentWorkstation";
-import AdminCenter from "@/components/AdminCenter";
-import ServicePointsWorkstation from "@/components/ServicePointsWorkstation";
 import SaveFeedback from "@/components/SaveFeedback";
 import { currentServicePoint, isWaitingOverdue, waitingMinutes, type ServicePointCode } from "@/lib/service-points";
 import { appointmentClinics } from "@/lib/appointments";
 import { careServiceForClinic } from "@/lib/care-service-points";
 import { jsonRequest } from "@/lib/client-http";
+
+const workspaceLoading = () => <section className="card"><p>Opening workspace…</p></section>;
+const ConsultationWorkstation = dynamic(() => import("@/components/ConsultationWorkstation"), { loading: workspaceLoading });
+const LaboratoryWorkstation = dynamic(() => import("@/components/LaboratoryWorkstation"), { loading: workspaceLoading });
+const PharmacyCenter = dynamic(() => import("@/components/PharmacyCenter"), { loading: workspaceLoading });
+const BillingWorkstation = dynamic(() => import("@/components/BillingWorkstation"), { loading: workspaceLoading });
+const VisitSummaryWorkstation = dynamic(() => import("@/components/VisitSummaryWorkstation"), { loading: workspaceLoading });
+const ImagingWorkstation = dynamic(() => import("@/components/ImagingWorkstation"), { loading: workspaceLoading });
+const ReportingWorkstation = dynamic(() => import("@/components/ReportingWorkstation"), { loading: workspaceLoading });
+const AppointmentWorkstation = dynamic(() => import("@/components/AppointmentWorkstation"), { loading: workspaceLoading });
+const AdminCenter = dynamic(() => import("@/components/AdminCenter"), { loading: workspaceLoading });
+const ServicePointsWorkstation = dynamic(() => import("@/components/ServicePointsWorkstation"), { loading: workspaceLoading });
 
 type User = {
   displayName: string;
@@ -25,6 +28,7 @@ type User = {
   facility: { name: string };
   permissions: string[];
   roles?: string[];
+  mustChangePassword: boolean;
 };
 type Patient = {
   id: string;
@@ -33,7 +37,7 @@ type Patient = {
   sexAtBirth: "FEMALE" | "MALE" | "INTERSEX" | "UNKNOWN";
   dateOfBirth?: string | null;
   estimatedAgeYears?: number | null;
-  contacts: { value: string }[];
+  contacts?: { value: string }[];
   allergies?: {
     substance: string;
     reaction?: string | null;
@@ -47,7 +51,7 @@ type Visit = {
   visitType?: string;
   priority: string;
   status: string;
-  reason: string;
+  reason?: string;
   arrivedAt: string;
   patient: Patient;
   encounters?: {
@@ -68,7 +72,9 @@ type Visit = {
       testCode: string;
       specimenType: string;
       result?: {
+        id: string;
         status: string;
+        verifiedAt?: string | null;
         reportText?: string | null;
         items: {
           analyte: string;
@@ -77,6 +83,15 @@ type Visit = {
           referenceRange?: string | null;
           flag?: string | null;
         }[];
+      } | null;
+    } | null;
+    imaging?: {
+      examinationCode: string;
+      modality: string;
+      result?: {
+        id: string;
+        status: string;
+        verifiedAt?: string | null;
       } | null;
     } | null;
     prescription?: {
@@ -136,11 +151,26 @@ export default function ClinicalApp() {
     api<{ user: User }>("/api/auth/me")
       .then(async (result) => {
         setUser(result.user);
-        await loadVisits();
+        if (!result.user.mustChangePassword && result.user.permissions.includes("visit.read")) await loadVisits();
       })
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, [loadVisits]);
+  useEffect(() => {
+    if (!user || user.mustChangePassword || !user.permissions.includes("visit.read")) return;
+    let stopped = false;
+    const refresh = () => {
+      if (!stopped && document.visibilityState === "visible")
+        void loadVisits().catch(() => undefined);
+    };
+    const timer = window.setInterval(refresh, 15_000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [loadVisits, user]);
   useEffect(() => {
     const titles: Record<Screen, string> = {
       dashboard: "Home",
@@ -174,10 +204,16 @@ export default function ClinicalApp() {
       <Login
         onLogin={async (value) => {
           setUser(value);
-          await loadVisits();
+          if (!value.mustChangePassword && value.permissions.includes("visit.read")) await loadVisits();
         }}
       />
     );
+  if (user.mustChangePassword)
+    return <PasswordChange onChanged={async () => {
+      const result = await api<{ user: User }>("/api/auth/me");
+      setUser(result.user);
+      if (result.user.permissions.includes("visit.read")) await loadVisits();
+    }} />;
 
   const openVisit = (patient?: Patient) => {
     setSelected(patient || null);
@@ -195,7 +231,7 @@ export default function ClinicalApp() {
     ["imaging", "Imaging", "imaging.write"],
     ["pharmacy", "Pharmacy & stock", "inventory.view"],
     ["billing", "Billing", "billing.read"],
-    ["summaries", "Patient records", "patient.read"],
+    ["summaries", "Patient records", "clinical.summary.read"],
   ];
   const nav: [Screen, string][] = allNav.filter(([, , permission]) => !permission || user.permissions.includes(permission)).map(([key, label]) => [key, label]);
   if ((user.permissions || []).includes("billing.read"))
@@ -209,7 +245,7 @@ export default function ClinicalApp() {
       {mobileNavOpen && <button className="navScrim" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
       <aside className={`sidebar ${mobileNavOpen ? "mobileOpen" : ""}`} id="main-navigation">
         <div className="brand">
-          <span>M</span>
+          <img className="brandMark" src="/icon.png" alt="" width={42} height={42} aria-hidden="true" />
           <div>
             <strong>Mwein HMIS</strong>
             <small>Exceptional care close to you.</small>
@@ -255,7 +291,7 @@ export default function ClinicalApp() {
           !["summaries", "reports", "appointments", "admin"].includes(screen) && (
             <WorkflowSteps screen={screen} />
           )}{" "}
-        {contextVisitId && (() => { const visit = visits.find(item => item.id === contextVisitId); return visit ? <PatientContextBar visit={visit} onClear={() => setContextVisitId(null)} onOpen={(target) => { setFocusedVisitId(visit.id); setScreen(target); }} /> : null; })()}
+        {contextVisitId && (() => { const visit = visits.find(item => item.id === contextVisitId); return visit ? <PatientContextBar visit={visit} showBalance={user.permissions.includes("billing.read")} onClear={() => setContextVisitId(null)} onOpen={(target) => { setFocusedVisitId(visit.id); setScreen(target); }} /> : null; })()}
         {notice && <div className="alert success">{notice}</div>}
         {screen === "dashboard" && (
           <Dashboard
@@ -437,6 +473,7 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
           await api<{ user: User }>("/api/auth/login", {
             method: "POST",
             body: JSON.stringify({
+              facilityCode: form.get("facilityCode"),
               email: form.get("email"),
               password: form.get("password"),
             }),
@@ -453,7 +490,7 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
     <main className="publicEntry">
       <nav className="publicNav" aria-label="Public navigation">
         <div className="brand dark">
-          <span>M</span>
+          <img className="brandMark" src="/icon.png" alt="" width={42} height={42} aria-hidden="true" />
           <div>
             <strong>Mwein HMIS</strong>
             <small>Connected outpatient care</small>
@@ -481,6 +518,7 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
           <form className="formCard landingLogin" onSubmit={submit}>
             <div><p className="eyebrow">Secure access</p><h2>Welcome back</h2><p>Sign in with your staff account.</p></div>
             {error && <div className="alert" role="alert">{error}</div>}
+            <label>Facility code<input name="facilityCode" defaultValue="MMS" autoComplete="organization" required maxLength={30} /></label>
             <label>Email<input name="email" type="email" autoComplete="username" required /></label>
             <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
             <button className="primary" disabled={submitting}>{submitting ? "Signing in…" : "Sign in securely"}</button>
@@ -491,6 +529,37 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
       <footer className="publicFooter"><span>© {new Date().getFullYear()} Mwein Medical Services</span><span>Built for clear, connected care.</span></footer>
     </main>
   );
+}
+
+function PasswordChange({ onChanged }: { onChanged: () => Promise<void> }) {
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setSubmitting(true);
+    const form = new FormData(event.currentTarget);
+    try {
+      await api("/api/auth/password", {
+        method: "POST",
+        body: JSON.stringify({ currentPassword: form.get("currentPassword"), newPassword: form.get("newPassword") }),
+      });
+      await onChanged();
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+  return <main className="login"><form className="formCard" onSubmit={submit}>
+    <p className="eyebrow">Account security</p><h1>Choose your permanent password</h1>
+    <p>Your administrator issued a temporary password. Replace it before opening patient records.</p>
+    {error && <div className="alert" role="alert">{error}</div>}
+    <label>Temporary password<input name="currentPassword" type="password" autoComplete="current-password" required /></label>
+    <label>New password<input name="newPassword" type="password" autoComplete="new-password" minLength={16} required /></label>
+    <small>Use at least 16 characters. Changing it signs out your other sessions.</small>
+    <button className="primary" disabled={submitting}>{submitting ? "Changing password…" : "Change password"}</button>
+  </form></main>;
 }
 
 function Dashboard({
@@ -596,12 +665,12 @@ function Dashboard({
   );
 }
 
-function PatientContextBar({ visit, onClear, onOpen }: { visit: Visit; onClear: () => void; onOpen: (target: Screen) => void }) {
+function PatientContextBar({ visit, showBalance, onClear, onOpen }: { visit: Visit; showBalance: boolean; onClear: () => void; onOpen: (target: Screen) => void }) {
   const servicePoint = currentServicePoint(visit);
   const point = servicePoint?.replaceAll("_", " ") || visit.status.replaceAll("_", " ");
   const targets: Partial<Record<ServicePointCode, Screen>> = { TRIAGE: "triage", CONSULTATION: careServiceForClinic(visit.clinic) ? "servicePoints" : "consultation", LABORATORY: "diagnostics", IMAGING: "imaging", PHARMACY: "pharmacy", BILLING: "billing" };
-  const balance = visit.invoice ? visit.invoice.items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0) - visit.invoice.payments.filter(item => item.status === "CONFIRMED").reduce((sum, item) => sum + Number(item.amount), 0) : 0;
-  return <aside className="patientContext" aria-label="Current patient context"><div><strong>{visit.patient.fullName}</strong><span>{visit.patient.patientNumber} · {visit.visitNumber} · {visit.clinic}</span></div><div><small>Current location</small><b>{point}</b></div><div><small>Allergies</small><b className={visit.patient.allergies?.length ? "dangerText" : ""}>{visit.patient.allergies?.length ? visit.patient.allergies.map(item => item.substance).join(", ") : "None recorded"}</b></div><div><small>Payment</small><b>{visit.invoice?.status || "OPEN"} · KES {Math.max(0, balance).toLocaleString()}</b></div>{servicePoint && targets[servicePoint] && <button className="contextAction" onClick={() => onOpen(targets[servicePoint]!)}>Open current task</button>}<button className="contextClose" onClick={onClear} aria-label="Clear patient context">×</button></aside>;
+  const balance = showBalance && visit.invoice ? visit.invoice.items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0) - visit.invoice.payments.filter(item => item.status === "CONFIRMED").reduce((sum, item) => sum + Number(item.amount), 0) : 0;
+  return <aside className="patientContext" aria-label="Current patient context"><div><strong>{visit.patient.fullName}</strong><span>{visit.patient.patientNumber} · {visit.visitNumber} · {visit.clinic}</span></div><div><small>Current location</small><b>{point}</b></div>{visit.patient.allergies && <div><small>Allergies</small><b className={visit.patient.allergies.length ? "dangerText" : ""}>{visit.patient.allergies.length ? visit.patient.allergies.map(item => item.substance).join(", ") : "None recorded"}</b></div>}{visit.invoice && <div><small>Payment</small><b>{visit.invoice.status}{showBalance ? ` · KES ${Math.max(0, balance).toLocaleString()}` : ""}</b></div>}{servicePoint && targets[servicePoint] && <button className="contextAction" onClick={() => onOpen(targets[servicePoint]!)}>Open current task</button>}<button className="contextClose" onClick={onClear} aria-label="Clear patient context">×</button></aside>;
 }
 
 function PatientRegister({
@@ -901,28 +970,52 @@ function TriageWorkstation({
   initialVisitId?: string | null;
   onInitialVisitOpened?: () => void;
 }) {
+  type TriageDraft = {
+    temperatureC: string;
+    pulseBpm: string;
+    respiratoryRate: string;
+    systolicBp: string;
+    diastolicBp: string;
+    oxygenSaturation: string;
+    painScore: string;
+    consciousness: "" | "ALERT" | "VOICE" | "PAIN" | "UNRESPONSIVE";
+  };
+  const blankVitals = (): TriageDraft => ({
+    temperatureC: "",
+    pulseBpm: "",
+    respiratoryRate: "",
+    systolicBp: "",
+    diastolicBp: "",
+    oxygenSaturation: "",
+    painScore: "",
+    consciousness: "",
+  });
   const [active, setActive] = useState<Visit | null>(null);
   const [error, setError] = useState("");
-  const [vitals, setVitals] = useState({
-    temperatureC: 36.5,
-    pulseBpm: 80,
-    respiratoryRate: 18,
-    systolicBp: 120,
-    diastolicBp: 80,
-    oxygenSaturation: 98,
-    painScore: 0,
-    consciousness: "ALERT" as "ALERT" | "VOICE" | "PAIN" | "UNRESPONSIVE",
-  });
-  const alerts = useMemo(() => assessTriageVitals(vitals), [vitals]);
+  const [vitals, setVitals] = useState<TriageDraft>(blankVitals);
+  const assessedVitals = useMemo(() => {
+    if (!vitals.consciousness || Object.entries(vitals).some(([key, value]) => key !== "consciousness" && value === "")) return null;
+    return {
+      temperatureC: Number(vitals.temperatureC),
+      pulseBpm: Number(vitals.pulseBpm),
+      respiratoryRate: Number(vitals.respiratoryRate),
+      systolicBp: Number(vitals.systolicBp),
+      diastolicBp: Number(vitals.diastolicBp),
+      oxygenSaturation: Number(vitals.oxygenSaturation),
+      painScore: Number(vitals.painScore),
+      consciousness: vitals.consciousness,
+    };
+  }, [vitals]);
+  const alerts = useMemo(() => assessedVitals ? assessTriageVitals(assessedVitals) : [], [assessedVitals]);
   useEffect(() => {
     if (!initialVisitId) return;
     const visit = visits.find(item => item.id === initialVisitId);
-    if (visit) { setActive(visit); onInitialVisitOpened?.(); }
+    if (visit) { setVitals(blankVitals()); setActive(visit); onInitialVisitOpened?.(); }
   }, [initialVisitId, visits, onInitialVisitOpened]);
-  function vital(name: keyof typeof vitals, value: string) {
+  function vital(name: keyof TriageDraft, value: string) {
     setVitals((current) => ({
       ...current,
-      [name]: name === "consciousness" ? value : Number(value),
+      [name]: value,
     }));
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -935,6 +1028,7 @@ function TriageWorkstation({
         method: "POST",
         body: JSON.stringify({
           ...vitals,
+          chiefComplaint: f.get("chiefComplaint"),
           weightKg: f.get("weightKg"),
           heightCm: f.get("heightCm") || undefined,
           triageCategory: f.get("triageCategory"),
@@ -943,7 +1037,9 @@ function TriageWorkstation({
           notes: f.get("notes") || undefined,
         }),
       });
-      onCompleted(active.patient.fullName);
+      await onCompleted(active.patient.fullName);
+      setVitals(blankVitals());
+      setActive(null);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -972,7 +1068,7 @@ function TriageWorkstation({
               {visits.map((v) => (
                 <button
                   className={`row ${v.priority.toLowerCase()}`}
-                  onClick={() => setActive(v)}
+                  onClick={() => { setVitals(blankVitals()); setActive(v); }}
                   key={v.id}
                 >
                   <span className="dot" />
@@ -1041,15 +1137,20 @@ function TriageWorkstation({
       <form className="card dataForm triageForm" onSubmit={submit}>
         {error && <div className="alert wide">{error}</div>}
         <div className="privacyNotice wide">
-          <strong>Clinical privacy</strong>
+          <strong>Minimum necessary triage detail</strong>
           <span>
-            Do not ask for the complaint or history here. Record only immediate
-            safety observations; the clinician will document sensitive details
-            in private.
+            Ask enough to identify immediate danger and route safely. Record a
+            brief presenting concern or red flag here; the clinician will take
+            the detailed history in private.
           </span>
         </div>
+        <label className="wide">
+          Presenting concern / immediate red flag *
+          <textarea name="chiefComplaint" minLength={2} maxLength={500} rows={2} required placeholder="Brief reason for triage; avoid a detailed history" />
+        </label>
         <fieldset className="wide vitalGrid">
           <legend>Vital signs</legend>
+          <p className="wide listHint">Enter the values you measured. No “normal” observations are prefilled.</p>
           <label>
             Temperature °C
             <input
@@ -1154,7 +1255,9 @@ function TriageWorkstation({
             <select
               value={vitals.consciousness}
               onChange={(e) => vital("consciousness", e.target.value)}
+              required
             >
+              <option value="">Select observed response</option>
               <option value="ALERT">Alert</option>
               <option value="VOICE">Responds to voice</option>
               <option value="PAIN">Responds to pain</option>
@@ -1207,7 +1310,8 @@ function TriageWorkstation({
         )}
         <label>
           Triage category *
-          <select name="triageCategory" defaultValue={active.priority}>
+          <select name="triageCategory" defaultValue="" required>
+            <option value="">Select after assessment</option>
             <option value="ROUTINE">Green · Routine</option>
             <option value="PRIORITY">Yellow · Priority</option>
             <option value="URGENT">Orange · Urgent</option>

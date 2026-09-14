@@ -5,6 +5,11 @@ import { careServiceProfile } from "@/lib/care-service-points";
 
 type Summary = any;
 const display = (value?: string | null) => value || "Not recorded";
+const complaintDuration = (complaint: Summary) => {
+  if (complaint.durationValue && complaint.durationUnit)
+    return `${complaint.durationValue} ${String(complaint.durationUnit).toLowerCase()}`;
+  return complaint.legacyDuration || "Duration not recorded";
+};
 const money = (value: number, currency = "KES") =>
   `${currency} ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 function age(patient: Summary["patient"]) {
@@ -111,6 +116,9 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
       </>
     );
   const e = active.encounter;
+  const complaints = Array.isArray(e?.subjective.complaints)
+    ? e.subjective.complaints
+    : [];
   const serviceProfile = e?.servicePointRecord ? careServiceProfile(e.servicePointRecord.servicePoint) : null;
   const serviceFields = serviceProfile?.sections.flatMap((section) => section.fields) || [];
   const verifiedLabs = active.orders.filter(
@@ -212,12 +220,25 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
           </section>
         )}
         <SummarySection title="Reason for visit and history">
-          <p>
-            <b>Chief complaint:</b> {display(e?.subjective.chiefComplaint)}
-          </p>
-          <p>
-            <b>Duration:</b> {display(e?.subjective.symptomDuration)}
-          </p>
+          {complaints.length > 0 ? (
+            complaints.map((complaint: Summary, index: number) => (
+              <div className="summaryLine" key={`${complaint.complaint}-${index}`}>
+                <strong>Complaint {index + 1}</strong>
+                <span>
+                  {display(complaint.complaint)} · {complaintDuration(complaint)}
+                </span>
+              </div>
+            ))
+          ) : (
+            <>
+              <p>
+                <b>Chief complaint:</b> {display(e?.subjective.chiefComplaint)}
+              </p>
+              <p>
+                <b>Duration:</b> {display(e?.subjective.symptomDuration)}
+              </p>
+            </>
+          )}
           <p>
             <b>History:</b> {display(e?.subjective.historyPresentingIllness)}
           </p>
@@ -322,6 +343,7 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
                   · {o.prescription.dispenseStatus.replaceAll("_", " ")}
                 </span>
                 {o.prescription.stockMovements?.length ? <small>Batch trace: {o.prescription.stockMovements.map((movement: Summary) => `${movement.batch.batchNumber} (${Math.abs(Number(movement.quantity))}, exp ${new Date(movement.batch.expiryDate).toLocaleDateString()})`).join(" · ")} · Counselling {o.prescription.counsellingCompleted ? "confirmed" : "not confirmed"}</small> : null}
+                {o.prescription.dispensations?.map((dispensation: Summary) => <small key={dispensation.id}>Supplied: {dispensation.catalogItem?.name || o.prescription.genericName || o.displayName} · {Number(dispensation.quantity)} · {dispensation.items.map((item: Summary) => `${item.batch.batchNumber} (${Number(item.quantity)})`).join(" · ")}{dispensation.substitutionReason ? ` · Substitution reason: ${dispensation.substitutionReason}` : ""}{dispensation.fefoOverrideReason ? ` · FEFO override reason: ${dispensation.fefoOverrideReason}` : ""}</small>)}
               </div>
             ))
           ) : (

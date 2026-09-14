@@ -11,6 +11,10 @@ const permissionDefinitions = [
   ["visit.create", "Create visits"],
   ["triage.write", "Capture triage"],
   ["encounter.write", "Document consultations"],
+  ["clinical.history.read", "View longitudinal clinical history"],
+  ["clinical.results.read", "View verified diagnostic results"],
+  ["clinical.summary.read", "View and print complete visit summaries"],
+  ["referral.read", "View referral records"],
   ["order.write", "Create clinical orders"],
   ["laboratory.write", "Record and verify laboratory results"],
   ["imaging.write", "Perform and verify imaging reports"],
@@ -21,6 +25,7 @@ const permissionDefinitions = [
   ["inventory.count", "Record physical stock counts"],
   ["inventory.correct_metadata", "Correct batch expiry metadata with a reason"],
   ["inventory.adjust", "Approve stock variances"],
+  ["inventory.reconcile", "Approve and post full-store stocktakes"],
   ["inventory.transfer", "Transfer stock between stores"],
   ["inventory.manage_stores", "Create and manage stores"],
   ["procurement.manage_suppliers", "Create and manage suppliers"],
@@ -29,6 +34,7 @@ const permissionDefinitions = [
   ["billing.read", "View invoices"],
   ["billing.write", "Receive payments and close settled visits"],
   ["billing.reverse", "Reverse payments with a documented reason"],
+  ["accounting.view", "View inventory valuation, margin and accounting journals"],
   ["claims.write", "Prepare and submit payer claims"],
   ["admin.users", "Manage users and roles"],
   ["admin.assign_governance", "Assign facility governance roles"],
@@ -51,18 +57,16 @@ const permissions = await db.permission.findMany();
 const operationalRoles = {
   RECEPTION: { name: "Reception", grants: ["patient.read", "patient.create", "visit.read", "visit.create"] },
   NURSE: { name: "Nurse", grants: ["patient.read", "visit.read", "triage.write"] },
-  CLINICIAN: { name: "Clinician", grants: ["patient.read", "visit.read", "encounter.write", "order.write"] },
+  CLINICIAN: { name: "Clinician", grants: ["patient.read", "visit.read", "encounter.write", "clinical.history.read", "clinical.results.read", "clinical.summary.read", "referral.read", "order.write"] },
   LABORATORY: { name: "Laboratory", grants: ["patient.read", "visit.read", "laboratory.write"] },
   IMAGING: { name: "Imaging", grants: ["patient.read", "visit.read", "imaging.write"] },
-  PHARMACY: { name: "Pharmacy operator", grants: ["patient.read", "visit.read", "pharmacy.dispense", "inventory.view", "inventory.receive", "inventory.count", "inventory.correct_metadata", "inventory.transfer", "procurement.create"] },
-  PHARMACY_MANAGER: { name: "Pharmacy manager", grants: ["patient.read", "visit.read", "pharmacy.dispense", "inventory.view", "inventory.receive", "inventory.count", "inventory.correct_metadata", "inventory.adjust", "inventory.transfer", "inventory.manage_stores", "procurement.manage_suppliers", "procurement.create", "procurement.approve", "admin.dashboard", "audit.view"] },
-  INVENTORY_CLERK: { name: "Inventory clerk", grants: ["inventory.view", "inventory.receive", "inventory.count", "inventory.correct_metadata", "inventory.transfer", "inventory.manage_stores", "procurement.manage_suppliers", "procurement.create"] },
-  PROCUREMENT_APPROVER: { name: "Procurement approver", grants: ["inventory.view", "inventory.adjust", "procurement.approve", "admin.dashboard", "audit.view"] },
-  FACILITY_ADMIN: { name: "Facility administrator", grants: ["patient.read", "visit.read", "billing.read", "admin.dashboard", "admin.users", "admin.assign_governance", "admin.catalog", "audit.view", "inventory.view"] },
-  MEDICAL_DIRECTOR: { name: "Medical director", grants: ["patient.read", "visit.read", "encounter.write", "order.write", "admin.dashboard", "audit.view"] },
-  FINANCE_MANAGER: { name: "Finance manager", grants: ["patient.read", "visit.read", "billing.read", "billing.write", "billing.reverse", "claims.write", "admin.dashboard", "audit.view"] },
+  PHARMACY: { name: "Pharmacy & inventory officer", grants: ["patient.read", "visit.read", "pharmacy.dispense", "inventory.view", "inventory.receive", "inventory.count", "inventory.correct_metadata", "inventory.transfer", "procurement.manage_suppliers", "procurement.create"] },
+  PHARMACY_MANAGER: { name: "Pharmacy & inventory manager", grants: ["patient.read", "visit.read", "pharmacy.dispense", "inventory.view", "inventory.receive", "inventory.count", "inventory.correct_metadata", "inventory.adjust", "inventory.reconcile", "inventory.transfer", "inventory.manage_stores", "procurement.manage_suppliers", "procurement.create", "procurement.approve", "accounting.view", "admin.dashboard", "audit.view"] },
+  FACILITY_ADMIN: { name: "Facility administrator", grants: ["patient.read", "visit.read", "billing.read", "accounting.view", "admin.dashboard", "admin.users", "admin.assign_governance", "admin.catalog", "audit.view", "inventory.view"] },
+  MEDICAL_DIRECTOR: { name: "Medical director", grants: ["patient.read", "visit.read", "encounter.write", "clinical.history.read", "clinical.results.read", "clinical.summary.read", "referral.read", "order.write", "admin.dashboard", "audit.view"] },
+  FINANCE_MANAGER: { name: "Finance manager", grants: ["patient.read", "visit.read", "billing.read", "billing.write", "billing.reverse", "claims.write", "inventory.view", "accounting.view", "admin.dashboard", "audit.view"] },
   HR_ADMIN: { name: "HR administrator", grants: ["admin.dashboard", "admin.users", "audit.view"] },
-  AUDITOR: { name: "Auditor", grants: ["admin.dashboard", "audit.view", "billing.read", "inventory.view"] },
+  AUDITOR: { name: "Auditor", grants: ["admin.dashboard", "audit.view", "billing.read", "inventory.view", "accounting.view"] },
   BILLING: { name: "Billing", grants: ["patient.read", "visit.read", "billing.read", "billing.write", "billing.reverse", "claims.write"] },
 };
 await db.rolePermission.deleteMany({ where: { roleId: role.id, permissionId: { notIn: permissions.map(item => item.id) } } });
@@ -97,8 +101,8 @@ if (!password) {
 if (password.length < 16) throw new Error("BOOTSTRAP_ADMIN_PASSWORD must contain at least 16 characters");
 const facility = await db.facility.upsert({
   where: { code: process.env.FACILITY_CODE || "MMS" },
-  update: { name: "Mwein Medical Services", timezone: "Africa/Nairobi" },
-  create: { code: process.env.FACILITY_CODE || "MMS", name: "Mwein Medical Services", timezone: "Africa/Nairobi" },
+  update: {},
+  create: { code: process.env.FACILITY_CODE || "MMS", name: process.env.FACILITY_NAME || "Mwein Medical Services", timezone: process.env.FACILITY_TIMEZONE || "Africa/Nairobi" },
 });
 
 const salt = randomBytes(24);
@@ -107,12 +111,14 @@ const user = await db.user.upsert({
   where: {
     facilityId_email: { facilityId: facility.id, email: "admin@mwein.local" },
   },
-  update: { displayName: "Mwein System Administrator", status: "ACTIVE" },
+  update: { displayName: "Mwein System Administrator" },
   create: {
     facilityId: facility.id,
     email: "admin@mwein.local",
     displayName: "Mwein System Administrator",
     passwordHash,
+    mustChangePassword: false,
+    passwordChangedAt: new Date(),
   },
 });
 await db.userRole.upsert({

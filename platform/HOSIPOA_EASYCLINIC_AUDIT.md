@@ -6,15 +6,17 @@ Audited on 7 September 2026 against the public capability descriptions for [Hosi
 
 Mwein has the connected outpatient core: registration, appointments, queueing, triage, consultation, patient history, laboratory, imaging, pharmacy, billing, payments, claims preparation, inventory, procurement, users/roles, audit, operational reporting and visit completion. The current work also adds specialty service points for ANC, MCH/PNC, diabetes, dialysis, cancer, sickle-cell care and walk-ins, plus linked mother/child records and a tracked referral workflow.
 
-Pharmacy and stock are now one role-aware workspace rather than overlapping modules. The operating flow follows the public [Maisha Meds app](https://maishameds.org/app/) model of Manage Inventory, Receive Inventory and History, adapted to Mwein's clinical dispensing and maker-checker controls. Authorized pharmacy staff can dispense, inspect clickable medicine/batch records, correct an erroneous expiry with a mandatory reason, receive approved purchase orders, count and transfer stock, and inspect a store-aware movement ledger. Pharmacy operator, pharmacy manager, inventory clerk and procurement approver duties are distinct; purchase-order and variance maker-checker controls remain enforced.
+Pharmacy and stock are now one role-aware workspace rather than overlapping modules. The operating flow follows the public [Maisha Meds app](https://maishameds.org/app/) model of Manage Inventory, Receive Inventory and History, adapted to Mwein's clinical dispensing and maker-checker controls. Authorized pharmacy staff can dispense, select only ingredient/strength/form-equivalent substitutions, override FEFO batch order with a mandatory reason, inspect clickable medicine/batch records, correct an erroneous expiry with a mandatory reason, receive approved purchase orders, count and transfer stock, and inspect a store-aware movement ledger. Substitution and FEFO override decisions are retained on the immutable dispensation and written as dedicated audit events. Pharmacy operator, pharmacy manager, inventory clerk and procurement approver duties are distinct; purchase-order and variance maker-checker controls remain enforced.
 
 This matches the strongest shared model in both references: one patient record, one workflow across departments, and charges/stock/results following care instead of being re-entered.
+
+The latest workflow pass applies that model at the operational edges: queues revalidate while visible, triage requires deliberate measurements rather than prefilled normals, diagnosis codes must be selected from a validated source, referrals are counted from their actual sent event, and pharmacy shows live stock state plus patient and diagnosis context before supply. These are selective safety and usability adaptations, not claims of full feature parity.
 
 ## Remaining work
 
 ### Release blockers
 
-- Deploy and exercise the new database migration in a non-production PostgreSQL environment, then run end-to-end tests for specialty assessment, referral, consultation signing, payment and visit closure.
+- Continue production-like rehearsal of specialty assessment and the full referral-to-closure journey. All 27 migrations currently pass in order, and the isolated outpatient workflow passes 29 API/database checkpoints.
 - Complete clinician, nurse, laboratory, pharmacy, cashier and records UAT, including the stated 3–5 minute consultation target and mobile layouts.
 - Obtain clinical governance approval for specialty templates, medicine safety rules, referral content and ICD-11/KHIS mappings.
 - Configure and certify live SHA, payment and messaging integrations. Current readiness checks and reminder preparation do not constitute live submission or delivery.
@@ -31,9 +33,9 @@ This matches the strongest shared model in both references: one patient record, 
 
 ### Clinical and commercial depth
 
-- Complete the consultation banner and separately structured multi-complaint capture.
+- Extend the governed longitudinal problem list into specialty-specific review and clinician UAT. Phone, coverage, last-visit context and separately structured multi-complaint capture are implemented.
 - Add a governed medication interaction and dose-limit knowledge base, renal/hepatic/pregnancy/paediatric rules and severe-allergy hard stops.
-- Add pharmacist-recorded FEFO override/substitution, dated multi-payer price history and—after OPD UAT—controlled stand-alone pharmacy sales.
+- Add dated multi-payer price history and—after OPD UAT—controlled stand-alone pharmacy sales.
 - Replace referral result labels with immutable, versioned result/document links and add secure external exchange/acknowledgement.
 - Expand KHIS/MOH reporting from a reviewable monthly source summary to approved mappings, validation and submission workflows.
 

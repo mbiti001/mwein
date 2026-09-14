@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, SESSION_IDLE_MS } from "@/lib/auth";
 import { apiError } from "@/lib/http";
 
 export async function GET() {
   try {
     const user = await requirePermission("admin.dashboard");
     const today = new Date(); today.setHours(0, 0, 0, 0);
+    const idleCutoff = new Date(Date.now() - SESSION_IDLE_MS);
     const [registeredToday, waiting, visitsToday, activeStaff, openInvoices, pendingClaims, pendingOrders, sessions, audits, stock] = await Promise.all([
       db.patient.count({ where: { facilityId: user.facilityId, createdAt: { gte: today } } }),
       db.visit.count({ where: { facilityId: user.facilityId, status: { in: ["REGISTERED", "AWAITING_TRIAGE", "AWAITING_CLINICIAN", "UNDER_CONSULTATION", "ORDERS_PENDING", "AWAITING_RESULTS", "AWAITING_PHARMACY", "AWAITING_PAYMENT"] } } }),
@@ -15,8 +16,8 @@ export async function GET() {
       db.invoice.findMany({ where: { visit: { facilityId: user.facilityId }, status: { in: ["OPEN", "READY", "PART_PAID"] } }, include: { items: true, payments: { where: { status: "CONFIRMED" } } } }),
       db.claim.count({ where: { invoice: { visit: { facilityId: user.facilityId } }, status: { in: ["DRAFT", "REJECTED"] } } }),
       db.purchaseOrder.count({ where: { facilityId: user.facilityId, status: "SUBMITTED" } }),
-      db.session.findMany({ where: { user: { facilityId: user.facilityId }, expiresAt: { gt: new Date() } }, include: { user: { select: { displayName: true, email: true } } }, orderBy: { lastSeenAt: "desc" }, take: 20 }),
-      db.auditEvent.findMany({ where: { user: { facilityId: user.facilityId } }, include: { user: { select: { displayName: true } } }, orderBy: { occurredAt: "desc" }, take: 40 }),
+      db.session.findMany({ where: { user: { facilityId: user.facilityId }, expiresAt: { gt: new Date() }, lastSeenAt: { gt: idleCutoff } }, include: { user: { select: { displayName: true, email: true } } }, orderBy: { lastSeenAt: "desc" }, take: 20 }),
+      db.auditEvent.findMany({ where: { facilityId: user.facilityId }, include: { user: { select: { displayName: true } } }, orderBy: { occurredAt: "desc" }, take: 40 }),
       db.catalogItem.findMany({ where: { facilityId: user.facilityId, category: "PHARMACEUTICAL", active: true }, select: { id: true, code: true, name: true, reorderLevel: true, inventoryBatches: { where: { active: true }, select: { id: true, batchNumber: true, quantityAvailable: true, expiryDate: true } } } }),
     ]);
     const outstanding = openInvoices.reduce((sum, invoice) => sum + invoice.items.reduce((value, item) => value + Number(item.quantity) * Number(item.unitPrice), 0) - invoice.payments.reduce((value, payment) => value + Number(payment.amount), 0), 0);
@@ -27,6 +28,6 @@ export async function GET() {
       ...lowStock.map(item => ({ issue: "LOW_STOCK", catalogItemId: item.id, batchId: null, code: item.code, name: item.name, detail: `Available ${item.inventoryBatches.reduce((sum, batch) => sum + Number(batch.quantityAvailable), 0)} · reorder level ${Number(item.reorderLevel)}` })),
       ...stock.flatMap(item => item.inventoryBatches.filter(batch => batch.expiryDate <= inNinetyDays && Number(batch.quantityAvailable) > 0).map(batch => ({ issue: "EXPIRING", catalogItemId: item.id, batchId: batch.id, code: item.code, name: item.name, detail: `Batch ${batch.batchNumber} · expiry ${batch.expiryDate.toISOString().slice(0, 10)} · available ${Number(batch.quantityAvailable)}` }))),
     ];
-    return NextResponse.json({ metrics: { registeredToday, waiting, visitsToday, activeStaff, outstanding, pendingClaims, pendingOrders, lowStock: lowStock.length, expiringStock: expiringStock.length, activeSessions: sessions.length }, actionItems: { stock: stockActions }, sessions, audits });
+    return NextResponse.json({ metrics: { registeredToday, waiting, visitsToday, activeStaff, outstanding, pendingClaims, pendingOrders, lowStock: lowStock.length, expiringStock: expiringStock.length, activeSessions: sessions.length }, actionItems: { stock: stockActions }, sessions, audits: audits.map((event) => ({ ...event, sequence: event.sequence == null ? null : String(event.sequence) })) });
   } catch (error) { return apiError(error); }
 }

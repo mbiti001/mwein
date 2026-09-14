@@ -28,6 +28,29 @@
 .clinicalSummary small {
   color: var(--muted);
 }
+.consultationContext {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.consultationContext > div {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 9px;
+  background: #f8fbff;
+}
+.consultationContext small,
+.consultationContext strong { display: block; }
+.consultationContext small { color: var(--muted); }
+.consultationContext strong {
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
 .noAllergy {
   padding: 10px 14px;
   margin-bottom: 14px;
@@ -107,6 +130,42 @@
 }
 .sectionAdvance { display:flex; align-items:center; justify-content:space-between; gap:12px; padding-top:4px; }
 .sectionAdvance span { color:var(--muted); font-size:13px; }
+.complaintList {
+  display: grid;
+  gap: 10px;
+}
+.complaintListHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.complaintListHeader h3,
+.complaintListHeader p { margin: 0; }
+.complaintListHeader p { color: var(--muted); font-size: 13px; }
+.complaintRow {
+  display: grid;
+  grid-template-columns: 30px minmax(220px, 1fr) minmax(100px, .28fr) minmax(120px, .32fr) auto;
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.complaintNumber {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  align-self: center;
+  border-radius: 50%;
+  background: var(--blue);
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+}
+.removeComplaint { padding: 10px; }
 .progressiveDetails summary { cursor:pointer; list-style:none; display:flex; align-items:center; padding:2px 0; }
 .progressiveDetails summary::-webkit-details-marker { display:none; }
 .progressiveDetails summary span,.progressiveDetails summary strong,.progressiveDetails summary small { display:block; }
@@ -174,9 +233,13 @@
   .clinicalSummary {
     grid-template-columns: repeat(3, 1fr);
   }
+  .consultationContext { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .complaintRow { grid-template-columns: 30px minmax(0, 1fr) 110px 125px; }
+  .removeComplaint { grid-column: 2/-1; justify-self: end; }
 }
 @media (max-width: 650px) {
   .clinicalSummary,
+  .consultationContext,
   .sectionGrid {
     grid-template-columns: 1fr;
   }
@@ -191,6 +254,10 @@
   .consultNavigator { grid-template-columns:repeat(4, 1fr); position:static; }
   .consultNavigator button span { display:none; }
   .sectionAdvance { align-items:stretch; flex-direction:column; }
+  .complaintListHeader { align-items: stretch; flex-direction: column; }
+  .complaintRow { grid-template-columns: 28px minmax(0, 1fr); }
+  .complaintRow label,
+  .removeComplaint { grid-column: 2; justify-self: stretch; }
 }
 .diagnosisSearch{position:relative}.diagnosisSearch>small{color:var(--muted)}.diagnosisResults{position:absolute;z-index:20;top:70px;left:0;right:0;max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:#fff;box-shadow:0 14px 35px #17304222}.diagnosisResults button{display:flex;width:100%;justify-content:space-between;gap:15px;padding:11px 13px;border:0;border-bottom:1px solid var(--line);background:#fff;text-align:left;color:var(--ink)}.diagnosisResults button:hover,.diagnosisResults button:focus{background:#f0f9ff}.diagnosisResults span{flex:0 0 auto;color:var(--muted);font-size:12px}
 .billingTotals{display:flex;justify-content:flex-end;gap:24px;padding:18px 0;border-top:2px solid var(--line)}.billingTotals span,.billingTotals strong{display:block}.billingTotals span{color:var(--muted);font-size:12px}.billingTotals strong{margin-top:4px;color:var(--ink);font-size:17px}.paymentHistory{display:grid;gap:8px}.paymentHistory>div{display:flex;justify-content:space-between;gap:16px;padding:9px;border:1px solid var(--line);border-radius:7px}.paymentHistory span{color:var(--muted);font-size:13px}@media(max-width:650px){.billingTotals{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.paymentHistory>div{display:grid}}@media print{.sidebar,.workflowSteps,.workspace>header,.noPrint{display:none!important}.shell{display:block!important}.workspace{padding:0!important}.billingDocument{border:0!important}.billingDocument .cardHead button{display:none!important}}

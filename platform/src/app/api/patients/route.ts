@@ -11,6 +11,9 @@ export async function GET(request: Request) {
   try {
     const user = await requirePermission("patient.read");
     const query = new URL(request.url).searchParams.get("q")?.trim() || "";
+    const canRegister = user.permissions.includes("patient.create");
+    const canViewContactDetails = canRegister || user.permissions.includes("encounter.write");
+    const canViewAllergies = user.permissions.some((permission) => ["encounter.write", "pharmacy.dispense", "triage.write"].includes(permission));
     const patients = await db.patient.findMany({
       where: {
         facilityId: user.facilityId,
@@ -19,12 +22,33 @@ export async function GET(request: Request) {
           OR: [
             { fullName: { contains: query, mode: "insensitive" } },
             { patientNumber: { contains: query, mode: "insensitive" } },
-            { contacts: { some: { value: { contains: query } } } },
-            { identifiers: { some: { value: { contains: query, mode: "insensitive" } } } }
+            ...(canViewContactDetails ? [
+              { contacts: { some: { value: { contains: query } } } },
+              { identifiers: { some: { value: { contains: query, mode: "insensitive" as const } } } },
+            ] : [])
           ]
         } : {})
       },
-      include: { identifiers: true, contacts: true, addresses: { where: { primary: true }, take: 1 }, allergies: { where: { active: true } } },
+      select: {
+        id: true,
+        patientNumber: true,
+        fullName: true,
+        dateOfBirth: true,
+        estimatedAgeYears: true,
+        sexAtBirth: true,
+        ...(canViewContactDetails ? {
+          givenName: true,
+          middleName: true,
+          familyName: true,
+          preferredLanguage: true,
+          identifiers: true,
+          contacts: true,
+        } : {}),
+        ...(canRegister ? {
+          addresses: { where: { primary: true }, take: 1 },
+        } : {}),
+        ...(canViewAllergies ? { allergies: { where: { active: true } } } : {}),
+      },
       orderBy: { updatedAt: "desc" }, take: 50
     });
     return NextResponse.json({ patients });

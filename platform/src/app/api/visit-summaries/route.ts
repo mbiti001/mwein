@@ -10,7 +10,7 @@ function parsed(value: string | null | undefined) {
 
 export async function GET(request: Request) {
   try {
-    const user = await requirePermission("visit.read");
+    const user = await requirePermission("clinical.summary.read");
     const raw = new URL(request.url).searchParams.get("q") || "";
     const query = z.string().trim().max(120).parse(raw);
     const visits = await db.visit.findMany({
@@ -34,6 +34,14 @@ export async function GET(request: Request) {
           prescription: { include: {
             dispensedBy: { select: { displayName: true } },
             stockMovements: { where: { type: "DISPENSE" }, include: { batch: { select: { batchNumber: true, expiryDate: true } } }, orderBy: { occurredAt: "asc" } },
+            dispensations: {
+              include: {
+                catalogItem: { select: { code: true, name: true } },
+                dispensedBy: { select: { displayName: true } },
+                items: { include: { batch: { select: { batchNumber: true, expiryDate: true } } } },
+              },
+              orderBy: { dispensedAt: "asc" },
+            },
           } },
         }, orderBy: { requestedAt: "asc" } },
         invoice: { include: { items: true, payments: { where: { status: "CONFIRMED" }, include: { receipt: true } } } },
@@ -47,7 +55,7 @@ export async function GET(request: Request) {
       const objective = parsed(encounter?.objective);
       const plan = parsed(encounter?.plan);
       delete plan.confidentialNote;
-      return { ...visit, encounter: encounter ? { id: encounter.id, status: encounter.status, signedAt: encounter.signedAt, clinician: encounter.clinician, diagnoses: encounter.diagnoses, servicePointRecord: encounter.servicePointRecord, subjective, objective, plan } : null, encounters: undefined };
+      return { ...visit, encounter: encounter ? { id: encounter.id, status: encounter.status, signedAt: encounter.signedAt, clinician: encounter.clinician, diagnoses: encounter.diagnoses, addenda: encounter.addenda, servicePointRecord: encounter.servicePointRecord, subjective, objective, plan } : null, encounters: undefined };
     });
     return NextResponse.json({ summaries });
   } catch (error) { return apiError(error); }

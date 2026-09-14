@@ -7,6 +7,7 @@ import {
   patientClinicalGroup,
   patientNumber,
   patientRegistrationSchema,
+  triageSchema,
 } from "./domain";
 import { parseCsv } from "./csv";
 
@@ -58,6 +59,15 @@ describe("Phase 1 domain rules", () => {
     expect(
       alerts.filter((alert) => alert.severity === "CRITICAL"),
     ).toHaveLength(2);
+  });
+  it("requires a deliberately recorded presenting concern at triage", () => {
+    const observations = {
+      temperatureC: 36.8, pulseBpm: 80, respiratoryRate: 18,
+      systolicBp: 120, diastolicBp: 75, oxygenSaturation: 98,
+      weightKg: 65, painScore: 0, consciousness: "ALERT", triageCategory: "ROUTINE",
+    };
+    expect(triageSchema.safeParse(observations).success).toBe(false);
+    expect(triageSchema.safeParse({ ...observations, chiefComplaint: "Routine review without an immediate red flag" }).success).toBe(true);
   });
   it("does not alert for observations inside configured thresholds", () => {
     expect(

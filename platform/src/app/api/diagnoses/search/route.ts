@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
 import { db } from "@/lib/db";
+import { createDiagnosisSelectionToken } from "@/lib/diagnosis-selection";
 
 type Result = { code: string; title: string; foundationUri?: string; source: "WHO ICD-11" | "Facility history" };
 let tokenCache: { value: string; expiresAt: number } | null = null;
@@ -36,11 +37,17 @@ export async function GET(request: Request) {
     const user = await requirePermission("encounter.write");
     const query = z.string().trim().min(2).max(120).parse(new URL(request.url).searchParams.get("q"));
     const official = await whoSearch(query);
-    if (official.length) return NextResponse.json({ results: official, source: "WHO ICD-11" });
+    if (official.length) return NextResponse.json({ results: official.map((result) => ({
+      ...result,
+      selectionToken: createDiagnosisSelectionToken({ ...result, facilityId: user.facilityId }),
+    })), source: "WHO ICD-11" });
     const history = await db.diagnosis.findMany({
       where: { encounter: { visit: { facilityId: user.facilityId } }, codingSystem: "ICD-11 MMS", code: { not: null }, OR: [{ description: { contains: query, mode: "insensitive" } }, { code: { contains: query, mode: "insensitive" } }] },
       select: { code: true, description: true, foundationUri: true }, distinct: ["code"], take: 12, orderBy: { description: "asc" },
     });
-    return NextResponse.json({ results: history.map(item => ({ code: item.code!, title: item.description, foundationUri: item.foundationUri || undefined, source: "Facility history" })), source: "Facility history", configurationRequired: true });
+    return NextResponse.json({ results: history.map(item => {
+      const result = { code: item.code!, title: item.description, foundationUri: item.foundationUri || undefined, source: "Facility history" as const };
+      return { ...result, selectionToken: createDiagnosisSelectionToken({ ...result, facilityId: user.facilityId }) };
+    }), source: "Facility history", configurationRequired: true });
   } catch (error) { return apiError(error); }
 }

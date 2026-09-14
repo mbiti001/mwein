@@ -1,0 +1,113 @@
+import { readdir, readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import { PGlite } from "@electric-sql/pglite";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const migrationsRoot = path.join(root, "prisma", "migrations");
+const migrations = (await readdir(migrationsRoot, { withFileTypes: true }))
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name)
+  .sort();
+
+const db = new PGlite();
+await db.waitReady;
+
+for (const migration of migrations) {
+  const sql = await readFile(path.join(migrationsRoot, migration, "migration.sql"), "utf8");
+  await db.transaction(async (tx) => {
+    await tx.exec(sql);
+  });
+  console.log(`applied ${migration}`);
+}
+
+const requiredTables = [
+  "Facility",
+  "Patient",
+  "Visit",
+  "Encounter",
+  "ClinicalOrder",
+  "Referral",
+  "ReferralAttachment",
+  "ReferralAcknowledgement",
+  "Stocktake",
+  "StocktakeLine",
+  "AccountingJournal",
+  "AccountingJournalLine",
+  "AuditChainHead",
+  "LoginThrottle",
+  "GovernanceEvidence",
+  "PatientProblem",
+];
+const tableResult = await db.query(
+  "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename",
+);
+const tables = new Set(tableResult.rows.map((row) => row.tablename));
+const missingTables = requiredTables.filter((table) => !tables.has(table));
+if (missingTables.length) throw new Error(`Missing migrated tables: ${missingTables.join(", ")}`);
+
+const triggerResult = await db.query(
+  `SELECT tgname FROM pg_trigger WHERE NOT tgisinternal AND tgname IN (
+    'ReferralAttachment_immutable',
+    'ReferralAcknowledgement_immutable',
+    'AuditEvent_immutable'
+  ) ORDER BY tgname`,
+);
+if (triggerResult.rows.length !== 3)
+  throw new Error(`Expected 3 immutable clinical/audit-record triggers, found ${triggerResult.rows.length}`);
+
+await db.exec(`
+  INSERT INTO "Facility" ("id", "code", "name", "updatedAt")
+  VALUES ('11111111-1111-4111-8111-111111111111', 'MMS', 'Migration Test Facility', CURRENT_TIMESTAMP);
+  INSERT INTO "User" ("id", "facilityId", "email", "displayName", "passwordHash", "updatedAt")
+  VALUES ('22222222-2222-4222-8222-222222222222', '11111111-1111-4111-8111-111111111111', 'counter@example.test', 'Migration Counter', 'not-a-real-hash', CURRENT_TIMESTAMP);
+  INSERT INTO "Store" ("id", "facilityId", "code", "name")
+  VALUES ('33333333-3333-4333-8333-333333333333', '11111111-1111-4111-8111-111111111111', 'MAIN', 'Main pharmacy');
+  INSERT INTO "Stocktake" ("id", "facilityId", "storeId", "stocktakeNumber", "openedById")
+  VALUES ('44444444-4444-4444-8444-444444444444', '11111111-1111-4111-8111-111111111111', '33333333-3333-4333-8333-333333333333', 'MMS-STK-2026-000001', '22222222-2222-4222-8222-222222222222');
+`);
+
+let activeStocktakeConstraintHeld = false;
+try {
+  await db.exec(`
+    INSERT INTO "Stocktake" ("id", "facilityId", "storeId", "stocktakeNumber", "openedById")
+    VALUES ('55555555-5555-4555-8555-555555555555', '11111111-1111-4111-8111-111111111111', '33333333-3333-4333-8333-333333333333', 'MMS-STK-2026-000002', '22222222-2222-4222-8222-222222222222');
+  `);
+} catch (error) {
+  activeStocktakeConstraintHeld = String(error).includes("Stocktake_one_active_per_store");
+}
+if (!activeStocktakeConstraintHeld)
+  throw new Error("The one-active-stocktake-per-store constraint did not reject a second open count");
+
+await db.exec(`
+  INSERT INTO "AuditEvent" (
+    "id", "facilityId", "userId", "chainVersion", "sequence", "action", "entityType", "entityId", "previousEventHash", "eventHash"
+  ) VALUES (
+    '99999999-9999-4999-8999-999999999999', '11111111-1111-4111-8111-111111111111',
+    '22222222-2222-4222-8222-222222222222', 2, 1, 'MIGRATION_SMOKE', 'Migration', 'smoke', 'GENESIS', 'migration-smoke-hash'
+  );
+`);
+let auditImmutabilityHeld = false;
+try {
+  await db.exec(`UPDATE "AuditEvent" SET "reason" = 'tampered' WHERE "id" = '99999999-9999-4999-8999-999999999999'`);
+} catch (error) {
+  auditImmutabilityHeld = String(error).includes("immutable");
+}
+if (!auditImmutabilityHeld) throw new Error("The audit immutability trigger allowed an update");
+
+await db.exec(`
+  INSERT INTO "AccountingJournal" ("id", "facilityId", "entryNumber", "sourceType", "sourceId", "description", "postedById")
+  VALUES ('66666666-6666-4666-8666-666666666666', '11111111-1111-4111-8111-111111111111', 'INV-SMOKE', 'MIGRATION_SMOKE', 'smoke-1', 'Balanced-entry smoke test', '22222222-2222-4222-8222-222222222222');
+  INSERT INTO "AccountingJournalLine" ("id", "journalId", "accountCode", "accountName", "debit", "credit") VALUES
+    ('77777777-7777-4777-8777-777777777777', '66666666-6666-4666-8666-666666666666', '1300', 'Pharmacy inventory', 100, 0),
+    ('88888888-8888-4888-8888-888888888888', '66666666-6666-4666-8666-666666666666', '2105', 'Goods received not invoiced', 0, 100);
+`);
+const balanceResult = await db.query(
+  `SELECT SUM("debit")::text AS debit, SUM("credit")::text AS credit
+   FROM "AccountingJournalLine" WHERE "journalId" = '66666666-6666-4666-8666-666666666666'`,
+);
+if (balanceResult.rows[0]?.debit !== balanceResult.rows[0]?.credit)
+  throw new Error("Migration smoke journal is not balanced");
+
+console.log(`verified ${migrations.length} migrations, ${requiredTables.length} required tables, immutable triggers, stocktake uniqueness, and balanced journal constraints`);
+await db.close();

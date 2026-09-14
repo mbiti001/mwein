@@ -52,7 +52,7 @@ function isPresent(value: string | boolean | undefined) {
 
 export async function GET(request: Request) {
   try {
-    const user = await requirePermission("visit.read");
+    const user = await requirePermission("encounter.write");
     const visitId = new URL(request.url).searchParams.get("visitId");
     if (visitId) {
       const visit = await db.visit.findFirst({
@@ -116,8 +116,15 @@ export async function GET(request: Request) {
         select: { servicePoint: true, followUpAt: true },
       }),
       db.referral.findMany({
-        where: { facilityId: user.facilityId, status: { not: "CLOSED" } },
-        select: { status: true },
+        where: {
+          facilityId: user.facilityId,
+          OR: [
+            { status: { not: "CLOSED" } },
+            { returnedAt: { gte: dayStart } },
+            { closedAt: { gte: dayStart } },
+          ],
+        },
+        select: { status: true, sentAt: true, returnedAt: true, closedAt: true },
       }),
     ]);
 
@@ -127,10 +134,13 @@ export async function GET(request: Request) {
           return [profile.code, {
             waiting: referrals.filter((item) => ["DRAFT", "SENT"].includes(item.status)).length,
             beingSeen: referrals.filter((item) => ["ACCEPTED", "ATTENDED"].includes(item.status)).length,
-            completed: referrals.filter((item) => item.status === "RETURNED").length,
+            completed: referrals.filter((item) =>
+              (item.returnedAt && item.returnedAt >= dayStart) ||
+              (item.closedAt && item.closedAt >= dayStart),
+            ).length,
             pendingInvestigations: 0,
             followUps: 0,
-            referrals: referrals.length,
+            referrals: referrals.filter((item) => item.sentAt && item.sentAt >= dayStart).length,
           }];
         }
         const matching = visits.filter((visit) => careServiceForClinic(visit.clinic)?.code === profile.code);

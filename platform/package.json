@@ -5,10 +5,18 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "prisma generate && prisma migrate deploy && node scripts/bootstrap.mjs && next build",
+    "vercel-build": "prisma generate && next build",
     "start": "next start",
     "lint": "tsc --noEmit",
     "test": "vitest run",
+    "test:e2e": "node scripts/e2e-outpatient.mjs",
+    "test:browser": "playwright test",
+    "test:migrations": "node scripts/verify-migrations.mjs",
+    "release:migrate": "prisma migrate deploy",
+    "db:bootstrap": "node scripts/bootstrap.mjs",
+    "ops:backup": "node scripts/backup-postgres.mjs",
+    "ops:restore-drill": "node scripts/restore-drill.mjs",
+    "ops:audit-verify": "node scripts/verify-audit-export.mjs",
     "db:generate": "prisma generate",
     "db:validate": "prisma validate",
     "db:migrate": "prisma migrate dev"
@@ -22,11 +30,17 @@
     "zod": "4.5.4"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-socket": "^0.2.11",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "prisma": "6.12.0",
     "typescript": "7.0.2",
     "vitest": "4.1.11"
+  },
+  "overrides": {
+    "uuid": "11.1.1"
   }
 }

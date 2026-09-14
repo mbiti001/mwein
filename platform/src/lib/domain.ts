@@ -51,6 +51,7 @@ export const patientRegistrationSchema = z.object({
 }).refine(value => value.fullName || (value.givenName && value.familyName), { message: "First name and surname are required", path: ["givenName"] }).refine(value => value.dateOfBirth || value.estimatedAgeYears !== undefined, { message: "Date of birth or estimated age is required", path: ["dateOfBirth"] });
 
 export const triageSchema = z.object({
+  chiefComplaint: z.string().trim().min(2).max(500),
   temperatureC: z.coerce.number().min(25).max(45),
   pulseBpm: z.coerce.number().int().min(20).max(300),
   respiratoryRate: z.coerce.number().int().min(4).max(100),

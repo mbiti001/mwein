@@ -7,6 +7,7 @@ import { apiError } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
 import { operationalReference } from "@/lib/domain";
 import { appointmentClinics } from "@/lib/appointments";
+import { visitAccessProfile, visitOrderTypes } from "@/lib/visit-access";
 
 const visitInput = z.object({
   patientId: z.uuid(),
@@ -19,25 +20,53 @@ const visitInput = z.object({
 export async function GET() {
   try {
     const user = await requirePermission("visit.read");
+    const access = visitAccessProfile(user.permissions);
+    const orderTypes = visitOrderTypes(access);
     const visits = await db.visit.findMany({
       where: {
         facilityId: user.facilityId,
         status: { notIn: ["COMPLETED", "CANCELLED"] },
       },
-      include: {
+      select: {
+        id: true,
+        visitNumber: true,
+        clinic: true,
+        visitType: true,
+        priority: true,
+        status: true,
+        ...(access.clinical || access.triage ? { reason: true } : {}),
+        arrivedAt: true,
+        completedAt: true,
         facility: { select: { name: true, code: true } },
-        patient: { include: { allergies: { where: { active: true } } } },
-        triage: { include: { observations: true } },
-        encounters: {
+        patient: {
+          select: {
+            id: true,
+            patientNumber: true,
+            fullName: true,
+            dateOfBirth: true,
+            estimatedAgeYears: true,
+            sexAtBirth: true,
+            ...(access.clinical ? {
+              contacts: { orderBy: [{ primary: "desc" as const }, { type: "asc" as const }] },
+              identifiers: true,
+            } : {}),
+            ...(access.clinical || access.pharmacy || access.triage ? {
+              allergies: { where: { active: true } },
+            } : {}),
+          },
+        },
+        ...(access.clinical || access.pharmacy || access.triage ? { triage: { include: { observations: true } } } : {}),
+        ...(access.clinical || access.pharmacy ? { encounters: {
           where: { status: { in: ["DRAFT", "SIGNED"] } },
           include: { diagnoses: true },
           orderBy: { createdAt: "desc" },
           take: 1,
-        },
-        orders: {
+        } } : {}),
+        ...(orderTypes.length ? { orders: {
+          where: access.clinical ? undefined : { type: { in: [...orderTypes] } },
           include: {
             orderedBy: { select: { displayName: true } },
-            laboratory: {
+            ...(access.clinical || access.laboratory ? { laboratory: {
               include: {
                 result: {
                   include: {
@@ -47,21 +76,40 @@ export async function GET() {
                   },
                 },
               },
-            },
-            imaging: { include: { result: { include: { performedBy: { select: { displayName: true } }, verifiedBy: { select: { displayName: true } } } } } },
-            prescription: { include: {
+            } } : {}),
+            ...(access.clinical || access.imaging ? { imaging: { include: { result: { include: { performedBy: { select: { displayName: true } }, verifiedBy: { select: { displayName: true } } } } } } } : {}),
+            ...(access.clinical || access.pharmacy ? { prescription: { include: {
               dispensedBy: { select: { displayName: true } },
               stockMovements: { where: { type: "DISPENSE" }, include: { batch: { select: { batchNumber: true, expiryDate: true } } }, orderBy: { occurredAt: "asc" } },
-            } },
+              dispensations: {
+                include: {
+                  catalogItem: { select: { code: true, name: true } },
+                  items: { include: { batch: { select: { batchNumber: true, expiryDate: true } } } },
+                },
+                orderBy: { dispensedAt: "asc" },
+              },
+            } } } : {}),
           },
           orderBy: { requestedAt: "asc" },
-        },
+        } } : {}),
         queues: {
           where: { status: { in: ["WAITING", "CALLED", "IN_PROGRESS"] } },
           orderBy: { enteredAt: "desc" },
           take: 1,
         },
-        invoice: { include: { items: true, payments: { include: { receipt: true }, orderBy: { receivedAt: "asc" } }, claims: { include: { lines: true }, orderBy: { createdAt: "desc" } } } },
+        ...(access.billing ? {
+          invoice: { include: { items: true, payments: { include: { receipt: true }, orderBy: { receivedAt: "asc" } }, claims: { include: { lines: true }, orderBy: { createdAt: "desc" } } } },
+        } : access.clinical ? {
+          invoice: { select: {
+            id: true,
+            invoiceNumber: true,
+            status: true,
+            currency: true,
+            items: { where: { id: { in: [] } } },
+            payments: { where: { id: { in: [] } } },
+            claims: { include: { lines: true }, orderBy: { createdAt: "desc" as const } },
+          } },
+        } : {}),
       },
       orderBy: [{ priority: "desc" }, { arrivedAt: "asc" }],
     });

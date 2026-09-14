@@ -9,7 +9,7 @@ import { hashPassword } from "@/lib/security";
 import { staffChangeIsSafe } from "@/lib/staff";
 import { canAssignRole, canManageStaff } from "@/lib/staff-access";
 
-const roleCode = z.enum(["SYSTEM_ADMIN", "FACILITY_ADMIN", "MEDICAL_DIRECTOR", "FINANCE_MANAGER", "HR_ADMIN", "AUDITOR", "RECEPTION", "NURSE", "CLINICIAN", "LABORATORY", "IMAGING", "PHARMACY", "PHARMACY_MANAGER", "BILLING", "INVENTORY_CLERK", "PROCUREMENT_APPROVER"]);
+const roleCode = z.enum(["SYSTEM_ADMIN", "FACILITY_ADMIN", "MEDICAL_DIRECTOR", "FINANCE_MANAGER", "HR_ADMIN", "AUDITOR", "RECEPTION", "NURSE", "CLINICIAN", "LABORATORY", "IMAGING", "PHARMACY", "PHARMACY_MANAGER", "BILLING"]);
 const createSchema = z.object({
   displayName: z.string().trim().min(2).max(120),
   email: z.email().transform((value) => value.toLowerCase()),
@@ -54,6 +54,7 @@ export async function POST(request: Request) {
         displayName: input.displayName,
         email: input.email,
         passwordHash: hashPassword(input.temporaryPassword),
+        mustChangePassword: true,
         roles: { create: { roleId: role.id } },
       }, include: staffInclude });
       await appendAudit(tx, { userId: user.id, action: "STAFF_CREATED", entityType: "User", entityId: staff.id, afterHash: `${staff.email}:${input.roleCode}` });
@@ -94,6 +95,8 @@ export async function PATCH(request: Request) {
       const staff = await tx.user.update({ where: { id: target.id }, data: {
         status: input.status,
         passwordHash: input.temporaryPassword ? hashPassword(input.temporaryPassword) : undefined,
+        mustChangePassword: input.temporaryPassword ? true : undefined,
+        passwordChangedAt: input.temporaryPassword ? null : undefined,
       }, include: staffInclude });
       if (input.status || input.roleCode || input.temporaryPassword)
         await tx.session.deleteMany({ where: { userId: target.id } });

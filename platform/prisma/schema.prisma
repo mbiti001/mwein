@@ -125,22 +125,29 @@ enum CatalogCategory {
 }
 
 model Facility {
-  id             String              @id @default(uuid()) @db.Uuid
-  code           String              @unique
-  name           String
-  timezone       String              @default("Africa/Nairobi")
-  users          User[]
-  patients       Patient[]
-  visits         Visit[]
-  sequences      ReferenceSequence[]
-  catalogItems   CatalogItem[]
-  appointments   Appointment[]
-  suppliers      Supplier[]
-  stores         Store[]
-  purchaseOrders PurchaseOrder[]
-  referrals      Referral[]
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  id                 String              @id @default(uuid()) @db.Uuid
+  code               String              @unique
+  name               String
+  timezone           String              @default("Africa/Nairobi")
+  users              User[]
+  patients           Patient[]
+  visits             Visit[]
+  sequences          ReferenceSequence[]
+  catalogItems       CatalogItem[]
+  appointments       Appointment[]
+  suppliers          Supplier[]
+  stores             Store[]
+  purchaseOrders     PurchaseOrder[]
+  stocktakes         Stocktake[]
+  accountingJournals AccountingJournal[]
+  referrals          Referral[]
+  auditEvents        AuditEvent[]
+  auditChainHead     AuditChainHead?
+  loginThrottles     LoginThrottle[]
+  governanceEvidence GovernanceEvidence[]
+  patientProblems    PatientProblem[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 }
 
 model CatalogItem {
@@ -177,6 +184,7 @@ model CatalogItem {
   referenceRanges     LabReferenceRange[]
   inventoryBatches    InventoryBatch[]
   prescriptions       Prescription[]
+  dispensations       Dispensation[]      @relation("DispensedCatalogItem")
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
 
@@ -233,6 +241,9 @@ model User {
   displayName                 String
   passwordHash                String
   status                      UserStatus                 @default(ACTIVE)
+  mustChangePassword          Boolean                    @default(true)
+  passwordChangedAt           DateTime?
+  lastLoginAt                 DateTime?
   facility                    Facility                   @relation(fields: [facilityId], references: [id])
   roles                       UserRole[]
   sessions                    Session[]
@@ -250,10 +261,19 @@ model User {
   updatedServicePointRecords  ServicePointRecord[]
   createdReferrals            Referral[]                 @relation("ReferralCreatedBy")
   updatedReferrals            Referral[]                 @relation("ReferralUpdatedBy")
+  referralAttachments         ReferralAttachment[]       @relation("ReferralAttachmentAddedBy")
+  referralAcknowledgements    ReferralAcknowledgement[]  @relation("ReferralAcknowledgementRecordedBy")
   createdPatientRelationships PatientRelationship[]
   createdClaims               Claim[]
   reversedPayments            Payment[]                  @relation("PaymentReversedBy")
+  openedStocktakes            Stocktake[]                @relation("StocktakeOpenedBy")
+  submittedStocktakes         Stocktake[]                @relation("StocktakeSubmittedBy")
+  approvedStocktakes          Stocktake[]                @relation("StocktakeApprovedBy")
+  countedStocktakeLines       StocktakeLine[]            @relation("StocktakeLineCountedBy")
+  accountingJournals          AccountingJournal[]        @relation("AccountingJournalPostedBy")
   auditEvents                 AuditEvent[]
+  recordedPatientProblems     PatientProblem[]           @relation("PatientProblemRecordedBy")
+  updatedGovernanceEvidence   GovernanceEvidence[]       @relation("GovernanceEvidenceUpdatedBy")
   createdAt                   DateTime                   @default(now())
   updatedAt                   DateTime                   @updatedAt
 
@@ -306,6 +326,20 @@ model Session {
   createdAt  DateTime @default(now())
 }
 
+model LoginThrottle {
+  key             String    @id
+  facilityId      String?   @db.Uuid
+  emailHash       String
+  ipHash          String
+  failedCount     Int       @default(0)
+  windowStartedAt DateTime  @default(now())
+  blockedUntil    DateTime?
+  updatedAt       DateTime  @updatedAt
+  facility        Facility? @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  @@index([facilityId, updatedAt])
+}
+
 model Patient {
   id                String                @id @default(uuid()) @db.Uuid
   facilityId        String                @db.Uuid
@@ -338,11 +372,35 @@ model Patient {
   referrals         Referral[]
   relationshipsFrom PatientRelationship[] @relation("PatientRelationshipSource")
   relationshipsTo   PatientRelationship[] @relation("PatientRelationshipTarget")
+  problems          PatientProblem[]
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
 
   @@unique([facilityId, patientNumber])
   @@index([facilityId, normalizedName])
+}
+
+model PatientProblem {
+  id             String    @id @default(uuid()) @db.Uuid
+  facilityId     String    @db.Uuid
+  patientId      String    @db.Uuid
+  codeSystem     String    @default("ICD-11 MMS")
+  code           String?
+  foundationUri  String?
+  description    String
+  clinicalStatus String    @default("ACTIVE")
+  onsetDate      DateTime? @db.Date
+  resolvedAt     DateTime?
+  notes          String?
+  recordedById   String    @db.Uuid
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  facility       Facility  @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  patient        Patient   @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  recordedBy     User      @relation("PatientProblemRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+
+  @@index([facilityId, patientId, clinicalStatus])
+  @@index([patientId, updatedAt])
 }
 
 model PatientIdentifier {
@@ -548,46 +606,87 @@ model PatientRelationship {
 }
 
 model Referral {
-  id                  String     @id @default(uuid()) @db.Uuid
-  facilityId          String     @db.Uuid
-  visitId             String     @db.Uuid
-  patientId           String     @db.Uuid
-  encounterId         String?    @db.Uuid
-  idempotencyKey      String     @unique
-  referralNumber      String
-  type                String
-  referrerName        String
-  referringFacility   String
-  referringDepartment String?
-  reason              String
-  clinicalSummary     String
-  diagnosisSummary    String
-  urgency             Priority   @default(ROUTINE)
-  attachedResults     Json
-  receivingFacility   String
-  receivingDepartment String?
-  appointmentAt       DateTime?
-  status              String     @default("DRAFT")
-  feedback            String?
-  createdById         String     @db.Uuid
-  updatedById         String     @db.Uuid
-  sentAt              DateTime?
-  acceptedAt          DateTime?
-  attendedAt          DateTime?
-  returnedAt          DateTime?
-  closedAt            DateTime?
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
-  facility            Facility   @relation(fields: [facilityId], references: [id], onDelete: Restrict)
-  visit               Visit      @relation(fields: [visitId], references: [id], onDelete: Restrict)
-  patient             Patient    @relation(fields: [patientId], references: [id], onDelete: Restrict)
-  encounter           Encounter? @relation(fields: [encounterId], references: [id], onDelete: SetNull)
-  createdBy           User       @relation("ReferralCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  updatedBy           User       @relation("ReferralUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  id                    String                    @id @default(uuid()) @db.Uuid
+  facilityId            String                    @db.Uuid
+  visitId               String                    @db.Uuid
+  patientId             String                    @db.Uuid
+  encounterId           String?                   @db.Uuid
+  idempotencyKey        String                    @unique
+  referralNumber        String
+  type                  String
+  referrerName          String
+  referringFacility     String
+  referringDepartment   String?
+  reason                String
+  clinicalSummary       String
+  diagnosisSummary      String
+  urgency               Priority                  @default(ROUTINE)
+  legacyAttachedResults Json                      @default("[]") @map("attachedResults")
+  receivingFacility     String
+  receivingDepartment   String?
+  appointmentAt         DateTime?
+  status                String                    @default("DRAFT")
+  feedback              String?
+  createdById           String                    @db.Uuid
+  updatedById           String                    @db.Uuid
+  sentAt                DateTime?
+  acceptedAt            DateTime?
+  attendedAt            DateTime?
+  returnedAt            DateTime?
+  closedAt              DateTime?
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  facility              Facility                  @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  visit                 Visit                     @relation(fields: [visitId], references: [id], onDelete: Restrict)
+  patient               Patient                   @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  encounter             Encounter?                @relation(fields: [encounterId], references: [id], onDelete: SetNull)
+  createdBy             User                      @relation("ReferralCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy             User                      @relation("ReferralUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  attachments           ReferralAttachment[]
+  acknowledgements      ReferralAcknowledgement[]
 
   @@unique([facilityId, referralNumber])
   @@index([facilityId, status, createdAt])
   @@index([patientId, createdAt])
+}
+
+model ReferralAttachment {
+  id                 String            @id @default(uuid()) @db.Uuid
+  referralId         String            @db.Uuid
+  sourceType         String
+  laboratoryResultId String?           @db.Uuid
+  imagingResultId    String?           @db.Uuid
+  metadataVersion    Int               @default(1)
+  metadata           Json
+  attachedById       String            @db.Uuid
+  attachedAt         DateTime          @default(now())
+  referral           Referral          @relation(fields: [referralId], references: [id], onDelete: Restrict)
+  laboratoryResult   LaboratoryResult? @relation(fields: [laboratoryResultId], references: [id], onDelete: Restrict)
+  imagingResult      ImagingResult?    @relation(fields: [imagingResultId], references: [id], onDelete: Restrict)
+  attachedBy         User              @relation("ReferralAttachmentAddedBy", fields: [attachedById], references: [id], onDelete: Restrict)
+
+  @@unique([referralId, laboratoryResultId])
+  @@unique([referralId, imagingResultId])
+  @@index([laboratoryResultId])
+  @@index([imagingResultId])
+}
+
+model ReferralAcknowledgement {
+  id                 String   @id @default(uuid()) @db.Uuid
+  referralId         String   @db.Uuid
+  eventType          String
+  referralStatus     String
+  providerName       String
+  providerRole       String?
+  registrationNumber String?
+  note               String?
+  acknowledgedAt     DateTime
+  recordedById       String   @db.Uuid
+  recordedAt         DateTime @default(now())
+  referral           Referral @relation(fields: [referralId], references: [id], onDelete: Restrict)
+  recordedBy         User     @relation("ReferralAcknowledgementRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+
+  @@index([referralId, acknowledgedAt])
 }
 
 model EncounterAddendum {
@@ -677,6 +776,7 @@ model LaboratoryResult {
   recordedBy                 User                   @relation("LabResultRecordedBy", fields: [recordedById], references: [id])
   verifiedBy                 User?                  @relation("LabResultVerifiedBy", fields: [verifiedById], references: [id])
   items                      LaboratoryResultItem[]
+  referralAttachments        ReferralAttachment[]
 }
 
 model LaboratoryResultItem {
@@ -707,22 +807,23 @@ model ImagingOrder {
 }
 
 model ImagingResult {
-  id              String       @id @default(uuid()) @db.Uuid
-  imagingOrderId  String       @unique @db.Uuid
-  status          String       @default("DRAFT")
-  technique       String?
-  findings        String
-  conclusion      String
-  recommendations String?
-  performedAt     DateTime
-  performedById   String       @db.Uuid
-  verifiedAt      DateTime?
-  verifiedById    String?      @db.Uuid
-  imagingOrder    ImagingOrder @relation(fields: [imagingOrderId], references: [id], onDelete: Cascade)
-  performedBy     User         @relation("ImagingPerformedBy", fields: [performedById], references: [id])
-  verifiedBy      User?        @relation("ImagingVerifiedBy", fields: [verifiedById], references: [id])
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id                  String               @id @default(uuid()) @db.Uuid
+  imagingOrderId      String               @unique @db.Uuid
+  status              String               @default("DRAFT")
+  technique           String?
+  findings            String
+  conclusion          String
+  recommendations     String?
+  performedAt         DateTime
+  performedById       String               @db.Uuid
+  verifiedAt          DateTime?
+  verifiedById        String?              @db.Uuid
+  imagingOrder        ImagingOrder         @relation(fields: [imagingOrderId], references: [id], onDelete: Cascade)
+  performedBy         User                 @relation("ImagingPerformedBy", fields: [performedById], references: [id])
+  verifiedBy          User?                @relation("ImagingVerifiedBy", fields: [verifiedById], references: [id])
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  referralAttachments ReferralAttachment[]
 }
 
 model Prescription {
@@ -805,6 +906,7 @@ model InventoryBatch {
   movements         StockMovement[]
   dispensationItems DispensationItem[]
   locationBalances  InventoryLocationBalance[]
+  stocktakeLines    StocktakeLine[]
 
   @@unique([catalogItemId, batchNumber])
   @@index([catalogItemId, active, expiryDate])
@@ -835,6 +937,7 @@ model Store {
   balances          InventoryLocationBalance[]
   outgoingMovements StockMovement[]            @relation("StockMovementSourceStore")
   incomingMovements StockMovement[]            @relation("StockMovementDestinationStore")
+  stocktakes        Stocktake[]
 
   @@unique([facilityId, code])
 }
@@ -910,6 +1013,86 @@ model InventoryControlEvent {
   @@index([facilityId, type, occurredAt])
 }
 
+model Stocktake {
+  id              String          @id @default(uuid()) @db.Uuid
+  facilityId      String          @db.Uuid
+  storeId         String          @db.Uuid
+  stocktakeNumber String
+  status          String          @default("OPEN")
+  notes           String?
+  openedById      String          @db.Uuid
+  submittedById   String?         @db.Uuid
+  approvedById    String?         @db.Uuid
+  openedAt        DateTime        @default(now())
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  facility        Facility        @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  store           Store           @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  openedBy        User            @relation("StocktakeOpenedBy", fields: [openedById], references: [id], onDelete: Restrict)
+  submittedBy     User?           @relation("StocktakeSubmittedBy", fields: [submittedById], references: [id], onDelete: Restrict)
+  approvedBy      User?           @relation("StocktakeApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
+  lines           StocktakeLine[]
+
+  @@unique([facilityId, stocktakeNumber])
+  @@index([facilityId, status, openedAt])
+  @@index([storeId, status])
+}
+
+model StocktakeLine {
+  id              String         @id @default(uuid()) @db.Uuid
+  stocktakeId     String         @db.Uuid
+  batchId         String         @db.Uuid
+  systemQuantity  Decimal        @db.Decimal(12, 3)
+  countedQuantity Decimal?       @db.Decimal(12, 3)
+  variance        Decimal?       @db.Decimal(12, 3)
+  unitCost        Decimal?       @db.Decimal(14, 2)
+  reason          String?
+  countedById     String?        @db.Uuid
+  countedAt       DateTime?
+  stocktake       Stocktake      @relation(fields: [stocktakeId], references: [id], onDelete: Cascade)
+  batch           InventoryBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  countedBy       User?          @relation("StocktakeLineCountedBy", fields: [countedById], references: [id], onDelete: Restrict)
+
+  @@unique([stocktakeId, batchId])
+  @@index([batchId])
+}
+
+model AccountingJournal {
+  id          String                  @id @default(uuid()) @db.Uuid
+  facilityId  String                  @db.Uuid
+  entryNumber String
+  sourceType  String
+  sourceId    String
+  description String
+  postedById  String                  @db.Uuid
+  occurredAt  DateTime                @default(now())
+  createdAt   DateTime                @default(now())
+  facility    Facility                @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  postedBy    User                    @relation("AccountingJournalPostedBy", fields: [postedById], references: [id], onDelete: Restrict)
+  lines       AccountingJournalLine[]
+
+  @@unique([facilityId, entryNumber])
+  @@unique([sourceType, sourceId])
+  @@index([facilityId, occurredAt])
+}
+
+model AccountingJournalLine {
+  id            String            @id @default(uuid()) @db.Uuid
+  journalId     String            @db.Uuid
+  accountCode   String
+  accountName   String
+  debit         Decimal           @default(0) @db.Decimal(14, 2)
+  credit        Decimal           @default(0) @db.Decimal(14, 2)
+  catalogItemId String?           @db.Uuid
+  batchId       String?           @db.Uuid
+  storeId       String?           @db.Uuid
+  journal       AccountingJournal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  @@index([journalId])
+  @@index([accountCode])
+  @@index([catalogItemId])
+}
+
 model SupplyOperation {
   id             String   @id @default(uuid()) @db.Uuid
   facilityId     String   @db.Uuid
@@ -956,18 +1139,23 @@ model Dispensation {
   id                   String             @id @default(uuid()) @db.Uuid
   prescriptionId       String             @db.Uuid
   dispensedById        String             @db.Uuid
+  catalogItemId        String?            @db.Uuid
   idempotencyKey       String             @unique
   status               String
   quantity             Decimal            @db.Decimal(12, 3)
   counsellingCompleted Boolean            @default(false)
   notes                String?
+  substitutionReason   String?
+  fefoOverrideReason   String?
   dispensedAt          DateTime           @default(now())
   prescription         Prescription       @relation(fields: [prescriptionId], references: [id])
   dispensedBy          User               @relation(fields: [dispensedById], references: [id])
+  catalogItem          CatalogItem?       @relation("DispensedCatalogItem", fields: [catalogItemId], references: [id])
   items                DispensationItem[]
   stockMovements       StockMovement[]
 
   @@index([prescriptionId, dispensedAt])
+  @@index([catalogItemId, dispensedAt])
 }
 
 model DispensationItem {
@@ -1071,8 +1259,11 @@ model Receipt {
 
 model AuditEvent {
   id                String   @id @default(uuid()) @db.Uuid
+  facilityId        String   @db.Uuid
   userId            String?  @db.Uuid
   sessionId         String?  @db.Uuid
+  chainVersion      Int      @default(2)
+  sequence          BigInt?
   action            String
   entityType        String
   entityId          String
@@ -1082,7 +1273,39 @@ model AuditEvent {
   previousEventHash String
   eventHash         String   @unique
   occurredAt        DateTime @default(now())
+  facility          Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict)
   user              User?    @relation(fields: [userId], references: [id])
 
+  @@unique([facilityId, chainVersion, sequence])
+  @@index([facilityId, occurredAt])
   @@index([entityType, entityId, occurredAt])
+}
+
+model AuditChainHead {
+  facilityId   String   @id @db.Uuid
+  chainVersion Int      @default(2)
+  sequence     BigInt   @default(0)
+  eventHash    String   @default("GENESIS")
+  updatedAt    DateTime @updatedAt
+  facility     Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+}
+
+model GovernanceEvidence {
+  id                String    @id @default(uuid()) @db.Uuid
+  facilityId        String    @db.Uuid
+  gateCode          String
+  status            String    @default("PENDING")
+  owner             String
+  evidenceReference String?
+  notes             String?
+  approvedAt        DateTime?
+  reviewDueAt       DateTime?
+  updatedById       String    @db.Uuid
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  facility          Facility  @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  updatedBy         User      @relation("GovernanceEvidenceUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([facilityId, gateCode])
+  @@index([facilityId, status, reviewDueAt])
 }

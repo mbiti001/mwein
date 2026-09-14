@@ -1,7 +1,37 @@
 import { z } from "zod";
 
+export const complaintDurationUnits = [
+  "HOURS",
+  "DAYS",
+  "WEEKS",
+  "MONTHS",
+  "YEARS",
+] as const;
+
+export const presentingComplaintSchema = z
+  .object({
+    complaint: z.string().trim().min(2).max(500),
+    durationValue: z.number().positive().max(10000).optional(),
+    durationUnit: z.enum(complaintDurationUnits).optional(),
+  })
+  .superRefine((value, context) => {
+    if (value.durationValue !== undefined && !value.durationUnit)
+      context.addIssue({
+        code: "custom",
+        path: ["durationUnit"],
+        message: "Select a duration unit",
+      });
+    if (value.durationUnit && value.durationValue === undefined)
+      context.addIssue({
+        code: "custom",
+        path: ["durationValue"],
+        message: "Enter a duration value",
+      });
+  });
+
 export const consultationNotesSchema = z.object({
   chiefComplaint: z.string().trim().min(2).max(1000),
+  complaints: z.array(presentingComplaintSchema).max(8).default([]),
   historyPresentingIllness: z.string().trim().min(2).max(5000),
   symptomDuration: z.string().trim().max(120).optional(),
   reviewOfSystems: z.string().trim().max(3000).optional(),
@@ -19,6 +49,7 @@ export const consultationNotesSchema = z.object({
 export const diagnosisSchema = z.object({
   code: z.string().trim().min(2).max(30),
   title: z.string().trim().min(2).max(500),
+  selectionToken: z.string().trim().min(40).max(4096),
   type: z.enum(["PROVISIONAL", "DIFFERENTIAL", "FINAL"]).default("PROVISIONAL"),
   primary: z.boolean().default(false),
   foundationUri: z

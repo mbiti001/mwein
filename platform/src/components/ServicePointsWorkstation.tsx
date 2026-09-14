@@ -31,7 +31,28 @@ type Visit = {
   arrivedAt: string;
   patient: Patient;
   encounters?: { diagnoses: { description: string; code?: string | null; primary: boolean }[] }[];
-  orders?: { id: string; type: string; status: string; displayName: string }[];
+  orders?: {
+    id: string;
+    type: string;
+    status: string;
+    displayName: string;
+    laboratory?: {
+      testCode: string;
+      accessionNumber?: string | null;
+      result?: { id: string; status: string; verifiedAt?: string | null } | null;
+    } | null;
+    imaging?: {
+      modality: string;
+      examinationCode: string;
+      result?: { id: string; status: string; verifiedAt?: string | null } | null;
+    } | null;
+  }[];
+};
+
+type ReferralAttachmentOption = {
+  order: NonNullable<Visit["orders"]>[number];
+  sourceType: "LABORATORY_RESULT" | "IMAGING_RESULT";
+  resultId: string;
 };
 
 type Metric = {
@@ -60,7 +81,7 @@ type Relationship = {
   relatedPatient: { id: string; patientNumber: string; fullName: string };
 };
 
-type Referral = {
+export type Referral = {
   id: string;
   referralNumber: string;
   type: string;
@@ -71,7 +92,37 @@ type Referral = {
   clinicalSummary: string;
   diagnosisSummary: string;
   urgency: string;
-  attachedResults: string[];
+  attachments: {
+    id: string;
+    sourceType: "LABORATORY_RESULT" | "IMAGING_RESULT";
+    resultId: string;
+    href: string;
+    metadataVersion: number;
+    metadata: {
+      displayName: string;
+      orderId: string;
+      resultStatus: string;
+      verifiedAt?: string | null;
+      testCode?: string;
+      accessionNumber?: string | null;
+      examinationCode?: string;
+      modality?: string;
+    };
+    attachedAt: string;
+    attachedBy: { displayName: string };
+  }[];
+  acknowledgements: {
+    id: string;
+    eventType: "ACCEPTED" | "ATTENDED" | "RETURNED";
+    referralStatus: string;
+    providerName: string;
+    providerRole?: string | null;
+    registrationNumber?: string | null;
+    note?: string | null;
+    acknowledgedAt: string;
+    recordedAt: string;
+    recordedBy: { displayName: string };
+  }[];
   receivingFacility: string;
   receivingDepartment?: string | null;
   appointmentAt?: string | null;
@@ -121,6 +172,16 @@ export default function ServicePointsWorkstation({
 
   useEffect(() => {
     void loadMetrics().catch((reason) => setError((reason as Error).message));
+    const refresh = () => {
+      if (document.visibilityState === "visible")
+        void loadMetrics().catch((reason) => setError((reason as Error).message));
+    };
+    const timer = window.setInterval(refresh, 15_000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, []);
 
   useEffect(() => {
@@ -174,7 +235,7 @@ export default function ServicePointsWorkstation({
               <span className="careServiceIcon" aria-hidden="true">{profile.label.slice(0, 2).toUpperCase()}</span>
               <div><strong>{profile.label}</strong><small>{profile.description}</small></div>
               <b>{metric.waiting}</b>
-              <span className="careServiceStats">{metric.beingSeen} active · {metric.pendingInvestigations} tests · {metric.followUps} follow-ups</span>
+              <span className="careServiceStats">{profile.code === "REFERRAL" ? `${metric.beingSeen} active · ${metric.completed} returned/closed today · ${metric.referrals} sent today` : `${metric.beingSeen} active · ${metric.pendingInvestigations} tests · ${metric.followUps} follow-ups`}</span>
             </button>
           );
         })}
@@ -378,12 +439,31 @@ function ReferralWorkspace({
     const term = visitQuery.trim().toLowerCase();
     return term.length >= 2 && `${item.patient.fullName} ${item.patient.patientNumber} ${item.visitNumber}`.toLowerCase().includes(term);
   }).slice(0, 6);
+  const verifiedAttachments = (visit?.orders || []).map((order): ReferralAttachmentOption | null => {
+    if (order.type === "LABORATORY" && order.laboratory?.result?.status === "VERIFIED")
+      return { order, sourceType: "LABORATORY_RESULT", resultId: order.laboratory.result.id };
+    if (order.type === "IMAGING" && order.imaging?.result?.status === "VERIFIED")
+      return { order, sourceType: "IMAGING_RESULT", resultId: order.imaging.result.id };
+    return null;
+  }).filter((item): item is ReferralAttachmentOption => item !== null);
 
   async function load() {
     const result = await api<{ referrals: Referral[] }>(`/api/referrals?q=${encodeURIComponent(query)}`);
     setReferrals(result.referrals);
   }
   useEffect(() => { const timer = window.setTimeout(() => void load().catch((reason) => setError((reason as Error).message)), 250); return () => window.clearTimeout(timer); }, [query]);
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible")
+        void load().catch((reason) => setError((reason as Error).message));
+    };
+    const timer = window.setInterval(refresh, 15_000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [query]);
   useEffect(() => {
     if (!initialVisitId) return;
     const selectedVisit = visits.find((item) => item.id === initialVisitId);
@@ -411,7 +491,10 @@ function ReferralWorkspace({
         clinicalSummary: form.get("clinicalSummary"),
         diagnosisSummary: form.get("diagnosisSummary"),
         urgency: form.get("urgency"),
-        attachedResults: form.getAll("attachedResults"),
+        attachments: form.getAll("attachments").map((value) => {
+          const [sourceType, resultId] = String(value).split(":");
+          return { sourceType, resultId };
+        }),
         receivingFacility: form.get("receivingFacility"),
         receivingDepartment: form.get("receivingDepartment") || undefined,
         appointmentAt: appointment ? new Date(appointment).toISOString() : undefined,
@@ -447,7 +530,7 @@ function ReferralWorkspace({
         <label className="wide">Reason for referral *<textarea name="reason" required minLength={3} rows={2} /></label>
         <label className="wide">Diagnosis / clinical indication *<textarea key={visit?.id || "none"} name="diagnosisSummary" required minLength={2} rows={2} defaultValue={visit?.encounters?.[0]?.diagnoses.map((item) => `${item.code || ""} ${item.description}`.trim()).join("; ") || ""} /></label>
         <label className="wide">Clinical summary and treatment given *<textarea name="clinicalSummary" required minLength={10} rows={4} /></label>
-        {visit?.orders?.length ? <fieldset className="wide referralAttachments"><legend>Attach existing orders/results</legend>{visit.orders.slice(0, 20).map((order) => <label key={order.id}><input type="checkbox" name="attachedResults" value={`${order.displayName} — ${order.status.replaceAll("_", " ")}`} /><span>{order.displayName}<small>{order.type} · {order.status.replaceAll("_", " ")}</small></span></label>)}</fieldset> : null}
+        {visit && <fieldset className="wide referralAttachments"><legend>Attach verified findings</legend>{verifiedAttachments.length ? verifiedAttachments.slice(0, 20).map(({ order, sourceType, resultId }) => <label key={resultId}><input type="checkbox" name="attachments" value={`${sourceType}:${resultId}`} /><span>{order.displayName}<small>{sourceType === "LABORATORY_RESULT" ? `Laboratory · ${order.laboratory?.accessionNumber || order.laboratory?.testCode || "verified"}` : `Imaging · ${order.imaging?.modality || "verified"}`} · immutable source link</small></span></label>) : <p className="attachmentEmpty">No verified laboratory or imaging results are available for this visit.</p>}</fieldset>}
         <div className="wide submitBar"><span>The referral starts as a draft so it can be checked before sending.</span>{created ? <span className="inlineSaveConfirmation">✓ Draft created</span> : <button className="primary" disabled={busy || !visit}>{busy ? "Creating…" : "Create referral draft"}</button>}</div>
       </form>
     </details>
@@ -461,22 +544,47 @@ function ReferralWorkspace({
   </>;
 }
 
-function ReferralRow({ referral, onUpdated, onPrint }: { referral: Referral; onUpdated: () => Promise<void>; onPrint: () => void }) {
+export function ReferralRow({ referral, onUpdated, onPrint }: { referral: Referral; onUpdated: () => Promise<void>; onPrint: () => void }) {
   const [feedback, setFeedback] = useState(referral.feedback || "");
+  const [providerName, setProviderName] = useState("");
+  const [providerRole, setProviderRole] = useState("");
+  const [registrationNumber, setRegistrationNumber] = useState("");
+  const [acknowledgementNote, setAcknowledgementNote] = useState("");
+  const [acknowledgedAt, setAcknowledgedAt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const next = referralNextStatuses(referral.status);
+  const receivingStatuses = ["ACCEPTED", "ATTENDED", "RETURNED"];
+  const needsAcknowledgement = next.some((status) => receivingStatuses.includes(status));
   async function move(status: string) {
+    if (receivingStatuses.includes(status) && providerName.trim().length < 2) {
+      setError("Enter the receiving provider's name before recording this event");
+      return;
+    }
     setBusy(true); setError("");
     try {
-      await api(`/api/referrals/${referral.id}`, { method: "PATCH", body: JSON.stringify({ status, feedback: feedback || undefined }) });
+      await api(`/api/referrals/${referral.id}`, { method: "PATCH", body: JSON.stringify({
+        status,
+        feedback: feedback || undefined,
+        acknowledgement: receivingStatuses.includes(status) ? {
+          providerName,
+          providerRole: providerRole || undefined,
+          registrationNumber: registrationNumber || undefined,
+          note: acknowledgementNote || undefined,
+          acknowledgedAt: acknowledgedAt ? new Date(acknowledgedAt).toISOString() : undefined,
+        } : undefined,
+      }) });
+      setProviderName(""); setProviderRole(""); setRegistrationNumber(""); setAcknowledgementNote(""); setAcknowledgedAt("");
       await onUpdated();
     } catch (reason) { setError((reason as Error).message); }
     finally { setBusy(false); }
   }
   return <details className={`referralRow ${referral.urgency.toLowerCase()}`}><summary><span className="dot" /><span><strong>{referral.patient.fullName}</strong><small>{referral.patient.patientNumber} · {referral.referralNumber} · To {referral.receivingFacility}</small></span><b>{referral.status}</b><time>{new Date(referral.createdAt).toLocaleDateString()}</time></summary><div className="referralDetails">
     {error && <div className="alert">{error}</div>}
-    <div className="summaryLine"><strong>Reason</strong><span>{referral.reason}</span></div><div className="summaryLine"><strong>Diagnosis</strong><span>{referral.diagnosisSummary}</span></div><div className="summaryLine"><strong>Clinical summary</strong><span>{referral.clinicalSummary}</span></div>{referral.attachedResults.length ? <div className="summaryLine"><strong>Attached findings</strong><span>{referral.attachedResults.join(" · ")}</span></div> : null}
+    <div className="summaryLine"><strong>Reason</strong><span>{referral.reason}</span></div><div className="summaryLine"><strong>Diagnosis</strong><span>{referral.diagnosisSummary}</span></div><div className="summaryLine"><strong>Clinical summary</strong><span>{referral.clinicalSummary}</span></div>
+    {referral.attachments.length ? <section className="referralLinkedRecords" aria-label="Attached clinical records"><h3>Attached findings</h3>{referral.attachments.map((attachment) => <a href={attachment.href} target="_blank" rel="noreferrer" key={attachment.id}><span><strong>{attachment.metadata.displayName}</strong><small>{attachment.sourceType === "LABORATORY_RESULT" ? "Laboratory result" : "Imaging report"} · metadata v{attachment.metadataVersion} · verified {attachment.metadata.verifiedAt ? new Date(attachment.metadata.verifiedAt).toLocaleString() : "before attachment"}</small></span><b>Open source record ↗</b></a>)}</section> : null}
+    {referral.acknowledgements.length ? <section className="referralAcknowledgements" aria-label="Receiving-provider acknowledgement trail"><h3>Receiving-provider acknowledgement trail</h3><ol>{referral.acknowledgements.map((acknowledgement) => <li key={acknowledgement.id}><span className="ackEvent">{acknowledgement.eventType.replaceAll("_", " ")}</span><div><strong>{acknowledgement.providerName}</strong>{acknowledgement.providerRole && <span>{acknowledgement.providerRole}</span>}{acknowledgement.registrationNumber && <small>Registration {acknowledgement.registrationNumber}</small>}{acknowledgement.note && <p>{acknowledgement.note}</p>}<small>{new Date(acknowledgement.acknowledgedAt).toLocaleString()} · recorded by {acknowledgement.recordedBy.displayName}</small></div></li>)}</ol></section> : null}
+    {needsAcknowledgement && <fieldset className="receiverAcknowledgement"><legend>Receiving-provider acknowledgement *</legend><div className="dataForm"><label>Provider name *<input value={providerName} onChange={(event) => setProviderName(event.target.value)} minLength={2} maxLength={160} placeholder="Clinician receiving the referral" /></label><label>Role<input value={providerRole} onChange={(event) => setProviderRole(event.target.value)} maxLength={120} placeholder="Consultant, medical officer…" /></label><label>Registration number<input value={registrationNumber} onChange={(event) => setRegistrationNumber(event.target.value)} maxLength={120} /></label><label>Acknowledged at<input type="datetime-local" value={acknowledgedAt} onChange={(event) => setAcknowledgedAt(event.target.value)} /></label><label className="wide">Acknowledgement note<textarea rows={2} value={acknowledgementNote} onChange={(event) => setAcknowledgementNote(event.target.value)} maxLength={1000} /></label></div></fieldset>}
     {(next.includes("RETURNED") || referral.feedback) && <label>Receiving-provider feedback{next.includes("RETURNED") ? " *" : ""}<textarea rows={2} value={feedback} onChange={(event) => setFeedback(event.target.value)} readOnly={!next.includes("RETURNED")} /></label>}
     <div className="actions"><button className="secondary" type="button" onClick={onPrint}>Print letter</button>{next.map((status) => <button className={status === "SENT" || status === "CLOSED" ? "primary" : "secondary"} type="button" disabled={busy} key={status} onClick={() => void move(status)}>{busy ? "Updating…" : status === "RETURNED" ? "Record feedback & return" : status.replaceAll("_", " ")}</button>)}</div>
   </div></details>;
@@ -489,7 +597,8 @@ function ReferralLetter({ referral }: { referral: Referral }) {
     <section><h2>Referred to</h2><p><strong>{referral.receivingFacility}</strong>{referral.receivingDepartment ? ` · ${referral.receivingDepartment}` : ""}</p></section>
     <section><h2>Reason and diagnosis</h2><p>{referral.reason}</p><p><strong>Diagnosis / indication:</strong> {referral.diagnosisSummary}</p></section>
     <section><h2>Clinical summary and treatment</h2><p>{referral.clinicalSummary}</p></section>
-    {referral.attachedResults.length ? <section><h2>Attached findings</h2><ul>{referral.attachedResults.map((item) => <li key={item}>{item}</li>)}</ul></section> : null}
+    {referral.attachments.length ? <section><h2>Attached findings</h2><ul>{referral.attachments.map((attachment) => <li key={attachment.id}>{attachment.metadata.displayName} — {attachment.sourceType === "LABORATORY_RESULT" ? "laboratory result" : "imaging report"} ({attachment.resultId}; metadata v{attachment.metadataVersion})</li>)}</ul></section> : null}
+    {referral.acknowledgements.length ? <section><h2>Receiving-provider acknowledgements</h2><ul>{referral.acknowledgements.map((item) => <li key={item.id}>{item.eventType}: {item.providerName}{item.providerRole ? `, ${item.providerRole}` : ""} — {new Date(item.acknowledgedAt).toLocaleString()}</li>)}</ul></section> : null}
     <footer><div><small>Referrer</small><strong>{referral.referrerName}</strong><span>{referral.referringDepartment || "Clinical service"}</span></div><div><small>Receiving-provider feedback</small><span>{referral.feedback || "________________________________________________________________"}</span></div></footer>
   </article>;
 }

@@ -5,12 +5,12 @@ import { apiError } from "@/lib/http";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const user = await requirePermission("patient.read");
+    const user = await requirePermission("clinical.history.read");
     const { id } = await params;
     const currentVisitId = new URL(request.url).searchParams.get("exclude");
     const patient = await db.patient.findFirst({ where: { id, facilityId: user.facilityId }, select: { id: true } });
     if (!patient) throw Object.assign(new Error("Patient not found"), { status: 404 });
-    const visits = await db.visit.findMany({
+    const [visits, problems] = await Promise.all([db.visit.findMany({
       where: { patientId: id, ...(currentVisitId ? { id: { not: currentVisitId } } : {}) },
       orderBy: { arrivedAt: "desc" },
       take: 5,
@@ -24,7 +24,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           imaging: { select: { result: { select: { status: true, conclusion: true } } } },
         } },
       },
-    });
-    return NextResponse.json({ visits });
+    }), db.patientProblem.findMany({
+      where: { patientId: id, facilityId: user.facilityId },
+      include: { recordedBy: { select: { displayName: true } } },
+      orderBy: [{ clinicalStatus: "asc" }, { updatedAt: "desc" }],
+    })]);
+    return NextResponse.json({ visits, problems });
   } catch (error) { return apiError(error); }
 }
