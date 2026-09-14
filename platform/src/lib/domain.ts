@@ -84,7 +84,7 @@ export function patientClinicalGroup(patient: PatientDemographics, now = new Dat
   const age = patientAgeYears(patient, now);
   const ageGroup = age !== null && age < 18 ? "CHILD" : "ADULT";
   const label = ageGroup === "CHILD" ? `Child · ${age ?? "age unknown"} years` : `${patient.sexAtBirth.charAt(0)}${patient.sexAtBirth.slice(1).toLowerCase()} · ${age ?? "age unknown"} years`;
-  const pregnancyQuestionsApply = ageGroup === "ADULT" && patient.sexAtBirth === "FEMALE" && age !== null && age >= 12 && age <= 55;
+  const pregnancyQuestionsApply = patient.sexAtBirth === "FEMALE" && age !== null && age >= 10 && age <= 55;
   return { age, ageGroup, label, pregnancyQuestionsApply };
 }
 

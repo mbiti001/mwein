@@ -47,6 +47,7 @@ const requiredTables = [
   "AiGeneration",
   "CashierShift",
   "OperationsEvidence",
+  "AncAdmissionEvidence",
 ];
 const tableResult = await db.query(
   "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename",
@@ -60,11 +61,12 @@ const triggerResult = await db.query(
     'ReferralAttachment_immutable',
     'ReferralAcknowledgement_immutable',
     'AuditEvent_immutable',
-    'MedicationSafetyAssessment_immutable'
+    'MedicationSafetyAssessment_immutable',
+    'AncAdmissionEvidence_immutable'
   ) ORDER BY tgname`,
 );
-if (triggerResult.rows.length !== 4)
-  throw new Error(`Expected 4 immutable clinical/audit-record triggers, found ${triggerResult.rows.length}`);
+if (triggerResult.rows.length !== 5)
+  throw new Error(`Expected 5 immutable clinical/audit-record triggers, found ${triggerResult.rows.length}`);
 
 await db.exec(`
   INSERT INTO "Facility" ("id", "code", "name", "updatedAt")

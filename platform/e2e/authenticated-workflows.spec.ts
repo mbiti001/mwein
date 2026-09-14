@@ -76,6 +76,24 @@ test("keeps authenticated navigation usable at a mobile breakpoint", async ({ pa
   expect(overflow).toBe(0);
 });
 
+test("shows WHO-aligned ANC confirmation and adolescent safeguarding controls", async ({ page }) => {
+  await login(page, "admin@mwein.local");
+  await page.getByRole("button", { name: "Registration" }).click();
+  await page.getByLabel("First name *").fill("Browser");
+  await page.getByLabel("Surname *").fill("ANC Safety");
+  await page.getByLabel("Estimated age").fill("14");
+  await page.getByLabel("Sex at birth *").selectOption("FEMALE");
+  await page.getByLabel("Phone *").fill("+254711000014");
+  await page.getByLabel("Subcounty *").fill("Teso North");
+  await page.getByLabel("Consent to treatment *").check();
+  await page.getByLabel("Consent to electronic record *").check();
+  await page.getByRole("button", { name: "Register patient and continue" }).click();
+  await page.getByLabel("Clinic *").selectOption("ANC");
+  await expect(page.getByRole("group", { name: "ANC pregnancy confirmation" })).toBeVisible();
+  await expect(page.getByText("Confidential safeguarding review required.")).toBeVisible();
+  await expect(page.getByText("Do not ask the patient to justify the pregnancy at reception")).toBeVisible();
+});
+
 for (const role of [
   { email: "shared.user@example.test", visible: ["Registration", "Appointments"], hidden: ["Triage", "Consultation", "Billing"] },
   { email: "nurse@example.test", visible: ["Triage"], hidden: ["Registration", "Consultation", "Billing"] },

@@ -95,9 +95,13 @@ describe("Phase 1 domain rules", () => {
       pregnancyQuestionsApply: false,
     });
   });
-  it("shows pregnancy screening only for eligible adult female patients", () => {
+  it("shows private pregnancy screening for female adolescents and adults", () => {
     expect(
       patientClinicalGroup({ sexAtBirth: "FEMALE", estimatedAgeYears: 30 })
+        .pregnancyQuestionsApply,
+    ).toBe(true);
+    expect(
+      patientClinicalGroup({ sexAtBirth: "FEMALE", estimatedAgeYears: 14 })
         .pregnancyQuestionsApply,
     ).toBe(true);
     expect(

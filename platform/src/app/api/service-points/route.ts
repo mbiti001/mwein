@@ -169,6 +169,7 @@ export async function POST(request: Request) {
         where: { id: input.visitId, facilityId: user.facilityId },
         include: {
           patient: { select: { id: true } },
+          ancAdmissionEvidence: { select: { safeguardingReviewRequired: true } },
           encounters: { orderBy: { createdAt: "desc" } },
         },
       });
@@ -224,6 +225,15 @@ export async function POST(request: Request) {
       const missing = requiredCareFields(profile.code).filter((key) => !isPresent(input.data[key]));
       if (missing.length)
         throw Object.assign(new Error(`Complete the required assessment fields: ${missing.join(", ")}`), { status: 422 });
+      if (
+        profile.code === "ANC" &&
+        visit.ancAdmissionEvidence?.safeguardingReviewRequired &&
+        (!isPresent(input.data.safeguardingAssessment) || !isPresent(input.data.safeguardingAction))
+      )
+        throw Object.assign(
+          new Error("Complete the confidential safeguarding assessment and action pathway before saving this adolescent ANC assessment"),
+          { status: 422 },
+        );
 
       const signed = visit.encounters.find((encounter) => encounter.status === "SIGNED");
       if (signed)

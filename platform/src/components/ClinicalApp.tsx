@@ -60,6 +60,15 @@ type Visit = {
     diagnoses: { description: string; code?: string | null; primary: boolean }[];
   }[];
   facility?: { name: string; code: string };
+  ancAdmissionEvidence?: {
+    result: string;
+    method: string;
+    testedAt: string;
+    evidenceReference: string;
+    consentConfirmed: boolean;
+    safeguardingReviewRequired: boolean;
+    recordedAt: string;
+  } | null;
   queues?: { servicePoint: string; status: string; enteredAt?: string }[];
   orders?: {
     id: string;
@@ -857,11 +866,13 @@ function StartVisit({
 }) {
   const [matches, setMatches] = useState<Patient[]>([]);
   const [chosen, setChosen] = useState(patient);
+  const [clinic, setClinic] = useState(appointment?.clinic || "Outpatient");
   const [error, setError] = useState("");
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!chosen) return setError("Select a patient first");
     const f = new FormData(event.currentTarget);
+    const destinationClinic = appointment?.clinic || clinic;
     try {
       onCreated(
         (
@@ -870,10 +881,17 @@ function StartVisit({
             body: JSON.stringify({
               patientId: chosen.id,
               appointmentId: appointment?.id,
-              clinic: appointment?.clinic || f.get("clinic"),
+              clinic: destinationClinic,
               priority:
                 f.get("visitType") === "EMERGENCY" ? "EMERGENCY" : "ROUTINE",
               visitType: appointment ? "APPOINTMENT" : f.get("visitType"),
+              ancEvidence: destinationClinic === "ANC" ? {
+                result: f.get("ancResult"),
+                method: f.get("ancMethod"),
+                testedAt: f.get("ancTestedAt"),
+                evidenceReference: f.get("ancEvidenceReference"),
+                consentConfirmed: f.get("ancConsentConfirmed") === "on",
+              } : undefined,
             }),
           })
         ).visit,
@@ -942,7 +960,7 @@ function StartVisit({
         )}
         <label>
           Clinic *
-          <select name="clinic" defaultValue={appointment?.clinic || "Outpatient"} disabled={Boolean(appointment)}>
+          <select name="clinic" value={appointment?.clinic || clinic} onChange={(event) => setClinic(event.target.value)} disabled={Boolean(appointment)}>
             {appointmentClinics.map((x) => (
               <option key={x}>{x}</option>
             ))}
@@ -956,6 +974,16 @@ function StartVisit({
             <option value="EMERGENCY">Emergency</option>
           </select>
         </label>
+        {(appointment?.clinic || clinic) === "ANC" && <fieldset className="coverageItems wide ancAdmission">
+          <legend>ANC pregnancy confirmation</legend>
+          <p>Facility routing rule: routine ANC entry requires documented positive pregnancy confirmation. WHO guidance calls for pregnancy confirmation at the first contact and timely, respectful care. Negative, pending or untested results go to pregnancy confirmation or general clinical assessment; emergencies go directly to Emergency.</p>
+          <label>Pregnancy-test result *<select name="ancResult" defaultValue="" required><option value="">Select result</option><option value="POSITIVE">Positive</option><option value="NEGATIVE">Negative</option><option value="PENDING">Pending</option><option value="NOT_TESTED">Not tested</option></select></label>
+          <label>Confirmation source *<select name="ancMethod" defaultValue="" required><option value="">Select source</option><option value="FACILITY_LAB">Facility laboratory</option><option value="EXTERNAL_LAB">External laboratory</option></select></label>
+          <label>Test date *<input name="ancTestedAt" type="date" max={new Date().toISOString().slice(0, 10)} required /></label>
+          <label>Result or accession reference *<input name="ancEvidenceReference" minLength={3} maxLength={160} required placeholder="Laboratory accession or retained result reference" /></label>
+          <label className="wide"><input name="ancConsentConfirmed" type="checkbox" required /> The patient gave informed consent to record this pregnancy-test evidence.</label>
+          {chosen && patientClinicalGroup(chosen).age !== null && patientClinicalGroup(chosen).age! < 15 && <div className="alert wide"><strong>Confidential safeguarding review required.</strong> Do not ask the patient to justify the pregnancy at reception and do not deny ANC. A clinician must provide a private, non-judgemental safeguarding assessment.</div>}
+        </fieldset>}
         <div className="privacyNotice wide">
           <strong>Privacy by design</strong>
           <span>
@@ -1144,6 +1172,10 @@ function TriageWorkstation({
           ))}
         </div>
       ) : null}
+      {active.ancAdmissionEvidence?.safeguardingReviewRequired && <div className="dangerPanel">
+        <strong>Confidential safeguarding review required</strong>
+        <span>This ANC client is under 15 with documented positive pregnancy confirmation. Provide private, respectful assessment, consider coercion or violence without judgement, and follow the facility child-protection pathway. Do not delay antenatal care.</span>
+      </div>}
       <form className="card dataForm triageForm" onSubmit={submit}>
         {error && <div className="alert wide">{error}</div>}
         <div className="privacyNotice wide">
@@ -1296,7 +1328,7 @@ function TriageWorkstation({
           <>
             <label>
               Pregnancy status
-              <select name="pregnancyStatus">
+              <select name="pregnancyStatus" defaultValue={active.ancAdmissionEvidence ? "PREGNANT" : "UNKNOWN"}>
                 <option value="UNKNOWN">Ask privately</option>
                 <option value="NOT_PREGNANT">Not pregnant</option>
                 <option value="PREGNANT">Pregnant</option>

@@ -43,7 +43,7 @@ export const careServiceProfiles: readonly CareServiceProfile[] = [
     label: "ANC",
     clinic: "ANC",
     description: "Longitudinal antenatal assessment, risk review, birth planning and follow-up.",
-    templateVersion: "KE-ANC-2026.1",
+    templateVersion: "KE-ANC-2026.2",
     accent: "#a21caf",
     sections: [
       {
@@ -71,6 +71,8 @@ export const careServiceProfiles: readonly CareServiceProfile[] = [
           { key: "fetalHeartRate", label: "Fetal heart rate", type: "number", unit: "bpm" },
           { key: "liePresentationMovement", label: "Lie, presentation and fetal movement", type: "textarea" },
           { key: "obstetricExamination", label: "Obstetric and general examination", type: "textarea" },
+          { key: "safeguardingAssessment", label: "Confidential adolescent safeguarding assessment", type: "textarea", placeholder: "Record immediate safety, coercion or violence concerns without judgement; minimum necessary detail" },
+          { key: "safeguardingAction", label: "Safeguarding action and referral pathway", type: "textarea", placeholder: "Document safety plan, senior review and facility child-protection pathway actions" },
         ],
       },
       {

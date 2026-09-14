@@ -336,6 +336,54 @@ try {
   const patient = patientResult.body.patient;
   assert(patient.patientNumber?.startsWith("MMS-"), "Patient number was not assigned");
 
+  const adolescentResult = await api("register adolescent ANC patient", "/api/patients", {
+    method: "POST",
+    body: JSON.stringify({
+      givenName: "Safiya",
+      familyName: "ANC Safety",
+      estimatedAgeYears: 14,
+      sexAtBirth: "FEMALE",
+      phone: "+254700000014",
+      county: "Nairobi",
+      subcounty: "Westlands",
+      preferredLanguage: "English",
+      treatmentConsent: true,
+      electronicRecordConsent: true,
+      messagingConsent: false,
+    }),
+  });
+  const adolescent = adolescentResult.body.patient;
+  const unconfirmedAnc = await requestWithCookie("/api/visits", sessionCookie, {
+    method: "POST",
+    body: JSON.stringify({ patientId: adolescent.id, clinic: "ANC", priority: "ROUTINE", visitType: "WALK_IN" }),
+  });
+  assert(unconfirmedAnc.response.status === 422, "ANC admitted a patient without pregnancy confirmation");
+  steps.push("block unconfirmed routine ANC admission");
+  const negativeAnc = await requestWithCookie("/api/visits", sessionCookie, {
+    method: "POST",
+    body: JSON.stringify({ patientId: adolescent.id, clinic: "ANC", priority: "ROUTINE", visitType: "WALK_IN", ancEvidence: { result: "NEGATIVE", method: "FACILITY_LAB", testedAt: new Date().toISOString().slice(0, 10), evidenceReference: "UPT-E2E-NEGATIVE", consentConfirmed: true } }),
+  });
+  assert(negativeAnc.response.status === 422, "ANC admitted a patient with a negative pregnancy test");
+  steps.push("route negative pregnancy tests away from routine ANC");
+  const adolescentAnc = await api("admit confirmed adolescent to ANC with safeguarding review", "/api/visits", {
+    method: "POST",
+    body: JSON.stringify({ patientId: adolescent.id, clinic: "ANC", priority: "ROUTINE", visitType: "WALK_IN", ancEvidence: { result: "POSITIVE", method: "FACILITY_LAB", testedAt: new Date().toISOString().slice(0, 10), evidenceReference: "UPT-E2E-POSITIVE", consentConfirmed: true } }),
+  });
+  assert(adolescentAnc.body.visit.ancAdmissionEvidence?.safeguardingReviewRequired === true, "Confirmed pregnant adolescent was not flagged for confidential safeguarding review");
+  const missingSafeguarding = await requestWithCookie("/api/service-points", sessionCookie, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "SAVE_ASSESSMENT",
+      visitId: adolescentAnc.body.visit.id,
+      servicePoint: "ANC",
+      templateVersion: "KE-ANC-2026.2",
+      data: { gravida: "1", para: "0", edd: "2027-04-01", gestationWeeks: "10", dangerSigns: "Reviewed — none reported", birthPreparedness: "Initial counselling started", carePlan: "Continue ANC and clinical review" },
+      riskLevel: "INCREASED",
+    }),
+  });
+  assert(missingSafeguarding.response.status === 422, "Adolescent ANC assessment saved without the required safeguarding assessment and action");
+  steps.push("require confidential clinician safeguarding documentation for under-15 ANC");
+
   const appointmentTime = new Date(Date.now() + 7 * 86400000);
   appointmentTime.setUTCHours(7, 0, 0, 0);
   const appointmentResult = await api("book follow-up appointment", "/api/appointments", { method: "POST", body: JSON.stringify({ patientId: patient.id, scheduledAt: appointmentTime.toISOString(), clinic: "Outpatient", notes: "E2E follow-up" }) });

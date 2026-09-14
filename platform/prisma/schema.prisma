@@ -153,6 +153,7 @@ model Facility {
   aiGenerations         AiGeneration[]
   cashierShifts         CashierShift[]
   operationsEvidence    OperationsEvidence[]
+  ancAdmissionEvidence  AncAdmissionEvidence[]
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 }
@@ -242,59 +243,60 @@ model ReferenceSequence {
 }
 
 model User {
-  id                          String                     @id @default(uuid()) @db.Uuid
-  facilityId                  String                     @db.Uuid
-  email                       String
-  displayName                 String
-  passwordHash                String
-  status                      UserStatus                 @default(ACTIVE)
-  mustChangePassword          Boolean                    @default(true)
-  passwordChangedAt           DateTime?
-  lastLoginAt                 DateTime?
-  facility                    Facility                   @relation(fields: [facilityId], references: [id])
-  roles                       UserRole[]
-  sessions                    Session[]
-  encounters                  Encounter[]
-  clinicalOrders              ClinicalOrder[]
-  recordedLabResults          LaboratoryResult[]         @relation("LabResultRecordedBy")
-  verifiedLabResults          LaboratoryResult[]         @relation("LabResultVerifiedBy")
-  dispensedPrescriptions      Prescription[]             @relation("PrescriptionDispensedBy")
-  performedImagingResults     ImagingResult[]            @relation("ImagingPerformedBy")
-  verifiedImagingResults      ImagingResult[]            @relation("ImagingVerifiedBy")
-  stockMovements              StockMovement[]
-  dispensations               Dispensation[]
-  medicationSafetyOverrides   MedicationSafetyOverride[]
-  encounterAddenda            EncounterAddendum[]
-  updatedServicePointRecords  ServicePointRecord[]
-  createdReferrals            Referral[]                 @relation("ReferralCreatedBy")
-  updatedReferrals            Referral[]                 @relation("ReferralUpdatedBy")
-  referralAttachments         ReferralAttachment[]       @relation("ReferralAttachmentAddedBy")
-  referralAcknowledgements    ReferralAcknowledgement[]  @relation("ReferralAcknowledgementRecordedBy")
-  createdPatientRelationships PatientRelationship[]
-  createdClaims               Claim[]
-  reversedPayments            Payment[]                  @relation("PaymentReversedBy")
-  openedStocktakes            Stocktake[]                @relation("StocktakeOpenedBy")
-  submittedStocktakes         Stocktake[]                @relation("StocktakeSubmittedBy")
-  approvedStocktakes          Stocktake[]                @relation("StocktakeApprovedBy")
-  countedStocktakeLines       StocktakeLine[]            @relation("StocktakeLineCountedBy")
-  accountingJournals          AccountingJournal[]        @relation("AccountingJournalPostedBy")
-  auditEvents                 AuditEvent[]
-  recordedPatientProblems     PatientProblem[]           @relation("PatientProblemRecordedBy")
-  updatedGovernanceEvidence   GovernanceEvidence[]       @relation("GovernanceEvidenceUpdatedBy")
-  updatedServicePointControls ServicePointControl[]      @relation("ServicePointControlUpdatedBy")
-  preparedReminderDeliveries  ReminderDelivery[]         @relation("ReminderDeliveryPreparedBy")
-  receivedPayments            Payment[]                  @relation("PaymentReceivedBy")
-  approvedMedicationRules     MedicationSafetyRule[]     @relation("MedicationSafetyRuleApprovedBy")
-  externalIdentities          ExternalIdentity[]
-  updatedIdentityRoleMappings IdentityRoleMapping[]      @relation("IdentityRoleMappingUpdatedBy")
-  requestedAiGenerations      AiGeneration[]             @relation("AiGenerationRequestedBy")
-  reviewedAiGenerations       AiGeneration[]             @relation("AiGenerationReviewedBy")
-  cashierShifts               CashierShift[]             @relation("CashierShiftCashier")
-  approvedCashierShifts       CashierShift[]             @relation("CashierShiftApprovedBy")
-  recordedOperationsEvidence  OperationsEvidence[]       @relation("OperationsEvidenceRecordedBy")
-  verifiedOperationsEvidence  OperationsEvidence[]       @relation("OperationsEvidenceVerifiedBy")
-  createdAt                   DateTime                   @default(now())
-  updatedAt                   DateTime                   @updatedAt
+  id                           String                     @id @default(uuid()) @db.Uuid
+  facilityId                   String                     @db.Uuid
+  email                        String
+  displayName                  String
+  passwordHash                 String
+  status                       UserStatus                 @default(ACTIVE)
+  mustChangePassword           Boolean                    @default(true)
+  passwordChangedAt            DateTime?
+  lastLoginAt                  DateTime?
+  facility                     Facility                   @relation(fields: [facilityId], references: [id])
+  roles                        UserRole[]
+  sessions                     Session[]
+  encounters                   Encounter[]
+  clinicalOrders               ClinicalOrder[]
+  recordedLabResults           LaboratoryResult[]         @relation("LabResultRecordedBy")
+  verifiedLabResults           LaboratoryResult[]         @relation("LabResultVerifiedBy")
+  dispensedPrescriptions       Prescription[]             @relation("PrescriptionDispensedBy")
+  performedImagingResults      ImagingResult[]            @relation("ImagingPerformedBy")
+  verifiedImagingResults       ImagingResult[]            @relation("ImagingVerifiedBy")
+  stockMovements               StockMovement[]
+  dispensations                Dispensation[]
+  medicationSafetyOverrides    MedicationSafetyOverride[]
+  encounterAddenda             EncounterAddendum[]
+  updatedServicePointRecords   ServicePointRecord[]
+  createdReferrals             Referral[]                 @relation("ReferralCreatedBy")
+  updatedReferrals             Referral[]                 @relation("ReferralUpdatedBy")
+  referralAttachments          ReferralAttachment[]       @relation("ReferralAttachmentAddedBy")
+  referralAcknowledgements     ReferralAcknowledgement[]  @relation("ReferralAcknowledgementRecordedBy")
+  createdPatientRelationships  PatientRelationship[]
+  createdClaims                Claim[]
+  reversedPayments             Payment[]                  @relation("PaymentReversedBy")
+  openedStocktakes             Stocktake[]                @relation("StocktakeOpenedBy")
+  submittedStocktakes          Stocktake[]                @relation("StocktakeSubmittedBy")
+  approvedStocktakes           Stocktake[]                @relation("StocktakeApprovedBy")
+  countedStocktakeLines        StocktakeLine[]            @relation("StocktakeLineCountedBy")
+  accountingJournals           AccountingJournal[]        @relation("AccountingJournalPostedBy")
+  auditEvents                  AuditEvent[]
+  recordedPatientProblems      PatientProblem[]           @relation("PatientProblemRecordedBy")
+  updatedGovernanceEvidence    GovernanceEvidence[]       @relation("GovernanceEvidenceUpdatedBy")
+  updatedServicePointControls  ServicePointControl[]      @relation("ServicePointControlUpdatedBy")
+  preparedReminderDeliveries   ReminderDelivery[]         @relation("ReminderDeliveryPreparedBy")
+  receivedPayments             Payment[]                  @relation("PaymentReceivedBy")
+  approvedMedicationRules      MedicationSafetyRule[]     @relation("MedicationSafetyRuleApprovedBy")
+  externalIdentities           ExternalIdentity[]
+  updatedIdentityRoleMappings  IdentityRoleMapping[]      @relation("IdentityRoleMappingUpdatedBy")
+  requestedAiGenerations       AiGeneration[]             @relation("AiGenerationRequestedBy")
+  reviewedAiGenerations        AiGeneration[]             @relation("AiGenerationReviewedBy")
+  cashierShifts                CashierShift[]             @relation("CashierShiftCashier")
+  approvedCashierShifts        CashierShift[]             @relation("CashierShiftApprovedBy")
+  recordedOperationsEvidence   OperationsEvidence[]       @relation("OperationsEvidenceRecordedBy")
+  verifiedOperationsEvidence   OperationsEvidence[]       @relation("OperationsEvidenceVerifiedBy")
+  recordedAncAdmissionEvidence AncAdmissionEvidence[]     @relation("AncAdmissionEvidenceRecordedBy")
+  createdAt                    DateTime                   @default(now())
+  updatedAt                    DateTime                   @updatedAt
 
   @@unique([facilityId, email])
 }
@@ -479,33 +481,53 @@ model Allergy {
 }
 
 model Visit {
-  id            String          @id @default(uuid()) @db.Uuid
-  facilityId    String          @db.Uuid
-  patientId     String          @db.Uuid
-  appointmentId String?         @unique @db.Uuid
-  visitNumber   String
-  clinic        String
-  visitType     String
-  priority      Priority        @default(ROUTINE)
-  status        VisitStatus     @default(REGISTERED)
-  reason        String
-  arrivedAt     DateTime        @default(now())
-  completedAt   DateTime?
-  facility      Facility        @relation(fields: [facilityId], references: [id])
-  patient       Patient         @relation(fields: [patientId], references: [id])
-  appointment   Appointment?    @relation(fields: [appointmentId], references: [id])
-  queues        QueueEntry[]
-  triage        TriageRecord?
-  encounters    Encounter[]
-  orders        ClinicalOrder[]
-  invoice       Invoice?
-  referrals     Referral[]
-  aiGenerations AiGeneration[]
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id                   String                @id @default(uuid()) @db.Uuid
+  facilityId           String                @db.Uuid
+  patientId            String                @db.Uuid
+  appointmentId        String?               @unique @db.Uuid
+  visitNumber          String
+  clinic               String
+  visitType            String
+  priority             Priority              @default(ROUTINE)
+  status               VisitStatus           @default(REGISTERED)
+  reason               String
+  arrivedAt            DateTime              @default(now())
+  completedAt          DateTime?
+  facility             Facility              @relation(fields: [facilityId], references: [id])
+  patient              Patient               @relation(fields: [patientId], references: [id])
+  appointment          Appointment?          @relation(fields: [appointmentId], references: [id])
+  queues               QueueEntry[]
+  triage               TriageRecord?
+  encounters           Encounter[]
+  orders               ClinicalOrder[]
+  invoice              Invoice?
+  referrals            Referral[]
+  aiGenerations        AiGeneration[]
+  ancAdmissionEvidence AncAdmissionEvidence?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 
   @@unique([facilityId, visitNumber])
   @@index([facilityId, status, priority, arrivedAt])
+}
+
+model AncAdmissionEvidence {
+  id                         String   @id @default(uuid()) @db.Uuid
+  facilityId                 String   @db.Uuid
+  visitId                    String   @unique @db.Uuid
+  result                     String
+  method                     String
+  testedAt                   DateTime @db.Date
+  evidenceReference          String
+  consentConfirmed           Boolean
+  safeguardingReviewRequired Boolean  @default(false)
+  recordedById               String   @db.Uuid
+  recordedAt                 DateTime @default(now())
+  facility                   Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  visit                      Visit    @relation(fields: [visitId], references: [id], onDelete: Restrict)
+  recordedBy                 User     @relation("AncAdmissionEvidenceRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+
+  @@index([facilityId, safeguardingReviewRequired, recordedAt])
 }
 
 model Appointment {

@@ -7,6 +7,7 @@ import { apiError } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
 import { operationalReference } from "@/lib/domain";
 import { appointmentClinics } from "@/lib/appointments";
+import { assessAncAdmission } from "@/lib/clinic-admission";
 import { visitAccessProfile, visitOrderTypes } from "@/lib/visit-access";
 
 const visitInput = z.object({
@@ -15,6 +16,13 @@ const visitInput = z.object({
   clinic: z.union([z.enum(appointmentClinics), z.literal("DM")]),
   priority: z.enum(["ROUTINE", "PRIORITY", "URGENT", "EMERGENCY"]),
   visitType: z.enum(["WALK_IN", "APPOINTMENT", "EMERGENCY"]).default("WALK_IN"),
+  ancEvidence: z.object({
+    result: z.enum(["POSITIVE", "NEGATIVE", "PENDING", "NOT_TESTED"]),
+    method: z.enum(["FACILITY_LAB", "EXTERNAL_LAB"]),
+    testedAt: z.iso.date(),
+    evidenceReference: z.string().trim().min(3).max(160),
+    consentConfirmed: z.boolean(),
+  }).optional(),
 });
 
 export async function GET() {
@@ -56,6 +64,17 @@ export async function GET() {
           },
         },
         ...(access.clinical || access.pharmacy || access.triage ? { triage: { include: { observations: true } } } : {}),
+        ...(access.clinical || access.triage ? { ancAdmissionEvidence: {
+          select: {
+            result: true,
+            method: true,
+            testedAt: true,
+            evidenceReference: true,
+            consentConfirmed: true,
+            safeguardingReviewRequired: true,
+            recordedAt: true,
+          },
+        } } : {}),
         ...(access.clinical || access.pharmacy ? { encounters: {
           where: { status: { in: ["DRAFT", "SIGNED"] } },
           include: { diagnoses: true },
@@ -160,6 +179,16 @@ export async function POST(request: Request) {
           : null;
         if (input.appointmentId && !appointment)
           throw Object.assign(new Error("Scheduled appointment is no longer available"), { status: 409 });
+        const clinic = appointment?.clinic || input.clinic;
+        if (clinic !== "ANC" && input.ancEvidence)
+          throw Object.assign(new Error("Pregnancy-test evidence may only be recorded for ANC check-in"), { status: 422 });
+        if (clinic === "ANC" && input.visitType === "EMERGENCY")
+          throw Object.assign(new Error("Emergency presentations must be checked into Emergency and must not be delayed for pregnancy confirmation"), { status: 422 });
+        const ancDecision = clinic === "ANC"
+          ? assessAncAdmission(patient, input.ancEvidence)
+          : null;
+        if (ancDecision && !ancDecision.admitted)
+          throw Object.assign(new Error(ancDecision.reason), { status: 422 });
         const facility = await tx.facility.findUniqueOrThrow({
           where: { id: user.facilityId },
         });
@@ -196,7 +225,7 @@ export async function POST(request: Request) {
             nextValue: 2,
           },
         });
-        const directWalkIn = (appointment?.clinic || input.clinic) === "Walk-in";
+        const directWalkIn = clinic === "Walk-in";
         const visit = await tx.visit.create({
           data: {
             facilityId: user.facilityId,
@@ -208,7 +237,7 @@ export async function POST(request: Request) {
               year,
               visitSequence.nextValue - 1n,
             ),
-            clinic: appointment?.clinic || input.clinic,
+            clinic,
             visitType: appointment ? "APPOINTMENT" : input.visitType,
             priority: input.priority,
             status: directWalkIn ? "AWAITING_CLINICIAN" : "AWAITING_TRIAGE",
@@ -220,6 +249,20 @@ export async function POST(request: Request) {
                 status: "WAITING",
               },
             },
+            ...(ancDecision?.admitted ? {
+              ancAdmissionEvidence: {
+                create: {
+                  facilityId: user.facilityId,
+                  result: "POSITIVE",
+                  method: input.ancEvidence!.method,
+                  testedAt: new Date(`${input.ancEvidence!.testedAt}T00:00:00.000Z`),
+                  evidenceReference: input.ancEvidence!.evidenceReference,
+                  consentConfirmed: true,
+                  safeguardingReviewRequired: ancDecision.safeguardingReviewRequired,
+                  recordedById: user.id,
+                },
+              },
+            } : {}),
             invoice: {
               create: {
                 patientId: patient.id,
@@ -231,11 +274,11 @@ export async function POST(request: Request) {
                 ),
                 items: {
                   create: {
-                    serviceCode: `CONSULT-${input.clinic.toUpperCase()}`,
-                    description: `${input.clinic} consultation`,
+                    serviceCode: `CONSULT-${clinic.toUpperCase()}`,
+                    description: `${clinic} consultation`,
                     quantity: new Prisma.Decimal(1),
                     unitPrice: new Prisma.Decimal(
-                      input.clinic === "Emergency" ? "0.00" : "500.00",
+                      clinic === "Emergency" ? "0.00" : "500.00",
                     ),
                   },
                 },
@@ -246,6 +289,7 @@ export async function POST(request: Request) {
             patient: true,
             queues: true,
             invoice: { include: { items: true } },
+            ancAdmissionEvidence: true,
           },
         });
         await appendAudit(tx, {
@@ -255,6 +299,14 @@ export async function POST(request: Request) {
           entityId: visit.id,
           afterHash: `${visit.visitNumber}:${visit.status}`,
         });
+        if (ancDecision?.admitted)
+          await appendAudit(tx, {
+            userId: user.id,
+            action: "ANC_ADMISSION_CONFIRMED",
+            entityType: "AncAdmissionEvidence",
+            entityId: visit.ancAdmissionEvidence!.id,
+            afterHash: `${input.ancEvidence!.method}:${input.ancEvidence!.testedAt}:${ancDecision.safeguardingReviewRequired ? "SAFEGUARDING_REVIEW" : "ROUTINE"}`,
+          });
         if (appointment) {
           await tx.appointment.update({ where: { id: appointment.id }, data: { status: "COMPLETED" } });
           await appendAudit(tx, {

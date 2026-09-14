@@ -30,6 +30,15 @@ type Visit = {
   status: string;
   arrivedAt: string;
   patient: Patient;
+  ancAdmissionEvidence?: {
+    result: string;
+    method: string;
+    testedAt: string;
+    evidenceReference: string;
+    consentConfirmed: boolean;
+    safeguardingReviewRequired: boolean;
+    recordedAt: string;
+  } | null;
   encounters?: { diagnoses: { description: string; code?: string | null; primary: boolean }[] }[];
   orders?: {
     id: string;
@@ -354,6 +363,10 @@ function AssessmentWorkspace({
         <div><small>Allergies</small><strong className={visit.patient.allergies?.length ? "dangerText" : ""}>{visit.patient.allergies?.length ? visit.patient.allergies.map((item) => item.substance).join(", ") : "None recorded—verify"}</strong></div>
         <div><small>Template</small><strong>{profile.templateVersion}</strong></div>
       </section>
+      {profile.code === "ANC" && visit.ancAdmissionEvidence && <section className={`clinicalBoundary ${visit.ancAdmissionEvidence.safeguardingReviewRequired ? "emergencyPanel" : ""}`}>
+        <strong>Pregnancy confirmed</strong>
+        <span>{visit.ancAdmissionEvidence.method.replaceAll("_", " ").toLowerCase()} · tested {new Date(visit.ancAdmissionEvidence.testedAt).toLocaleDateString()} · reference {visit.ancAdmissionEvidence.evidenceReference}.{visit.ancAdmissionEvidence.safeguardingReviewRequired ? " Provide a private, non-judgemental safeguarding assessment now; do not delay ANC." : " Continue WHO-aligned ANC assessment."}</span>
+      </section>}
       {profile.code === "MCH_PNC" && <PatientLinkPanel visit={visit} relationships={relationships} onLinked={load} />}
       <form className="serviceAssessment" onSubmit={submit}>
         {error && <div className="alert">{error}</div>}
