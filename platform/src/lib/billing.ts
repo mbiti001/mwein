@@ -3,12 +3,19 @@ export type MoneyPayment = { amount: unknown };
 
 export const claimTransitions = {
   DRAFT: ["SUBMITTED", "CANCELLED"],
-  SUBMITTED: ["APPROVED", "REJECTED", "CANCELLED"],
-  APPROVED: ["PAID", "REJECTED", "CANCELLED"],
-  REJECTED: ["SUBMITTED", "CANCELLED"],
-  PAID: [],
+  SUBMITTED: ["RETURNED", "APPROVED", "REDUCED", "REJECTED", "WITHHELD", "CANCELLED"],
+  RETURNED: ["SUBMITTED", "CANCELLED"],
+  APPROVED: ["PAID", "WITHHELD", "REJECTED", "CANCELLED"],
+  REDUCED: ["UNDER_REVIEW", "PAID", "CANCELLED"],
+  REJECTED: ["UNDER_REVIEW", "CANCELLED"],
+  UNDER_REVIEW: ["SUBMITTED", "APPROVED", "REDUCED", "REJECTED", "CANCELLED"],
+  WITHHELD: ["APPROVED", "PAID", "REJECTED", "CANCELLED"],
+  PAID: ["RECOVERED"],
+  RECOVERED: [],
   CANCELLED: [],
 } as const;
+
+export const balanceReservingClaimStatuses: ClaimStatus[] = ["DRAFT", "SUBMITTED", "RETURNED", "APPROVED", "REDUCED", "UNDER_REVIEW", "WITHHELD", "PAID"];
 
 export type ClaimStatus = keyof typeof claimTransitions;
 
@@ -28,4 +35,9 @@ export function invoiceTotals(items: MoneyLine[], payments: MoneyPayment[]) {
 
 export function paymentFitsBalance(amount: number, balance: number) {
   return Number.isFinite(amount) && amount > 0 && amount <= balance + 0.001;
+}
+
+export function patientPayBalance(total: number, paid: number, claims: { amount: unknown; status: string }[]) {
+  const reserved = claims.filter(claim => balanceReservingClaimStatuses.includes(claim.status as ClaimStatus)).reduce((sum, claim) => sum + Number(claim.amount), 0);
+  return Math.max(0, total - paid - reserved);
 }

@@ -56,14 +56,14 @@ export function summarizeOperations(visits: ReportVisit[], now = new Date()) {
       const stale =
         claim.status === "SUBMITTED" &&
         new Date(claim.updatedAt).getTime() < staleSubmittedAt;
-      if (claim.status === "REJECTED" || stale) {
+      if (["RETURNED", "REJECTED", "REDUCED", "WITHHELD"].includes(claim.status) || stale) {
         claimExceptions.push({
           id: claim.id,
           claimNumber: claim.claimNumber,
           payer: claim.payer,
           amount: Number(claim.amount),
           status: claim.status,
-          reason: claim.status === "REJECTED" ? "Rejected" : "Submitted over 7 days ago",
+          reason: stale ? "Submitted over 7 days ago" : claim.status.charAt(0) + claim.status.slice(1).toLowerCase(),
         });
       }
     }

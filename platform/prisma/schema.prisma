@@ -104,9 +104,14 @@ enum PaymentStatus {
 enum ClaimStatus {
   DRAFT
   SUBMITTED
+  RETURNED
   APPROVED
+  REDUCED
   REJECTED
+  UNDER_REVIEW
+  WITHHELD
   PAID
+  RECOVERED
   CANCELLED
 }
 
@@ -1338,6 +1343,7 @@ model Payment {
   status            PaymentStatus @default(CONFIRMED)
   amount            Decimal       @db.Decimal(14, 2)
   externalReference String?
+  coverageConsentReference String?
   reversedAt        DateTime?
   reversalReason    String?
   reversedById      String?       @db.Uuid
@@ -1421,6 +1427,13 @@ model Claim {
   amount       Decimal     @db.Decimal(14, 2)
   status       ClaimStatus @default(DRAFT)
   notes        String?
+  fundCode     String?
+  eligibilityVerifiedAt DateTime?
+  facilityServiceApproved Boolean?
+  authorizationRequired Boolean @default(false)
+  authorizationReference String?
+  serviceDate  DateTime?
+  submissionDeadline DateTime?
   submittedAt  DateTime?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt

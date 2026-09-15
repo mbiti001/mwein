@@ -6,6 +6,8 @@ import {
 } from "@/lib/billing";
 import { jsonRequest } from "@/lib/client-http";
 import CashierShiftPanel from "@/components/CashierShiftPanel";
+import ClaimsControlCenter from "@/components/ClaimsControlCenter";
+import { assessShaRoute, shaFundLabels, type ShaFund } from "@/lib/sha";
 type Visit = {
   id: string;
   visitNumber: string;
@@ -68,6 +70,12 @@ export default function BillingWorkstation({
   const [busy, setBusy] = useState(false);
   const [lastReceipt, setLastReceipt] = useState("");
   const [claimPayer, setClaimPayer] = useState("SHA");
+  const [shaFund, setShaFund] = useState<ShaFund>("PHCF");
+  const [eligibilityVerified, setEligibilityVerified] = useState(false);
+  const [facilityServiceApproved, setFacilityServiceApproved] = useState(false);
+  const [authorizationRequired, setAuthorizationRequired] = useState(false);
+  const [authorizationReference, setAuthorizationReference] = useState("");
+  const [serviceDate, setServiceDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [query, setQuery] = useState("");
   const visibleQueue = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -94,8 +102,16 @@ export default function BillingWorkstation({
     invoice?.payments
       .filter((p) => p.status === "CONFIRMED")
       .reduce((s, p) => s + Number(p.amount), 0) || 0;
-  const claimed = invoice?.claims.filter(c => ["DRAFT", "SUBMITTED", "APPROVED", "PAID"].includes(c.status)).reduce((sum, c) => sum + Number(c.amount), 0) || 0;
+  const claimed = invoice?.claims.filter(c => ["DRAFT", "SUBMITTED", "RETURNED", "APPROVED", "REDUCED", "UNDER_REVIEW", "WITHHELD", "PAID"].includes(c.status)).reduce((sum, c) => sum + Number(c.amount), 0) || 0;
   const balance = Math.max(0, total - paid - claimed);
+  const shaRoute = useMemo(() => assessShaRoute({
+    fund: shaFund,
+    eligibilityVerified,
+    facilityServiceApproved,
+    requiresAuthorization: authorizationRequired,
+    authorizationReference,
+    serviceDate: new Date(`${serviceDate}T00:00:00Z`),
+  }), [shaFund, eligibilityVerified, facilityServiceApproved, authorizationRequired, authorizationReference, serviceDate]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!invoice) return;
@@ -108,7 +124,8 @@ export default function BillingWorkstation({
         body: JSON.stringify({
           method: form.get("method"),
           amount: form.get("amount"),
-          externalReference: form.get("externalReference") || undefined,
+            externalReference: form.get("externalReference") || undefined,
+            coverageConsentReference: form.get("coverageConsentReference") || undefined,
         }),
       }, "Payment could not be recorded");
       setLastReceipt(data.payment.receipt?.receiptNumber || "");
@@ -135,6 +152,12 @@ export default function BillingWorkstation({
             coveredItemIds: f.getAll("coveredItemIds"),
             notes: f.get("claimNotes") || undefined,
             submit: f.get("payer") === "SHA" ? shaReady : true,
+            fundCode: f.get("payer") === "SHA" ? shaFund : undefined,
+            eligibilityVerified: f.get("payer") === "SHA" ? eligibilityVerified : undefined,
+            facilityServiceApproved: f.get("payer") === "SHA" ? facilityServiceApproved : undefined,
+            authorizationRequired: f.get("payer") === "SHA" ? authorizationRequired : undefined,
+            authorizationReference: f.get("payer") === "SHA" ? authorizationReference || undefined : undefined,
+            serviceDate: f.get("payer") === "SHA" ? serviceDate : undefined,
           }),
         }, "Claim could not be created");
       setLastReceipt(`Claim ${d.claim.claimNumber} ${d.claim.status === "DRAFT" ? "saved as draft; visit remains awaiting submission" : d.visitCompleted ? "submitted; visit completed" : "submitted; collect any patient-pay balance before completing the visit"}`);
@@ -286,6 +309,7 @@ export default function BillingWorkstation({
             Payment recorded · Receipt {lastReceipt}
           </div>
         )}
+        {permissions.includes("claims.write") && <ClaimsControlCenter refreshSignal={lastReceipt} />}
         {permissions.includes("billing.write") && <CashierShiftPanel permissions={permissions} />}
         <section className="card">
           <label className="listSearch">Find a visit<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Patient, patient number, visit or invoice" /></label>
@@ -472,6 +496,10 @@ export default function BillingWorkstation({
             placeholder="Required for non-cash methods"
           />
         </label>
+        <label className="wide">
+          SHA itemised quotation / written top-up consent reference
+          <input name="coverageConsentReference" placeholder="Required before collecting a permitted SHIF top-up" />
+        </label>
         <div className="wide submitBar">
           <span>
             A fully paid visit closes only after consultation is signed and all
@@ -501,12 +529,31 @@ export default function BillingWorkstation({
         <label>
           Member / policy number *<input name="memberNumber" required />
         </label>
-        <fieldset className="wide coverageItems"><legend>Services covered by this insurer *</legend><p>Untick anything the insurer does not cover. Unticked lines remain on the facility invoice and become payable by the patient.</p>{invoice.items.map(item => { const allocated = invoice.claims.some(c => ["DRAFT", "SUBMITTED", "APPROVED", "PAID"].includes(c.status) && c.lines?.some(line => line.invoiceItemId === item.id)); return <label key={item.id}><input type="checkbox" name="coveredItemIds" value={item.id} defaultChecked={!allocated} disabled={allocated}/><span><strong>{item.description}</strong><small>{money(Number(item.quantity) * Number(item.unitPrice), invoice.currency)}{allocated ? " · already allocated" : ""}</small></span></label>; })}</fieldset>
+        {claimPayer === "SHA" && <fieldset className="wide shaBenefitEngine">
+          <legend>SHA Benefit Engine</legend>
+          <div className="shaRouteGrid">
+            <label>Paying Fund *<select value={shaFund} onChange={event => setShaFund(event.target.value as ShaFund)}>{Object.entries(shaFundLabels).map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label>
+            <label>Date of service *<input type="date" value={serviceDate} onChange={event => setServiceDate(event.target.value)} required /></label>
+          </div>
+          <div className="shaChecks">
+            <label><input type="checkbox" checked={eligibilityVerified} onChange={event => setEligibilityVerified(event.target.checked)} /> Eligibility verified on SHA platform</label>
+            <label><input type="checkbox" checked={facilityServiceApproved} onChange={event => setFacilityServiceApproved(event.target.checked)} /> Service line active for Mwein</label>
+            <label><input type="checkbox" checked={authorizationRequired} onChange={event => setAuthorizationRequired(event.target.checked)} /> Pre-authorisation required</label>
+          </div>
+          {authorizationRequired && <label>Pre-authorisation reference *<input value={authorizationReference} onChange={event => setAuthorizationReference(event.target.value)} required /></label>}
+          <div className={`shaDecision ${shaRoute.ready ? "ready" : "blocked"}`}>
+            <strong>{shaRoute.ready ? "Routing checks complete" : `${shaRoute.blockers.length} submission blocker${shaRoute.blockers.length === 1 ? "" : "s"}`}</strong>
+            <span>Submit by {shaRoute.deadline.toLocaleDateString("en-KE", { dateStyle: "medium", timeZone: "UTC" })}</span>
+            {shaRoute.blockers.map(item => <small key={item}>• {item}</small>)}
+            {shaRoute.warnings.map(item => <small key={item}>• {item}</small>)}
+          </div>
+        </fieldset>}
+        <fieldset className="wide coverageItems"><legend>Services covered by this insurer *</legend><p>Untick anything the insurer does not cover. For SHA, any patient-pay remainder still requires the applicable Fund rules and documented consent.</p>{invoice.items.map(item => { const allocated = invoice.claims.some(c => ["DRAFT", "SUBMITTED", "RETURNED", "APPROVED", "REDUCED", "UNDER_REVIEW", "WITHHELD", "PAID"].includes(c.status) && c.lines?.some(line => line.invoiceItemId === item.id)); return <label key={item.id}><input type="checkbox" name="coveredItemIds" value={item.id} defaultChecked={!allocated} disabled={allocated}/><span><strong>{item.description}</strong><small>{money(Number(item.quantity) * Number(item.unitPrice), invoice.currency)}{allocated ? " · already allocated" : ""}</small></span></label>; })}</fieldset>
         <label>
           Claim note
           <input name="claimNotes" />
         </label>
-        {claimPayer === "SHA" && <div className={`wide ${shaReady ? "privacyNotice" : "allergyAlert"}`}><strong>{shaReady ? "SHA gateway configured" : "SHA gateway not yet connected"}</strong><span>{shaReady ? "Submission will require verified identity, a signed encounter, ICD-11 coding and completed orders." : "This will save a local draft only. It will not be represented as submitted to SHA."}</span></div>}
+        {claimPayer === "SHA" && <div className={`wide ${shaReady ? "privacyNotice" : "allergyAlert"}`}><strong>{shaReady ? "SHA gateway configured" : "SHA gateway not yet connected"}</strong><span>{shaReady ? "Submission also requires a verified identity, signed encounter, ICD-11 coding and completed orders." : "This will save a local draft only. It will not be represented as submitted to SHA."}</span></div>}
         <button className="primary wide" disabled={busy}>
           {claimPayer === "SHA" && !shaReady ? "Save SHA claim draft" : "Submit claim"}
         </button>

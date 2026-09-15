@@ -6,13 +6,19 @@ import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
 import { operationalReference } from "@/lib/domain";
-import { shaGatewayReadiness } from "@/lib/sha";
+import { assessShaRoute, shaFunds, shaGatewayReadiness } from "@/lib/sha";
 const schema = z.object({
   payer: z.enum(["SHA", "PRIVATE_INSURER", "EMPLOYER"]),
   memberNumber: z.string().trim().min(2).max(100),
   coveredItemIds: z.array(z.uuid()).min(1).max(100),
   notes: z.string().trim().max(1000).optional(),
   submit: z.boolean().default(false),
+  fundCode: z.enum(shaFunds).optional(),
+  eligibilityVerified: z.boolean().optional(),
+  facilityServiceApproved: z.boolean().optional(),
+  authorizationRequired: z.boolean().optional(),
+  authorizationReference: z.string().trim().max(120).optional(),
+  serviceDate: z.coerce.date().optional(),
 });
 export async function POST(
   request: Request,
@@ -33,7 +39,7 @@ export async function POST(
           items: true,
           payments: { where: { status: "CONFIRMED" } },
           claims: {
-            where: { status: { in: ["DRAFT", "SUBMITTED", "APPROVED"] } },
+            where: { status: { in: ["DRAFT", "SUBMITTED", "RETURNED", "APPROVED", "REDUCED", "UNDER_REVIEW", "WITHHELD"] } },
             include: { lines: true },
           },
           visit: { include: { facility: true, patient: { include: { identifiers: true } }, encounters: { include: { diagnoses: true } }, orders: true } },
@@ -42,6 +48,18 @@ export async function POST(
       if (!invoice)
         throw Object.assign(new Error("Invoice not found"), { status: 404 });
       if (input.payer === "SHA") {
+        if (!input.fundCode || input.eligibilityVerified === undefined || input.facilityServiceApproved === undefined || !input.serviceDate) {
+          throw Object.assign(new Error("Select the SHA Fund and complete the eligibility, facility-service and service-date checks"), { status: 422 });
+        }
+        const routing = assessShaRoute({
+          fund: input.fundCode,
+          eligibilityVerified: input.eligibilityVerified,
+          facilityServiceApproved: input.facilityServiceApproved,
+          requiresAuthorization: Boolean(input.authorizationRequired),
+          authorizationReference: input.authorizationReference,
+          serviceDate: input.serviceDate,
+        });
+        if (input.submit && !routing.ready) throw Object.assign(new Error(routing.blockers.join("; ")), { status: 422 });
         const shaNumber = invoice.visit.patient.identifiers.find(identifier => identifier.type === "SHA")?.value;
         if (!shaNumber) throw Object.assign(new Error("Record and verify the patient SHA number before preparing this claim"), { status: 422 });
         if (shaNumber.trim().toUpperCase() !== input.memberNumber.trim().toUpperCase()) throw Object.assign(new Error("The claim member number does not match the patient SHA number"), { status: 422 });
@@ -88,6 +106,13 @@ export async function POST(
           ),
           amount: new Prisma.Decimal(amount),
           notes: input.notes,
+          fundCode: input.payer === "SHA" ? input.fundCode : undefined,
+          eligibilityVerifiedAt: input.payer === "SHA" && input.eligibilityVerified ? new Date() : undefined,
+          facilityServiceApproved: input.payer === "SHA" ? input.facilityServiceApproved : undefined,
+          authorizationRequired: input.payer === "SHA" ? Boolean(input.authorizationRequired) : false,
+          authorizationReference: input.payer === "SHA" ? input.authorizationReference : undefined,
+          serviceDate: input.payer === "SHA" ? input.serviceDate : undefined,
+          submissionDeadline: input.payer === "SHA" && input.serviceDate ? assessShaRoute({ fund: input.fundCode!, eligibilityVerified: Boolean(input.eligibilityVerified), facilityServiceApproved: Boolean(input.facilityServiceApproved), requiresAuthorization: Boolean(input.authorizationRequired), authorizationReference: input.authorizationReference, serviceDate: input.serviceDate }).deadline : undefined,
           status: input.submit ? "SUBMITTED" : "DRAFT",
           submittedAt: input.submit ? new Date() : undefined,
           lines: { create: selected.map(item => ({ invoiceItemId: item.id, amount: new Prisma.Decimal(Number(item.quantity) * Number(item.unitPrice)) })) },
@@ -101,7 +126,7 @@ export async function POST(
         afterHash: `${claim.claimNumber}:${claim.payer}:${claim.amount}:${selected.map(item => item.id).join(",")}`,
       });
       const paid = invoice.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
-      const existingSubmitted = invoice.claims.filter(existing => ["SUBMITTED", "APPROVED", "PAID"].includes(existing.status)).reduce((sum, existing) => sum + Number(existing.amount), 0);
+      const existingSubmitted = invoice.claims.filter(existing => ["SUBMITTED", "RETURNED", "APPROVED", "REDUCED", "UNDER_REVIEW", "WITHHELD", "PAID"].includes(existing.status)).reduce((sum, existing) => sum + Number(existing.amount), 0);
       const total = invoice.items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0);
       const clinicallyComplete = invoice.visit.encounters.some(encounter => encounter.status === "SIGNED") && invoice.visit.orders.every(order => ["COMPLETED", "CANCELLED"].includes(order.status));
       const visitCompleted = input.submit && clinicallyComplete && paid + existingSubmitted + amount >= total - 0.001;
