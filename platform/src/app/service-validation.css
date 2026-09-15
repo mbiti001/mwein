@@ -1,0 +1,20 @@
+.clinicalEntryAlert {
+  display: grid;
+  gap: 7px;
+}
+
+.clinicalEntryAlert ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.clinicalEntryAlert li + li {
+  margin-top: 4px;
+}
+
+.serviceFields .fieldRangeHint {
+  display: block;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 500;
+}

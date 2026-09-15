@@ -9,6 +9,7 @@ import "./clinical-terms.css";
 import "./targeted-review.css";
 import "./catalogue.css";
 import "./service-points.css";
+import "./service-validation.css";
 import "./mobile.css";
 
 export const metadata: Metadata = {

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { appendAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth";
+import { validateCareAssessment } from "@/lib/care-assessment-validation";
 import {
   careFieldKeys,
   careServiceForClinic,
@@ -233,6 +234,9 @@ export async function POST(request: Request) {
       const missing = requiredCareFields(profile.code).filter((key) => !isPresent(assessmentData[key]));
       if (missing.length)
         throw Object.assign(new Error(`Complete the required assessment fields: ${missing.join(", ")}`), { status: 422 });
+      const validation = validateCareAssessment(profile, assessmentData);
+      if (validation.errors.length)
+        throw Object.assign(new Error(validation.errors.map((issue) => issue.message).join(" ")), { status: 422 });
       if (
         profile.code === "ANC" &&
         visit.ancAdmissionEvidence?.safeguardingReviewRequired &&
@@ -286,7 +290,7 @@ export async function POST(request: Request) {
         entityId: record.id,
         afterHash: `${profile.code}:${profile.templateVersion}:${Object.keys(assessmentData).sort().join("|")}`,
       });
-      return { record };
+      return { record, warnings: validation.warnings.map((issue) => issue.message) };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return NextResponse.json(result);
   } catch (error) {

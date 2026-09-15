@@ -9,6 +9,7 @@ import {
   type CareField,
   type CareServiceProfile,
 } from "@/lib/care-service-points";
+import { validateCareAssessment } from "@/lib/care-assessment-validation";
 import { jsonRequest } from "@/lib/client-http";
 import { applyLnmpDating, dateInTimeZone, gestationalAgeLabel, pregnancyDatingFromLnmp } from "@/lib/pregnancy-dating";
 
@@ -314,6 +315,7 @@ function AssessmentWorkspace({
   const ancDating = profile.code === "ANC" && typeof values.lmp === "string"
     ? pregnancyDatingFromLnmp(values.lmp, facilityToday)
     : null;
+  const assessmentValidation = useMemo(() => validateCareAssessment(profile, values), [profile, values]);
 
   async function load() {
     setBusy(true);
@@ -351,9 +353,13 @@ function AssessmentWorkspace({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (assessmentValidation.errors.length) {
+      setError("Resolve the highlighted clinical data errors before saving.");
+      return;
+    }
     setBusy(true); setError(""); setNotice("");
     try {
-      const response = await api<{ record: ServiceRecord }>("/api/service-points", {
+      const response = await api<{ record: ServiceRecord; warnings?: string[] }>("/api/service-points", {
         method: "POST",
         body: JSON.stringify({
           action: "SAVE_ASSESSMENT",
@@ -367,7 +373,7 @@ function AssessmentWorkspace({
       });
       setRecord(response.record);
       setSaved(true);
-      setNotice(`${profile.label} assessment saved in this patient's encounter.`);
+      setNotice(`${profile.label} assessment saved in this patient's encounter.${response.warnings?.length ? " Clinical-range alerts remain visible for review." : ""}`);
       await onSaved();
     } catch (reason) { setError((reason as Error).message); }
     finally { setBusy(false); }
@@ -393,6 +399,15 @@ function AssessmentWorkspace({
       <form className="serviceAssessment" onSubmit={submit}>
         {error && <div className="alert">{error}</div>}
         {notice && <div className="inlineSaveConfirmation" role="status">✓ {notice}</div>}
+        {assessmentValidation.errors.length > 0 && <div className="alert clinicalEntryAlert" role="alert" aria-live="assertive">
+          <strong>Cannot save these entries</strong>
+          <ul>{assessmentValidation.errors.map((issue) => <li key={`${issue.field || "form"}:${issue.message}`}>{issue.message}</li>)}</ul>
+        </div>}
+        {assessmentValidation.warnings.length > 0 && <div className="privacyNotice warning clinicalEntryAlert" role="status" aria-live="polite">
+          <strong>Clinical review alert — verify these unusual values</strong>
+          <ul>{assessmentValidation.warnings.map((issue) => <li key={`${issue.field || "form"}:${issue.message}`}>{issue.message}</li>)}</ul>
+          <span>Abnormal values can be genuine. Confirm the entry, assess the patient and document the relevant history or action.</span>
+        </div>}
         <div className="clinicalBoundary">
           <strong>One connected record</strong>
           <span>Use this form for specialty observations. Diagnoses, laboratory/imaging orders and results, prescriptions, billing, referrals and visit completion stay in their shared workspaces.</span>
@@ -409,7 +424,7 @@ function AssessmentWorkspace({
         <section className="card servicePlanBar">
           <label>Clinical risk *<select value={riskLevel} onChange={(event) => { setRiskLevel(event.target.value); setSaved(false); }}><option value="ROUTINE">Routine</option><option value="INCREASED">Increased</option><option value="HIGH">High risk</option><option value="EMERGENCY">Emergency action</option></select></label>
           <label>Next follow-up<input type="date" value={followUpAt} onChange={(event) => { setFollowUpAt(event.target.value); setSaved(false); }} /></label>
-          <div className="serviceSave">{saved ? <span className="inlineSaveConfirmation">✓ Saved {record?.updatedAt ? new Date(record.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</span> : <button className="primary" disabled={busy}>{busy ? "Saving…" : `Save ${profile.label} assessment`}</button>}</div>
+          <div className="serviceSave">{saved ? <span className="inlineSaveConfirmation">✓ Saved {record?.updatedAt ? new Date(record.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</span> : <button className="primary" disabled={busy || assessmentValidation.errors.length > 0}>{busy ? "Saving…" : assessmentValidation.errors.length ? "Resolve entry errors" : `Save ${profile.label} assessment`}</button>}</div>
         </section>
       </form>
     </>
@@ -421,7 +436,10 @@ function AssessmentField({ field, value, readOnly, onChange }: { field: CareFiel
   if (field.type === "textarea") return <label className="wide">{label}<textarea rows={3} required={field.required} value={String(value || "")} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} /></label>;
   if (field.type === "select") return <label>{label}<select required={field.required} value={String(value || "")} onChange={(event) => onChange(event.target.value)}><option value="">Select</option>{field.options?.map((option) => <option key={option}>{option}</option>)}</select></label>;
   if (field.type === "checkbox") return <label className="checkField"><input type="checkbox" checked={Boolean(value)} onChange={(event) => onChange(event.target.checked)} />{label}</label>;
-  return <label>{label}<input type={field.type} required={field.required} readOnly={readOnly} aria-readonly={readOnly || undefined} min={field.type === "number" ? 0 : undefined} step={field.type === "number" ? "any" : undefined} value={String(value ?? "")} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} /></label>;
+  const range = field.type === "number" && (field.min !== undefined || field.max !== undefined)
+    ? `Accepted range: ${field.min ?? "any"} to ${field.max ?? "any"}${field.unit ? ` ${field.unit}` : ""}${field.integer ? ", whole numbers only" : ""}.`
+    : undefined;
+  return <label>{label}<input type={field.type} required={field.required} readOnly={readOnly} aria-readonly={readOnly || undefined} min={field.type === "number" ? field.min : undefined} max={field.type === "number" ? field.max : undefined} step={field.type === "number" ? field.step ?? "any" : undefined} value={String(value ?? "")} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} title={range} />{range && <small className="fieldRangeHint">{range}</small>}</label>;
 }
 
 function PatientLinkPanel({ visit, relationships, onLinked }: { visit: Visit; relationships: Relationship[]; onLinked: () => Promise<void> }) {

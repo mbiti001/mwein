@@ -403,21 +403,34 @@ try {
       action: "SAVE_ASSESSMENT",
       visitId: adolescentAnc.body.visit.id,
       servicePoint: "ANC",
-      templateVersion: "KE-ANC-2026.3",
-      data: { gravida: "1", para: "0", lmp: ancLnmp, edd: "1900-01-01", gestationWeeks: "99", dangerSigns: "Reviewed — none reported", birthPreparedness: "Initial counselling started", carePlan: "Continue ANC and clinical review" },
+      templateVersion: "KE-ANC-2026.4",
+      data: { gravida: "1", para: "0", abortions: "0", livingChildren: "0", lmp: ancLnmp, edd: "1900-01-01", gestationWeeks: "99", dangerSigns: "Reviewed — none reported", birthPreparedness: "Initial counselling started", carePlan: "Continue ANC and clinical review" },
       riskLevel: "INCREASED",
     }),
   });
   assert(missingSafeguarding.response.status === 422, "Adolescent ANC assessment saved without the required safeguarding assessment and action");
   steps.push("require confidential clinician safeguarding documentation for under-15 ANC");
+  const implausibleObstetricHistory = await requestWithCookie("/api/service-points", sessionCookie, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "SAVE_ASSESSMENT",
+      visitId: adolescentAnc.body.visit.id,
+      servicePoint: "ANC",
+      templateVersion: "KE-ANC-2026.4",
+      data: { gravida: "31", para: "30", abortions: "0", livingChildren: "30", lmp: ancLnmp, edd: "1900-01-01", gestationWeeks: "99", dangerSigns: "Reviewed — none reported", safeguardingAssessment: "Private, non-judgemental immediate-safety assessment completed", safeguardingAction: "Senior clinical review and facility child-protection pathway initiated", birthPreparedness: "Initial counselling started", carePlan: "Continue ANC and clinical review" },
+      riskLevel: "HIGH",
+    }),
+  });
+  assert(implausibleObstetricHistory.response.status === 422 && implausibleObstetricHistory.body.reason?.includes("Gravida cannot exceed 30"), "ANC accepted an implausible gravida above the configured capture limit");
+  steps.push("block implausible obstetric counts and explain the allowed range");
   const adolescentAssessment = await api("canonicalize structured ANC dating from LNMP", "/api/service-points", {
     method: "POST",
     body: JSON.stringify({
       action: "SAVE_ASSESSMENT",
       visitId: adolescentAnc.body.visit.id,
       servicePoint: "ANC",
-      templateVersion: "KE-ANC-2026.3",
-      data: { gravida: "1", para: "0", lmp: ancLnmp, edd: "1900-01-01", gestationWeeks: "99", dangerSigns: "Reviewed — none reported", safeguardingAssessment: "Private, non-judgemental immediate-safety assessment completed", safeguardingAction: "Senior clinical review and facility child-protection pathway initiated", birthPreparedness: "Initial counselling started", carePlan: "Continue ANC and clinical review" },
+      templateVersion: "KE-ANC-2026.4",
+      data: { gravida: "1", para: "0", abortions: "0", livingChildren: "0", lmp: ancLnmp, edd: "1900-01-01", gestationWeeks: "99", dangerSigns: "Reviewed — none reported", safeguardingAssessment: "Private, non-judgemental immediate-safety assessment completed", safeguardingAction: "Senior clinical review and facility child-protection pathway initiated", birthPreparedness: "Initial counselling started", carePlan: "Continue ANC and clinical review" },
       riskLevel: "INCREASED",
     }),
   });

@@ -98,6 +98,27 @@ test("shows WHO-aligned ANC confirmation and adolescent safeguarding controls", 
   await expect(page.getByText("Do not ask the patient to justify the pregnancy at reception")).toBeVisible();
 });
 
+test("blocks senseless ANC counts and alerts on abnormal clinical ranges", async ({ page }) => {
+  await login(page, "clinician@example.test");
+  await page.getByRole("button", { name: "Service points", exact: true }).click();
+  await page.getByRole("button", { name: /^ANC/ }).click();
+  await page.getByLabel("Find patient in this queue").fill("Safiya");
+  await page.getByRole("button", { name: /Safiya ANC Safety/ }).click();
+
+  const gravida = page.getByLabel("Gravida *");
+  await expect(gravida).toHaveAttribute("max", "30");
+  await expect(gravida).toHaveAttribute("step", "1");
+  await gravida.fill("31");
+  await expect(page.getByRole("alert").filter({ hasText: "Cannot save these entries" })).toContainText("Gravida cannot exceed 30");
+  await expect(page.getByRole("button", { name: "Resolve entry errors" })).toBeDisabled();
+
+  await gravida.fill("1");
+  await page.getByText("Assessment and risk", { exact: true }).click();
+  await page.locator("label").filter({ hasText: "Fetal heart rate" }).locator("input").fill("170");
+  await expect(page.getByText("Clinical review alert — verify these unusual values")).toBeVisible();
+  await expect(page.getByText(/Fetal heart rate outside 110–160 bpm/)).toBeVisible();
+});
+
 for (const role of [
   { email: "shared.user@example.test", visible: ["Registration", "Appointments"], hidden: ["Triage", "Consultation", "Billing"] },
   { email: "nurse@example.test", visible: ["Triage"], hidden: ["Registration", "Consultation", "Billing"] },

@@ -9,6 +9,13 @@ export type CareField = {
   placeholder?: string;
   options?: readonly string[];
   readOnly?: boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  integer?: boolean;
+  normalMin?: number;
+  normalMax?: number;
+  rangeWarning?: string;
 };
 
 export type CareSection = {
@@ -44,21 +51,21 @@ export const careServiceProfiles: readonly CareServiceProfile[] = [
     label: "ANC",
     clinic: "ANC",
     description: "Longitudinal antenatal assessment, risk review, birth planning and follow-up.",
-    templateVersion: "KE-ANC-2026.3",
+    templateVersion: "KE-ANC-2026.4",
     accent: "#a21caf",
     sections: [
       {
         title: "Pregnancy profile",
         description: "Keep pregnancy dates and obstetric history together for every ANC contact.",
         fields: [
-          { key: "gravida", label: "Gravida", type: "number", required: true },
-          { key: "para", label: "Para", type: "number", required: true },
-          { key: "abortions", label: "Abortions", type: "number" },
-          { key: "livingChildren", label: "Living children", type: "number" },
+          { key: "gravida", label: "Gravida", type: "number", required: true, min: 1, max: 30, step: 1, integer: true, normalMax: 5, rangeWarning: "High gravidity (6 or more pregnancies): verify the history and assess obstetric risk." },
+          { key: "para", label: "Parity", type: "number", required: true, min: 0, max: 30, step: 1, integer: true, normalMax: 4, rangeWarning: "Grand multiparity (5 or more prior births): verify and include in the obstetric risk review." },
+          { key: "abortions", label: "Miscarriages / abortions", type: "number", required: true, min: 0, max: 30, step: 1, integer: true, normalMax: 2, rangeWarning: "Three or more pregnancy losses: verify the history and document the clinical review." },
+          { key: "livingChildren", label: "Living children", type: "number", required: true, min: 0, max: 50, step: 1, integer: true },
           { key: "lmp", label: "LNMP — first day of last normal menstrual period", type: "date" },
           { key: "edd", label: "Estimated delivery date", type: "date", required: true },
-          { key: "gestationWeeks", label: "Gestational age", type: "number", unit: "weeks", required: true },
-          { key: "gestationDays", label: "Additional gestational days", type: "number", unit: "days" },
+          { key: "gestationWeeks", label: "Gestational age", type: "number", unit: "weeks", required: true, min: 0, max: 50, step: 1, integer: true, normalMax: 41, rangeWarning: "Gestational age of 42 weeks or more requires prompt review of dating and pregnancy status." },
+          { key: "gestationDays", label: "Additional gestational days", type: "number", unit: "days", min: 0, max: 6, step: 1, integer: true },
           { key: "datingMethod", label: "Pregnancy dating method", type: "text", readOnly: true },
           { key: "previousPregnancies", label: "Previous pregnancy outcomes and complications", type: "textarea" },
         ],
@@ -70,8 +77,8 @@ export const careServiceProfiles: readonly CareServiceProfile[] = [
           { key: "currentPregnancy", label: "Current pregnancy concerns", type: "textarea" },
           { key: "dangerSigns", label: "Danger signs reviewed", type: "select", options: reviewStatus, required: true },
           { key: "dangerSignDetails", label: "Danger-sign details and action", type: "textarea" },
-          { key: "fundalHeight", label: "Fundal height", type: "number", unit: "cm" },
-          { key: "fetalHeartRate", label: "Fetal heart rate", type: "number", unit: "bpm" },
+          { key: "fundalHeight", label: "Fundal height", type: "number", unit: "cm", min: 1, max: 60, step: 0.1 },
+          { key: "fetalHeartRate", label: "Fetal heart rate", type: "number", unit: "bpm", min: 30, max: 300, step: 1, integer: true, normalMin: 110, normalMax: 160, rangeWarning: "Fetal heart rate outside 110–160 bpm requires clinical assessment; do not rely on this alert alone." },
           { key: "liePresentationMovement", label: "Lie, presentation and fetal movement", type: "textarea" },
           { key: "obstetricExamination", label: "Obstetric and general examination", type: "textarea" },
           { key: "safeguardingAssessment", label: "Confidential adolescent safeguarding assessment", type: "textarea", placeholder: "Record immediate safety, coercion or violence concerns without judgement; minimum necessary detail" },
@@ -123,7 +130,7 @@ export const careServiceProfiles: readonly CareServiceProfile[] = [
         title: "Feeding, growth and development",
         fields: [
           { key: "feeding", label: "Breastfeeding or feeding assessment", type: "textarea", required: true },
-          { key: "childWeight", label: "Child weight", type: "number", unit: "kg" },
+          { key: "childWeight", label: "Child weight", type: "number", unit: "kg", min: 0.1, max: 250, step: 0.01 },
           { key: "growthReview", label: "Growth and nutrition review", type: "textarea" },
           { key: "developmentReview", label: "Developmental milestones", type: "textarea" },
           { key: "immunisationReview", label: "Immunisation review and due vaccines", type: "textarea" },
@@ -186,8 +193,8 @@ export const careServiceProfiles: readonly CareServiceProfile[] = [
         title: "Before dialysis",
         fields: [
           { key: "accessType", label: "Access type and site", type: "textarea", required: true },
-          { key: "preWeight", label: "Pre-dialysis weight", type: "number", unit: "kg", required: true },
-          { key: "targetWeight", label: "Target dry weight", type: "number", unit: "kg" },
+          { key: "preWeight", label: "Pre-dialysis weight", type: "number", unit: "kg", required: true, min: 1, max: 500, step: 0.1 },
+          { key: "targetWeight", label: "Target dry weight", type: "number", unit: "kg", min: 1, max: 500, step: 0.1 },
           { key: "preBloodPressure", label: "Pre-dialysis blood pressure", type: "text", required: true },
           { key: "preAssessment", label: "Pre-dialysis assessment and access check", type: "textarea", required: true },
           { key: "infectionScreen", label: "Infection and isolation screen", type: "textarea" },
@@ -205,7 +212,7 @@ export const careServiceProfiles: readonly CareServiceProfile[] = [
       {
         title: "After dialysis",
         fields: [
-          { key: "postWeight", label: "Post-dialysis weight", type: "number", unit: "kg", required: true },
+          { key: "postWeight", label: "Post-dialysis weight", type: "number", unit: "kg", required: true, min: 1, max: 500, step: 0.1 },
           { key: "postBloodPressure", label: "Post-dialysis blood pressure", type: "text", required: true },
           { key: "adequacyReview", label: "Adequacy and laboratory review", type: "textarea" },
           { key: "sessionOutcome", label: "Session outcome and follow-up plan", type: "textarea", required: true },
@@ -258,7 +265,7 @@ export const careServiceProfiles: readonly CareServiceProfile[] = [
         fields: [
           { key: "genotype", label: "Confirmed genotype", type: "text", required: true },
           { key: "currentSymptoms", label: "Current symptoms or acute complication", type: "textarea", required: true },
-          { key: "painScore", label: "Pain score", type: "number", unit: "/10" },
+          { key: "painScore", label: "Pain score", type: "number", unit: "/10", min: 0, max: 10, step: 1, integer: true },
           { key: "crisisHistory", label: "Pain crises and admissions since last review", type: "textarea" },
           { key: "transfusionHistory", label: "Transfusion history and reactions", type: "textarea" },
           { key: "complications", label: "Organ complications and screening", type: "textarea" },

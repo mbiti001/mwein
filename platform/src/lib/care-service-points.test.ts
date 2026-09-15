@@ -35,6 +35,17 @@ describe("care service point definitions", () => {
     }
   });
 
+  it("gives every structured numeric field explicit capture bounds", () => {
+    for (const profile of careServiceProfiles) {
+      for (const field of profile.sections.flatMap((section) => section.fields)) {
+        if (field.type !== "number") continue;
+        expect(field.min, `${profile.code}.${field.key} minimum`).toBeTypeOf("number");
+        expect(field.max, `${profile.code}.${field.key} maximum`).toBeTypeOf("number");
+        expect(field.step, `${profile.code}.${field.key} step`).toBeTypeOf("number");
+      }
+    }
+  });
+
   it("enforces the referral lifecycle without skipping states", () => {
     expect(referralNextStatuses("DRAFT")).toEqual(["SENT"]);
     expect(referralNextStatuses("SENT")).toEqual(["ACCEPTED"]);
