@@ -603,16 +603,20 @@ model ServicePointControl {
 }
 
 model TriageRecord {
-  id                  String        @id @default(uuid()) @db.Uuid
-  visitId             String        @unique @db.Uuid
-  chiefComplaint      String
-  triageCategory      Priority
-  notes               String?
-  pregnancyStatus     String?
-  lastMenstrualPeriod DateTime?     @db.Date
-  visit               Visit         @relation(fields: [visitId], references: [id], onDelete: Cascade)
-  observations        Observation[]
-  completedAt         DateTime?
+  id                    String        @id @default(uuid()) @db.Uuid
+  visitId               String        @unique @db.Uuid
+  chiefComplaint        String
+  triageCategory        Priority
+  notes                 String?
+  pregnancyStatus       String?
+  lastMenstrualPeriod   DateTime?     @db.Date
+  estimatedDeliveryDate DateTime?     @db.Date
+  gestationalAgeWeeks   Int?
+  gestationalAgeDays    Int?
+  pregnancyDatingMethod String?
+  visit                 Visit         @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  observations          Observation[]
+  completedAt           DateTime?
 }
 
 model Observation {

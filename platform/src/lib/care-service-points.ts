@@ -8,6 +8,7 @@ export type CareField = {
   unit?: string;
   placeholder?: string;
   options?: readonly string[];
+  readOnly?: boolean;
 };
 
 export type CareSection = {
@@ -43,7 +44,7 @@ export const careServiceProfiles: readonly CareServiceProfile[] = [
     label: "ANC",
     clinic: "ANC",
     description: "Longitudinal antenatal assessment, risk review, birth planning and follow-up.",
-    templateVersion: "KE-ANC-2026.2",
+    templateVersion: "KE-ANC-2026.3",
     accent: "#a21caf",
     sections: [
       {
@@ -54,9 +55,11 @@ export const careServiceProfiles: readonly CareServiceProfile[] = [
           { key: "para", label: "Para", type: "number", required: true },
           { key: "abortions", label: "Abortions", type: "number" },
           { key: "livingChildren", label: "Living children", type: "number" },
-          { key: "lmp", label: "Last menstrual period", type: "date" },
+          { key: "lmp", label: "LNMP — first day of last normal menstrual period", type: "date" },
           { key: "edd", label: "Estimated delivery date", type: "date", required: true },
           { key: "gestationWeeks", label: "Gestational age", type: "number", unit: "weeks", required: true },
+          { key: "gestationDays", label: "Additional gestational days", type: "number", unit: "days" },
+          { key: "datingMethod", label: "Pregnancy dating method", type: "text", readOnly: true },
           { key: "previousPregnancies", label: "Previous pregnancy outcomes and complications", type: "textarea" },
         ],
       },

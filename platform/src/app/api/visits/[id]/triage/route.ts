@@ -5,6 +5,7 @@ import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
 import { assessTriageVitals, assertVisitTransition, triageSchema } from "@/lib/domain";
+import { dateInTimeZone, pregnancyDatingFromLnmp } from "@/lib/pregnancy-dating";
 
 const observationDefinitions = [
   ["TEMP", "temperatureC", "°C"], ["PULSE", "pulseBpm", "bpm"], ["RESP_RATE", "respiratoryRate", "/min"],
@@ -17,6 +18,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const user = await requirePermission("triage.write");
     const { id } = await context.params;
     const input = triageSchema.parse(await request.json());
+    const dating = input.lastMenstrualPeriod
+      ? pregnancyDatingFromLnmp(input.lastMenstrualPeriod, dateInTimeZone(new Date(), user.facility.timezone))
+      : null;
+    if (input.lastMenstrualPeriod && !dating)
+      throw Object.assign(new Error("LNMP must be a valid date that is not in the future"), { status: 422 });
     const alerts = assessTriageVitals(input);
     const criticalMessages = new Set(alerts.filter(alert => alert.severity === "CRITICAL").map(alert => alert.message));
     const result = await db.$transaction(async tx => {
@@ -27,6 +33,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       await tx.triageRecord.create({ data: {
         visitId: visit.id, chiefComplaint: input.chiefComplaint, triageCategory: input.triageCategory, notes: input.notes,
         pregnancyStatus: input.pregnancyStatus, lastMenstrualPeriod: input.lastMenstrualPeriod ? new Date(input.lastMenstrualPeriod) : null,
+        estimatedDeliveryDate: dating ? new Date(`${dating.estimatedDeliveryDate}T00:00:00.000Z`) : null,
+        gestationalAgeWeeks: dating?.gestationalAgeWeeks,
+        gestationalAgeDays: dating?.gestationalAgeDays,
+        pregnancyDatingMethod: dating?.method,
         completedAt: new Date(), observations: { create: [
           ...observationDefinitions.filter(([, key]) => input[key] !== undefined).map(([code, key, unit]) => ({ code, unit, valueDecimal: new Prisma.Decimal(input[key] as number), abnormal: alerts.length > 0, critical: code === "SPO2" ? input.oxygenSaturation < 90 : code === "BP_SYS" ? input.systolicBp < 90 || input.systolicBp >= 180 : code === "BP_DIA" ? input.diastolicBp >= 120 : false })),
           { code: "CONSCIOUSNESS", valueText: input.consciousness, abnormal: input.consciousness !== "ALERT", critical: input.consciousness !== "ALERT" }

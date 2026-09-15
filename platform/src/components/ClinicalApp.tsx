@@ -9,6 +9,7 @@ import { currentServicePoint, isWaitingOverdue, waitingMinutes, type ServicePoin
 import { appointmentClinics } from "@/lib/appointments";
 import { careServiceForClinic } from "@/lib/care-service-points";
 import { jsonRequest } from "@/lib/client-http";
+import { dateInTimeZone, gestationalAgeLabel, pregnancyDatingFromLnmp } from "@/lib/pregnancy-dating";
 
 const workspaceLoading = () => <section className="card"><p>Opening workspace…</p></section>;
 const ConsultationWorkstation = dynamic(() => import("@/components/ConsultationWorkstation"), { loading: workspaceLoading });
@@ -27,7 +28,7 @@ const FollowUpWorkstation = dynamic(() => import("@/components/FollowUpWorkstati
 type User = {
   displayName: string;
   email: string;
-  facility: { name: string };
+  facility: { name: string; timezone: string };
   permissions: string[];
   roles?: string[];
   mustChangePassword: boolean;
@@ -370,11 +371,13 @@ export default function ClinicalApp() {
             }}
             initialVisitId={focusedVisitId}
             onInitialVisitOpened={() => setFocusedVisitId(null)}
+            facilityTimeZone={user.facility.timezone}
           />
         )}
         {screen === "servicePoints" && (
           <ServicePointsWorkstation
             visits={visits}
+            facilityTimeZone={user.facility.timezone}
             initialVisitId={focusedVisitId}
             onInitialVisitOpened={() => setFocusedVisitId(null)}
             onOpenClinical={(visitId) => { setFocusedVisitId(visitId); setContextVisitId(visitId); setScreen("consultation"); }}
@@ -1002,11 +1005,13 @@ function TriageWorkstation({
   onCompleted,
   initialVisitId,
   onInitialVisitOpened,
+  facilityTimeZone,
 }: {
   visits: Visit[];
   onCompleted: (patientName: string) => void;
   initialVisitId?: string | null;
   onInitialVisitOpened?: () => void;
+  facilityTimeZone: string;
 }) {
   type TriageDraft = {
     temperatureC: string;
@@ -1031,6 +1036,12 @@ function TriageWorkstation({
   const [active, setActive] = useState<Visit | null>(null);
   const [error, setError] = useState("");
   const [vitals, setVitals] = useState<TriageDraft>(blankVitals);
+  const [lnmp, setLnmp] = useState("");
+  const facilityToday = dateInTimeZone(new Date(), facilityTimeZone);
+  const pregnancyDating = useMemo(
+    () => lnmp ? pregnancyDatingFromLnmp(lnmp, facilityToday) : null,
+    [facilityToday, lnmp],
+  );
   const assessedVitals = useMemo(() => {
     if (!vitals.consciousness || Object.entries(vitals).some(([key, value]) => key !== "consciousness" && value === "")) return null;
     return {
@@ -1048,7 +1059,7 @@ function TriageWorkstation({
   useEffect(() => {
     if (!initialVisitId) return;
     const visit = visits.find(item => item.id === initialVisitId);
-    if (visit) { setVitals(blankVitals()); setActive(visit); onInitialVisitOpened?.(); }
+    if (visit) { setVitals(blankVitals()); setLnmp(""); setActive(visit); onInitialVisitOpened?.(); }
   }, [initialVisitId, visits, onInitialVisitOpened]);
   function vital(name: keyof TriageDraft, value: string) {
     setVitals((current) => ({
@@ -1071,12 +1082,13 @@ function TriageWorkstation({
           heightCm: f.get("heightCm") || undefined,
           triageCategory: f.get("triageCategory"),
           pregnancyStatus: f.get("pregnancyStatus") || undefined,
-          lastMenstrualPeriod: f.get("lastMenstrualPeriod") || undefined,
+          lastMenstrualPeriod: lnmp || undefined,
           notes: f.get("notes") || undefined,
         }),
       });
       await onCompleted(active.patient.fullName);
       setVitals(blankVitals());
+      setLnmp("");
       setActive(null);
     } catch (e) {
       setError((e as Error).message);
@@ -1106,7 +1118,7 @@ function TriageWorkstation({
               {visits.map((v) => (
                 <button
                   className={`row ${v.priority.toLowerCase()}`}
-                  onClick={() => { setVitals(blankVitals()); setActive(v); }}
+                  onClick={() => { setVitals(blankVitals()); setLnmp(""); setActive(v); }}
                   key={v.id}
                 >
                   <span className="dot" />
@@ -1336,9 +1348,14 @@ function TriageWorkstation({
               </select>
             </label>
             <label>
-              Last menstrual period
-              <input name="lastMenstrualPeriod" type="date" />
+              LNMP — first day of last normal menstrual period
+              <input name="lastMenstrualPeriod" type="date" max={facilityToday} value={lnmp} onChange={(event) => setLnmp(event.target.value)} />
             </label>
+            {pregnancyDating && <>
+              <label>Estimated delivery date<input type="date" value={pregnancyDating.estimatedDeliveryDate} readOnly aria-readonly="true" /></label>
+              <label>Gestational age today<input value={gestationalAgeLabel(pregnancyDating)} readOnly aria-readonly="true" /></label>
+              <p className="wide listHint">Calculated automatically from LNMP using the 280-day rule. Confirm dating with ultrasound when indicated; the server stores the same facility-date calculation.</p>
+            </>}
           </>
         )}
         {patientClinicalGroup(active.patient).ageGroup === "CHILD" && (

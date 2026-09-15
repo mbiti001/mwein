@@ -370,19 +370,66 @@ try {
     body: JSON.stringify({ patientId: adolescent.id, clinic: "ANC", priority: "ROUTINE", visitType: "WALK_IN", ancEvidence: { result: "POSITIVE", method: "FACILITY_LAB", testedAt: new Date().toISOString().slice(0, 10), evidenceReference: "UPT-E2E-POSITIVE", consentConfirmed: true } }),
   });
   assert(adolescentAnc.body.visit.ancAdmissionEvidence?.safeguardingReviewRequired === true, "Confirmed pregnant adolescent was not flagged for confidential safeguarding review");
+  const ancLnmpDate = new Date();
+  ancLnmpDate.setUTCDate(ancLnmpDate.getUTCDate() - 70);
+  const ancLnmp = ancLnmpDate.toISOString().slice(0, 10);
+  const expectedAncEddDate = new Date(`${ancLnmp}T00:00:00.000Z`);
+  expectedAncEddDate.setUTCDate(expectedAncEddDate.getUTCDate() + 280);
+  const adolescentTriage = await api("calculate and retain ANC dating from LNMP", `/api/visits/${adolescentAnc.body.visit.id}/triage`, {
+    method: "POST",
+    body: JSON.stringify({
+      chiefComplaint: "Routine confirmed pregnancy ANC booking",
+      temperatureC: 36.7,
+      pulseBpm: 82,
+      respiratoryRate: 17,
+      systolicBp: 112,
+      diastolicBp: 72,
+      oxygenSaturation: 98,
+      weightKg: 52,
+      heightCm: 158,
+      painScore: 0,
+      consciousness: "ALERT",
+      triageCategory: "PRIORITY",
+      pregnancyStatus: "PREGNANT",
+      lastMenstrualPeriod: ancLnmp,
+      notes: "Confidential adolescent ANC triage",
+    }),
+  });
+  assert(adolescentTriage.body.visit.triage.estimatedDeliveryDate.slice(0, 10) === expectedAncEddDate.toISOString().slice(0, 10), "Triage EDD was not calculated as LNMP plus 280 days");
+  assert(adolescentTriage.body.visit.triage.gestationalAgeWeeks === 10 && [0, 1].includes(adolescentTriage.body.visit.triage.gestationalAgeDays), "Triage gestational age was not calculated from LNMP using the facility date");
   const missingSafeguarding = await requestWithCookie("/api/service-points", sessionCookie, {
     method: "POST",
     body: JSON.stringify({
       action: "SAVE_ASSESSMENT",
       visitId: adolescentAnc.body.visit.id,
       servicePoint: "ANC",
-      templateVersion: "KE-ANC-2026.2",
-      data: { gravida: "1", para: "0", edd: "2027-04-01", gestationWeeks: "10", dangerSigns: "Reviewed — none reported", birthPreparedness: "Initial counselling started", carePlan: "Continue ANC and clinical review" },
+      templateVersion: "KE-ANC-2026.3",
+      data: { gravida: "1", para: "0", lmp: ancLnmp, edd: "1900-01-01", gestationWeeks: "99", dangerSigns: "Reviewed — none reported", birthPreparedness: "Initial counselling started", carePlan: "Continue ANC and clinical review" },
       riskLevel: "INCREASED",
     }),
   });
   assert(missingSafeguarding.response.status === 422, "Adolescent ANC assessment saved without the required safeguarding assessment and action");
   steps.push("require confidential clinician safeguarding documentation for under-15 ANC");
+  const adolescentAssessment = await api("canonicalize structured ANC dating from LNMP", "/api/service-points", {
+    method: "POST",
+    body: JSON.stringify({
+      action: "SAVE_ASSESSMENT",
+      visitId: adolescentAnc.body.visit.id,
+      servicePoint: "ANC",
+      templateVersion: "KE-ANC-2026.3",
+      data: { gravida: "1", para: "0", lmp: ancLnmp, edd: "1900-01-01", gestationWeeks: "99", dangerSigns: "Reviewed — none reported", safeguardingAssessment: "Private, non-judgemental immediate-safety assessment completed", safeguardingAction: "Senior clinical review and facility child-protection pathway initiated", birthPreparedness: "Initial counselling started", carePlan: "Continue ANC and clinical review" },
+      riskLevel: "INCREASED",
+    }),
+  });
+  assert(adolescentAssessment.body.record.data.edd === expectedAncEddDate.toISOString().slice(0, 10), "Structured ANC EDD trusted a client value instead of recalculating from LNMP");
+  assert(adolescentAssessment.body.record.data.gestationWeeks === "10" && ["0", "1"].includes(adolescentAssessment.body.record.data.gestationDays), "Structured ANC gestational age did not use the shared LNMP calculation");
+  const ancQueues = await api("load adolescent ANC queue state", "/api/queues");
+  const adolescentConsultationQueue = ancQueues.body.entries.find(entry => entry.visitId === adolescentAnc.body.visit.id && entry.servicePoint === "CONSULTATION" && entry.status === "IN_PROGRESS");
+  assert(adolescentConsultationQueue, "Adolescent ANC assessment did not retain its consultation queue state");
+  await api("transfer adolescent ANC for continued managed care", "/api/queues", {
+    method: "POST",
+    body: JSON.stringify({ action: "TRANSFER", queueEntryId: adolescentConsultationQueue.id, targetServicePoint: "BILLING", reason: "E2E workflow handoff after ANC dating and safeguarding checks" }),
+  });
 
   const appointmentTime = new Date(Date.now() + 7 * 86400000);
   appointmentTime.setUTCHours(7, 0, 0, 0);

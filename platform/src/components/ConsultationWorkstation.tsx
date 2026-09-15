@@ -40,6 +40,11 @@ export type ConsultationVisit = {
   };
   triage?: {
     triageCategory: string;
+    lastMenstrualPeriod?: string | null;
+    estimatedDeliveryDate?: string | null;
+    gestationalAgeWeeks?: number | null;
+    gestationalAgeDays?: number | null;
+    pregnancyDatingMethod?: string | null;
     observations: {
       code: string;
       valueDecimal?: string | null;
@@ -1510,6 +1515,10 @@ export function ConsultationForm({
           <strong>{observation("TEMP")}</strong>
         </div>
       </section>
+      {visit.triage?.estimatedDeliveryDate && <section className="clinicalBoundary">
+        <strong>Pregnancy dating</strong>
+        <span>LNMP {visit.triage.lastMenstrualPeriod?.slice(0, 10) || "not recorded"} · EDD {visit.triage.estimatedDeliveryDate.slice(0, 10)} · gestational age {visit.triage.gestationalAgeWeeks ?? 0} weeks {visit.triage.gestationalAgeDays ?? 0} days · source {visit.triage.pregnancyDatingMethod || "LNMP"}. Confirm with ultrasound when clinically indicated.</span>
+      </section>}
       <section className="consultationContext" aria-label="Patient context">
         <div>
           <small>Phone</small>

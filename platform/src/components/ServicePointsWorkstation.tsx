@@ -10,6 +10,7 @@ import {
   type CareServiceProfile,
 } from "@/lib/care-service-points";
 import { jsonRequest } from "@/lib/client-http";
+import { applyLnmpDating, dateInTimeZone, gestationalAgeLabel, pregnancyDatingFromLnmp } from "@/lib/pregnancy-dating";
 
 type Patient = {
   id: string;
@@ -154,12 +155,14 @@ function emptyMetric(): Metric {
 
 export default function ServicePointsWorkstation({
   visits,
+  facilityTimeZone,
   initialVisitId,
   onInitialVisitOpened,
   onOpenClinical,
   onUpdated,
 }: {
   visits: Visit[];
+  facilityTimeZone: string;
   initialVisitId?: string | null;
   onInitialVisitOpened?: () => void;
   onOpenClinical: (visitId: string) => void;
@@ -262,6 +265,7 @@ export default function ServicePointsWorkstation({
           key={`${activeVisit.id}:${selectedProfile.code}`}
           visit={activeVisit}
           profile={selectedProfile}
+          facilityTimeZone={facilityTimeZone}
           onBack={() => setActiveVisit(null)}
           onOpenClinical={() => onOpenClinical(activeVisit.id)}
           onSaved={async () => { await Promise.all([loadMetrics(), onUpdated()]); }}
@@ -285,12 +289,14 @@ export default function ServicePointsWorkstation({
 function AssessmentWorkspace({
   visit,
   profile,
+  facilityTimeZone,
   onBack,
   onOpenClinical,
   onSaved,
 }: {
   visit: Visit;
   profile: CareServiceProfile;
+  facilityTimeZone: string;
   onBack: () => void;
   onOpenClinical: () => void;
   onSaved: () => Promise<void>;
@@ -304,13 +310,18 @@ function AssessmentWorkspace({
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const facilityToday = dateInTimeZone(new Date(), facilityTimeZone);
+  const ancDating = profile.code === "ANC" && typeof values.lmp === "string"
+    ? pregnancyDatingFromLnmp(values.lmp, facilityToday)
+    : null;
 
   async function load() {
     setBusy(true);
     try {
       const response = await api<{ record: ServiceRecord | null; relationships: Relationship[] }>(`/api/service-points?visitId=${visit.id}`);
       setRecord(response.record);
-      setValues(response.record?.data || {});
+      const loadedValues = response.record?.data || {};
+      setValues(profile.code === "ANC" ? applyLnmpDating(loadedValues, facilityToday).data : loadedValues);
       setRiskLevel(response.record?.riskLevel || "ROUTINE");
       setFollowUpAt(response.record?.followUpAt?.slice(0, 10) || "");
       setRelationships(response.relationships);
@@ -322,7 +333,18 @@ function AssessmentWorkspace({
   useEffect(() => { void load(); }, []);
 
   function change(key: string, value: string | boolean) {
-    setValues((current) => ({ ...current, [key]: value }));
+    setValues((current) => {
+      const next = { ...current, [key]: value };
+      if (profile.code !== "ANC" || key !== "lmp") return next;
+      const calculated = applyLnmpDating(next, facilityToday);
+      return calculated.dating ? calculated.data : {
+        ...next,
+        edd: "",
+        gestationWeeks: "",
+        gestationDays: "",
+        datingMethod: "",
+      };
+    });
     setSaved(false);
     setNotice("");
   }
@@ -375,11 +397,12 @@ function AssessmentWorkspace({
           <strong>One connected record</strong>
           <span>Use this form for specialty observations. Diagnoses, laboratory/imaging orders and results, prescriptions, billing, referrals and visit completion stay in their shared workspaces.</span>
         </div>
+        {ancDating && <div className="listHint">LNMP dating: EDD {ancDating.estimatedDeliveryDate} · gestational age {gestationalAgeLabel(ancDating)}. Values recalculate from the facility date and are verified again by the server.</div>}
         {busy && !record ? <div className="empty"><strong>Opening assessment…</strong></div> : profile.sections.map((section, index) => (
           <details className="card serviceSection" open={index === 0 ? true : undefined} key={section.title}>
             <summary><span><strong>{section.title}</strong>{section.description && <small>{section.description}</small>}</span><b>Open</b></summary>
             <div className="dataForm serviceFields">
-              {section.fields.map((field) => <AssessmentField key={field.key} field={field} value={values[field.key]} onChange={(value) => change(field.key, value)} />)}
+              {section.fields.map((field) => <AssessmentField key={field.key} field={field} value={values[field.key]} readOnly={Boolean(field.readOnly || (profile.code === "ANC" && values.lmp && ["edd", "gestationWeeks", "gestationDays"].includes(field.key)))} onChange={(value) => change(field.key, value)} />)}
             </div>
           </details>
         ))}
@@ -393,12 +416,12 @@ function AssessmentWorkspace({
   );
 }
 
-function AssessmentField({ field, value, onChange }: { field: CareField; value?: string | boolean; onChange: (value: string | boolean) => void }) {
+function AssessmentField({ field, value, readOnly, onChange }: { field: CareField; value?: string | boolean; readOnly?: boolean; onChange: (value: string | boolean) => void }) {
   const label = <>{field.label}{field.required ? " *" : ""}{field.unit && <small>{field.unit}</small>}</>;
   if (field.type === "textarea") return <label className="wide">{label}<textarea rows={3} required={field.required} value={String(value || "")} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} /></label>;
   if (field.type === "select") return <label>{label}<select required={field.required} value={String(value || "")} onChange={(event) => onChange(event.target.value)}><option value="">Select</option>{field.options?.map((option) => <option key={option}>{option}</option>)}</select></label>;
   if (field.type === "checkbox") return <label className="checkField"><input type="checkbox" checked={Boolean(value)} onChange={(event) => onChange(event.target.checked)} />{label}</label>;
-  return <label>{label}<input type={field.type} required={field.required} min={field.type === "number" ? 0 : undefined} step={field.type === "number" ? "any" : undefined} value={String(value ?? "")} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} /></label>;
+  return <label>{label}<input type={field.type} required={field.required} readOnly={readOnly} aria-readonly={readOnly || undefined} min={field.type === "number" ? 0 : undefined} step={field.type === "number" ? "any" : undefined} value={String(value ?? "")} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} /></label>;
 }
 
 function PatientLinkPanel({ visit, relationships, onLinked }: { visit: Visit; relationships: Relationship[]; onLinked: () => Promise<void> }) {

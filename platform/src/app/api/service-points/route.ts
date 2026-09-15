@@ -13,6 +13,7 @@ import {
 } from "@/lib/care-service-points";
 import { db } from "@/lib/db";
 import { apiError } from "@/lib/http";
+import { applyLnmpDating, dateInTimeZone } from "@/lib/pregnancy-dating";
 
 const serviceCode = z.enum([
   "ANC",
@@ -222,13 +223,20 @@ export async function POST(request: Request) {
       const unknownKey = Object.keys(input.data).find((key) => !allowedKeys.has(key));
       if (unknownKey)
         throw Object.assign(new Error(`Unrecognised field: ${unknownKey}`), { status: 422 });
-      const missing = requiredCareFields(profile.code).filter((key) => !isPresent(input.data[key]));
+      let assessmentData = input.data;
+      if (profile.code === "ANC" && typeof input.data.lmp === "string" && input.data.lmp) {
+        const calculated = applyLnmpDating(input.data, dateInTimeZone(new Date(), user.facility.timezone));
+        if (!calculated.dating)
+          throw Object.assign(new Error("LNMP must be a valid date that is not in the future"), { status: 422 });
+        assessmentData = calculated.data;
+      }
+      const missing = requiredCareFields(profile.code).filter((key) => !isPresent(assessmentData[key]));
       if (missing.length)
         throw Object.assign(new Error(`Complete the required assessment fields: ${missing.join(", ")}`), { status: 422 });
       if (
         profile.code === "ANC" &&
         visit.ancAdmissionEvidence?.safeguardingReviewRequired &&
-        (!isPresent(input.data.safeguardingAssessment) || !isPresent(input.data.safeguardingAction))
+        (!isPresent(assessmentData.safeguardingAssessment) || !isPresent(assessmentData.safeguardingAction))
       )
         throw Object.assign(
           new Error("Complete the confidential safeguarding assessment and action pathway before saving this adolescent ANC assessment"),
@@ -249,7 +257,7 @@ export async function POST(request: Request) {
         update: {
           servicePoint: profile.code,
           templateVersion: profile.templateVersion,
-          data: input.data as Prisma.InputJsonObject,
+          data: assessmentData as Prisma.InputJsonObject,
           riskLevel: input.riskLevel,
           followUpAt: input.followUpAt ? new Date(input.followUpAt) : null,
           updatedById: user.id,
@@ -258,7 +266,7 @@ export async function POST(request: Request) {
           encounterId: encounter.id,
           servicePoint: profile.code,
           templateVersion: profile.templateVersion,
-          data: input.data as Prisma.InputJsonObject,
+          data: assessmentData as Prisma.InputJsonObject,
           riskLevel: input.riskLevel,
           followUpAt: input.followUpAt ? new Date(input.followUpAt) : null,
           updatedById: user.id,
@@ -276,7 +284,7 @@ export async function POST(request: Request) {
         action: "SERVICE_POINT_ASSESSMENT_SAVED",
         entityType: "ServicePointRecord",
         entityId: record.id,
-        afterHash: `${profile.code}:${profile.templateVersion}:${Object.keys(input.data).sort().join("|")}`,
+        afterHash: `${profile.code}:${profile.templateVersion}:${Object.keys(assessmentData).sort().join("|")}`,
       });
       return { record };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });

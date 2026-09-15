@@ -155,6 +155,9 @@ export function buildAiVisitSummaryInput(visit: AiVisitSummaryVisit): AiVisitSum
       `Allergy: ${allergy.substance}${allergy.reaction ? ` · reaction ${allergy.reaction}` : ""}${allergy.severity ? ` · severity ${allergy.severity}` : ""}`,
     ),
     ...(visit.triage?.pregnancyStatus ? [`Pregnancy status: ${visit.triage.pregnancyStatus}`] : []),
+    ...(visit.triage?.estimatedDeliveryDate
+      ? [`Pregnancy dating: LNMP ${visit.triage.lastMenstrualPeriod?.toISOString().slice(0, 10) || "not recorded"} · EDD ${visit.triage.estimatedDeliveryDate.toISOString().slice(0, 10)} · ${visit.triage.gestationalAgeWeeks ?? 0} weeks ${visit.triage.gestationalAgeDays ?? 0} days · source ${visit.triage.pregnancyDatingMethod || "LNMP"}`]
+      : []),
     ...(visit.triage?.observations.filter((observation) => observation.abnormal || observation.critical).map(observationLine) || []),
     ...visit.orders.flatMap((order) => order.laboratory?.result?.status === "VERIFIED"
       ? order.laboratory.result.items.filter((item) => item.critical || item.flag).map((item) =>

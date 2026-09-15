@@ -17,3 +17,13 @@ The positive-test prerequisite is a facility routing rule requested for this imp
 - [WHO global standards for quality health care services for adolescents](https://www.who.int/publications/i/item/9789240114012) calls for non-discriminatory, rights-based, confidential and adolescent-responsive services.
 
 This rule supports routing and documentation; it does not replace clinical judgement, emergency protocols, national law, or an approved facility safeguarding policy.
+
+## Shared pregnancy dating rule
+
+- When LNMP is entered, EDD is calculated as LNMP plus 280 days.
+- Gestational age is calculated from the LNMP to the facility's current calendar date and retained as completed weeks plus additional days.
+- The same server-authoritative calculation applies in triage and the structured ANC assessment. It is displayed again in consultation and included in the governed visit-summary source.
+- Client-supplied EDD or gestational-age values are overwritten when LNMP is present, preventing conflicting calculations between workstations.
+- LNMP dating remains an estimate. The clinician must assess date reliability and use ultrasound dating when clinically indicated; future support for an approved ultrasound re-dating workflow must retain both the original LNMP estimate and the reason for any revised EDD.
+
+The 280-day convention is documented in Kenya's National Guidelines for Quality Obstetrics and Perinatal Care, while WHO materials recognize gestational age calculated from LMP and recommend ultrasound dating where possible.

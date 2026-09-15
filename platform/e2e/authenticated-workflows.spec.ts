@@ -62,6 +62,10 @@ test("starts triage with blank measured observations and an explicit concern", a
   await expect(page.getByLabel("Triage category *")).toHaveValue("");
   await expect(page.getByLabel("Presenting concern / immediate red flag *")).toBeVisible();
   await expect(page.getByText("No “normal” observations are prefilled.")).toBeVisible();
+  await page.getByLabel("Pregnancy status").selectOption("PREGNANT");
+  await page.getByLabel("LNMP — first day of last normal menstrual period").fill("2026-01-01");
+  await expect(page.getByLabel("Estimated delivery date")).toHaveValue("2026-10-08");
+  await expect(page.getByLabel("Gestational age today")).toHaveValue(/\d+ weeks [0-6] days/);
 });
 
 test("keeps authenticated navigation usable at a mobile breakpoint", async ({ page }) => {
