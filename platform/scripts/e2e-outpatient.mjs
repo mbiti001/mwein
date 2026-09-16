@@ -655,6 +655,22 @@ try {
   const forecast = await api("generate stock forecast and reorder worklist", "/api/inventory/forecast?days=90");
   assert(forecast.body.forecasts.some(item => item.code === "PARACETAMOL_500" && item.consumed === 10), "Stock forecast omitted recorded medicine consumption");
 
+  const shaPreflight = await api("review SHA claim readiness without submitting", `/api/invoices/${invoice.id}/claims/preflight`, {
+    method: "POST",
+    body: JSON.stringify({
+      memberNumber: "SHA-E2E-0001",
+      coveredItemIds: invoice.items.map(item => item.id),
+      shaPreparation: {
+        fund: "PHF",
+        emergency: false,
+        eligibilityReference: "E2E-ELIGIBILITY-001",
+        preauthorisationRequired: false,
+      },
+    }),
+  });
+  assert(shaPreflight.body.preflight.draftReady === true, "Complete SHA draft preparation was not ready to save");
+  assert(shaPreflight.body.preflight.submissionReady === false && shaPreflight.body.preflight.externalHoldCount === 2, "Unsigned contract and unavailable gateway did not keep SHA submission on external hold");
+
   const cashierShift = await api("open cashier shift", "/api/billing/shifts", { method: "POST", body: JSON.stringify({ action: "OPEN", openingFloat: 1000 }) });
 
   const payment = await api("receive payment and close visit", `/api/invoices/${invoice.id}/payments`, {

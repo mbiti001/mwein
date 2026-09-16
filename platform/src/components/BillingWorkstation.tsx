@@ -63,8 +63,40 @@ type Visit = {
     }[];
   } | null;
 };
+type ShaPreflight = {
+  mode: "DRAFT_PREPARATION" | "LIVE_GATEWAY";
+  draftReady: boolean;
+  submissionReady: boolean;
+  readyCount: number;
+  totalCount: number;
+  actionCount: number;
+  externalHoldCount: number;
+  checks: {
+    code: string;
+    group: "PATIENT" | "CLINICAL" | "COVERAGE" | "CONTRACT";
+    label: string;
+    status: "READY" | "ACTION_REQUIRED" | "EXTERNAL_HOLD" | "NOT_APPLICABLE";
+    detail: string;
+    blocksDraft: boolean;
+  }[];
+};
 const money = (value: number, currency = "KES") =>
   `${currency} ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+function shaPreparationFromForm(form: FormData) {
+  const optional = (name: string) => String(form.get(name) || "").trim() || undefined;
+  return {
+    fund: form.get("shaFund"),
+    emergency: form.get("shaEmergency") === "on",
+    eligibilityReference: optional("shaEligibilityReference"),
+    referralReference: optional("shaReferralReference"),
+    preauthorisationRequired: form.get("shaPreauthorisationRequired") === "on",
+    preauthorisationReference: optional("shaPreauthorisationReference"),
+    emergencyNotificationReference: optional("shaEmergencyNotificationReference"),
+    pomsfEmployerId: optional("shaPomsfEmployerId"),
+    publicServiceGrade: optional("shaPublicServiceGrade"),
+  };
+}
 
 function emergencyDeadline(preparation: NonNullable<NonNullable<Visit["invoice"]>["claims"][number]["shaPreparation"]>, now: number) {
   if (!preparation.emergency) return null;
@@ -99,6 +131,7 @@ export default function BillingWorkstation({
   const [shaFund, setShaFund] = useState("PHF");
   const [shaEmergency, setShaEmergency] = useState(false);
   const [shaPreauthorisationRequired, setShaPreauthorisationRequired] = useState(false);
+  const [shaPreflight, setShaPreflight] = useState<ShaPreflight | null>(null);
   const [query, setQuery] = useState("");
   const visibleQueue = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -175,7 +208,6 @@ export default function BillingWorkstation({
     setError("");
     const f = new FormData(event.currentTarget);
     const payer = String(f.get("payer"));
-    const optional = (name: string) => String(f.get(name) || "").trim() || undefined;
     try {
       const d = await jsonRequest<any>(`/api/invoices/${invoice.id}/claims`, {
           method: "POST",
@@ -185,17 +217,7 @@ export default function BillingWorkstation({
             coveredItemIds: f.getAll("coveredItemIds"),
             notes: f.get("claimNotes") || undefined,
             submit: payer === "SHA" ? shaReady : true,
-            shaPreparation: payer === "SHA" ? {
-              fund: f.get("shaFund"),
-              emergency: f.get("shaEmergency") === "on",
-              eligibilityReference: optional("shaEligibilityReference"),
-              referralReference: optional("shaReferralReference"),
-              preauthorisationRequired: f.get("shaPreauthorisationRequired") === "on",
-              preauthorisationReference: optional("shaPreauthorisationReference"),
-              emergencyNotificationReference: optional("shaEmergencyNotificationReference"),
-              pomsfEmployerId: optional("shaPomsfEmployerId"),
-              publicServiceGrade: optional("shaPublicServiceGrade"),
-            } : undefined,
+            shaPreparation: payer === "SHA" ? shaPreparationFromForm(f) : undefined,
           }),
         }, "Claim could not be created");
       setLastReceipt(`Claim ${d.claim.claimNumber} ${d.claim.status === "DRAFT" ? "saved as draft; visit remains awaiting submission" : d.visitCompleted ? "submitted; visit completed" : "submitted; collect any patient-pay balance before completing the visit"}`);
@@ -203,6 +225,28 @@ export default function BillingWorkstation({
       setActive(null);
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function reviewShaClaim(formElement: HTMLFormElement) {
+    if (!invoice || !formElement.reportValidity()) return;
+    setBusy(true);
+    setError("");
+    const form = new FormData(formElement);
+    try {
+      const data = await jsonRequest<{ preflight: ShaPreflight }>(`/api/invoices/${invoice.id}/claims/preflight`, {
+        method: "POST",
+        body: JSON.stringify({
+          memberNumber: form.get("memberNumber"),
+          coveredItemIds: form.getAll("coveredItemIds"),
+          shaPreparation: shaPreparationFromForm(form),
+        }),
+      }, "SHA claim readiness could not be checked");
+      setShaPreflight(data.preflight);
+    } catch (reason) {
+      setError((reason as Error).message);
+      setShaPreflight(null);
     } finally {
       setBusy(false);
     }
@@ -543,7 +587,7 @@ export default function BillingWorkstation({
           </button>
         </div>
       </form>
-      <form className="card dataForm noPrint" onSubmit={claim}>
+      <form className="card dataForm noPrint" onSubmit={claim} onChange={() => setShaPreflight(null)}>
         <div className="wide">
           <h2>Submit payer claim</h2>
           <p>
@@ -613,9 +657,37 @@ export default function BillingWorkstation({
           <input name="claimNotes" />
         </label>
         {claimPayer === "SHA" && <div className={`wide ${shaReady ? "privacyNotice" : "allergyAlert"}`}><strong>{shaReady ? "SHA gateway configured" : `SHA draft preparation · ${shaReadiness?.contract.draftVersion || "2026-09-09"}`}</strong><span>{shaReady ? "Submission will require verified identity, a signed encounter, ICD-11 coding and completed orders." : "Mwein has not signed the SHA contracts. This records preparation evidence only and cannot be represented as an eligible, authorised or submitted SHA claim."}</span></div>}
-        <button className="primary wide" disabled={busy}>
-          {claimPayer === "SHA" && !shaReady ? "Save SHA claim draft" : "Submit claim"}
-        </button>
+        {claimPayer === "SHA" && shaPreflight && <section className={`wide shaPreflightPanel ${shaPreflight.actionCount ? "needsAction" : "isReady"}`} aria-live="polite">
+          <div className="shaPreflightSummary">
+            <div>
+              <span className="eyebrow">SHA claim readiness</span>
+              <strong>{!shaPreflight.draftReady ? "Fix the clinical foundation before saving" : shaPreflight.submissionReady ? "Ready for submission" : "Draft can be saved safely"}</strong>
+              <small>{shaPreflight.actionCount ? `${shaPreflight.actionCount} item${shaPreflight.actionCount === 1 ? "" : "s"} need attention` : "All facility-controlled checks are complete"}{shaPreflight.externalHoldCount ? ` · ${shaPreflight.externalHoldCount} external hold${shaPreflight.externalHoldCount === 1 ? "" : "s"}` : ""}</small>
+            </div>
+            <b>{shaPreflight.readyCount}/{shaPreflight.totalCount}</b>
+          </div>
+          <details className="shaPreflightDetails">
+            <summary>View readiness details</summary>
+            <div className="shaCheckList">
+              {[...shaPreflight.checks].sort((left, right) => {
+                const priority = { ACTION_REQUIRED: 0, EXTERNAL_HOLD: 1, READY: 2, NOT_APPLICABLE: 3 };
+                return priority[left.status] - priority[right.status];
+              }).map(check => <div className={`shaCheck ${check.status.toLowerCase()}`} key={check.code}>
+                <span>{check.status === "READY" ? "✓" : check.status === "NOT_APPLICABLE" ? "—" : "!"}</span>
+                <div><strong>{check.label}</strong><small>{check.detail}</small></div>
+              </div>)}
+            </div>
+          </details>
+        </section>}
+        <div className="wide claimSubmitBar">
+          {claimPayer === "SHA" && <button className="secondary" type="button" disabled={busy} onClick={event => {
+            const form = event.currentTarget.form;
+            if (form) void reviewShaClaim(form);
+          }}>{busy ? "Checking…" : "Review SHA readiness"}</button>}
+          <button className="primary" disabled={busy}>
+            {claimPayer === "SHA" && !shaReady ? "Save SHA claim draft" : "Submit claim"}
+          </button>
+        </div>
       </form>
       {invoice.claims?.length > 0 && (
         <section className="card noPrint">
