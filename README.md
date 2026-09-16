@@ -4,7 +4,7 @@
 
 ## Facility branding
 
-The reviewed public logo is stored in `platform/public/branding/` and is used by the application shell, receipts, invoices, visit summaries, referral letters, laboratory reports and imaging reports. The existing `platform/src/app/icon.png` remains the canonical favicon and must not be replaced by the facility logo. Source letterheads, QA exports, regulatory documents and reusable signing assets remain under the ignored `facility-branding/` directory. Never commit or serve the facility's digital stamp; electronically generated records must show their workflow status and named authorisation evidence instead of applying a reusable image signature.
+The existing `platform/src/app/icon.png` is the canonical Mwein “M + QRS wave” mark. The same mark is used by the application shell, receipts, invoices, visit summaries, referral letters, laboratory reports and imaging reports; do not replace it with a medical cross or a separate facility logo. Source letterheads, QA exports, regulatory documents and reusable signing assets remain under the ignored `facility-branding/` directory. Never commit or serve the facility's digital stamp; electronically generated records must show their workflow status and named authorisation evidence instead of applying a reusable image signature.
 
 ## Legacy compatibility pilot
 
