@@ -2,6 +2,10 @@
 
 > **Canonical application:** the supported product is the Next.js/PostgreSQL application in [`platform/`](platform/). The root Node/SQLite application is retained as a legacy compatibility pilot only; do not use its deployment files for a new clinical deployment.
 
+## Facility branding
+
+The reviewed public logo is stored in `platform/public/branding/` and is used by the application shell, browser metadata, receipts, invoices, visit summaries, referral letters, laboratory reports and imaging reports. Source letterheads, QA exports, regulatory documents and reusable signing assets remain under the ignored `facility-branding/` directory. Never commit or serve the facility's digital stamp; electronically generated records must show their workflow status and named authorisation evidence instead of applying a reusable image signature.
+
 ## Legacy compatibility pilot
 
 Mwein Cloud EMR is a Kenya-focused full-stack electronic medical record pilot for outpatient and primary care facilities. It includes patient registration, encounter documentation, prescription capture, visit summaries, lab and pharmacy workflows, SHA billing preparation, analytics, audit logging, and compliance readiness.

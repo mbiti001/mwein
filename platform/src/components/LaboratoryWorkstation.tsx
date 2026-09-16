@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { canonicalLaboratoryCode, laboratoryDisplayName, laboratoryFlagSummary, ZYBIO_Z3_PROFILE } from "@/lib/laboratory";
 import { jsonRequest } from "@/lib/client-http";
+import { FacilityLetterhead } from "@/components/FacilityBrand";
 
 type ReferenceRange = {
   id: string;
@@ -685,15 +686,12 @@ function VerifiedReport({
         </div>
       </header>
       <article className="card reportPaper">
-        <div className="reportTitle">
-          <div>
-            <h2>{visit.facility?.name || "Mwein Medical Services"}</h2>
-            <span>Medical Laboratory Report</span>
-          </div>
-          <strong>
-            {result.criticalResult ? "CRITICAL RESULT" : "FINAL REPORT"}
-          </strong>
-        </div>
+        <FacilityLetterhead
+          facilityName={visit.facility?.name}
+          title="Medical laboratory report"
+          reference={`${laboratoryDisplayName(order.laboratory?.testCode || "", order.displayName)} · ${order.laboratory?.accessionNumber || "Accession pending"}`}
+          badge={<strong className={result.criticalResult ? "reportCriticalBadge" : "reportFinalBadge"}>{result.criticalResult ? "CRITICAL RESULT" : "FINAL REPORT"}</strong>}
+        />
         <section className="reportMeta">
           <div>
             <small>Patient</small>

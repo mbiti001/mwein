@@ -10,6 +10,7 @@ import { appointmentClinics } from "@/lib/appointments";
 import { careServiceForClinic } from "@/lib/care-service-points";
 import { jsonRequest } from "@/lib/client-http";
 import { dateInTimeZone, gestationalAgeLabel, pregnancyDatingFromLnmp } from "@/lib/pregnancy-dating";
+import { BrandMark } from "@/components/FacilityBrand";
 
 const workspaceLoading = () => <section className="card"><p>Opening workspace…</p></section>;
 const ConsultationWorkstation = dynamic(() => import("@/components/ConsultationWorkstation"), { loading: workspaceLoading });
@@ -260,7 +261,7 @@ export default function ClinicalApp() {
       {mobileNavOpen && <button className="navScrim" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
       <aside className={`sidebar ${mobileNavOpen ? "mobileOpen" : ""}`} id="main-navigation">
         <div className="brand">
-          <img className="brandMark" src="/icon.png" alt="" width={42} height={42} aria-hidden="true" />
+          <BrandMark />
           <div>
             <strong>Mwein HMIS</strong>
             <small>Exceptional care close to you.</small>
@@ -509,7 +510,7 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
     <main className="publicEntry">
       <nav className="publicNav" aria-label="Public navigation">
         <div className="brand dark">
-          <img className="brandMark" src="/icon.png" alt="" width={42} height={42} aria-hidden="true" />
+          <BrandMark />
           <div>
             <strong>Mwein HMIS</strong>
             <small>Connected outpatient care</small>

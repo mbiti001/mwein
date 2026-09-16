@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { jsonRequest } from "@/lib/client-http";
 import { careServiceProfile } from "@/lib/care-service-points";
+import { FacilityLetterhead } from "@/components/FacilityBrand";
 
 type Summary = any;
 const display = (value?: string | null) => value || "Not recorded";
@@ -161,22 +162,12 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
         </div>
       </header>
       <article className="visitSummaryPaper">
-        <header>
-          <div>
-            <p className="eyebrow">{active.facility.name}</p>
-            <h1>Visit summary</h1>
-            <p>
-              {active.facility.code} · Generated {new Date().toLocaleString()}
-            </p>
-          </div>
-          <strong
-            className={e?.status === "SIGNED" ? "signedStatus" : "draftStatus"}
-          >
-            {e?.status === "SIGNED"
-              ? "SIGNED CLINICAL RECORD"
-              : "DRAFT / INCOMPLETE"}
-          </strong>
-        </header>
+        <FacilityLetterhead
+          facilityName={active.facility.name}
+          title="Visit summary"
+          reference={`${active.facility.code} · Generated ${new Date().toLocaleString()}`}
+          badge={<strong className={e?.status === "SIGNED" ? "signedStatus" : "draftStatus"}>{e?.status === "SIGNED" ? "SIGNED CLINICAL RECORD" : "DRAFT / INCOMPLETE"}</strong>}
+        />
         <section className="summaryIdentity">
           <div>
             <small>Patient</small>

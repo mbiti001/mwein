@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { jsonRequest } from "@/lib/client-http";
+import { FacilityLetterhead } from "@/components/FacilityBrand";
 type Visit = any;
 export default function ImagingWorkstation({
   visits,
@@ -126,18 +127,15 @@ export default function ImagingWorkstation({
       {error && <div className="alert">{error}</div>}
       {report?.status === "VERIFIED" ? (
         <article className="visitSummaryPaper">
-          <header>
-            <div>
-              <p className="eyebrow">{visit.facility?.name}</p>
-              <h1>Verified imaging report</h1>
-              <p>
-                {order.imaging.modality} · {order.displayName}
-              </p>
-            </div>
-            <button className="primary noPrint" onClick={() => window.print()}>
-              Print / Save PDF
-            </button>
-          </header>
+          <FacilityLetterhead
+            facilityName={visit.facility?.name}
+            title="Verified imaging report"
+            reference={`${order.imaging.modality} · ${order.displayName}`}
+            badge={<strong className="signedStatus">VERIFIED</strong>}
+          />
+          <button className="primary noPrint reportPrintAction" onClick={() => window.print()}>
+            Print / Save PDF
+          </button>
           <section className="summaryIdentity">
             <div>
               <small>Patient</small>

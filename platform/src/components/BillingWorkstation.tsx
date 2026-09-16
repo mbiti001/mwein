@@ -6,6 +6,7 @@ import {
 } from "@/lib/billing";
 import { jsonRequest } from "@/lib/client-http";
 import CashierShiftPanel from "@/components/CashierShiftPanel";
+import { FacilityLetterhead } from "@/components/FacilityBrand";
 type Visit = {
   id: string;
   visitNumber: string;
@@ -286,16 +287,12 @@ export default function BillingWorkstation({
           </div>
         </header>
         <article className="visitSummaryPaper receiptPaper">
-          <header>
-            <div>
-              <p className="eyebrow">
-                {v.facility?.name || "Mwein Medical Services"}
-              </p>
-              <h1>Official receipt</h1>
-              <p>{p.receipt.receiptNumber}</p>
-            </div>
-            <strong className="signedStatus">PAID</strong>
-          </header>
+          <FacilityLetterhead
+            facilityName={v.facility?.name}
+            title="Official receipt"
+            reference={p.receipt.receiptNumber}
+            badge={<strong className="signedStatus">PAID</strong>}
+          />
           <section className="summaryIdentity">
             <div>
               <small>Received from</small>
@@ -405,13 +402,16 @@ export default function BillingWorkstation({
       </header>
       {error && <div className="alert">{error}</div>}
       <section className="card billingDocument">
+        <FacilityLetterhead
+          facilityName={active.facility?.name}
+          title="Invoice"
+          reference={invoice.invoiceNumber}
+          badge={<strong>{invoice.status.replaceAll("_", " ")}</strong>}
+        />
         <div className="cardHead">
           <div>
-            <h2>{invoice.invoiceNumber}</h2>
-            <p>
-              {active.facility?.name || "Mwein Medical Services"} ·{" "}
-              {invoice.status.replaceAll("_", " ")}
-            </p>
+            <h2>Patient invoice</h2>
+            <p>{active.patient.fullName} · {active.patient.patientNumber} · {active.visitNumber}</p>
           </div>
           <button className="secondary" onClick={() => window.print()}>
             Print invoice

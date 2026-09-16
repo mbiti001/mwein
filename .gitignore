@@ -8,3 +8,7 @@ dist/
 .env.*
 !.env.example
 .vercel
+
+# Private facility source material. Only reviewed, non-signing assets are copied
+# into platform/public/branding for the application.
+facility-branding/

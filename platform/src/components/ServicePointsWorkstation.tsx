@@ -12,6 +12,7 @@ import {
 import { validateCareAssessment } from "@/lib/care-assessment-validation";
 import { jsonRequest } from "@/lib/client-http";
 import { applyLnmpDating, dateInTimeZone, gestationalAgeLabel, pregnancyDatingFromLnmp } from "@/lib/pregnancy-dating";
+import { FacilityLetterhead } from "@/components/FacilityBrand";
 
 type Patient = {
   id: string;
@@ -646,7 +647,7 @@ export function ReferralRow({ referral, onUpdated, onPrint }: { referral: Referr
 
 function ReferralLetter({ referral }: { referral: Referral }) {
   return <article className="referralLetter" aria-label="Printable referral letter">
-    <header><div><p className="eyebrow">{referral.referringFacility}</p><h1>Clinical referral</h1><p>{referral.referralNumber}</p></div><strong>{referral.urgency}</strong></header>
+    <FacilityLetterhead facilityName={referral.referringFacility} title="Clinical referral" reference={referral.referralNumber} badge={<strong>{referral.urgency}</strong>} />
     <section className="summaryIdentity"><div><small>Patient</small><strong>{referral.patient.fullName}</strong><span>{referral.patient.patientNumber}</span></div><div><small>Visit</small><strong>{referral.visit.visitNumber}</strong><span>{referral.visit.clinic}</span></div><div><small>Referral type</small><strong>{referral.type}</strong><span>{new Date(referral.createdAt).toLocaleString()}</span></div><div><small>Appointment</small><strong>{referral.appointmentAt ? new Date(referral.appointmentAt).toLocaleString() : "Not scheduled"}</strong></div></section>
     <section><h2>Referred to</h2><p><strong>{referral.receivingFacility}</strong>{referral.receivingDepartment ? ` · ${referral.receivingDepartment}` : ""}</p></section>
     <section><h2>Reason and diagnosis</h2><p>{referral.reason}</p><p><strong>Diagnosis / indication:</strong> {referral.diagnosisSummary}</p></section>
