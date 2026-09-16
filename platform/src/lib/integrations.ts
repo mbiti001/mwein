@@ -26,8 +26,8 @@ export function integrationReadiness(): IntegrationReadiness[] {
       name: "SHA claims",
       state: "PREPARED_ON_HOLD",
       purpose: "Eligibility, preauthorisation and authenticated claim exchange",
-      reason: "Local claim validation is active; transmission remains disabled until certification, production credentials and an approved endpoint are available.",
-      requirements: ["SHA/DHA certification", "Production FHIR endpoint", "Facility and OAuth credentials", "End-to-end conformance testing"],
+      reason: "The 9 September 2026 draft Parts A and B1–B4 are modelled for preparation. Local claims retain their intended fund and readiness evidence, but activation and transmission remain disabled until Mwein executes its contract and SHA supplies the facility-specific configuration.",
+      requirements: ["Executed SHA contract and contract reference", "Confirmed facility FID, tier and enabled funds", "Facility-specific tariffs and POMSF access matrix", "SHA/DHA certification", "Production FHIR endpoint", "Facility and OAuth credentials", "End-to-end conformance testing"],
     },
     {
       key: "icd11",

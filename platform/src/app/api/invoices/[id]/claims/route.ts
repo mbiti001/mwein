@@ -6,13 +6,34 @@ import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
 import { operationalReference } from "@/lib/domain";
-import { shaGatewayReadiness } from "@/lib/sha";
+import { prepareShaDraftClaim, shaGatewayReadiness } from "@/lib/sha";
+
+const shaPreparationSchema = z.object({
+  fund: z.enum(["PHF", "SHIF", "ECCIF", "POMSF"]),
+  emergency: z.boolean().default(false),
+  eligibilityReference: z.string().trim().max(120).optional(),
+  referralReference: z.string().trim().max(120).optional(),
+  preauthorisationRequired: z.boolean().default(false),
+  preauthorisationReference: z.string().trim().max(120).optional(),
+  emergencyNotificationReference: z.string().trim().max(120).optional(),
+  pomsfEmployerId: z.string().trim().max(120).optional(),
+  publicServiceGrade: z.string().trim().max(120).optional(),
+});
+
 const schema = z.object({
   payer: z.enum(["SHA", "PRIVATE_INSURER", "EMPLOYER"]),
   memberNumber: z.string().trim().min(2).max(100),
   coveredItemIds: z.array(z.uuid()).min(1).max(100),
   notes: z.string().trim().max(1000).optional(),
   submit: z.boolean().default(false),
+  shaPreparation: shaPreparationSchema.optional(),
+}).superRefine((value, context) => {
+  if (value.payer === "SHA" && !value.shaPreparation) {
+    context.addIssue({ code: "custom", path: ["shaPreparation"], message: "Select the intended SHA fund and record the draft claim preparation details" });
+  }
+  if (value.payer !== "SHA" && value.shaPreparation) {
+    context.addIssue({ code: "custom", path: ["shaPreparation"], message: "SHA preparation details can only be attached to an SHA claim" });
+  }
 });
 export async function POST(
   request: Request,
@@ -49,8 +70,12 @@ export async function POST(
         if (!signed) throw Object.assign(new Error("Sign the clinical encounter before preparing an SHA claim"), { status: 409 });
         if (!signed.diagnoses.some(diagnosis => diagnosis.codingSystem === "ICD-11 MMS" && diagnosis.code)) throw Object.assign(new Error("A coded ICD-11 diagnosis is required for an SHA claim"), { status: 422 });
         if (invoice.visit.orders.some(order => !["COMPLETED", "CANCELLED"].includes(order.status))) throw Object.assign(new Error("Complete or cancel all clinical orders before preparing an SHA claim"), { status: 409 });
-        if (input.submit && !shaGatewayReadiness().ready) throw Object.assign(new Error("SHA gateway is not configured. Save the claim as a draft; do not mark it submitted."), { status: 503 });
+        const contractProfile = await tx.shaContractProfile.findUnique({ where: { facilityId: user.facilityId } });
+        if (input.submit && !shaGatewayReadiness(contractProfile).ready) throw Object.assign(new Error("SHA gateway is not configured. Save the claim as a draft; do not mark it submitted."), { status: 503 });
       }
+      const shaPreparation = input.payer === "SHA" && input.shaPreparation
+        ? prepareShaDraftClaim(input.shaPreparation, { emergencyOccurredAt: invoice.visit.arrivedAt })
+        : undefined;
       const selected = invoice.items.filter(item => input.coveredItemIds.includes(item.id));
       if (selected.length !== new Set(input.coveredItemIds).size) throw Object.assign(new Error("One or more selected claim items do not belong to this invoice"), { status: 422 });
       const alreadyAllocated = new Set(invoice.claims.flatMap(claim => claim.lines.map(line => line.invoiceItemId)));
@@ -88,6 +113,7 @@ export async function POST(
           ),
           amount: new Prisma.Decimal(amount),
           notes: input.notes,
+          shaPreparation: shaPreparation as Prisma.InputJsonValue | undefined,
           status: input.submit ? "SUBMITTED" : "DRAFT",
           submittedAt: input.submit ? new Date() : undefined,
           lines: { create: selected.map(item => ({ invoiceItemId: item.id, amount: new Prisma.Decimal(Number(item.quantity) * Number(item.unitPrice)) })) },

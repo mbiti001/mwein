@@ -154,6 +154,7 @@ model Facility {
   cashierShifts         CashierShift[]
   operationsEvidence    OperationsEvidence[]
   ancAdmissionEvidence  AncAdmissionEvidence[]
+  shaContractProfile    ShaContractProfile?
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 }
@@ -295,6 +296,7 @@ model User {
   recordedOperationsEvidence   OperationsEvidence[]       @relation("OperationsEvidenceRecordedBy")
   verifiedOperationsEvidence   OperationsEvidence[]       @relation("OperationsEvidenceVerifiedBy")
   recordedAncAdmissionEvidence AncAdmissionEvidence[]     @relation("AncAdmissionEvidenceRecordedBy")
+  updatedShaContractProfiles   ShaContractProfile[]       @relation("ShaContractProfileUpdatedBy")
   createdAt                    DateTime                   @default(now())
   updatedAt                    DateTime                   @updatedAt
 
@@ -1412,23 +1414,48 @@ model IdentityRoleMapping {
 }
 
 model Claim {
-  id           String      @id @default(uuid()) @db.Uuid
-  invoiceId    String      @db.Uuid
-  createdById  String      @db.Uuid
-  payer        String
-  memberNumber String
-  claimNumber  String      @unique
-  amount       Decimal     @db.Decimal(14, 2)
-  status       ClaimStatus @default(DRAFT)
-  notes        String?
-  submittedAt  DateTime?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  invoice      Invoice     @relation(fields: [invoiceId], references: [id])
-  createdBy    User        @relation(fields: [createdById], references: [id])
-  lines        ClaimLine[]
+  id             String      @id @default(uuid()) @db.Uuid
+  invoiceId      String      @db.Uuid
+  createdById    String      @db.Uuid
+  payer          String
+  memberNumber   String
+  claimNumber    String      @unique
+  amount         Decimal     @db.Decimal(14, 2)
+  status         ClaimStatus @default(DRAFT)
+  notes          String?
+  shaPreparation Json?
+  submittedAt    DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  invoice        Invoice     @relation(fields: [invoiceId], references: [id])
+  createdBy      User        @relation(fields: [createdById], references: [id])
+  lines          ClaimLine[]
 
   @@index([invoiceId, status])
+}
+
+model ShaContractProfile {
+  id                       String    @id @default(uuid()) @db.Uuid
+  facilityId               String    @unique @db.Uuid
+  status                   String    @default("DRAFT")
+  draftVersion             String    @default("2026-09-09")
+  contractReference        String?
+  facilityFid              String?
+  regulatorRegistration    String?
+  countyOffice             String?
+  effectiveDate            DateTime? @db.Date
+  facilityTier             String?
+  enabledFunds             String[]  @default([])
+  tariffScheduleVersion    String?
+  pomsfAccessMatrixVersion String?
+  notes                    String?
+  updatedById              String    @db.Uuid
+  facility                 Facility  @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  updatedBy                User      @relation("ShaContractProfileUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  @@index([status, updatedAt])
 }
 
 model ClaimLine {

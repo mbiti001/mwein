@@ -42,6 +42,21 @@ type Visit = {
       amount: string;
       status: string;
       notes?: string | null;
+      shaPreparation?: {
+        fund?: string;
+        contractVersion?: string;
+        preparationOnly?: boolean;
+        eligibilityReference?: string;
+        referralReference?: string;
+        preauthorisationRequired?: boolean;
+        preauthorisationReference?: string;
+        emergency?: boolean;
+        emergencyNotificationReference?: string;
+        emergencyNotificationDueAt?: string | null;
+        pomsfEmployerId?: string;
+        publicServiceGrade?: string;
+        readinessIssues?: { code: string; message: string }[];
+      } | null;
       createdAt: string;
       lines?: { invoiceItemId: string; amount: string }[];
     }[];
@@ -49,6 +64,18 @@ type Visit = {
 };
 const money = (value: number, currency = "KES") =>
   `${currency} ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+function emergencyDeadline(preparation: NonNullable<NonNullable<Visit["invoice"]>["claims"][number]["shaPreparation"]>, now: number) {
+  if (!preparation.emergency) return null;
+  if (preparation.emergencyNotificationReference) return { state: "RECORDED", text: `Emergency notification recorded · ${preparation.emergencyNotificationReference}` };
+  if (!preparation.emergencyNotificationDueAt) return { state: "DUE", text: "Emergency notification deadline was not recorded" };
+  const dueAt = new Date(preparation.emergencyNotificationDueAt);
+  const remainingMs = dueAt.getTime() - now;
+  const hours = Math.max(1, Math.ceil(Math.abs(remainingMs) / (60 * 60 * 1000)));
+  return remainingMs < 0
+    ? { state: "OVERDUE", text: `Emergency SHA notification overdue by ${hours} hour${hours === 1 ? "" : "s"}` }
+    : { state: "DUE", text: `Emergency SHA notification due in ${hours} hour${hours === 1 ? "" : "s"} · ${dueAt.toLocaleString()}` };
+}
 export default function BillingWorkstation({
   visits,
   permissions,
@@ -68,13 +95,33 @@ export default function BillingWorkstation({
   const [busy, setBusy] = useState(false);
   const [lastReceipt, setLastReceipt] = useState("");
   const [claimPayer, setClaimPayer] = useState("SHA");
+  const [shaFund, setShaFund] = useState("PHF");
+  const [shaEmergency, setShaEmergency] = useState(false);
+  const [shaPreauthorisationRequired, setShaPreauthorisationRequired] = useState(false);
   const [query, setQuery] = useState("");
   const visibleQueue = useMemo(() => {
     const term = query.trim().toLowerCase();
     return queue.filter(v => !term || `${v.patient.fullName} ${v.patient.patientNumber} ${v.visitNumber} ${v.invoice?.invoiceNumber || ""}`.toLowerCase().includes(term)).slice(0, 50);
   }, [queue, query]);
-  const [shaReady, setShaReady] = useState(false);
-  useEffect(() => { void jsonRequest<{ ready: boolean }>("/api/integrations/sha/readiness", undefined, "SHA readiness could not be checked").then(result => setShaReady(result.ready)).catch(() => setShaReady(false)); }, []);
+  const [shaReadiness, setShaReadiness] = useState<{
+    ready: boolean;
+    contract: { phase: string; activationReady: boolean; draftVersion: string };
+  } | null>(null);
+  const shaReady = Boolean(shaReadiness?.ready);
+  useEffect(() => { void jsonRequest<{ ready: boolean; contract: { phase: string; activationReady: boolean; draftVersion: string } }>("/api/integrations/sha/readiness", undefined, "SHA readiness could not be checked").then(setShaReadiness).catch(() => setShaReadiness(null)); }, []);
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => { const timer = window.setInterval(() => setClock(Date.now()), 60_000); return () => window.clearInterval(timer); }, []);
+  const emergencyNotifications = useMemo(() => {
+    const actions: { visit: Visit; claimNumber: string; deadline: { state: string; text: string } }[] = [];
+    for (const visit of visits) {
+      for (const claim of visit.invoice?.claims || []) {
+        if (!claim.shaPreparation) continue;
+        const deadline = emergencyDeadline(claim.shaPreparation, clock);
+        if (deadline && deadline.state !== "RECORDED") actions.push({ visit, claimNumber: claim.claimNumber, deadline });
+      }
+    }
+    return actions.sort((left, right) => left.deadline.state === "OVERDUE" ? -1 : right.deadline.state === "OVERDUE" ? 1 : 0);
+  }, [visits, clock]);
   const [receiptView, setReceiptView] = useState<{
     visit: Visit;
     payment: any;
@@ -126,15 +173,28 @@ export default function BillingWorkstation({
     setBusy(true);
     setError("");
     const f = new FormData(event.currentTarget);
+    const payer = String(f.get("payer"));
+    const optional = (name: string) => String(f.get(name) || "").trim() || undefined;
     try {
       const d = await jsonRequest<any>(`/api/invoices/${invoice.id}/claims`, {
           method: "POST",
           body: JSON.stringify({
-            payer: f.get("payer"),
+            payer,
             memberNumber: f.get("memberNumber"),
             coveredItemIds: f.getAll("coveredItemIds"),
             notes: f.get("claimNotes") || undefined,
-            submit: f.get("payer") === "SHA" ? shaReady : true,
+            submit: payer === "SHA" ? shaReady : true,
+            shaPreparation: payer === "SHA" ? {
+              fund: f.get("shaFund"),
+              emergency: f.get("shaEmergency") === "on",
+              eligibilityReference: optional("shaEligibilityReference"),
+              referralReference: optional("shaReferralReference"),
+              preauthorisationRequired: f.get("shaPreauthorisationRequired") === "on",
+              preauthorisationReference: optional("shaPreauthorisationReference"),
+              emergencyNotificationReference: optional("shaEmergencyNotificationReference"),
+              pomsfEmployerId: optional("shaPomsfEmployerId"),
+              publicServiceGrade: optional("shaPublicServiceGrade"),
+            } : undefined,
           }),
         }, "Claim could not be created");
       setLastReceipt(`Claim ${d.claim.claimNumber} ${d.claim.status === "DRAFT" ? "saved as draft; visit remains awaiting submission" : d.visitCompleted ? "submitted; visit completed" : "submitted; collect any patient-pay balance before completing the visit"}`);
@@ -287,6 +347,7 @@ export default function BillingWorkstation({
           </div>
         )}
         {permissions.includes("billing.write") && <CashierShiftPanel permissions={permissions} />}
+        {emergencyNotifications.length > 0 && <section className="card"><div className="cardHead"><div><h2>SHA emergency notifications</h2><p>Draft Part B3 requires emergency care to proceed without delay and notification to SHA within 24 hours.</p></div><strong>{emergencyNotifications.length}</strong></div><div className="queue">{emergencyNotifications.map(action => <button className={`row ${action.deadline.state === "OVERDUE" ? "urgent" : "priority"}`} type="button" onClick={() => setActive(action.visit)} key={action.claimNumber}><span className="dot"/><div><strong>{action.visit.patient.fullName} · {action.claimNumber}</strong><small>{action.deadline.text}</small></div><b>Open claim</b></button>)}</div></section>}
         <section className="card">
           <label className="listSearch">Find a visit<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Patient, patient number, visit or invoice" /></label>
           {visibleQueue.length ? (
@@ -501,12 +562,57 @@ export default function BillingWorkstation({
         <label>
           Member / policy number *<input name="memberNumber" required />
         </label>
+        {claimPayer === "SHA" && <>
+          <label>
+            Intended SHA fund *
+            <select name="shaFund" value={shaFund} onChange={event => setShaFund(event.target.value)} required>
+              <option value="PHF">PHF · Primary Healthcare Fund</option>
+              <option value="SHIF">SHIF · Social Health Insurance Fund</option>
+              <option value="ECCIF">ECCIF · Emergency, Chronic & Critical Illness Fund</option>
+              <option value="POMSF">POMSF · Public Officers Medical Scheme Fund</option>
+            </select>
+          </label>
+          <label>
+            Eligibility verification reference
+            <input name="shaEligibilityReference" placeholder="Pending until SHA verification is available" />
+          </label>
+          <label>
+            Referral / access-exception reference
+            <input name="shaReferralReference" placeholder="Required before non-emergency SHIF submission" />
+          </label>
+          <label className="checks">
+            <input name="shaEmergency" type="checkbox" checked={shaEmergency} onChange={event => setShaEmergency(event.target.checked)} />
+            Emergency care
+          </label>
+          {shaEmergency && <label>
+            Emergency notification reference
+            <input name="shaEmergencyNotificationReference" placeholder="Record after notifying SHA" />
+          </label>}
+          <label className="checks">
+            <input name="shaPreauthorisationRequired" type="checkbox" checked={shaPreauthorisationRequired} onChange={event => setShaPreauthorisationRequired(event.target.checked)} />
+            Pre-authorisation required under the draft benefit rules
+          </label>
+          {shaPreauthorisationRequired && <label>
+            Pre-authorisation reference
+            <input name="shaPreauthorisationReference" placeholder="Pending until authorised by SHA" />
+          </label>}
+          {shaFund === "POMSF" && <>
+            <label>
+              POMSF employer ID
+              <input name="shaPomsfEmployerId" placeholder="From SHA eligibility response" />
+            </label>
+            <label>
+              Principal member public-service grade
+              <input name="shaPublicServiceGrade" placeholder="Grade returned by SHA" />
+            </label>
+          </>}
+        </>}
         <fieldset className="wide coverageItems"><legend>Services covered by this insurer *</legend><p>Untick anything the insurer does not cover. Unticked lines remain on the facility invoice and become payable by the patient.</p>{invoice.items.map(item => { const allocated = invoice.claims.some(c => ["DRAFT", "SUBMITTED", "APPROVED", "PAID"].includes(c.status) && c.lines?.some(line => line.invoiceItemId === item.id)); return <label key={item.id}><input type="checkbox" name="coveredItemIds" value={item.id} defaultChecked={!allocated} disabled={allocated}/><span><strong>{item.description}</strong><small>{money(Number(item.quantity) * Number(item.unitPrice), invoice.currency)}{allocated ? " · already allocated" : ""}</small></span></label>; })}</fieldset>
         <label>
           Claim note
           <input name="claimNotes" />
         </label>
-        {claimPayer === "SHA" && <div className={`wide ${shaReady ? "privacyNotice" : "allergyAlert"}`}><strong>{shaReady ? "SHA gateway configured" : "SHA gateway not yet connected"}</strong><span>{shaReady ? "Submission will require verified identity, a signed encounter, ICD-11 coding and completed orders." : "This will save a local draft only. It will not be represented as submitted to SHA."}</span></div>}
+        {claimPayer === "SHA" && <div className={`wide ${shaReady ? "privacyNotice" : "allergyAlert"}`}><strong>{shaReady ? "SHA gateway configured" : `SHA draft preparation · ${shaReadiness?.contract.draftVersion || "2026-09-09"}`}</strong><span>{shaReady ? "Submission will require verified identity, a signed encounter, ICD-11 coding and completed orders." : "Mwein has not signed the SHA contracts. This records preparation evidence only and cannot be represented as an eligible, authorised or submitted SHA claim."}</span></div>}
         <button className="primary wide" disabled={busy}>
           {claimPayer === "SHA" && !shaReady ? "Save SHA claim draft" : "Submit claim"}
         </button>
@@ -515,8 +621,11 @@ export default function BillingWorkstation({
         <section className="card noPrint">
           <h2>Claims</h2>
           <div className="queue compact">
-            {invoice.claims.map((c) => (
-              <form
+            {invoice.claims.map((c) => {
+              const preparation = c.shaPreparation;
+              const deadline = preparation ? emergencyDeadline(preparation, clock) : null;
+              const issues = preparation?.readinessIssues || [];
+              return <form
                 className="row claimRow"
                 key={c.id}
                 onSubmit={(event) => updateClaim(event, c.id)}
@@ -528,6 +637,20 @@ export default function BillingWorkstation({
                     {c.payer} · Member {c.memberNumber} · {c.status}
                   </small>
                   <small>{c.lines?.length || 0} covered invoice item{c.lines?.length === 1 ? "" : "s"}</small>
+                  {c.payer === "SHA" && preparation && <>
+                    <small>{preparation.fund || "SHA fund pending"} · draft contract {preparation.contractVersion || "not recorded"} · {issues.length} readiness item{issues.length === 1 ? "" : "s"}</small>
+                    {deadline && <small className={deadline.state === "OVERDUE" ? "dangerText" : ""}>{deadline.text}</small>}
+                    <details className="managementPanel compact"><summary><span><strong>SHA readiness checklist</strong><small>{issues.length ? `${issues.length} item${issues.length === 1 ? "" : "s"} pending` : "Preparation evidence complete"}</small></span></summary><div className="managementBody queue">
+                      <div className="summaryLine"><strong>Clinical claim foundation</strong><span>SHA number matched · encounter signed · ICD-11 coded · orders resolved</span></div>
+                      <div className="summaryLine"><strong>Intended fund</strong><span>{preparation.fund || "Pending"}</span></div>
+                      <div className="summaryLine"><strong>Eligibility reference</strong><span>{preparation.eligibilityReference || "Pending"}</span></div>
+                      {preparation.fund === "SHIF" && <div className="summaryLine"><strong>Referral / exception</strong><span>{preparation.referralReference || "Pending"}</span></div>}
+                      {preparation.preauthorisationRequired && <div className="summaryLine"><strong>Pre-authorisation</strong><span>{preparation.preauthorisationReference || "Pending"}</span></div>}
+                      {preparation.fund === "POMSF" && <><div className="summaryLine"><strong>POMSF employer ID</strong><span>{preparation.pomsfEmployerId || "Pending"}</span></div><div className="summaryLine"><strong>Public-service grade</strong><span>{preparation.publicServiceGrade || "Pending"}</span></div></>}
+                      {issues.map(issue => <div className="alert" key={issue.code}>{issue.message}</div>)}
+                      {!issues.length && <div className="alert success">All preparation evidence currently required by the draft workflow is recorded. Live submission remains disabled.</div>}
+                    </div></details>
+                  </>}
                 </div>
                 <b>{money(Number(c.amount), invoice.currency)}</b>
                 {allowedClaimStatuses(c.status as ClaimStatus).length > 0 && c.payer !== "SHA" && (
@@ -545,8 +668,8 @@ export default function BillingWorkstation({
                     <button className="secondary" disabled={busy}>Update</button>
                   </div>
                 )}
-              </form>
-            ))}
+              </form>;
+            })}
           </div>
         </section>
       )}
