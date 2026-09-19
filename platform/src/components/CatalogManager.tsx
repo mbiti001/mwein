@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { jsonRequest } from "@/lib/client-http";
+import { nairobiDateInputValue } from "@/lib/catalog-pricing";
 
 type Category =
   | "LABORATORY_TEST"
@@ -28,6 +29,13 @@ type Item = {
   dosageForm?: string | null;
   unitOfMeasure?: string | null;
   reorderLevel?: string | null;
+  currentPriceEffectiveFrom?: string | null;
+  upcomingPrice?: {
+    id: string;
+    unitPrice: string;
+    costPrice?: string | null;
+    effectiveFrom: string;
+  } | null;
 };
 const labels: Record<Category, string> = {
   LABORATORY_TEST: "Laboratory tests",
@@ -69,12 +77,14 @@ export default function CatalogManager() {
     if (!body.reorderLevel) delete body.reorderLevel;
     if (!body.costPrice) delete body.costPrice;
     if (!body.packSize) delete body.packSize;
+    if (!body.priceChangeReason) delete body.priceChangeReason;
     try {
       await request("/api/catalog", {
         method: editing ? "PATCH" : "POST",
         body: JSON.stringify({ ...body, id: editing?.id }),
       });
-      setNotice(editing ? "Catalogue item updated." : "Catalogue item added.");
+      const scheduled = editing && String(body.priceEffectiveFrom) > nairobiDateInputValue();
+      setNotice(scheduled ? "Future price scheduled. Today's billing price is unchanged." : editing ? "Catalogue item updated." : "Catalogue item added.");
       setEditing(null);
       event.currentTarget.reset();
       await load();
@@ -173,6 +183,15 @@ export default function CatalogManager() {
               defaultValue={editing?.unitPrice || "0.00"}
             />
           </label>
+          <label>
+            Price effective from *
+            <input name="priceEffectiveFrom" type="date" required defaultValue={nairobiDateInputValue()} />
+            <small>{editing ? "Choose a future date to schedule without changing today's charges." : "The initial price starts on this date."}</small>
+          </label>
+          {editing && <label className="wide">
+            Reason for price change
+            <input name="priceChangeReason" minLength={5} maxLength={300} placeholder="Required only when the selling or cost price changes" />
+          </label>}
           {["PROCEDURE", "PHARMACEUTICAL"].includes(category) && <label>Cost price (KES)<input name="costPrice" type="number" min="0" step="0.01" defaultValue={editing?.costPrice || ""}/></label>}
           {["PHARMACEUTICAL", "NON_PHARMACEUTICAL"].includes(category) && <label>Pack size<input name="packSize" type="number" min="0.001" step="0.001" defaultValue={editing?.packSize || ""}/></label>}
           {category === "LABORATORY_TEST" && (
@@ -317,6 +336,7 @@ export default function CatalogManager() {
                     {item.costPrice ? ` · cost KES ${Number(item.costPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : ""}
                     {item.packSize ? ` · pack ${Number(item.packSize)}` : ""}
                   </span>
+                  <small>{item.currentPriceEffectiveFrom ? `Current since ${new Date(item.currentPriceEffectiveFrom).toLocaleDateString()}` : "Legacy current price"}{item.upcomingPrice ? ` · Next KES ${Number(item.upcomingPrice.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })} from ${new Date(item.upcomingPrice.effectiveFrom).toLocaleDateString()}` : ""}</small>
                 </div>
                 <b>{item.active ? "ACTIVE" : "INACTIVE"}</b>
                 <button onClick={() => setEditing(item)}>Edit</button>

@@ -11,6 +11,7 @@ import {
   planDispensingAllocation,
 } from "@/lib/pharmacy";
 import { assertStoresNotFrozen, postInventoryJournal } from "@/lib/inventory-accounting";
+import { effectiveCatalogPrice } from "@/lib/catalog-pricing";
 
 const reason = z.string().trim().min(5).max(500).optional();
 const inputSchema = z.object({
@@ -198,6 +199,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
               ? { id: order.prescription.catalogItemId }
               : { code: order.prescription.medicineCode.toUpperCase() }),
           },
+          include: { priceVersions: { where: { effectiveFrom: { lte: new Date() } }, orderBy: { effectiveFrom: "desc" }, take: 1 } },
         });
         if (!prescribedItem) fail("Prescribed medicine is not in the formulary");
         dispensedItem = await tx.catalogItem.findFirst({
@@ -207,6 +209,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             category: "PHARMACEUTICAL",
             active: true,
           },
+          include: { priceVersions: { where: { effectiveFrom: { lte: new Date() } }, orderBy: { effectiveFrom: "desc" }, take: 1 } },
         });
         if (!dispensedItem) fail("Selected medicine is not active in the formulary");
         substituted = dispensedItem.id !== prescribedItem.id;
@@ -259,7 +262,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           const batchBalance = Number(batch.quantityAvailable) - allocation.quantity;
           await tx.inventoryBatch.update({ where: { id: batch.id }, data: { quantityAvailable: new Prisma.Decimal(batchBalance), active: batchBalance > 0 } });
           const storeBalance = await tx.inventoryLocationBalance.update({ where: { storeId_batchId: { storeId: mainStore.id, batchId: batch.id } }, data: { quantity: { decrement: allocation.quantity } } });
-          await tx.dispensationItem.create({ data: { dispensationId: dispensation.id, batchId: batch.id, quantity: new Prisma.Decimal(allocation.quantity), unitPrice: dispensedItem.unitPrice, unitCost: batch.unitCost } });
+          await tx.dispensationItem.create({ data: { dispensationId: dispensation.id, batchId: batch.id, quantity: new Prisma.Decimal(allocation.quantity), unitPrice: new Prisma.Decimal(Number(effectiveCatalogPrice(dispensedItem).unitPrice)), unitCost: batch.unitCost } });
           const movement = await tx.stockMovement.create({ data: {
             batchId: batch.id,
             userId: user.id,
@@ -306,16 +309,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         dispensedById: user.id,
       } });
       if (input.action === "DISPENSE") {
+        const price = effectiveCatalogPrice(dispensedItem!);
         await tx.invoiceItem.upsert({
           where: { orderId: order.id },
-          update: { quantity: new Prisma.Decimal(balance!.cumulativeDispensed) },
+          update: { quantity: new Prisma.Decimal(balance!.cumulativeDispensed), unitPrice: new Prisma.Decimal(Number(price.unitPrice)), catalogItemId: dispensedItem!.id, priceVersionId: price.priceVersionId, serviceCode: `MED-${dispensedItem!.code}`, description: dispensedItem!.name },
           create: {
             invoiceId: order.visit.invoice!.id,
             orderId: order.id,
-            serviceCode: `MED-${prescribedItem!.code}`,
-            description: prescribedItem!.name,
+            serviceCode: `MED-${dispensedItem!.code}`,
+            description: dispensedItem!.name,
             quantity: new Prisma.Decimal(balance!.cumulativeDispensed),
-            unitPrice: prescribedItem!.unitPrice,
+            unitPrice: new Prisma.Decimal(Number(price.unitPrice)),
+            catalogItemId: dispensedItem!.id,
+            priceVersionId: price.priceVersionId,
           },
         });
       } else if (previouslyDispensed === 0) {

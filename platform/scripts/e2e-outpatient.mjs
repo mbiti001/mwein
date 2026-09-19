@@ -305,6 +305,24 @@ try {
 
   const identityBoundary = await api("verify workforce identity boundary", "/api/admin/identity");
   assert(identityBoundary.body.configuration.configured === false && identityBoundary.body.roles.every((item) => item.code !== "SYSTEM_ADMIN"), "Identity boundary was enabled without OIDC or exposed system-administrator mapping");
+  const catalogueBeforeSchedule = await api("load catalogue pricing", "/api/catalog");
+  const scheduledItem = catalogueBeforeSchedule.body.items.find(item => item.code === "PARACETAMOL_500");
+  assert(scheduledItem, "Seeded medicine was absent from the catalogue");
+  const scheduledUnitPrice = Number(scheduledItem.unitPrice) + 5;
+  const scheduledDate = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+  await api("schedule effective catalogue price", "/api/catalog", {
+    method: "PATCH",
+    body: JSON.stringify({
+      ...scheduledItem,
+      unitPrice: scheduledUnitPrice,
+      priceEffectiveFrom: scheduledDate,
+      priceChangeReason: "E2E approved future tariff test",
+    }),
+  });
+  const catalogueAfterSchedule = await api("verify scheduled catalogue price", "/api/catalog");
+  const scheduledResult = catalogueAfterSchedule.body.items.find(item => item.id === scheduledItem.id);
+  assert(Number(scheduledResult.unitPrice) === Number(scheduledItem.unitPrice), "Future tariff changed today's catalogue price");
+  assert(Number(scheduledResult.upcomingPrice?.unitPrice) === scheduledUnitPrice, "Future tariff was not retained in the price schedule");
   const safetyDraft = await api("create governed medication safety draft", "/api/admin/medication-safety", { method: "POST", body: JSON.stringify({ action: "CREATE_DRAFT", code: "E2E-SAFETY", version: "1.0", severity: "WARNING", primaryConceptId: "paracetamol", sourceReference: "E2E governed protocol version 1", rule: { kind: "ALLERGY", message: "E2E governed allergy test warning." } }) });
   const medicalDirector = await authenticate("MMS", "medical.director@example.test");
   const safetyApproval = await requestWithCookie("/api/admin/medication-safety", medicalDirector.cookie, { method: "POST", body: JSON.stringify({ action: "APPROVE", id: safetyDraft.body.rule.id, reason: "Independent E2E clinical governance review completed" }) });
@@ -702,6 +720,7 @@ try {
               (SELECT COUNT(*)::int FROM "Referral" r WHERE r."visitId" = v."id" AND r."status" = 'SENT') AS "sentReferrals",
               (SELECT COUNT(*)::int FROM "Dispensation" d JOIN "Prescription" p ON p."id" = d."prescriptionId" JOIN "ClinicalOrder" o ON o."id" = p."orderId" WHERE o."visitId" = v."id" AND d."status" = 'DISPENSED') AS "dispensations",
               (SELECT COUNT(*)::int FROM "MedicationSafetyAssessment" msa JOIN "Prescription" p ON p."id" = msa."prescriptionId" JOIN "ClinicalOrder" o ON o."id" = p."orderId" WHERE o."visitId" = v."id" AND msa."outcome" = 'PASS') AS "safetyAssessments",
+              (SELECT COUNT(*)::int FROM "InvoiceItem" line WHERE line."invoiceId" = i."id" AND line."catalogItemId" IS NOT NULL AND line."priceVersionId" IS NOT NULL) AS "versionedCharges",
               (SELECT COUNT(*)::int FROM "AccountingJournal" j WHERE j."sourceType" = 'STOCK_MOVEMENT') AS "inventoryJournals"
        FROM "Visit" v
        JOIN "Invoice" i ON i."visitId" = v."id"
@@ -713,6 +732,7 @@ try {
   ).rows[0];
   assert(state.visitStatus === "COMPLETED", `Final visit status was ${state.visitStatus}`);
   assert(state.invoiceStatus === "PAID", `Final invoice status was ${state.invoiceStatus}`);
+  assert(state.versionedCharges >= 1, "Catalogue charges were not linked to their effective price version");
   assert(Number(state.batchQuantity) === 90 && Number(state.storeQuantity) === 90, "Dispensing did not decrement both stock balances");
   assert(state.sentReferrals === 1, "Sent referral was not persisted");
   assert(state.dispensations === 1, "Dispensation trace was not persisted");

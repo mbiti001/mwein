@@ -361,6 +361,18 @@ export async function POST(request: Request) {
                   : null,
               },
             });
+            await tx.catalogPriceVersion.create({
+              data: {
+                facilityId: user.facilityId,
+                catalogItemId: catalogItem.id,
+                unitPrice: new Prisma.Decimal(v.unit_price),
+                costPrice: v.cost_price ? new Prisma.Decimal(v.cost_price) : null,
+                currency: catalogItem.currency,
+                effectiveFrom: new Date(Date.now() - row.rowNumber),
+                reason: `Catalogue import · ${input.sourceTitle || input.dataset}`,
+                createdById: user.id,
+              },
+            });
             if (category === "PHARMACEUTICAL" && Number(v.opening_quantity) > 0) {
               const expiryDate = new Date(v.expiry_date);
               if (expiryDate <= new Date()) throw Object.assign(new Error(`Row ${row.rowNumber}: opening stock expiry date must be in the future`), { status: 422 });

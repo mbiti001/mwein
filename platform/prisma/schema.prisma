@@ -134,6 +134,7 @@ model Facility {
   visits                Visit[]
   sequences             ReferenceSequence[]
   catalogItems          CatalogItem[]
+  catalogPriceVersions  CatalogPriceVersion[]
   appointments          Appointment[]
   suppliers             Supplier[]
   stores                Store[]
@@ -160,17 +161,17 @@ model Facility {
 }
 
 model CatalogItem {
-  id                  String              @id @default(uuid()) @db.Uuid
-  facilityId          String              @db.Uuid
+  id                  String                @id @default(uuid()) @db.Uuid
+  facilityId          String                @db.Uuid
   category            CatalogCategory
   code                String
   name                String
   description         String?
-  unitPrice           Decimal             @db.Decimal(14, 2)
-  costPrice           Decimal?            @db.Decimal(14, 2)
-  packSize            Decimal?            @db.Decimal(12, 3)
-  currency            String              @default("KES")
-  active              Boolean             @default(true)
+  unitPrice           Decimal               @db.Decimal(14, 2)
+  costPrice           Decimal?              @db.Decimal(14, 2)
+  packSize            Decimal?              @db.Decimal(12, 3)
+  currency            String                @default("KES")
+  active              Boolean               @default(true)
   specimenType        String?
   synonyms            String?
   loincCode           String?
@@ -179,7 +180,7 @@ model CatalogItem {
   container           String?
   method              String?
   turnaroundMinutes   Int?
-  reportableToKhis    Boolean             @default(false)
+  reportableToKhis    Boolean               @default(false)
   khisMapping         String?
   modality            String?
   genericName         String?
@@ -188,17 +189,40 @@ model CatalogItem {
   strength            String?
   dosageForm          String?
   unitOfMeasure       String?
-  reorderLevel        Decimal?            @db.Decimal(12, 3)
-  facility            Facility            @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  reorderLevel        Decimal?              @db.Decimal(12, 3)
+  facility            Facility              @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   referenceRanges     LabReferenceRange[]
   inventoryBatches    InventoryBatch[]
   prescriptions       Prescription[]
-  dispensations       Dispensation[]      @relation("DispensedCatalogItem")
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
+  dispensations       Dispensation[]        @relation("DispensedCatalogItem")
+  priceVersions       CatalogPriceVersion[]
+  invoiceItems        InvoiceItem[]
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
 
   @@unique([facilityId, code])
   @@index([facilityId, category, active])
+}
+
+model CatalogPriceVersion {
+  id            String        @id @default(uuid()) @db.Uuid
+  facilityId    String        @db.Uuid
+  catalogItemId String        @db.Uuid
+  unitPrice     Decimal       @db.Decimal(14, 2)
+  costPrice     Decimal?      @db.Decimal(14, 2)
+  currency      String        @default("KES")
+  effectiveFrom DateTime
+  reason        String
+  createdById   String?       @db.Uuid
+  createdAt     DateTime      @default(now())
+  facility      Facility      @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  catalogItem   CatalogItem   @relation(fields: [catalogItemId], references: [id], onDelete: Restrict)
+  createdBy     User?         @relation("CatalogPriceVersionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  invoiceItems  InvoiceItem[]
+
+  @@unique([catalogItemId, effectiveFrom])
+  @@index([facilityId, effectiveFrom])
+  @@index([catalogItemId, effectiveFrom])
 }
 
 model LabReferenceRange {
@@ -297,6 +321,7 @@ model User {
   verifiedOperationsEvidence   OperationsEvidence[]       @relation("OperationsEvidenceVerifiedBy")
   recordedAncAdmissionEvidence AncAdmissionEvidence[]     @relation("AncAdmissionEvidenceRecordedBy")
   updatedShaContractProfiles   ShaContractProfile[]       @relation("ShaContractProfileUpdatedBy")
+  createdCatalogPrices         CatalogPriceVersion[]      @relation("CatalogPriceVersionCreatedBy")
   createdAt                    DateTime                   @default(now())
   updatedAt                    DateTime                   @updatedAt
 
@@ -1320,16 +1345,23 @@ model Invoice {
 }
 
 model InvoiceItem {
-  id          String         @id @default(uuid()) @db.Uuid
-  invoiceId   String         @db.Uuid
-  orderId     String?        @unique @db.Uuid
-  serviceCode String
-  description String
-  quantity    Decimal        @db.Decimal(12, 3)
-  unitPrice   Decimal        @db.Decimal(14, 2)
-  invoice     Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  order       ClinicalOrder? @relation(fields: [orderId], references: [id])
-  claimLines  ClaimLine[]
+  id             String               @id @default(uuid()) @db.Uuid
+  invoiceId      String               @db.Uuid
+  orderId        String?              @unique @db.Uuid
+  catalogItemId  String?              @db.Uuid
+  priceVersionId String?              @db.Uuid
+  serviceCode    String
+  description    String
+  quantity       Decimal              @db.Decimal(12, 3)
+  unitPrice      Decimal              @db.Decimal(14, 2)
+  invoice        Invoice              @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  order          ClinicalOrder?       @relation(fields: [orderId], references: [id])
+  catalogItem    CatalogItem?         @relation(fields: [catalogItemId], references: [id], onDelete: Restrict)
+  priceVersion   CatalogPriceVersion? @relation(fields: [priceVersionId], references: [id], onDelete: Restrict)
+  claimLines     ClaimLine[]
+
+  @@index([catalogItemId])
+  @@index([priceVersionId])
 }
 
 model Payment {

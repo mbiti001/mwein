@@ -9,6 +9,7 @@ import { canonicalLaboratoryCode } from "@/lib/laboratory";
 import { verifyDiagnosisSelectionToken } from "@/lib/diagnosis-selection";
 import { normalizeMedicationConcept, periodsOverlap, prescriptionSnapshot, sameVisitMedicationKey, treatmentStopDate } from "@/lib/medication";
 import { evaluateMedicationSafety, medicationSafetyContextHash } from "@/lib/medication-safety";
+import { effectiveCatalogPrice } from "@/lib/catalog-pricing";
 import {
   consultationNotesSchema,
   diagnosisSchema,
@@ -192,6 +193,7 @@ export async function POST(
 
         if (input.action === "SUBMIT_INVESTIGATIONS") {
           const created: string[] = [];
+          const pricingTime = new Date();
           const labCodes = input.data.labs.map(canonicalLaboratoryCode);
           const selectedCodes = [...labCodes, ...input.data.imaging.map((code) => code.toUpperCase())];
           const catalogue = await tx.catalogItem.findMany({
@@ -200,6 +202,7 @@ export async function POST(
               code: { in: selectedCodes },
               active: true,
             },
+            include: { priceVersions: { where: { effectiveFrom: { lte: pricingTime } }, orderBy: { effectiveFrom: "desc" }, take: 1 } },
           });
           for (const requestedCode of input.data.labs) {
             const code = canonicalLaboratoryCode(requestedCode);
@@ -244,7 +247,9 @@ export async function POST(
                 serviceCode: `LAB-${code}`,
                 description: item.name,
                 quantity: 1,
-                unitPrice: item.unitPrice,
+                unitPrice: new Prisma.Decimal(Number(effectiveCatalogPrice(item, pricingTime).unitPrice)),
+                catalogItemId: item.id,
+                priceVersionId: effectiveCatalogPrice(item, pricingTime).priceVersionId,
               },
             });
             created.push(item.name);
@@ -292,7 +297,9 @@ export async function POST(
                 serviceCode: `IMG-${code}`,
                 description: item.name,
                 quantity: 1,
-                unitPrice: item.unitPrice,
+                unitPrice: new Prisma.Decimal(Number(effectiveCatalogPrice(item, pricingTime).unitPrice)),
+                catalogItemId: item.id,
+                priceVersionId: effectiveCatalogPrice(item, pricingTime).priceVersionId,
               },
             });
             created.push(item.name);
@@ -343,6 +350,7 @@ export async function POST(
         if (input.action === "SAVE_PRESCRIPTION") {
           const created: string[] = [];
           const warnings: string[] = [];
+          const now = new Date();
           const idempotent = await tx.prescription.findUnique({
             where: { idempotencyKey: input.data.idempotencyKey },
             include: { order: true },
@@ -360,8 +368,8 @@ export async function POST(
               category: "PHARMACEUTICAL",
               active: true,
             },
+            include: { priceVersions: { where: { effectiveFrom: { lte: now } }, orderBy: { effectiveFrom: "desc" }, take: 1 } },
           });
-          const now = new Date();
           const [safetyRules, activePatientPrescriptions] = await Promise.all([
             tx.medicationSafetyRule.findMany({ where: { facilityId: user.facilityId, status: "APPROVED", OR: [{ activeFrom: null }, { activeFrom: { lte: now } }], AND: [{ OR: [{ activeTo: null }, { activeTo: { gt: now } }] }] } }),
             tx.prescription.findMany({ where: { medicationConceptId: { not: null }, order: { visit: { patientId: visit.patientId }, status: { in: ["DRAFT", "REQUESTED", "IN_PROGRESS"] } } }, select: { medicationConceptId: true } }),
@@ -444,8 +452,9 @@ export async function POST(
               await tx.clinicalOrder.update({ where: { id: duplicate.order.id }, data: { orderedById: user.id, displayName: item.name, clinicalIndication: medicine.indication, status: input.data.submit ? "REQUESTED" : "DRAFT" } });
               if (duplicate.order.invoiceItem) {
                 const alreadyDispensed = Number(duplicate.dispensedQuantity || 0);
+                const price = effectiveCatalogPrice(item, now);
                 if (alreadyDispensed > 0)
-                  await tx.invoiceItem.update({ where: { id: duplicate.order.invoiceItem.id }, data: { quantity: new Prisma.Decimal(alreadyDispensed), unitPrice: item.unitPrice, description: item.name } });
+                  await tx.invoiceItem.update({ where: { id: duplicate.order.invoiceItem.id }, data: { quantity: new Prisma.Decimal(alreadyDispensed), unitPrice: new Prisma.Decimal(Number(price.unitPrice)), catalogItemId: item.id, priceVersionId: price.priceVersionId, description: item.name } });
                 else await tx.invoiceItem.delete({ where: { id: duplicate.order.invoiceItem.id } });
               }
               await tx.medicationSafetyOverride.create({ data: { prescriptionId: updated.id, existingPrescriptionId: duplicate.id, prescriberId: user.id, warningCode: sameVisit ? "SAME_VISIT_EDIT" : input.data.duplicateAction!, justification: input.data.duplicateReason!, originalDetails: original, revisedDetails: revised } });
