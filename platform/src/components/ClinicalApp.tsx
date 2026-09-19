@@ -11,6 +11,7 @@ import { careServiceForClinic } from "@/lib/care-service-points";
 import { jsonRequest } from "@/lib/client-http";
 import { dateInTimeZone, gestationalAgeLabel, pregnancyDatingFromLnmp } from "@/lib/pregnancy-dating";
 import { BrandMark } from "@/components/FacilityBrand";
+import { shaCancellationOutcomes, visitCancellationReasons } from "@/lib/visit-cancellation";
 
 const workspaceLoading = () => <section className="card"><p>Opening workspace…</p></section>;
 const ConsultationWorkstation = dynamic(() => import("@/components/ConsultationWorkstation"), { loading: workspaceLoading });
@@ -307,7 +308,23 @@ export default function ClinicalApp() {
           !["summaries", "reports", "appointments", "admin"].includes(screen) && (
             <WorkflowSteps screen={screen} />
           )}{" "}
-        {contextVisitId && (() => { const visit = visits.find(item => item.id === contextVisitId); return visit ? <PatientContextBar visit={visit} showBalance={user.permissions.includes("billing.read")} onClear={() => setContextVisitId(null)} onOpen={(target) => { setFocusedVisitId(visit.id); setScreen(target); }} /> : null; })()}
+        {contextVisitId && (() => {
+          const visit = visits.find(item => item.id === contextVisitId);
+          return visit ? <PatientContextBar
+            visit={visit}
+            showBalance={user.permissions.includes("billing.read")}
+            canCancel={user.permissions.includes("visit.cancel")}
+            onClear={() => setContextVisitId(null)}
+            onOpen={(target) => { setFocusedVisitId(visit.id); setScreen(target); }}
+            onCancelled={async () => {
+              await loadVisits();
+              setContextVisitId(null);
+              setFocusedVisitId(null);
+              setScreen("dashboard");
+              setNotice(`${visit.visitNumber} was cancelled with a documented reason.`);
+            }}
+          /> : null;
+        })()}
         {notice && <div className="alert success">{notice}</div>}
         {screen === "dashboard" && (
           <Dashboard
@@ -688,12 +705,99 @@ function Dashboard({
   );
 }
 
-function PatientContextBar({ visit, showBalance, onClear, onOpen }: { visit: Visit; showBalance: boolean; onClear: () => void; onOpen: (target: Screen) => void }) {
+function PatientContextBar({ visit, showBalance, canCancel, onClear, onOpen, onCancelled }: {
+  visit: Visit;
+  showBalance: boolean;
+  canCancel: boolean;
+  onClear: () => void;
+  onOpen: (target: Screen) => void;
+  onCancelled: () => Promise<void>;
+}) {
   const servicePoint = currentServicePoint(visit);
   const point = servicePoint?.replaceAll("_", " ") || visit.status.replaceAll("_", " ");
   const targets: Partial<Record<ServicePointCode, Screen>> = { TRIAGE: "triage", CONSULTATION: careServiceForClinic(visit.clinic) ? "servicePoints" : "consultation", LABORATORY: "diagnostics", IMAGING: "imaging", PHARMACY: "pharmacy", BILLING: "billing" };
   const balance = showBalance && visit.invoice ? visit.invoice.items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0) - visit.invoice.payments.filter(item => item.status === "CONFIRMED").reduce((sum, item) => sum + Number(item.amount), 0) : 0;
-  return <aside className="patientContext" aria-label="Current patient context"><div><strong>{visit.patient.fullName}</strong><span>{visit.patient.patientNumber} · {visit.visitNumber} · {visit.clinic}</span></div><div><small>Current location</small><b>{point}</b></div>{visit.patient.allergies && <div><small>Allergies</small><b className={visit.patient.allergies.length ? "dangerText" : ""}>{visit.patient.allergies.length ? visit.patient.allergies.map(item => item.substance).join(", ") : "None recorded"}</b></div>}{visit.invoice && <div><small>Payment</small><b>{visit.invoice.status}{showBalance ? ` · KES ${Math.max(0, balance).toLocaleString()}` : ""}</b></div>}{servicePoint && targets[servicePoint] && <button className="contextAction" onClick={() => onOpen(targets[servicePoint]!)}>Open current task</button>}<button className="contextClose" onClick={onClear} aria-label="Clear patient context">×</button></aside>;
+  return <div className="patientContextGroup">
+    <aside className="patientContext" aria-label="Current patient context">
+      <div><strong>{visit.patient.fullName}</strong><span>{visit.patient.patientNumber} · {visit.visitNumber} · {visit.clinic}</span></div>
+      <div><small>Current location</small><b>{point}</b></div>
+      {visit.patient.allergies && <div><small>Allergies</small><b className={visit.patient.allergies.length ? "dangerText" : ""}>{visit.patient.allergies.length ? visit.patient.allergies.map(item => item.substance).join(", ") : "None recorded"}</b></div>}
+      {visit.invoice && <div><small>Payment</small><b>{visit.invoice.status}{showBalance ? ` · KES ${Math.max(0, balance).toLocaleString()}` : ""}</b></div>}
+      {servicePoint && targets[servicePoint] && <button className="contextAction" onClick={() => onOpen(targets[servicePoint]!)}>Open current task</button>}
+      <button className="contextClose" onClick={onClear} aria-label="Clear patient context">×</button>
+    </aside>
+    {canCancel && <VisitCancellationControl visit={visit} onCancelled={onCancelled} />}
+  </div>;
+}
+
+function VisitCancellationControl({ visit, onCancelled }: { visit: Visit; onCancelled: () => Promise<void> }) {
+  const [reasonCode, setReasonCode] = useState("");
+  const [details, setDetails] = useState("");
+  const [shaOutcome, setShaOutcome] = useState("");
+  const [shaEligibilityReference, setShaEligibilityReference] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const isSha = reasonCode === "SHA_BENEFIT_OR_ELIGIBILITY";
+  const emergencySha = isSha && (["URGENT", "EMERGENCY"].includes(visit.priority) || visit.clinic.toLowerCase().includes("emergency") || visit.visitType?.toLowerCase().includes("emergency"));
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setError("");
+    if (emergencySha) return setError("Urgent and emergency care must not be cancelled because of a SHA benefit or eligibility outcome.");
+    setBusy(true);
+    try {
+      await api(`/api/visits/${visit.id}/cancel`, {
+        method: "POST",
+        body: JSON.stringify({
+          reasonCode,
+          details,
+          ...(isSha ? { shaOutcome, shaEligibilityReference } : {}),
+        }),
+      });
+      await onCancelled();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The visit could not be cancelled");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <details className="visitCancellationPanel">
+    <summary>Cancel this visit</summary>
+    <form onSubmit={submit}>
+      <p>Use this only when care has not been delivered. Completed clinical work, payments, and submitted claims cannot be cancelled here.</p>
+      <label>Reason
+        <select aria-label="Cancellation reason" required value={reasonCode} onChange={(event) => {
+          setReasonCode(event.target.value);
+          setShaOutcome("");
+          setShaEligibilityReference("");
+          setError("");
+        }}>
+          <option value="">Select a reason</option>
+          {visitCancellationReasons.map((reason) => <option key={reason.code} value={reason.code}>{reason.label}</option>)}
+        </select>
+      </label>
+      {isSha && <>
+        <div className="shaCareWarning">SHA eligibility and benefit checks must not delay emergency assessment or stabilisation.</div>
+        <label>SHA outcome
+          <select aria-label="SHA outcome" required value={shaOutcome} onChange={(event) => setShaOutcome(event.target.value)}>
+            <option value="">Select the verified outcome</option>
+            {shaCancellationOutcomes.map((outcome) => <option key={outcome.code} value={outcome.code}>{outcome.label}</option>)}
+          </select>
+        </label>
+        <label>SHA check / verification reference
+          <input aria-label="SHA check / verification reference" required minLength={3} maxLength={120} value={shaEligibilityReference} onChange={(event) => setShaEligibilityReference(event.target.value)} placeholder="Portal, call, or manual verification reference" />
+        </label>
+      </>}
+      <label>Explanation
+        <textarea aria-label="Cancellation explanation" required minLength={5} maxLength={500} rows={3} value={details} onChange={(event) => setDetails(event.target.value)} placeholder="Record what happened and any handover or next step" />
+      </label>
+      {error && <div className="alert">{error}</div>}
+      <div className="visitCancellationActions">
+        <button type="submit" className="dangerAction" disabled={busy || emergencySha}>{busy ? "Cancelling…" : "Confirm cancellation"}</button>
+      </div>
+    </form>
+  </details>;
 }
 
 function PatientRegister({

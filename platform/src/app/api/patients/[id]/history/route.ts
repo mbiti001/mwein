@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
+import { visitCancellationReasonLabel } from "@/lib/visit-cancellation";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -16,6 +17,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       take: 20,
       select: {
         id: true, visitNumber: true, clinic: true, arrivedAt: true, status: true,
+        cancellation: { select: { reasonCode: true, details: true, shaOutcome: true, cancelledAt: true, cancelledBy: { select: { displayName: true } } } },
         encounters: { where: { status: "SIGNED" }, orderBy: { signedAt: "desc" }, take: 1, select: { signedAt: true, diagnoses: { select: { description: true, code: true, primary: true } } } },
         orders: { where: { status: { not: "CANCELLED" } }, orderBy: { requestedAt: "asc" }, select: {
           type: true, displayName: true,
@@ -30,7 +32,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       orderBy: [{ clinicalStatus: "asc" }, { updatedAt: "desc" }],
     }), db.appointment.findMany({ where: { patientId: id, facilityId: user.facilityId }, select: { id: true, scheduledAt: true, clinic: true, status: true }, orderBy: { scheduledAt: "desc" }, take: 20 }), db.referral.findMany({ where: { patientId: id, facilityId: user.facilityId }, select: { id: true, referralNumber: true, receivingFacility: true, reason: true, status: true, createdAt: true, returnedAt: true, closedAt: true }, orderBy: { createdAt: "desc" }, take: 20 })]);
     const timeline = [
-      ...visits.map(visit => ({ id: `visit-${visit.id}`, type: "VISIT", occurredAt: visit.arrivedAt, title: `${visit.clinic} · ${visit.visitNumber}`, detail: `${visit.status.replaceAll("_", " ")} · ${visit.encounters[0]?.diagnoses.map(item => `${item.code || ""} ${item.description}`.trim()).join("; ") || "No signed diagnosis"}` })),
+      ...visits.map(visit => ({
+        id: `visit-${visit.id}`,
+        type: "VISIT",
+        occurredAt: visit.cancellation?.cancelledAt || visit.arrivedAt,
+        title: `${visit.clinic} · ${visit.visitNumber}`,
+        detail: visit.cancellation
+          ? `CANCELLED · ${visitCancellationReasonLabel(visit.cancellation.reasonCode)}${visit.cancellation.shaOutcome ? ` · ${visit.cancellation.shaOutcome.replaceAll("_", " ")}` : ""} · ${visit.cancellation.details} · recorded by ${visit.cancellation.cancelledBy.displayName}`
+          : `${visit.status.replaceAll("_", " ")} · ${visit.encounters[0]?.diagnoses.map(item => `${item.code || ""} ${item.description}`.trim()).join("; ") || "No signed diagnosis"}`,
+      })),
       ...appointments.map(item => ({ id: `appointment-${item.id}`, type: "APPOINTMENT", occurredAt: item.scheduledAt, title: `${item.clinic} appointment`, detail: item.status.replaceAll("_", " ") })),
       ...referrals.map(item => ({ id: `referral-${item.id}`, type: "REFERRAL", occurredAt: item.closedAt || item.returnedAt || item.createdAt, title: `Referral ${item.referralNumber} · ${item.receivingFacility}`, detail: `${item.status} · ${item.reason}` })),
       ...problems.map(item => ({ id: `problem-${item.id}`, type: "PROBLEM", occurredAt: item.updatedAt, title: `${item.clinicalStatus} problem · ${item.description}`, detail: `${item.code || "Uncoded"} · recorded by ${item.recordedBy.displayName}` })),

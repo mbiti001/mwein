@@ -68,6 +68,30 @@ test("starts triage with blank measured observations and an explicit concern", a
   await expect(page.getByLabel("Gestational age today")).toHaveValue(/\d+ weeks [0-6] days/);
 });
 
+test("cancels an undelivered visit with a documented SHA benefit outcome", async ({ page }) => {
+  await login(page, "admin@mwein.local");
+  await page.getByRole("button", { name: "Registration" }).click();
+  await page.getByLabel("First name *").fill("Browser");
+  await page.getByLabel("Surname *").fill("Cancellation Check");
+  await page.getByLabel("Estimated age").fill("41");
+  await page.getByLabel("Sex at birth *").selectOption("MALE");
+  await page.getByLabel("Phone *").fill("+254700654399");
+  await page.getByLabel("Subcounty *").fill("Teso North");
+  await page.getByLabel("Consent to treatment *").check();
+  await page.getByLabel("Consent to electronic record *").check();
+  await page.getByRole("button", { name: "Register patient and continue" }).click();
+  await page.getByRole("button", { name: "Check in patient" }).click();
+
+  await page.getByText("Cancel this visit", { exact: true }).click();
+  await page.getByLabel("Cancellation reason").selectOption("SHA_BENEFIT_OR_ELIGIBILITY");
+  await expect(page.getByText("must not delay emergency assessment or stabilisation")).toBeVisible();
+  await page.getByLabel("SHA outcome").selectOption("BENEFIT_NOT_COVERED");
+  await page.getByLabel("SHA check / verification reference").fill("BROWSER-SHA-CHECK-001");
+  await page.getByLabel("Cancellation explanation").fill("Routine benefit was unavailable; alternatives and next steps were explained.");
+  await page.getByRole("button", { name: "Confirm cancellation" }).click();
+  await expect(page.getByText(/was cancelled with a documented reason/)).toBeVisible();
+});
+
 test("keeps authenticated navigation usable at a mobile breakpoint", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page, "admin@mwein.local");

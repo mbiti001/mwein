@@ -155,6 +155,7 @@ model Facility {
   cashierShifts         CashierShift[]
   operationsEvidence    OperationsEvidence[]
   ancAdmissionEvidence  AncAdmissionEvidence[]
+  visitCancellations    VisitCancellation[]
   shaContractProfile    ShaContractProfile?
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
@@ -322,6 +323,7 @@ model User {
   recordedAncAdmissionEvidence AncAdmissionEvidence[]     @relation("AncAdmissionEvidenceRecordedBy")
   updatedShaContractProfiles   ShaContractProfile[]       @relation("ShaContractProfileUpdatedBy")
   createdCatalogPrices         CatalogPriceVersion[]      @relation("CatalogPriceVersionCreatedBy")
+  cancelledVisits              VisitCancellation[]        @relation("VisitCancellationCancelledBy")
   createdAt                    DateTime                   @default(now())
   updatedAt                    DateTime                   @updatedAt
 
@@ -531,11 +533,30 @@ model Visit {
   referrals            Referral[]
   aiGenerations        AiGeneration[]
   ancAdmissionEvidence AncAdmissionEvidence?
+  cancellation         VisitCancellation?
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
   @@unique([facilityId, visitNumber])
   @@index([facilityId, status, priority, arrivedAt])
+}
+
+model VisitCancellation {
+  id                      String   @id @default(uuid()) @db.Uuid
+  facilityId              String   @db.Uuid
+  visitId                 String   @unique @db.Uuid
+  reasonCode              String
+  details                 String
+  shaOutcome              String?
+  shaEligibilityReference String?
+  policyVersion           String?
+  cancelledById           String   @db.Uuid
+  cancelledAt             DateTime @default(now())
+  facility                Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  visit                   Visit    @relation(fields: [visitId], references: [id], onDelete: Restrict)
+  cancelledBy             User     @relation("VisitCancellationCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
+
+  @@index([facilityId, cancelledAt])
 }
 
 model AncAdmissionEvidence {

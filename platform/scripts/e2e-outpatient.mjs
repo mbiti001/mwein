@@ -354,6 +354,52 @@ try {
   const patient = patientResult.body.patient;
   assert(patient.patientNumber?.startsWith("MMS-"), "Patient number was not assigned");
 
+  const shaCancellationVisit = await api("open visit for SHA eligibility outcome", "/api/visits", {
+    method: "POST",
+    body: JSON.stringify({ patientId: patient.id, clinic: "Outpatient", priority: "ROUTINE", visitType: "WALK_IN" }),
+  });
+  await api("cancel visit after documented SHA benefit check", `/api/visits/${shaCancellationVisit.body.visit.id}/cancel`, {
+    method: "POST",
+    body: JSON.stringify({
+      reasonCode: "SHA_BENEFIT_OR_ELIGIBILITY",
+      shaOutcome: "BENEFIT_NOT_COVERED",
+      shaEligibilityReference: "SHA-ELIG-E2E-0001",
+      details: "Routine service was not available under the verified benefit; patient advised on alternatives.",
+    }),
+  });
+  const cancelledState = (await pg.query(
+    `SELECT v."status" AS "visitStatus", i."status" AS "invoiceStatus", c."shaOutcome", c."shaEligibilityReference", c."policyVersion",
+            (SELECT COUNT(*)::int FROM "QueueEntry" q WHERE q."visitId" = v."id" AND q."status" = 'CANCELLED') AS "cancelledQueues"
+     FROM "Visit" v
+     JOIN "Invoice" i ON i."visitId" = v."id"
+     JOIN "VisitCancellation" c ON c."visitId" = v."id"
+     WHERE v."id" = $1`,
+    [shaCancellationVisit.body.visit.id],
+  )).rows[0];
+  assert(cancelledState.visitStatus === "CANCELLED" && cancelledState.invoiceStatus === "VOID", "Cancellation did not close the visit and void its invoice");
+  assert(cancelledState.shaOutcome === "BENEFIT_NOT_COVERED" && cancelledState.shaEligibilityReference === "SHA-ELIG-E2E-0001" && cancelledState.policyVersion, "SHA cancellation evidence was not retained");
+  assert(cancelledState.cancelledQueues === 1, "Cancellation left an active queue entry");
+
+  const emergencyVisit = await api("open emergency visit for SHA safeguard", "/api/visits", {
+    method: "POST",
+    body: JSON.stringify({ patientId: patient.id, clinic: "Emergency", priority: "EMERGENCY", visitType: "EMERGENCY" }),
+  });
+  const emergencyShaCancellation = await requestWithCookie(`/api/visits/${emergencyVisit.body.visit.id}/cancel`, sessionCookie, {
+    method: "POST",
+    body: JSON.stringify({
+      reasonCode: "SHA_BENEFIT_OR_ELIGIBILITY",
+      shaOutcome: "COVERAGE_INACTIVE",
+      shaEligibilityReference: "SHA-ELIG-E2E-EMERGENCY",
+      details: "Emergency eligibility safeguard test.",
+    }),
+  });
+  assert(emergencyShaCancellation.response.status === 409 && emergencyShaCancellation.body.reason?.includes("Do not delay"), "SHA eligibility was allowed to cancel emergency care");
+  await api("redirect emergency visit without using eligibility as a barrier", `/api/visits/${emergencyVisit.body.visit.id}/cancel`, {
+    method: "POST",
+    body: JSON.stringify({ reasonCode: "CLINICAL_REDIRECTION", details: "Transferred to a higher-acuity emergency department with handover documented." }),
+  });
+  steps.push("verify governed cancellation and SHA emergency-care safeguard");
+
   const adolescentResult = await api("register adolescent ANC patient", "/api/patients", {
     method: "POST",
     body: JSON.stringify({
@@ -619,6 +665,7 @@ try {
   const clinicalHistory = await api("load longitudinal clinical history", `/api/patients/${patient.id}/history?exclude=${visit.id}`);
   assert(clinicalHistory.body.problems.some((problem) => problem.id === problemResult.body.problem.id && problem.clinicalStatus === "ACTIVE"), "Longitudinal problem did not persist across the patient record");
   assert(clinicalHistory.body.timeline.some((event) => event.type === "APPOINTMENT"), "Longitudinal patient timeline omitted appointment events");
+  assert(clinicalHistory.body.timeline.some((event) => event.type === "VISIT" && event.detail.includes("SHA eligibility or benefit outcome") && event.detail.includes("BENEFIT NOT COVERED")), "Longitudinal history omitted the documented SHA cancellation outcome");
 
   const [mmsReception, otherReception, laboratory] = await Promise.all([
     authenticate("MMS", "shared.user@example.test"),
