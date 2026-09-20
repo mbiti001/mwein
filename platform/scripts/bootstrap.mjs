@@ -132,6 +132,7 @@ await db.userRole.upsert({
 });
 
 const catalogue = [
+  ...["Outpatient", "ANC", "MCH / PNC", "Diabetes", "Dialysis", "Cancer care", "Sickle-cell care", "Walk-in", "HTN", "Paediatrics", "Emergency", "Other", "DM"].map(clinic => ["PROCEDURE", `CONSULT-${clinic.toUpperCase()}`, `${clinic} consultation`, clinic === "Emergency" ? "0.00" : "500.00", {}]),
   [
     "LABORATORY_TEST",
     "FBC",
@@ -271,6 +272,7 @@ for (const [category, code, name, unitPrice, detail] of catalogue)
       category,
       code,
       name,
+      ...(code.startsWith("CONSULT-") ? { priceVersions: { create: { facilityId: facility.id, unitPrice, currency: "KES", effectiveFrom: new Date(), reason: "Initial clinic consultation tariff" } } } : {}),
       description:
         code === "FBC"
           ? "Also known as full haemogram, full hemogram, haemogram, hemogram or CBC; all terms use this same complete haematology panel."

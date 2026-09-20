@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { patientClinicalGroup } from "@/lib/domain";
 import { jsonRequest } from "@/lib/client-http";
 import { calculateDispenseQuantity } from "@/lib/medication";
+import PatientTrends, { type TrendVisit } from "@/components/PatientTrends";
 import {
   SearchableMultiPicker,
   SearchablePicker,
@@ -100,6 +101,7 @@ type DiagnosisSearchResult = {
   source: string;
 };
 type HistoryVisit = {
+  triage?: TrendVisit["triage"];
   id: string;
   visitNumber: string;
   clinic: string;
@@ -1558,6 +1560,11 @@ export function ConsultationForm({
           No active allergies recorded — verify with the patient.
         </div>
       )}
+      <section className="card historyPanel" aria-label="Clinical review overview">
+        <div className="cardHead"><div><h2>Clinical review at a glance</h2><p>{problems.filter(problem => problem.clinicalStatus === "ACTIVE").length} active problem(s) · {(visit.orders || []).filter(order => ["REQUESTED", "IN_PROGRESS"].includes(order.status)).length} pending order(s) · {savedDiagnoses.length} recorded diagnosis/diagnoses</p></div></div>
+        <div className="actions">{[{ step: 1, label: "History" }, { step: 3, label: "Examination" }, { step: 4, label: "Diagnosis" }, { step: 5, label: "Investigations" }, { step: 6, label: "Medicines" }, { step: 7, label: "Plan & finish" }].map(item => <button type="button" className="secondary" key={item.step} onClick={() => { setActiveStep(item.step); document.getElementById("consultation-work")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>{item.label}</button>)}</div>
+      </section>
+      <PatientTrends visits={[visit, ...history]} />
       <section className="card historyPanel">
         <div className="cardHead"><div><h2>Longitudinal problem list</h2><p>Active conditions persist across visits until a clinician resolves them.</p></div></div>
         {problems.filter((problem) => problem.clinicalStatus === "ACTIVE").map((problem) => <article key={problem.id}>
@@ -1630,7 +1637,7 @@ export function ConsultationForm({
       >
         {error && <div className="alert">{error}</div>}
         {notice && <div className="alert success">{notice}</div>}
-        <nav className="consultNavigator" aria-label="Consultation sections">
+        <nav id="consultation-work" className="consultNavigator" aria-label="Consultation sections">
           {[
             [1, "History"],
             [2, "Background"],
@@ -2117,7 +2124,7 @@ export function ConsultationForm({
             name="imaging"
             label="Imaging and procedures"
             options={catalogue
-              .filter((item) => item.category === "PROCEDURE")
+              .filter((item) => item.category === "PROCEDURE" && !item.code.startsWith("CONSULT-"))
               .map((item) => ({
                 value: item.code,
                 label: item.name,

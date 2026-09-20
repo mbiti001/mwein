@@ -39,7 +39,7 @@ type Item = {
 };
 const labels: Record<Category, string> = {
   LABORATORY_TEST: "Laboratory tests",
-  PROCEDURE: "Procedures & imaging",
+  PROCEDURE: "Consultations, procedures & imaging",
   PHARMACEUTICAL: "Pharmaceuticals",
   NON_PHARMACEUTICAL: "Non-pharmaceuticals",
 };

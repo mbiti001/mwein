@@ -9,6 +9,7 @@ import { operationalReference } from "@/lib/domain";
 import { appointmentClinics } from "@/lib/appointments";
 import { assessAncAdmission } from "@/lib/clinic-admission";
 import { visitAccessProfile, visitOrderTypes } from "@/lib/visit-access";
+import { effectiveCatalogPrice } from "@/lib/catalog-pricing";
 
 const visitInput = z.object({
   patientId: z.uuid(),
@@ -180,6 +181,15 @@ export async function POST(request: Request) {
         if (input.appointmentId && !appointment)
           throw Object.assign(new Error("Scheduled appointment is no longer available"), { status: 409 });
         const clinic = appointment?.clinic || input.clinic;
+        const consultationCode = `CONSULT-${clinic.toUpperCase()}`;
+        const consultationTariff = await tx.catalogItem.findUnique({
+          where: { facilityId_code: { facilityId: user.facilityId, code: consultationCode } },
+          include: { priceVersions: true },
+        });
+        const emergency = clinic === "Emergency" || input.visitType === "EMERGENCY" || ["URGENT", "EMERGENCY"].includes(input.priority);
+        if ((!consultationTariff?.active || consultationTariff.currency !== "KES") && !emergency)
+          throw Object.assign(new Error(`Configure an active KES consultation tariff for ${clinic} in Services & pricing before check-in`), { status: 409 });
+        const consultationPrice = consultationTariff?.active && consultationTariff.currency === "KES" ? effectiveCatalogPrice(consultationTariff) : null;
         if (clinic !== "ANC" && input.ancEvidence)
           throw Object.assign(new Error("Pregnancy-test evidence may only be recorded for ANC check-in"), { status: 422 });
         if (clinic === "ANC" && input.visitType === "EMERGENCY")
@@ -274,11 +284,13 @@ export async function POST(request: Request) {
                 ),
                 items: {
                   create: {
-                    serviceCode: `CONSULT-${clinic.toUpperCase()}`,
+                    serviceCode: consultationCode,
+                    catalogItemId: consultationPrice ? consultationTariff!.id : undefined,
+                    priceVersionId: consultationPrice?.priceVersionId,
                     description: `${clinic} consultation`,
                     quantity: new Prisma.Decimal(1),
                     unitPrice: new Prisma.Decimal(
-                      clinic === "Emergency" ? "0.00" : "500.00",
+                      consultationPrice?.unitPrice.toString() ?? "0.00",
                     ),
                   },
                 },

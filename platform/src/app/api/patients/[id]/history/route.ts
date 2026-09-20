@@ -17,6 +17,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       take: 20,
       select: {
         id: true, visitNumber: true, clinic: true, arrivedAt: true, status: true,
+        triage: { select: { observations: { select: { code: true, valueDecimal: true, unit: true, recordedAt: true } } } },
         cancellation: { select: { reasonCode: true, details: true, shaOutcome: true, cancelledAt: true, cancelledBy: { select: { displayName: true } } } },
         encounters: { where: { status: "SIGNED" }, orderBy: { signedAt: "desc" }, take: 1, select: { signedAt: true, diagnoses: { select: { description: true, code: true, primary: true } } } },
         orders: { where: { status: { not: "CANCELLED" } }, orderBy: { requestedAt: "asc" }, select: {

@@ -260,7 +260,7 @@ export async function POST(
             const item = catalogue.find(
               (value) =>
                 value.code === code.toUpperCase() &&
-                value.category === "PROCEDURE",
+                value.category === "PROCEDURE" && !value.code.startsWith("CONSULT-"),
             );
             if (!item)
               throw Object.assign(

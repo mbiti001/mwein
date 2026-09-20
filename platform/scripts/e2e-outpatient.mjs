@@ -354,10 +354,13 @@ try {
   const patient = patientResult.body.patient;
   assert(patient.patientNumber?.startsWith("MMS-"), "Patient number was not assigned");
 
+  await pg.query(`UPDATE "CatalogPriceVersion" SET "unitPrice" = 650 WHERE "catalogItemId" IN (SELECT "id" FROM "CatalogItem" WHERE "facilityId" = $1 AND "code" = 'CONSULT-OUTPATIENT')`, [facility.id]);
   const shaCancellationVisit = await api("open visit for SHA eligibility outcome", "/api/visits", {
     method: "POST",
     body: JSON.stringify({ patientId: patient.id, clinic: "Outpatient", priority: "ROUTINE", visitType: "WALK_IN" }),
   });
+  assert(Number(shaCancellationVisit.body.visit.invoice.items[0].unitPrice) === 650 && shaCancellationVisit.body.visit.invoice.items[0].priceVersionId, "Check-in did not use the clinic tariff and price version");
+  await pg.query(`UPDATE "CatalogPriceVersion" SET "unitPrice" = 500 WHERE "catalogItemId" IN (SELECT "id" FROM "CatalogItem" WHERE "facilityId" = $1 AND "code" = 'CONSULT-OUTPATIENT')`, [facility.id]);
   await api("cancel visit after documented SHA benefit check", `/api/visits/${shaCancellationVisit.body.visit.id}/cancel`, {
     method: "POST",
     body: JSON.stringify({
