@@ -53,6 +53,8 @@ export async function POST(
         });
         if (!visit)
           throw Object.assign(new Error("Visit not found"), { status: 404 });
+        if (["CANCELLED", "COMPLETED"].includes(visit.status))
+          throw Object.assign(new Error("This visit is closed and cannot be changed"), { status: 409 });
         if (visit.encounters.some((item) => item.status === "SIGNED"))
           throw Object.assign(
             new Error("This consultation is already signed"),

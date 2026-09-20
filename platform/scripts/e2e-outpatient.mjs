@@ -379,6 +379,11 @@ try {
   assert(cancelledState.visitStatus === "CANCELLED" && cancelledState.invoiceStatus === "VOID", "Cancellation did not close the visit and void its invoice");
   assert(cancelledState.shaOutcome === "BENEFIT_NOT_COVERED" && cancelledState.shaEligibilityReference === "SHA-ELIG-E2E-0001" && cancelledState.policyVersion, "SHA cancellation evidence was not retained");
   assert(cancelledState.cancelledQueues === 1, "Cancellation left an active queue entry");
+  const closedConsultation = await requestWithCookie(`/api/visits/${shaCancellationVisit.body.visit.id}/consultation`, sessionCookie, {
+    method: "POST",
+    body: JSON.stringify({ action: "SAVE_NOTES", data: { chiefComplaint: "Stale screen", historyPresentingIllness: "Attempt after cancellation", generalExamination: "Not performed", disposition: "OUTPATIENT" } }),
+  });
+  assert(closedConsultation.response.status === 409, "A cancelled visit accepted consultation changes");
 
   const emergencyVisit = await api("open emergency visit for SHA safeguard", "/api/visits", {
     method: "POST",

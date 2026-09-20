@@ -726,7 +726,7 @@ function PatientContextBar({ visit, showBalance, canCancel, onClear, onOpen, onC
       {servicePoint && targets[servicePoint] && <button className="contextAction" onClick={() => onOpen(targets[servicePoint]!)}>Open current task</button>}
       <button className="contextClose" onClick={onClear} aria-label="Clear patient context">×</button>
     </aside>
-    {canCancel && <VisitCancellationControl visit={visit} onCancelled={onCancelled} />}
+    {canCancel && <VisitCancellationControl key={visit.id} visit={visit} onCancelled={onCancelled} />}
   </div>;
 }
 
