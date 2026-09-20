@@ -14,18 +14,10 @@ export async function GET() {
     const configuration = productionConfigurationReadiness();
     const governance = facilities.map((facility) => ({ code: facility.code, ...governanceReadiness(facility.governanceEvidence) }));
     const ready = facilities.length > 0 && configuration.ready && governance.every((facility) => facility.ready);
-    return NextResponse.json({
-      status: ready ? "ready" : "blocked",
-      configuration: configuration.checks,
-      facilities: governance.map((facility) => ({
-        code: facility.code,
-        ready: facility.ready,
-        approved: facility.approved,
-        total: facility.total,
-        missing: facility.gates.filter((gate) => !gate.ready).map((gate) => gate.code),
-      })),
-    }, { status: ready ? 200 : 503, headers: { "cache-control": "no-store" } });
+    // Detailed, facility-scoped evidence remains behind the admin API permissions.
+    return NextResponse.json({ status: ready ? "ready" : "blocked" },
+      { status: ready ? 200 : 503, headers: { "cache-control": "no-store" } });
   } catch {
-    return NextResponse.json({ status: "blocked", database: "unavailable" }, { status: 503, headers: { "cache-control": "no-store" } });
+    return NextResponse.json({ status: "blocked" }, { status: 503, headers: { "cache-control": "no-store" } });
   }
 }

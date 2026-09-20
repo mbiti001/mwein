@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
+import { recordClinicalAccess } from "@/lib/clinical-access";
 import { operationalReference } from "@/lib/domain";
 import { appointmentClinics } from "@/lib/appointments";
 import { assessAncAdmission } from "@/lib/clinic-admission";
@@ -139,7 +140,8 @@ export async function GET() {
         rank[a.priority] - rank[b.priority] ||
         a.arrivedAt.getTime() - b.arrivedAt.getTime(),
     );
-    return NextResponse.json({ visits });
+    await recordClinicalAccess(user, "VISIT_WORKLIST", visits.map(({ id }) => ({ type: "Visit", id })));
+    return NextResponse.json({ visits }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return apiError(error);
   }

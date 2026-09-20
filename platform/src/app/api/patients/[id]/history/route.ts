@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
+import { recordClinicalAccess } from "@/lib/clinical-access";
 import { visitCancellationReasonLabel } from "@/lib/visit-cancellation";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -46,6 +47,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       ...referrals.map(item => ({ id: `referral-${item.id}`, type: "REFERRAL", occurredAt: item.closedAt || item.returnedAt || item.createdAt, title: `Referral ${item.referralNumber} · ${item.receivingFacility}`, detail: `${item.status} · ${item.reason}` })),
       ...problems.map(item => ({ id: `problem-${item.id}`, type: "PROBLEM", occurredAt: item.updatedAt, title: `${item.clinicalStatus} problem · ${item.description}`, detail: `${item.code || "Uncoded"} · recorded by ${item.recordedBy.displayName}` })),
     ].sort((left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime());
-    return NextResponse.json({ patient, visits, problems, appointments, referrals, timeline });
+    await recordClinicalAccess(user, "PATIENT_HISTORY", [{ type: "Patient", id: patient.id }]);
+    return NextResponse.json({ patient, visits, problems, appointments, referrals, timeline }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) { return apiError(error); }
 }

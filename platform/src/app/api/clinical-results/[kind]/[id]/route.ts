@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiError } from "@/lib/http";
+import { recordClinicalAccess } from "@/lib/clinical-access";
 
 const resultKind = z.enum(["laboratory", "imaging"]);
 
@@ -44,6 +45,7 @@ export async function GET(
         },
       });
       if (!record) throw Object.assign(new Error("Laboratory result not found"), { status: 404 });
+      await recordClinicalAccess(user, "CLINICAL_RESULT", [{ type: "LaboratoryResult", id: record.id }]);
       return NextResponse.json(
         { kind: "LABORATORY_RESULT", record },
         { headers: { "Cache-Control": "private, no-store" } },
@@ -76,6 +78,7 @@ export async function GET(
       },
     });
     if (!record) throw Object.assign(new Error("Imaging result not found"), { status: 404 });
+    await recordClinicalAccess(user, "CLINICAL_RESULT", [{ type: "ImagingResult", id: record.id }]);
     return NextResponse.json(
       { kind: "IMAGING_RESULT", record },
       { headers: { "Cache-Control": "private, no-store" } },

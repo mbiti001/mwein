@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
+import { recordClinicalAccess } from "@/lib/clinical-access";
 import { normalizeName } from "@/lib/security";
 import { patientNumber, patientRegistrationSchema } from "@/lib/domain";
 
@@ -51,7 +52,8 @@ export async function GET(request: Request) {
       },
       orderBy: { updatedAt: "desc" }, take: 50
     });
-    return NextResponse.json({ patients });
+    await recordClinicalAccess(user, "PATIENT_SEARCH", patients.map(({ id }) => ({ type: "Patient", id })));
+    return NextResponse.json({ patients }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) { return apiError(error); }
 }
 

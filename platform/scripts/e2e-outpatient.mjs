@@ -29,17 +29,25 @@ function availablePort() {
 }
 
 function run(command, args, env) {
+  console.log(`E2E setup: ${path.basename(command)} ${args.join(" ")}`);
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: root,
       env: { ...process.env, ...env },
       stdio: ["ignore", "pipe", "pipe"],
     });
+    childProcesses.add(child);
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      reject(new Error(`E2E setup timed out after 90 seconds: ${path.basename(command)} ${args.join(" ")}\n${output}`));
+    }, 90_000);
     let output = "";
     child.stdout.on("data", (chunk) => (output += chunk));
     child.stderr.on("data", (chunk) => (output += chunk));
-    child.once("error", reject);
+    child.once("error", (error) => { clearTimeout(timer); childProcesses.delete(child); reject(error); });
     child.once("exit", (code) => {
+      clearTimeout(timer);
+      childProcesses.delete(child);
       if (code === 0) resolve(output);
       else reject(new Error(`${command} ${args.join(" ")} failed (${code})\n${output}`));
     });
@@ -53,7 +61,7 @@ async function waitForServer(origin, child) {
     if (child.exitCode !== null)
       throw new Error(`Next.js exited before becoming ready (${child.exitCode})`);
     try {
-      const response = await fetch(`${origin}/api/health`);
+      const response = await fetch(`${origin}/api/health`, { signal: AbortSignal.timeout(5_000) });
       if (response.ok) return;
       lastError = new Error(`Health check returned ${response.status}`);
     } catch (error) {
@@ -85,12 +93,17 @@ function diagnosisSelectionToken(selection) {
 }
 
 const steps = [];
+steps.push = function (...items) {
+  items.forEach((item) => console.log(`E2E: ${item}`));
+  return Array.prototype.push.apply(this, items);
+};
 let sessionCookie = "";
 let origin = "";
 
 async function api(label, pathname, options = {}) {
   const response = await fetch(`${origin}${pathname}`, {
     ...options,
+    signal: AbortSignal.timeout(30_000),
     headers: {
       ...(options.body ? { "content-type": "application/json" } : {}),
       ...(sessionCookie ? { cookie: sessionCookie } : {}),
@@ -108,6 +121,7 @@ async function api(label, pathname, options = {}) {
 async function requestWithCookie(pathname, cookie, options = {}) {
   const response = await fetch(`${origin}${pathname}`, {
     ...options,
+    signal: AbortSignal.timeout(30_000),
     headers: {
       ...(options.body ? { "content-type": "application/json" } : {}),
       ...(cookie ? { cookie } : {}),
@@ -245,7 +259,7 @@ try {
 
   origin = `http://127.0.0.1:${appPort}`;
   const productionServer = process.env.E2E_PRODUCTION === "1";
-  nextProcess = spawn("./node_modules/.bin/next", [productionServer ? "start" : "dev", ...(productionServer ? [] : ["--webpack"]), "-p", String(appPort)], {
+  nextProcess = spawn("./node_modules/.bin/next", [productionServer ? "start" : "dev", ...(productionServer ? [] : ["--webpack"]), "--hostname", "127.0.0.1", "-p", String(appPort)], {
     cwd: root,
     env: {
       ...process.env,
@@ -257,6 +271,7 @@ try {
     stdio: ["ignore", "pipe", "pipe"],
   });
   childProcesses.add(nextProcess);
+  console.log("E2E: waiting for application health (60-second deadline)");
   let nextOutput = "";
   nextProcess.stdout.on("data", (chunk) => (nextOutput += chunk));
   nextProcess.stderr.on("data", (chunk) => (nextOutput += chunk));
@@ -266,6 +281,7 @@ try {
   steps.push("start application and verify database health");
 
   const missingOrigin = await fetch(`${origin}/api/auth/login`, {
+    signal: AbortSignal.timeout(30_000),
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ facilityCode: "MMS", email: "admin@mwein.local", password: adminPassword }),
@@ -799,6 +815,11 @@ try {
   assert(auditExport.response.ok, `Audit export failed: ${JSON.stringify(auditExport.body)}`);
   assert(auditExport.body.chain.valid === true && Number(auditExport.body.chain.eventCount) > 0, "Audit export did not verify its serialized chain");
   assert(auditExport.response.headers.get("x-audit-export-sha256")?.length === 64, "Audit export omitted its SHA-256 digest");
+  const accessEvents = auditExport.body.events.filter((event) => event.action === "CLINICAL_RECORDS_ACCESSED");
+  assert(accessEvents.some((event) => JSON.parse(event.reason).context === "PATIENT_HISTORY"), "Patient history disclosure was missing from the retained audit chain");
+  assert(accessEvents.some((event) => JSON.parse(event.reason).context === "VISIT_WORKLIST"), "Visit worklist disclosure was missing from the retained audit chain");
+  assert(accessEvents.every((event) => event.userId && event.sessionId && event.facilityId === facility.id), "Read audit events omitted their actor/session/facility boundary");
+  steps.push("verify clinical access events are retained with actor, session and facility");
   steps.push("verify facility audit chain and export digest");
 
   let throttled = false;
@@ -815,7 +836,7 @@ try {
 
   const productionReadiness = await requestWithCookie("/api/ready", "");
   assert(productionReadiness.response.status === 503 && productionReadiness.body.status === "blocked", "Production readiness did not fail closed without approvals and external controls");
-  assert(productionReadiness.body.facilities.every((item) => item.missing.length === 11), "Production readiness omitted governance gates");
+  assert(Object.keys(productionReadiness.body).join() === "status", "Public readiness exposed internal configuration or facility evidence");
   steps.push("verify production readiness fails closed until external evidence exists");
 
   console.log(`Outpatient E2E passed (${steps.length} checks)`);
@@ -827,8 +848,21 @@ try {
       process.once("SIGTERM", resolve);
     });
   }
+} catch (error) {
+  // Print before cleanup: a broken socket shutdown must not hide the original failure.
+  console.error(error);
+  process.exitCode = 1;
 } finally {
+  const cleanupDeadline = setTimeout(() => {
+    console.error("E2E cleanup exceeded 10 seconds; terminating the isolated fixture");
+    process.exit(1);
+  }, 10_000);
+  cleanupDeadline.unref();
   for (const child of childProcesses) await stopChild(child);
   await socketServer.stop();
+  // pglite-socket defers socket-close handling with setImmediate; let it detach
+  // while the database is still alive, before destroying the WASM instance.
+  await new Promise((resolve) => setImmediate(resolve));
   await pg.close();
+  clearTimeout(cleanupDeadline);
 }

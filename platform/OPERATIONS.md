@@ -2,6 +2,12 @@
 
 Production release is deliberately separate from application build and from first-time provisioning.
 
+## Deployment target and CI
+
+Set the hosting project root to `platform/`, framework to Next.js, install command to `npm ci`, and build command to `npm run vercel-build`. The root repository's `vercel.json`, Dockerfile and cloud bundle are legacy-only. Preview environments must never receive production database credentials.
+
+Require the GitHub **Platform verification** check in branch protection/rulesets. It verifies types, unit tests, migrations, the production build, the isolated outpatient flow and browser workflows. Merely adding the workflow does not configure branch protection. Build jobs need no live database credentials; database changes run in a separately authorised release context.
+
 ## Release order
 
 1. Take and externally retain a verified database backup.
@@ -29,6 +35,12 @@ Set an explicit dedicated `BACKUP_DIR` and run `npm run ops:backup`. The command
 At the agreed cadence, create a disposable isolated PostgreSQL database, set `RESTORE_DATABASE_URL` and `BACKUP_FILE`, and run `npm run ops:restore-drill`. The script refuses to target the configured source `DATABASE_URL`. Run application smoke tests against the restored database, destroy the disposable database through the provider, and attach the results to the Backup and restore governance gate.
 
 ## Audit retention
+
+Patient searches, patient history, active visit worklists, visit summaries and verified diagnostic-result reads now append `CLINICAL_RECORDS_ACCESSED` before returning data. The event records the user, session, facility, fixed workflow context and resource references, without names, search text or clinical notes. A list produces one event containing its resource references; even an empty search is recorded. Responses use `private, no-store`. If the append fails, these endpoints return an error instead of disclosing records; use the approved downtime procedure during an audit-storage outage.
+
+These events record authorised server disclosure, not proof of viewing, printing or external delivery. Other endpoints, denied-access monitoring and infrastructure log retention still require a complete coverage review. Audit exports themselves remain sensitive because resource references can identify records.
+
+The public `/api/ready` response contains only `status` and HTTP 200/503. Configuration diagnostics remain in the permission-protected Administration overview; facility governance evidence remains in Release gates. The endpoint is a probe, not an automatic traffic-admission control.
 
 An authorized auditor downloads `/api/admin/audit/export`. The response verifies the serialized facility chain before returning and includes its SHA-256 in `x-audit-export-sha256`. Run `npm run ops:audit-verify -- /absolute/path/to/export.json` independently, then place the export and digest in the approved immutable retention target. Legacy version-1 event count is reported separately because events predating facility-scoped chain version 2 cannot be retroactively re-chained without destroying original evidence.
 

@@ -9,7 +9,52 @@ permissions:
   contents: read
 
 jobs:
+  platform:
+    name: Platform verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: platform
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: platform/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Generate database client
+        run: npm run db:generate
+      - name: Check types
+        run: npm run lint
+      - name: Run platform tests
+        run: npm test
+      - name: Verify migrations and database constraints
+        run: npm run test:migrations
+      - name: Build without database credentials
+        run: npm run vercel-build
+      - name: Verify outpatient workflow against isolated test data
+        run: npm run test:e2e
+        env:
+          E2E_PRODUCTION: "1"
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+      - name: Verify browser workflows
+        run: npm run test:browser
+      - name: Retain browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-browser-failures
+          path: platform/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
   verify:
+    name: Legacy compatibility verification
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
