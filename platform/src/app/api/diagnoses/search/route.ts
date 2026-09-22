@@ -33,13 +33,13 @@ async function accessToken(clientId: string, clientSecret: string) {
     if (!response.ok) throw new Error(`WHO ICD-11 authentication failed (${response.status})`);
     const value = await response.json() as { access_token?: string; expires_in?: number };
     if (!value.access_token) throw new Error("WHO ICD-11 authentication returned no access token");
-    tokenCache = { value: value.access_token, expiresAt: Date.now() + Math.max(60, Number(value.expires_in || 300) - 60) * 1000 };
+    tokenCache = { value: value.access_token, expiresAt: Date.now() + Math.max(0, Number(value.expires_in ?? 300) - 60) * 1000 };
     return tokenCache.value;
   })().finally(() => { tokenRequest = null; });
   return tokenRequest;
 }
 
-async function whoSearch(query: string, clientId: string, clientSecret: string): Promise<Result[]> {
+async function whoSearch(query: string, clientId: string, clientSecret: string, retryAuthentication = true): Promise<Result[]> {
   const release = icd11Release();
   const url = new URL(`https://id.who.int/icd/release/11/${release}/mms/search`);
   url.searchParams.set("q", query);
@@ -55,6 +55,10 @@ async function whoSearch(query: string, clientId: string, clientSecret: string):
     cache: "no-store",
     signal: AbortSignal.timeout(8_000),
   });
+  if (response.status === 401 && retryAuthentication) {
+    tokenCache = null;
+    return whoSearch(query, clientId, clientSecret, false);
+  }
   if (!response.ok) throw new Error(`WHO ICD-11 search failed (${response.status})`);
   const data = await response.json() as { destinationEntities?: Array<{ id?: string; linearizationUri?: string; theCode?: string; title?: string; foundationUri?: string }> };
   return (data.destinationEntities || [])
@@ -106,15 +110,15 @@ export async function GET(request: Request) {
     if (clientId && clientSecret) {
       try {
         const results = await whoSearch(query, clientId, clientSecret);
-        return NextResponse.json({ results: signed(results, user.facilityId), source: "WHO ICD-11", release: icd11Release() });
+        return NextResponse.json({ results: signed(results, user.facilityId), source: "WHO ICD-11", release: icd11Release() }, { headers: { "Cache-Control": "private, no-store" } });
       } catch (error) {
         console.error(JSON.stringify({ level: "error", event: "icd11_search_failed", name: error instanceof Error ? error.name : "UnknownError" }));
         const results = await facilityHistory(user.facilityId, query);
-        return NextResponse.json({ results: signed(results, user.facilityId), source: "Facility history", upstreamUnavailable: true });
+        return NextResponse.json({ results: signed(results, user.facilityId), source: "Facility history", upstreamUnavailable: true }, { headers: { "Cache-Control": "private, no-store" } });
       }
     }
     const results = await facilityHistory(user.facilityId, query);
-    return NextResponse.json({ results: signed(results, user.facilityId), source: "Facility history", configurationRequired: true });
+    return NextResponse.json({ results: signed(results, user.facilityId), source: "Facility history", configurationRequired: true }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return apiError(error);
   }

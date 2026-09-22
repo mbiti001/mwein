@@ -24,7 +24,8 @@
     "certification:evidence": "node scripts/certification-evidence.mjs",
     "db:generate": "prisma generate",
     "db:validate": "prisma validate",
-    "db:migrate": "prisma migrate dev"
+    "db:migrate": "prisma migrate dev",
+    "ops:icd11-verify": "node scripts/verify-icd11.mjs"
   },
   "dependencies": {
     "@prisma/client": "6.12.0",
