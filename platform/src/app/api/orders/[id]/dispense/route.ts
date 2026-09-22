@@ -177,6 +177,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         include: { prescription: true, visit: { include: { orders: true, invoice: true } } },
       });
       if (!order?.prescription) fail("Active prescription not found", 404);
+      if (order.visit.clinicallyClosedAt || ["DISCHARGED", "COMPLETED", "CANCELLED"].includes(order.visit.status)) fail("Clinical visit is closed", 409);
       const prescribed = Number(order.prescription.quantity);
       const quantity = input.action === "DISPENSE" ? input.quantity! : 0;
       const previouslyDispensed = Number(order.prescription.dispensedQuantity || 0);

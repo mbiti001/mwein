@@ -52,7 +52,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       if (newPaid + submittedCover >= total - 0.001) {
         const outstandingOrders = invoice.visit.orders.some(order => ["DRAFT", "REQUESTED", "IN_PROGRESS"].includes(order.status));
         const signed = invoice.visit.encounters.some(encounter => encounter.status === "SIGNED");
-        if (!outstandingOrders && signed) {
+        if (!outstandingOrders && signed && invoice.visit.clinicallyClosedAt && invoice.visit.status === "DISCHARGED") {
           await tx.queueEntry.updateMany({ where: { visitId: invoice.visitId, status: { in: ["WAITING", "CALLED", "IN_PROGRESS"] } }, data: { status: "COMPLETED", completedAt: new Date() } });
           await tx.visit.update({ where: { id: invoice.visitId }, data: { status: "COMPLETED", completedAt: new Date() } });
           visitCompleted = true;

@@ -18,6 +18,7 @@ const servicePoint = z.enum(operationalServicePoints);
 const inputSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("CALL_NEXT"), servicePoint }),
   z.object({ action: z.literal("START"), queueEntryId: z.uuid() }),
+  z.object({ action: z.literal("ESCALATE"), queueEntryId: z.uuid(), reason: z.string().trim().min(10).max(500) }),
   z.object({ action: z.literal("TRANSFER"), queueEntryId: z.uuid(), targetServicePoint: servicePoint, reason: z.string().trim().min(5).max(300) }),
   z.object({ action: z.literal("SET_PAUSED"), servicePoint, paused: z.boolean(), reason: z.string().trim().min(5).max(300).optional() }),
   z.object({ action: z.literal("SET_TARGET"), servicePoint, targetMinutes: z.coerce.number().int().min(5).max(480) }),
@@ -98,8 +99,15 @@ export async function POST(request: Request) {
 
       const entry = await tx.queueEntry.findFirst({ where: { id: input.queueEntryId, visit: { facilityId: user.facilityId } }, include: { visit: true } });
       if (!entry) throw Object.assign(new Error("Queue entry not found"), { status: 404 });
+      if (entry.visit.clinicallyClosedAt || ["DISCHARGED", "COMPLETED", "CANCELLED"].includes(entry.visit.status)) throw Object.assign(new Error("Closed visits cannot be restarted or transferred"), { status: 409 });
       assertPointAccess(user.permissions, entry.servicePoint as OperationalServicePoint);
       if (!operationalServicePoints.includes(entry.servicePoint as OperationalServicePoint)) throw Object.assign(new Error("This queue is not managed from the operations panel"), { status: 422 });
+
+      if (input.action === "ESCALATE") {
+        if (!["WAITING", "CALLED", "IN_PROGRESS"].includes(entry.status)) throw Object.assign(new Error("Only active queue entries can be escalated"), { status: 409 });
+        await appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: "QUEUE_REVIEW_ESCALATED", entityType: "Visit", entityId: entry.visitId, reason: input.reason, afterHash: `${entry.servicePoint}:${entry.priority}` });
+        return { recorded: true, servicePoint: entry.servicePoint, message: "Escalation recorded; contact the service lead. Clinical priority was not changed." };
+      }
 
       if (input.action === "START") {
         if (!["WAITING", "CALLED"].includes(entry.status)) throw Object.assign(new Error("Only waiting or called patients can be started"), { status: 409 });

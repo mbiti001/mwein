@@ -47,6 +47,8 @@ export async function GET() {
         ...(access.clinical || access.triage ? { reason: true } : {}),
         arrivedAt: true,
         completedAt: true,
+        clinicallyClosedAt: true,
+        ...(access.clinical || access.billing ? { dispositionRecord: true } : {}),
         facility: { select: { name: true, code: true } },
         patient: {
           select: {
@@ -56,6 +58,7 @@ export async function GET() {
             dateOfBirth: true,
             estimatedAgeYears: true,
             sexAtBirth: true,
+            identityStatus: true,
             ...(access.clinical ? {
               contacts: { orderBy: [{ primary: "desc" as const }, { type: "asc" as const }] },
               identifiers: true,
@@ -159,7 +162,7 @@ export async function POST(request: Request) {
     const duplicate = await db.visit.findFirst({
       where: {
         patientId: patient.id,
-        status: { notIn: ["COMPLETED", "CANCELLED"] },
+        status: { notIn: ["COMPLETED", "CANCELLED", "DISCHARGED"] },
       },
       select: { id: true, visitNumber: true, status: true },
     });

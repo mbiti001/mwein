@@ -10,6 +10,8 @@ import { verifyDiagnosisSelectionToken } from "@/lib/diagnosis-selection";
 import { normalizeMedicationConcept, periodsOverlap, prescriptionSnapshot, sameVisitMedicationKey, treatmentStopDate } from "@/lib/medication";
 import { evaluateMedicationSafety, medicationSafetyContextHash } from "@/lib/medication-safety";
 import { effectiveCatalogPrice } from "@/lib/catalog-pricing";
+import { dispositionVisitStatus, normalizedVisitOutcome } from "@/lib/visit-disposition";
+import { closeClinicalVisit } from "@/lib/close-visit";
 import {
   consultationNotesSchema,
   diagnosisSchema,
@@ -49,13 +51,14 @@ export async function POST(
             encounters: { orderBy: { createdAt: "desc" } },
             patient: { include: { allergies: { where: { active: true } } } },
             orders: { include: { laboratory: true, imaging: true, prescription: true, invoiceItems: true } },
+            dispositionRecord: true,
           },
         });
         if (!visit)
           throw Object.assign(new Error("Visit not found"), { status: 404 });
-        if (["CANCELLED", "COMPLETED"].includes(visit.status))
+        if (visit.clinicallyClosedAt || ["CANCELLED", "COMPLETED", "DISCHARGED"].includes(visit.status))
           throw Object.assign(new Error("This visit is closed and cannot be changed"), { status: 409 });
-        if (visit.encounters.some((item) => item.status === "SIGNED"))
+        if (visit.encounters.some((item) => ["SIGNED", "CORRECTED"].includes(item.status)))
           throw Object.assign(
             new Error("This consultation is already signed"),
             { status: 409 },
@@ -94,6 +97,7 @@ export async function POST(
               confidentialNote: input.data.confidentialNote,
               followUpDate: input.data.followUpDate,
               disposition: input.data.disposition,
+              dispositionDetails: input.data.dispositionDetails,
             }),
           };
           encounter = encounter
@@ -545,7 +549,7 @@ export async function POST(
             status: { in: ["REQUESTED", "IN_PROGRESS"] },
           },
         });
-        if (outstanding)
+        if (outstanding && !["REFER", "DECEASED", "AGAINST_MEDICAL_ADVICE", "OTHER"].includes(input.data.disposition))
           throw Object.assign(
             new Error(
               "Review all requested investigation results before signing",
@@ -563,18 +567,23 @@ export async function POST(
           if (!sentReferral)
             throw Object.assign(new Error("Create and send the referral before signing a REFER disposition"), { status: 409 });
         }
-        const target =
-          input.data.disposition === "ADMIT"
-            ? "ADMITTED"
-            : input.data.disposition === "REFER"
-              ? "REFERRED"
-              : medicines
-                ? "AWAITING_PHARMACY"
-                : "AWAITING_PAYMENT";
+        const target = dispositionVisitStatus(input.data.disposition, medicines);
+        const outcome = normalizedVisitOutcome(input.data.disposition);
+        let savedPlan: Record<string, unknown> = {};
+        try { savedPlan = JSON.parse(encounter.plan || "{}"); } catch { savedPlan = { plan: encounter.plan }; }
+        if (typeof savedPlan.plan !== "string" || savedPlan.plan.trim().length < 2)
+          throw Object.assign(new Error("Save a management plan before signing"), { status: 422 });
         await tx.encounter.update({
           where: { id: encounter.id },
-          data: { status: "SIGNED", signedAt: new Date() },
+          data: { status: "SIGNED", clinicianId: user.id, signedAt: new Date(), plan: JSON.stringify({ ...savedPlan, disposition: input.data.disposition, dispositionDetails: input.data.dispositionDetails || null }) },
         });
+        if (target === "DISCHARGED") {
+          if (!input.data.dispositionDetails || input.data.dispositionDetails.trim().length < 10)
+            throw Object.assign(new Error("Document the closure circumstances and handover plan"), { status: 422 });
+          await closeClinicalVisit(tx, user, id, { outcome: outcome!, details: input.data.dispositionDetails, cancelPendingOrders: input.data.cancelPendingOrders });
+          await appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: "CONSULTATION_SIGNED", entityType: "Encounter", entityId: encounter.id, afterHash: `${visit.visitNumber}:${target}` });
+          return { stage: "SIGNED", target };
+        }
         await tx.queueEntry.updateMany({
           where: {
             visitId: id,
@@ -600,11 +609,13 @@ export async function POST(
             },
           });
         await tx.visit.update({ where: { id }, data: { status: target } });
+        // A consultation plan is not final discharge. A clinician closes the visit explicitly.
         await appendAudit(tx, {
           userId: user.id,
           action: "CONSULTATION_SIGNED",
           entityType: "Encounter",
           entityId: encounter.id,
+          reason: outcome ? JSON.stringify({ outcome, details: input.data.dispositionDetails || null }) : undefined,
           afterHash: `${visit.visitNumber}:${target}`,
         });
         return { stage: "SIGNED", target };

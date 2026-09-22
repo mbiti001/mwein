@@ -125,41 +125,45 @@ enum CatalogCategory {
 }
 
 model Facility {
-  id                    String                 @id @default(uuid()) @db.Uuid
-  code                  String                 @unique
-  name                  String
-  timezone              String                 @default("Africa/Nairobi")
-  users                 User[]
-  patients              Patient[]
-  visits                Visit[]
-  sequences             ReferenceSequence[]
-  catalogItems          CatalogItem[]
-  catalogPriceVersions  CatalogPriceVersion[]
-  appointments          Appointment[]
-  suppliers             Supplier[]
-  stores                Store[]
-  purchaseOrders        PurchaseOrder[]
-  stocktakes            Stocktake[]
-  accountingJournals    AccountingJournal[]
-  referrals             Referral[]
-  auditEvents           AuditEvent[]
-  auditChainHead        AuditChainHead?
-  loginThrottles        LoginThrottle[]
-  governanceEvidence    GovernanceEvidence[]
-  patientProblems       PatientProblem[]
-  servicePointControls  ServicePointControl[]
-  medicationSafetyRules MedicationSafetyRule[]
-  externalIdentities    ExternalIdentity[]
-  identityRoleMappings  IdentityRoleMapping[]
-  aiGenerations         AiGeneration[]
-  cashierShifts         CashierShift[]
-  operationsEvidence    OperationsEvidence[]
-  ancAdmissionEvidence  AncAdmissionEvidence[]
-  visitCancellations    VisitCancellation[]
+  id                      String                          @id @default(uuid()) @db.Uuid
+  code                    String                          @unique
+  name                    String
+  timezone                String                          @default("Africa/Nairobi")
+  users                   User[]
+  patients                Patient[]
+  visits                  Visit[]
+  sequences               ReferenceSequence[]
+  catalogItems            CatalogItem[]
+  catalogPriceVersions    CatalogPriceVersion[]
+  appointments            Appointment[]
+  suppliers               Supplier[]
+  stores                  Store[]
+  purchaseOrders          PurchaseOrder[]
+  stocktakes              Stocktake[]
+  accountingJournals      AccountingJournal[]
+  referrals               Referral[]
+  auditEvents             AuditEvent[]
+  auditChainHead          AuditChainHead?
+  loginThrottles          LoginThrottle[]
+  governanceEvidence      GovernanceEvidence[]
+  patientProblems         PatientProblem[]
+  servicePointControls    ServicePointControl[]
+  medicationSafetyRules   MedicationSafetyRule[]
+  externalIdentities      ExternalIdentity[]
+  identityRoleMappings    IdentityRoleMapping[]
+  aiGenerations           AiGeneration[]
+  cashierShifts           CashierShift[]
+  operationsEvidence      OperationsEvidence[]
+  patientRightsRequests   PatientRightsRequest[]
+  exchangeSubmissions     ExchangeSubmission[]
+  identityReconciliations PatientIdentityReconciliation[]
+  ancAdmissionEvidence    AncAdmissionEvidence[]
+  visitCancellations      VisitCancellation[]
+  visitDispositions       VisitDisposition[]
+  shaContractProfile      ShaContractProfile?
+  createdAt               DateTime                        @default(now())
+  updatedAt               DateTime                        @updatedAt
   dataSubjectRequests   DataSubjectRequest[]
-  shaContractProfile    ShaContractProfile?
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
 }
 
 model CatalogItem {
@@ -270,65 +274,71 @@ model ReferenceSequence {
 }
 
 model User {
-  id                           String                     @id @default(uuid()) @db.Uuid
-  facilityId                   String                     @db.Uuid
-  email                        String
-  displayName                  String
-  passwordHash                 String
-  status                       UserStatus                 @default(ACTIVE)
-  mustChangePassword           Boolean                    @default(true)
-  passwordChangedAt            DateTime?
-  lastLoginAt                  DateTime?
-  facility                     Facility                   @relation(fields: [facilityId], references: [id])
-  roles                        UserRole[]
-  sessions                     Session[]
-  encounters                   Encounter[]
-  clinicalOrders               ClinicalOrder[]
-  recordedLabResults           LaboratoryResult[]         @relation("LabResultRecordedBy")
-  verifiedLabResults           LaboratoryResult[]         @relation("LabResultVerifiedBy")
-  dispensedPrescriptions       Prescription[]             @relation("PrescriptionDispensedBy")
-  performedImagingResults      ImagingResult[]            @relation("ImagingPerformedBy")
-  verifiedImagingResults       ImagingResult[]            @relation("ImagingVerifiedBy")
-  stockMovements               StockMovement[]
-  dispensations                Dispensation[]
-  medicationSafetyOverrides    MedicationSafetyOverride[]
-  encounterAddenda             EncounterAddendum[]
-  updatedServicePointRecords   ServicePointRecord[]
-  createdReferrals             Referral[]                 @relation("ReferralCreatedBy")
-  updatedReferrals             Referral[]                 @relation("ReferralUpdatedBy")
-  referralAttachments          ReferralAttachment[]       @relation("ReferralAttachmentAddedBy")
-  referralAcknowledgements     ReferralAcknowledgement[]  @relation("ReferralAcknowledgementRecordedBy")
-  createdPatientRelationships  PatientRelationship[]
-  createdClaims                Claim[]
-  reversedPayments             Payment[]                  @relation("PaymentReversedBy")
-  openedStocktakes             Stocktake[]                @relation("StocktakeOpenedBy")
-  submittedStocktakes          Stocktake[]                @relation("StocktakeSubmittedBy")
-  approvedStocktakes           Stocktake[]                @relation("StocktakeApprovedBy")
-  countedStocktakeLines        StocktakeLine[]            @relation("StocktakeLineCountedBy")
-  accountingJournals           AccountingJournal[]        @relation("AccountingJournalPostedBy")
-  auditEvents                  AuditEvent[]
-  recordedPatientProblems      PatientProblem[]           @relation("PatientProblemRecordedBy")
-  updatedGovernanceEvidence    GovernanceEvidence[]       @relation("GovernanceEvidenceUpdatedBy")
-  updatedServicePointControls  ServicePointControl[]      @relation("ServicePointControlUpdatedBy")
-  preparedReminderDeliveries   ReminderDelivery[]         @relation("ReminderDeliveryPreparedBy")
-  receivedPayments             Payment[]                  @relation("PaymentReceivedBy")
-  approvedMedicationRules      MedicationSafetyRule[]     @relation("MedicationSafetyRuleApprovedBy")
-  externalIdentities           ExternalIdentity[]
-  updatedIdentityRoleMappings  IdentityRoleMapping[]      @relation("IdentityRoleMappingUpdatedBy")
-  requestedAiGenerations       AiGeneration[]             @relation("AiGenerationRequestedBy")
-  reviewedAiGenerations        AiGeneration[]             @relation("AiGenerationReviewedBy")
-  cashierShifts                CashierShift[]             @relation("CashierShiftCashier")
-  approvedCashierShifts        CashierShift[]             @relation("CashierShiftApprovedBy")
-  recordedOperationsEvidence   OperationsEvidence[]       @relation("OperationsEvidenceRecordedBy")
-  verifiedOperationsEvidence   OperationsEvidence[]       @relation("OperationsEvidenceVerifiedBy")
-  recordedAncAdmissionEvidence AncAdmissionEvidence[]     @relation("AncAdmissionEvidenceRecordedBy")
-  updatedShaContractProfiles   ShaContractProfile[]       @relation("ShaContractProfileUpdatedBy")
-  createdCatalogPrices         CatalogPriceVersion[]      @relation("CatalogPriceVersionCreatedBy")
-  cancelledVisits              VisitCancellation[]        @relation("VisitCancellationCancelledBy")
+  id                            String                          @id @default(uuid()) @db.Uuid
+  facilityId                    String                          @db.Uuid
+  email                         String
+  displayName                   String
+  passwordHash                  String
+  status                        UserStatus                      @default(ACTIVE)
+  mustChangePassword            Boolean                         @default(true)
+  passwordChangedAt             DateTime?
+  lastLoginAt                   DateTime?
+  facility                      Facility                        @relation(fields: [facilityId], references: [id])
+  roles                         UserRole[]
+  sessions                      Session[]
+  encounters                    Encounter[]
+  clinicalOrders                ClinicalOrder[]
+  recordedLabResults            LaboratoryResult[]              @relation("LabResultRecordedBy")
+  verifiedLabResults            LaboratoryResult[]              @relation("LabResultVerifiedBy")
+  dispensedPrescriptions        Prescription[]                  @relation("PrescriptionDispensedBy")
+  performedImagingResults       ImagingResult[]                 @relation("ImagingPerformedBy")
+  verifiedImagingResults        ImagingResult[]                 @relation("ImagingVerifiedBy")
+  stockMovements                StockMovement[]
+  dispensations                 Dispensation[]
+  medicationSafetyOverrides     MedicationSafetyOverride[]
+  encounterAddenda              EncounterAddendum[]
+  updatedServicePointRecords    ServicePointRecord[]
+  createdReferrals              Referral[]                      @relation("ReferralCreatedBy")
+  updatedReferrals              Referral[]                      @relation("ReferralUpdatedBy")
+  referralAttachments           ReferralAttachment[]            @relation("ReferralAttachmentAddedBy")
+  referralAcknowledgements      ReferralAcknowledgement[]       @relation("ReferralAcknowledgementRecordedBy")
+  createdPatientRelationships   PatientRelationship[]
+  createdClaims                 Claim[]
+  reversedPayments              Payment[]                       @relation("PaymentReversedBy")
+  openedStocktakes              Stocktake[]                     @relation("StocktakeOpenedBy")
+  submittedStocktakes           Stocktake[]                     @relation("StocktakeSubmittedBy")
+  approvedStocktakes            Stocktake[]                     @relation("StocktakeApprovedBy")
+  countedStocktakeLines         StocktakeLine[]                 @relation("StocktakeLineCountedBy")
+  accountingJournals            AccountingJournal[]             @relation("AccountingJournalPostedBy")
+  auditEvents                   AuditEvent[]
+  recordedPatientProblems       PatientProblem[]                @relation("PatientProblemRecordedBy")
+  updatedGovernanceEvidence     GovernanceEvidence[]            @relation("GovernanceEvidenceUpdatedBy")
+  updatedServicePointControls   ServicePointControl[]           @relation("ServicePointControlUpdatedBy")
+  preparedReminderDeliveries    ReminderDelivery[]              @relation("ReminderDeliveryPreparedBy")
+  receivedPayments              Payment[]                       @relation("PaymentReceivedBy")
+  approvedMedicationRules       MedicationSafetyRule[]          @relation("MedicationSafetyRuleApprovedBy")
+  externalIdentities            ExternalIdentity[]
+  updatedIdentityRoleMappings   IdentityRoleMapping[]           @relation("IdentityRoleMappingUpdatedBy")
+  requestedAiGenerations        AiGeneration[]                  @relation("AiGenerationRequestedBy")
+  reviewedAiGenerations         AiGeneration[]                  @relation("AiGenerationReviewedBy")
+  cashierShifts                 CashierShift[]                  @relation("CashierShiftCashier")
+  approvedCashierShifts         CashierShift[]                  @relation("CashierShiftApprovedBy")
+  recordedOperationsEvidence    OperationsEvidence[]            @relation("OperationsEvidenceRecordedBy")
+  verifiedOperationsEvidence    OperationsEvidence[]            @relation("OperationsEvidenceVerifiedBy")
+  recordedAncAdmissionEvidence  AncAdmissionEvidence[]          @relation("AncAdmissionEvidenceRecordedBy")
+  updatedShaContractProfiles    ShaContractProfile[]            @relation("ShaContractProfileUpdatedBy")
+  createdCatalogPrices          CatalogPriceVersion[]           @relation("CatalogPriceVersionCreatedBy")
+  cancelledVisits               VisitCancellation[]             @relation("VisitCancellationCancelledBy")
+  recordedVisitDispositions     VisitDisposition[]              @relation("VisitDispositionRecordedBy")
+  patientRightsRequests         PatientRightsRequest[]          @relation("PatientRightsRequestCreatedBy")
+  assignedPatientRightsRequests PatientRightsRequest[]          @relation("PatientRightsRequestAssignedTo")
+  resolvedPatientRightsRequests PatientRightsRequest[]          @relation("PatientRightsRequestResolvedBy")
+  exchangeSubmissions           ExchangeSubmission[]            @relation("ExchangeSubmissionCreatedBy")
+  identityReconciliations       PatientIdentityReconciliation[] @relation("PatientIdentityReconciliationBy")
+  createdAt                     DateTime                        @default(now())
+  updatedAt                     DateTime                        @updatedAt
   createdDataSubjectRequests   DataSubjectRequest[]        @relation("DataSubjectRequestCreatedBy")
   updatedDataSubjectRequests   DataSubjectRequest[]        @relation("DataSubjectRequestUpdatedBy")
-  createdAt                    DateTime                   @default(now())
-  updatedAt                    DateTime                   @updatedAt
 
   @@unique([facilityId, email])
 }
@@ -394,43 +404,46 @@ model LoginThrottle {
 }
 
 model Patient {
-  id                String                @id @default(uuid()) @db.Uuid
-  facilityId        String                @db.Uuid
-  patientNumber     String
-  givenName         String?
-  middleName        String?
-  familyName        String?
-  fullName          String
-  normalizedName    String
-  dateOfBirth       DateTime?             @db.Date
-  estimatedAgeYears Int?
-  sexAtBirth        SexAtBirth
-  gender            String?
-  bloodGroup        String?
-  occupation        String?
-  maritalStatus     String?
-  disabilityStatus  String?
-  preferredLanguage String                @default("English")
-  restricted        Boolean               @default(false)
-  registrationMode  String                @default("STANDARD")
-  identityStatus    String                @default("ASSERTED")
-  active            Boolean               @default(true)
-  facility          Facility              @relation(fields: [facilityId], references: [id])
-  identifiers       PatientIdentifier[]
-  contacts          PatientContact[]
-  addresses         PatientAddress[]
-  consents          Consent[]
+  id                      String                          @id @default(uuid()) @db.Uuid
+  facilityId              String                          @db.Uuid
+  patientNumber           String
+  givenName               String?
+  middleName              String?
+  familyName              String?
+  fullName                String
+  normalizedName          String
+  dateOfBirth             DateTime?                       @db.Date
+  estimatedAgeYears       Int?
+  sexAtBirth              SexAtBirth
+  gender                  String?
+  bloodGroup              String?
+  occupation              String?
+  maritalStatus           String?
+  disabilityStatus        String?
+  preferredLanguage       String                          @default("English")
+  restricted              Boolean                         @default(false)
+  registrationMode        String                          @default("STANDARD")
+  identityStatus          String                          @default("ASSERTED")
+  active                  Boolean                         @default(true)
+  facility                Facility                        @relation(fields: [facilityId], references: [id])
+  identifiers             PatientIdentifier[]
+  contacts                PatientContact[]
+  addresses               PatientAddress[]
+  consents                Consent[]
+  allergies               Allergy[]
+  visits                  Visit[]
+  invoices                Invoice[]
+  appointments            Appointment[]
+  referrals               Referral[]
+  relationshipsFrom       PatientRelationship[]           @relation("PatientRelationshipSource")
+  relationshipsTo         PatientRelationship[]           @relation("PatientRelationshipTarget")
+  problems                PatientProblem[]
+  rightsRequests          PatientRightsRequest[]
+  exchangeSubmissions     ExchangeSubmission[]
+  identityReconciliations PatientIdentityReconciliation[] @relation("IdentityReconciliationPatient")
+  createdAt               DateTime                        @default(now())
+  updatedAt               DateTime                        @updatedAt
   dataSubjectRequests DataSubjectRequest[]
-  allergies         Allergy[]
-  visits            Visit[]
-  invoices          Invoice[]
-  appointments      Appointment[]
-  referrals         Referral[]
-  relationshipsFrom PatientRelationship[] @relation("PatientRelationshipSource")
-  relationshipsTo   PatientRelationship[] @relation("PatientRelationshipTarget")
-  problems          PatientProblem[]
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
 
   @@unique([facilityId, patientNumber])
   @@index([facilityId, normalizedName])
@@ -567,6 +580,7 @@ model Visit {
   reason               String
   arrivedAt            DateTime              @default(now())
   completedAt          DateTime?
+  clinicallyClosedAt   DateTime?
   facility             Facility              @relation(fields: [facilityId], references: [id])
   patient              Patient               @relation(fields: [patientId], references: [id])
   appointment          Appointment?          @relation(fields: [appointmentId], references: [id])
@@ -579,6 +593,7 @@ model Visit {
   aiGenerations        AiGeneration[]
   ancAdmissionEvidence AncAdmissionEvidence?
   cancellation         VisitCancellation?
+  dispositionRecord    VisitDisposition?
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
@@ -602,6 +617,22 @@ model VisitCancellation {
   cancelledBy             User     @relation("VisitCancellationCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
 
   @@index([facilityId, cancelledAt])
+}
+
+model VisitDisposition {
+  id             String   @id @default(uuid()) @db.Uuid
+  facilityId     String   @db.Uuid
+  visitId        String   @unique @db.Uuid
+  outcome        String
+  details        String?
+  policyVersion  String   @default("MWEIN-VISIT-DISPOSITION-1")
+  recordedById   String   @db.Uuid
+  recordedAt     DateTime @default(now())
+  facility       Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  visit          Visit    @relation(fields: [visitId], references: [id], onDelete: Restrict)
+  recordedBy     User     @relation("VisitDispositionRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+
+  @@index([facilityId, outcome, recordedAt])
 }
 
 model AncAdmissionEvidence {
@@ -1690,4 +1721,83 @@ model OperationsEvidence {
 
   @@index([facilityId, kind, occurredAt])
   @@index([facilityId, status, verifiedAt])
+}
+
+model PatientIdentityReconciliation {
+  id                String   @id @default(uuid()) @db.Uuid
+  facilityId        String   @db.Uuid
+  patientId         String   @db.Uuid
+  previousStatus    String
+  resultingStatus   String
+  evidenceType      String
+  evidenceReference String
+  reason            String
+  previousData      Json?
+  resultingData     Json?
+  reversedAt       DateTime?
+  reconciledById    String   @db.Uuid
+  reconciledAt      DateTime @default(now())
+  facility          Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  patient           Patient  @relation("IdentityReconciliationPatient", fields: [patientId], references: [id], onDelete: Restrict)
+  reconciledBy      User     @relation("PatientIdentityReconciliationBy", fields: [reconciledById], references: [id], onDelete: Restrict)
+
+  @@index([facilityId, reconciledAt])
+  @@index([patientId, reconciledAt])
+}
+
+model PatientRightsRequest {
+  id                String    @id @default(uuid()) @db.Uuid
+  facilityId        String    @db.Uuid
+  patientId         String    @db.Uuid
+  requestNumber     String    @unique
+  type              String
+  status            String    @default("RECEIVED")
+  channel           String
+  details           String
+  dueAt             DateTime
+  assignedToId      String?   @db.Uuid
+  outcome           String?
+  evidenceReference String?
+  createdById       String    @db.Uuid
+  resolvedById      String?   @db.Uuid
+  resolvedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  facility          Facility  @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  patient           Patient   @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  createdBy         User      @relation("PatientRightsRequestCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  assignedTo        User?     @relation("PatientRightsRequestAssignedTo", fields: [assignedToId], references: [id], onDelete: Restrict)
+  resolvedBy        User?     @relation("PatientRightsRequestResolvedBy", fields: [resolvedById], references: [id], onDelete: Restrict)
+
+  @@index([facilityId, status, dueAt])
+  @@index([patientId, createdAt])
+}
+
+model ExchangeSubmission {
+  id                  String    @id @default(uuid()) @db.Uuid
+  facilityId          String    @db.Uuid
+  patientId           String?   @db.Uuid
+  channel             String
+  kind                String
+  status              String    @default("PREPARED")
+  idempotencyKey      String    @unique
+  profileVersion      String
+  payload             Json
+  payloadHash         String
+  attemptCount        Int       @default(0)
+  nextAttemptAt       DateTime?
+  lastAttemptAt       DateTime?
+  acknowledgementCode String?
+  acknowledgement     Json?
+  errorCode           String?
+  errorMessage        String?
+  createdById         String    @db.Uuid
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  facility            Facility  @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  patient             Patient?  @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  createdBy           User      @relation("ExchangeSubmissionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([facilityId, channel, status, createdAt])
+  @@index([facilityId, nextAttemptAt])
 }

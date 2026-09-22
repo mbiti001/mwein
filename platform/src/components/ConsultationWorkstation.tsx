@@ -1376,6 +1376,7 @@ export function ConsultationForm({
       confidentialNote: f.get("confidentialNote") || undefined,
       followUpDate: f.get("followUpDate") || undefined,
       disposition: f.get("disposition"),
+      dispositionDetails: f.get("dispositionDetails") || undefined,
     };
   }
   async function act(
@@ -1485,7 +1486,7 @@ export function ConsultationForm({
     if (
       await run(
         action,
-        { disposition: f.get("disposition") },
+        { disposition: f.get("disposition"), dispositionDetails: f.get("dispositionDetails") || undefined, cancelPendingOrders: f.get("cancelPendingOrders") === "on" },
         "Consultation signed.",
       )
     )
@@ -2434,8 +2435,12 @@ export function ConsultationForm({
               defaultValue={savedPlan.disposition || "OUTPATIENT"}
             >
               <option value="OUTPATIENT">Continue outpatient care</option>
+              <option value="RECOVERED">Recovered — complete remaining services, then discharge</option>
               <option value="ADMIT">Admit</option>
               <option value="REFER">Refer</option>
+              <option value="DECEASED">Deceased</option>
+              <option value="AGAINST_MEDICAL_ADVICE">Discharged against medical advice</option>
+              <option value="OTHER">Other documented outcome</option>
             </select>
           </label>
           <label>
@@ -2446,6 +2451,11 @@ export function ConsultationForm({
               defaultValue={savedPlan.followUpDate || ""}
             />
           </label>
+          <label className="span2">
+            Disposition details
+            <textarea name="dispositionDetails" rows={3} defaultValue={savedPlan.dispositionDetails || ""} placeholder="Required for deceased, against-medical-advice and other outcomes; record counselling, handover and next steps" />
+          </label>
+          <label className="span2"><span><input type="checkbox" name="cancelPendingOrders" /> For exceptional closure, cancel unstarted orders and document their disposition above. In-progress services must first be resolved; charges remain for billing review.</span></label>
           <label className="span2 confidential">
             Confidential clinician note
             <textarea

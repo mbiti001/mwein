@@ -387,6 +387,16 @@ try {
   });
   assert(unidentifiedResult.response.status === 201 && unidentifiedResult.body.patient.identityStatus === "UNIDENTIFIED" && unidentifiedResult.body.patient.restricted === true, "Emergency registration invented identity or failed to restrict the record");
   steps.push("verify shared guardian contact and unidentified emergency registration");
+  const unknownId = unidentifiedResult.body.patient.id;
+  const identityCorrection = { givenName: "Identified", familyName: "Emergency Test", estimatedAgeYears: 40, sexAtBirth: "UNKNOWN", identifierType: "OTHER", identifierValue: "E2E-RECONCILE-001", evidenceType: "REPRESENTATIVE_DOCUMENT", evidenceReference: "E2E-IDENTITY-EVIDENCE", reason: "Representative presented identity evidence for review" };
+  const corrected = await api("document emergency identity without national verification", `/api/patients/${unknownId}/identity-reconciliation`, { method: "POST", body: JSON.stringify(identityCorrection) });
+  assert(corrected.body.patient.identityStatus === "DOCUMENTED" && corrected.body.patient.restricted === true, "Reconciliation invented national verification or cleared restrictions");
+  const conflict = await requestWithCookie(`/api/patients/${patient.id}/identity-reconciliation`, sessionCookie, { method: "POST", body: JSON.stringify(identityCorrection) });
+  assert(conflict.response.status === 409, "Duplicate identifier assignment was permitted");
+  const reversedIdentity = await api("reverse latest identity correction with retained provenance", `/api/patients/${unknownId}/identity-reconciliation`, { method: "POST", body: JSON.stringify({ action: "REVERSE", recordId: corrected.body.reconciliation.id, reason: "Evidence attributed to wrong person; reviewed reversal" }) });
+  assert(reversedIdentity.body.patient.identityStatus === "UNIDENTIFIED" && reversedIdentity.body.patient.restricted, "Reversal did not restore the emergency identity safely");
+  const historyIdentity = await api("read identity correction history", `/api/patients/${unknownId}/identity-reconciliation`);
+  assert(historyIdentity.body.history[0].reversedAt && !historyIdentity.body.history[0].reversible, "Reversal history was not retained");
 
   await verifyPrivacy({ api, requestWithCookie, authenticate, patient, assert, steps, origin });
 
@@ -795,8 +805,18 @@ try {
     method: "POST",
     body: JSON.stringify({ method: "CASH", amount: 550 }),
   });
-  assert(payment.body.visitCompleted === true, "Settled visit did not close automatically");
+  assert(payment.body.visitCompleted === false, "Payment bypassed clinician discharge");
   assert(payment.body.balance === 0, "Invoice retained a balance after full payment");
+  const dischargeDenied = await requestWithCookie(`/api/visits/${visit.id}/discharge`, mmsReception.cookie, { method: "POST", body: JSON.stringify({ outcome: "OUTPATIENT", details: "Test discharge attempted by reception" }) });
+  assert(dischargeDenied.response.status === 403, "Reception could perform clinical discharge");
+  const foreignDischarge = await requestWithCookie(`/api/visits/${visit.id}/discharge`, otherReception.cookie, { method: "POST", body: JSON.stringify({ outcome: "OUTPATIENT", details: "Test cross-facility closure attempt" }) });
+  assert([403, 404].includes(foreignDischarge.response.status), "Cross-facility closure was allowed");
+  await api("clinician closes visit separately from payment", `/api/visits/${visit.id}/discharge`, { method: "POST", body: JSON.stringify({ outcome: "OUTPATIENT", details: "Stable for outpatient follow-up; counselling and review plan documented" }) });
+  const repeatClosure = await requestWithCookie(`/api/visits/${visit.id}/discharge`, sessionCookie, { method: "POST", body: JSON.stringify({ outcome: "RECOVERED", details: "Attempt to overwrite final outcome" }) });
+  assert(repeatClosure.response.status === 409, "Final clinical outcome could be overwritten");
+  await api("financial completion after clinical closure", `/api/visits/${visit.id}/complete`, { method: "POST" });
+  const closureState = (await pg.query('SELECT v."clinicallyClosedAt", d."outcome" FROM "Visit" v JOIN "VisitDisposition" d ON d."visitId"=v."id" WHERE v."id"=$1', [visit.id])).rows[0];
+  assert(closureState.clinicallyClosedAt && closureState.outcome === "OUTPATIENT", "Outpatient discharge was incorrectly recorded as recovery");
   const submittedShift = await api("submit cashier shift reconciliation", "/api/billing/shifts", { method: "POST", body: JSON.stringify({ action: "SUBMIT", id: cashierShift.body.shift.id, countedCash: 1550 }) });
   assert(Number(submittedShift.body.shift.variance) === 0, "Cashier shift did not reconcile expected cash");
   const financeManager = await authenticate("MMS", "finance.manager@example.test");
@@ -839,6 +859,42 @@ try {
   assert(state.safetyAssessments === 1, "Approved medication safety assessment was not persisted");
   assert(state.inventoryJournals === 1, "Dispensing accounting journal was not posted");
   steps.push("verify final clinical, referral, stock, accounting, billing and closure state");
+  for (const outcome of ["RECOVERED", "OUTPATIENT", "DECEASED", "REFERRED", "AGAINST_MEDICAL_ADVICE", "OTHER"]) {
+    const closureId = randomUUID(); const encounterId = randomUUID();
+    await pg.query(`INSERT INTO "Visit" ("id", "facilityId", "patientId", "visitNumber", "clinic", "visitType", "status", "reason", "updatedAt") VALUES ($1,$2,$3,$4,'Outpatient','WALK_IN','ADMITTED','Isolated closure regression',now())`, [closureId, facility.id, patient.id, `E2E-CLOSE-${outcome}`]);
+    await pg.query(`INSERT INTO "Encounter" ("id", "visitId", "clinicianId", "status", "signedAt", "updatedAt") VALUES ($1,$2,$3,'SIGNED',now(),now())`, [encounterId, closureId, admin.id]);
+    if (outcome === "REFERRED") {
+      const referralMissing = await requestWithCookie(`/api/visits/${closureId}/discharge`, sessionCookie, { method: "POST", body: JSON.stringify({ outcome, details: "Referral closure without a receiving handover" }) });
+      assert(referralMissing.response.status === 409, "Referral closure accepted missing handover");
+      const referral = await api("prepare closure referral", "/api/referrals", { method: "POST", body: JSON.stringify({ visitId: closureId, idempotencyKey: randomUUID(), type: "EXTERNAL", referringDepartment: "General OPD", reason: "Isolated referral closure test", clinicalSummary: "Synthetic clinical handover for integration test", diagnosisSummary: "Synthetic test diagnosis", urgency: "ROUTINE", attachments: [], receivingFacility: "E2E Referral Hospital", receivingDepartment: "Medical outpatient clinic" }) });
+      await api("send closure referral", `/api/referrals/${referral.body.referral.id}`, { method: "PATCH", body: JSON.stringify({ status: "SENT" }) });
+    }
+    const closed = await api(`close signed visit with ${outcome} independently of an invoice`, `/api/visits/${closureId}/discharge`, { method: "POST", body: JSON.stringify({ outcome, details: "Isolated test: clinical circumstances, counselling and handover documented" }) });
+    assert(closed.body.visit.status === "DISCHARGED" && closed.body.disposition.outcome === outcome && closed.body.visit.clinicallyClosedAt, `Closure did not preserve ${outcome}`);
+    const staleWrite = await requestWithCookie(`/api/visits/${closureId}/consultation`, sessionCookie, { method: "POST", body: JSON.stringify({ action: "SAVE_NOTES", data: { chiefComplaint: "Stale edit", historyPresentingIllness: "Closed record", generalExamination: "Not examined", disposition: "OUTPATIENT" } }) });
+    assert(staleWrite.response.status === 409, "Discharged encounter accepted new clinical notes");
+  }
+
+  const overdueId = randomUUID(); const overdueQueue = randomUUID();
+  await pg.query(`INSERT INTO "Visit" ("id", "facilityId", "patientId", "visitNumber", "clinic", "visitType", "status", "reason", "updatedAt") VALUES ($1,$2,$3,'E2E-OVERDUE','Outpatient','WALK_IN','AWAITING_TRIAGE','Isolated overdue regression',now())`, [overdueId, facility.id, patient.id]);
+  await pg.query(`INSERT INTO "QueueEntry" ("id", "visitId", "servicePoint", "priority", "enteredAt") VALUES ($1,$2,'TRIAGE','ROUTINE',now())`, [overdueQueue, overdueId]);
+  const earlyCancel = await requestWithCookie(`/api/visits/${overdueId}/cancel`, sessionCookie, { method: "POST", body: JSON.stringify({ reasonCode: "OVERDUE_UNPROCESSED", details: "Attendance reviewed before cancellation" }) });
+  assert(earlyCancel.response.status === 409, "Fresh visit accepted an overdue cancellation reason");
+  await pg.query(`UPDATE "QueueEntry" SET "enteredAt"=$2 WHERE "id"=$1`, [overdueQueue, new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()]);
+  await api("record overdue escalation without automatic reprioritisation", "/api/queues", { method: "POST", body: JSON.stringify({ action: "ESCALATE", queueEntryId: overdueQueue, reason: "Service lead contacted to review overdue attendance" }) });
+  await api("cancel reviewed overdue unprocessed visit", `/api/visits/${overdueId}/cancel`, { method: "POST", body: JSON.stringify({ reasonCode: "OVERDUE_UNPROCESSED", details: "Attendance reviewed: patient left before care" }) });
+
+  const deathId = randomUUID(); const deathEncounter = randomUUID(); const unstartedOrder = randomUUID();
+  await pg.query(`INSERT INTO "Visit" ("id", "facilityId", "patientId", "visitNumber", "clinic", "visitType", "status", "reason", "updatedAt") VALUES ($1,$2,$3,'E2E-DEATH-SIGN','Outpatient','WALK_IN','UNDER_CONSULTATION','Isolated exception-signing regression',now())`, [deathId, facility.id, patient.id]);
+  await pg.query(`INSERT INTO "Encounter" ("id", "visitId", "clinicianId", "status", "plan", "updatedAt") VALUES ($1,$2,$3,'DRAFT',$4,now())`, [deathEncounter, deathId, admin.id, JSON.stringify({ plan: "Synthetic test: circumstances and next steps documented" })]);
+  await pg.query(`INSERT INTO "Diagnosis" ("id", "encounterId", "type", "description", "code", "primary") VALUES ($1,$2,'FINAL','Synthetic test diagnosis','MG30.0',true)`, [randomUUID(), deathEncounter]);
+  await pg.query(`INSERT INTO "ClinicalOrder" ("id", "visitId", "orderedById", "type", "displayName") VALUES ($1,$2,$3,'MEDICATION','Synthetic unstarted medicine')`, [unstartedOrder, deathId, admin.id]);
+  const deathData = { disposition: "DECEASED", dispositionDetails: "Synthetic mortality test: circumstances and handover recorded" };
+  const unsignedDeath = await requestWithCookie(`/api/visits/${deathId}/consultation`, sessionCookie, { method: "POST", body: JSON.stringify({ action: "SIGN", data: deathData }) });
+  assert(unsignedDeath.response.status === 409, "Exceptional signing silently discarded pending orders");
+  await api("sign exceptional outcome with explicit unstarted-order cancellation", `/api/visits/${deathId}/consultation`, { method: "POST", body: JSON.stringify({ action: "SIGN", data: { ...deathData, cancelPendingOrders: true } }) });
+  const deathState = (await pg.query(`SELECT v."status", (SELECT "status" FROM "ClinicalOrder" WHERE "id"=$2) AS "orderStatus", (SELECT COUNT(*)::int FROM "QueueEntry" WHERE "visitId"=v."id" AND "status" IN ('WAITING','CALLED','IN_PROGRESS')) AS "activeQueues" FROM "Visit" v WHERE v."id"=$1`, [deathId, unstartedOrder])).rows[0];
+  assert(deathState.status === "DISCHARGED" && deathState.orderStatus === "CANCELLED" && deathState.activeQueues === 0, "Deceased patient remained in an ordinary care queue");
 
   const auditExport = await requestWithCookie("/api/admin/audit/export", sessionCookie);
   assert(auditExport.response.ok, `Audit export failed: ${JSON.stringify(auditExport.body)}`);

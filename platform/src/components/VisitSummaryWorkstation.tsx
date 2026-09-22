@@ -289,9 +289,10 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
         <SummarySection title="Plan and follow-up">
           <p>{display(e?.plan.plan)}</p>
           <div className="summaryLine">
-            <strong>Disposition</strong>
-            <span>{display(e?.plan.disposition)}</span>
+            <strong>{active.clinicallyClosedAt ? "Final clinical outcome" : "Consultation plan (not final discharge)"}</strong>
+            <span>{display(active.dispositionRecord?.outcome || e?.plan.disposition)}</span>
           </div>
+          {active.clinicallyClosedAt && <p>Clinically closed {new Date(active.clinicallyClosedAt).toLocaleString()} · {active.dispositionRecord?.recordedBy?.displayName}. {active.dispositionRecord?.details}</p>}
           <div className="summaryLine">
             <strong>Follow-up</strong>
             <span>

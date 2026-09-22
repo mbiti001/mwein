@@ -25,6 +25,7 @@ export async function GET(request: Request) {
         ] } : {}),
       },
       include: {
+        dispositionRecord: { include: { recordedBy: { select: { displayName: true } } } },
         facility: { select: { name: true, code: true, timezone: true } },
         patient: { select: { fullName: true, patientNumber: true, dateOfBirth: true, estimatedAgeYears: true, sexAtBirth: true, allergies: { where: { active: true } } } },
         triage: { include: { observations: true } },

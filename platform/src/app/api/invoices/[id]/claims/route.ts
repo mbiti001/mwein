@@ -123,7 +123,7 @@ export async function POST(
       const existingSubmitted = invoice.claims.filter(existing => ["SUBMITTED", "APPROVED", "PAID"].includes(existing.status)).reduce((sum, existing) => sum + Number(existing.amount), 0);
       const total = invoice.items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0);
       const clinicallyComplete = invoice.visit.encounters.some(encounter => encounter.status === "SIGNED") && invoice.visit.orders.every(order => ["COMPLETED", "CANCELLED"].includes(order.status));
-      const visitCompleted = input.submit && clinicallyComplete && paid + existingSubmitted + amount >= total - 0.001;
+      const visitCompleted = Boolean(input.submit && clinicallyComplete && invoice.visit.clinicallyClosedAt && invoice.visit.status === "DISCHARGED" && paid + existingSubmitted + amount >= total - 0.001);
       if (visitCompleted) {
         const completedAt = new Date();
         await tx.queueEntry.updateMany({ where: { visitId: invoice.visitId, status: { in: ["WAITING", "CALLED", "IN_PROGRESS"] } }, data: { status: "COMPLETED", completedAt } });
@@ -131,7 +131,7 @@ export async function POST(
         await appendAudit(tx, { userId: user.id, action: "VISIT_COMPLETED_AFTER_CLAIM_SUBMISSION", entityType: "Visit", entityId: invoice.visitId, afterHash: claim.claimNumber });
       }
       return { claim, visitCompleted };
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return NextResponse.json(result, { status: 201 });
   } catch (e) {
     return apiError(e);
