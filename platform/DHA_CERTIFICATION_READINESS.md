@@ -16,7 +16,7 @@ This register maps the supported `platform/` application to the Kenya Digital He
 
 | Requirement | Current evidence | Status | Next action | Owner |
 | --- | --- | --- | --- | --- |
-| ODPC registration | No certificate or registration reference in the repository | Blocked externally | Register the applicable controller and processor; retain certificate and dates | Data protection officer |
+| ODPC registration | MWEIN MEDICAL SERVICES data-controller certificate, serial 27289, valid 22 September 2026–22 September 2028; visually reviewed from the supplied PDF | Controller certificate available | Retain the original in the approved evidence store; assess any separately applicable processor registration | Data protection officer |
 | System DPIA | Governance gate exists; no approved report is retained here | Blocked externally | Complete a Mwein-specific DPIA covering hosting, integrations, support access and AI processing | Data protection officer |
 | Encryption at rest | Production documentation requires it; provider and key-management evidence absent | Evidence required | Select the production data stores, document encryption and key lifecycle, and capture provider evidence | Security/operations owner |
 | Encryption in transit | HTTPS and database TLS are required by configuration; deployed TLS evidence absent | Evidence required | Capture edge, database and integration TLS configuration and renewal controls | Security/operations owner |
@@ -43,7 +43,8 @@ Do not submit self-attestation until all four rows have retained, reviewable evi
 
 ### 2. Privacy and security baseline
 
-- [ ] Complete ODPC registration and the DPIA.
+- [x] Inspect the supplied ODPC data-controller registration certificate and record its validity.
+- [ ] Complete and approve the system DPIA; confirm whether separate processor registration applies.
 - [ ] Implement production OIDC login, callback, logout, account linking and enforced MFA.
 - [ ] Implement controlled, justified and audited emergency access.
 - [ ] Audit patient searches, clinical-history reads, exports, disclosures and other patient-data access.
@@ -85,3 +86,7 @@ Do not submit self-attestation until all four rows have retained, reviewable evi
 3. Evidence containing patient data must not be committed to this repository.
 4. Security reports, certificates and signed policies should be retained in the approved access-controlled evidence store.
 5. A feature is claimed in self-attestation only when it can be reproduced in the fixed laboratory build.
+
+## Reviewed ODPC evidence
+
+The supplied `MWEIN MEDICAL SERVICES Registration Certificate.pdf` was visually reviewed on 22 September 2026. It names MWEIN MEDICAL SERVICES as a Data Controller, identification `112-9801-11EB`, serial `27289`, valid 22 September 2026 through 22 September 2028. File SHA-256: `c8b29ea5a5b489df4fce051509aabb5703a38d23a4d8550abe9b61610a224cf7`. The original is retained outside Git. This review does not claim online registry verification, processor registration, or DHA certification.

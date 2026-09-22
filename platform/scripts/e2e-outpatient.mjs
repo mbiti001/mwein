@@ -558,6 +558,11 @@ try {
   const appointmentId = appointmentResult.body.appointment.id;
   const reminder = await api("prepare consented appointment reminder", `/api/appointments/${appointmentId}/reminder`, { method: "POST" });
   assert(reminder.body.contact === "+254700000001" && reminder.body.message, "Appointment reminder was not prepared for the consented contact");
+  await pg.query(`UPDATE "Consent" SET "expiresAt" = CURRENT_TIMESTAMP - INTERVAL '1 day' WHERE "patientId" = $1 AND type = 'MESSAGING' AND "withdrawnAt" IS NULL`, [patient.id]);
+  const expiredReminder = await requestWithCookie(`/api/appointments/${appointmentId}/reminder`, sessionCookie, { method: "POST" });
+  assert(expiredReminder.response.status === 422, "Expired consent still allowed reminder preparation");
+  await pg.query(`UPDATE "Consent" SET "expiresAt" = NULL WHERE "patientId" = $1 AND type = 'MESSAGING'`, [patient.id]);
+  steps.push("verify expired consent blocks appointment reminders");
   await api("withdraw appointment messaging consent", `/api/patients/${patient.id}/consents`, { method: "POST", body: JSON.stringify({ action: "WITHDRAW", type: "MESSAGING", noticeVersion: "MWEIN-PRIVACY-2026-01", lawfulBasis: "CONSENT", reason: "Patient opted out during the E2E consent lifecycle test" }) });
   const reminderAfterWithdrawal = await requestWithCookie(`/api/appointments/${appointmentId}/reminder`, sessionCookie, { method: "POST" });
   assert(reminderAfterWithdrawal.response.status === 422, "Reminder preparation ignored withdrawn messaging consent");
