@@ -280,7 +280,6 @@ export default function ClinicalApp() {
   };
   const allNav: [Screen, string, string?][] = [
     ["dashboard", "Home"],
-    ["security", "Account security"],
     ["registration", "Registration", "patient.create"],
     ["appointments", "Appointments", "visit.create"],
     ["followUps", "Follow-up work", "visit.read"],
