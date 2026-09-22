@@ -399,6 +399,12 @@ try {
   assert(historyIdentity.body.history[0].reversedAt && !historyIdentity.body.history[0].reversible, "Reversal history was not retained");
 
   await verifyPrivacy({ api, requestWithCookie, authenticate, patient, assert, steps, origin });
+  const retiredRights = await requestWithCookie("/api/admin/patient-rights", sessionCookie);
+  const deniedRights = await requestWithCookie("/api/admin/patient-rights", systemOnlyLogin.cookie);
+  const disabledExchange = await requestWithCookie("/api/admin/exchange", sessionCookie, { method: "POST", body: JSON.stringify({ action: "SEND", id: randomUUID() }) });
+  assert(retiredRights.response.status === 410 && deniedRights.response.status === 403, "Duplicate rights workflow exposed records or bypassed privacy permission");
+  assert(disabledExchange.response.status === 503, "Unvalidated exchange transport was enabled");
+  steps.push("verify duplicate rights workflow is retired and draft exchange cannot send");
 
   await pg.query(`UPDATE "CatalogPriceVersion" SET "unitPrice" = 650 WHERE "catalogItemId" IN (SELECT "id" FROM "CatalogItem" WHERE "facilityId" = $1 AND "code" = 'CONSULT-OUTPATIENT')`, [facility.id]);
   const shaCancellationVisit = await api("open visit for SHA eligibility outcome", "/api/visits", {

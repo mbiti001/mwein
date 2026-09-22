@@ -20,13 +20,13 @@ export default function PatientIdentityPanel({ onUpdated }: { onUpdated: () => P
     const body = Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== ""));
     setBusy(true); setError(""); setNotice("");
     try {
-      await jsonRequest(`/api/patients/${patient.id}/identity-reconciliation`, { method: "POST", body: JSON.stringify({ ...body, estimatedAgeYears: body.estimatedAgeYears === undefined ? undefined : Number(body.estimatedAgeYears) }) });
-      setNotice("Identity history updated. Clinical records and privacy restrictions were preserved. This is not national-registry verification."); await select(patient); await onUpdated();
+      const result = await jsonRequest<{ patient: Patient }>(`/api/patients/${patient.id}/identity-reconciliation`, { method: "POST", body: JSON.stringify({ ...body, estimatedAgeYears: body.estimatedAgeYears === undefined ? undefined : Number(body.estimatedAgeYears) }) });
+      setNotice("Identity history updated. Clinical records and privacy restrictions were preserved. This is not national-registry verification."); await select(result.patient); await onUpdated();
     } catch (reason) { setError((reason as Error).message); } finally { setBusy(false); }
   }
   return <section className="card"><details><summary><strong>Patient identity review and corrections</strong></summary><p>Find the exact patient before documenting emergency identity or correcting demographics. Conflicting identifiers are blocked; no automatic merging occurs.</p>
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
-    <form onSubmit={search} className="queueTools"><label>Find identity record<input value={query} minLength={2} required onChange={event => { setQuery(event.target.value); setPatient(null); setHistory([]); setMatches([]); }} /></label><button className="secondary" disabled={busy}>Search</button></form>
+    <form onSubmit={search} className="queueTools"><label>Find identity record<input disabled={busy} value={query} minLength={2} required onChange={event => { setQuery(event.target.value); setPatient(null); setHistory([]); setMatches([]); }} /></label><button className="secondary" disabled={busy}>Search</button></form>
     {matches.map(item => <button className="patientResult" key={item.id} disabled={busy} onClick={() => void select(item)}>{item.fullName} · {item.patientNumber}</button>)}
     {patient && <><h3>{patient.fullName} · {patient.patientNumber}</h3><form key={patient.id} className="dataForm" onSubmit={submit}>
       <label>Given name<input name="givenName" required /></label><label>Middle name<input name="middleName" /></label><label>Family name<input name="familyName" required /></label>
