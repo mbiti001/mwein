@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { auditedOperationalJson } from "@/lib/audited-json";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -18,6 +18,6 @@ export async function GET(request: Request) {
     } });
     const forecasts = items.map(item => stockForecast({ code: item.code, name: item.name, reorderLevel: Number(item.reorderLevel || 0), available: item.inventoryBatches.reduce((sum, batch) => sum + Number(batch.quantityAvailable), 0), consumed: item.dispensations.reduce((sum, dispensation) => sum + Number(dispensation.quantity), 0), expiringWithin30: item.inventoryBatches.filter(batch => batch.expiryDate <= inThirtyDays).reduce((sum, batch) => sum + Number(batch.quantityAvailable), 0) }, lookbackDays));
     const rank: Record<string, number> = { STOCK_OUT: 0, CRITICAL: 1, LOW: 2, SLOW_MOVING: 3, HEALTHY: 4 };
-    return NextResponse.json({ generatedAt: new Date().toISOString(), lookbackDays, forecasts: forecasts.sort((left, right) => rank[left.status] - rank[right.status] || right.suggestedOrder - left.suggestedOrder) });
+    return await auditedOperationalJson(user, "inventory/forecast", { generatedAt: new Date().toISOString(), lookbackDays, forecasts: forecasts.sort((left, right) => rank[left.status] - rank[right.status] || right.suggestedOrder - left.suggestedOrder) });
   } catch (error) { return apiError(error); }
 }

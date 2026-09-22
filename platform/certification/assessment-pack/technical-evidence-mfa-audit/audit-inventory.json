@@ -1,0 +1,891 @@
+{
+  "generatedAt": "2026-09-22T18:31:59.667Z",
+  "routes": 68,
+  "gaps": 0,
+  "unclassified": 0,
+  "aliases": 0,
+  "limitation": "This is a source-bound engineering inventory, not proof of complete branch coverage, independent security assessment or external audit retention. Exceptions require exact source hashes. Behavioral tests remain necessary.",
+  "coverage": [
+    {
+      "route": "admin/audit/export",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "admin/data-quality",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "admin/exchange",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": false,
+          "exception": "Authenticated fixed 503 retirement response; no national exchange or record disclosure."
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": false,
+          "exception": "Exact-source alias of the authenticated fixed retirement GET; no disclosure or mutation."
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "admin/governance",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "PATCH",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "admin/identity",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "admin/import",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "admin/import/workbook",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "admin/integrations",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "admin/medication-safety",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "admin/operations-evidence",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "admin/overview",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "admin/patient-rights",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": false,
+          "exception": "Authenticated fixed 410 retirement response; use the audited patient rights endpoints."
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": false,
+          "exception": "Exact-source alias of the authenticated fixed retirement GET; no disclosure or mutation."
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "admin/sha-contract",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "PATCH",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "admin/users/[id]/mfa-recovery",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "admin/users",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        },
+        {
+          "method": "PATCH",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "appointments/[id]/reminder",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "appointments/[id]/status",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "PATCH",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "appointments",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "auth/login",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "auth/logout",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "auth/me",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": false,
+          "exception": "Current authenticated session identity and permissions, needed to complete password/MFA stages; no patient data or factor secrets."
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "auth/mfa",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": false,
+          "exception": "Current user factor enrollment status and remaining recovery-code count only; no seeds, hashes or other users."
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "auth/password",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "billing/shifts",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "catalog",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        },
+        {
+          "method": "PATCH",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "claims/[id]/status",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "clinical-results/[kind]/[id]",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "diagnoses/search",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "encounters/[id]/addenda",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "follow-ups",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "health",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": false,
+          "exception": "Public availability and release metadata only; no patient/staff payload."
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "integrations/sha/readiness",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "inventory/forecast",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "inventory",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": false,
+          "exception": "Fixed 405 retirement response; no stock read or mutation."
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "invoices/[id]/claims/preflight",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "invoices/[id]/claims",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "invoices/[id]/payments",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "orders/[id]/dispense",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "orders/[id]/imaging-result",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "orders/[id]/laboratory-result",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "orders/[id]/specimen",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "patients/[id]/consents",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "patients/[id]/history",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "patients/[id]/identity-reconciliation",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "patients/[id]/privacy/export",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "patients/[id]/privacy",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "patients/[id]/problems/[problemId]",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "PATCH",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "patients/[id]/problems",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "patients",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "payments/[id]/reverse",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "queues",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "ready",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": false,
+          "exception": "Public ready/blocked status only; internal governance evidence is not returned."
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "referrals/[id]",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "PATCH",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "referrals",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "reports/local",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        },
+        {
+          "method": "PATCH",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "reports/moh-monthly",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "reports/operations",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "service-points",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "supply",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "surveillance",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        },
+        {
+          "method": "PATCH",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "visit-summaries",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "visits/[id]/cancel",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "visits/[id]/complete",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "visits/[id]/consultation",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "visits/[id]/discharge",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "visits/[id]/triage",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "visits/[id]/vitals",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    },
+    {
+      "route": "visits",
+      "scope": "reviewed",
+      "controls": [
+        {
+          "method": "GET",
+          "auditCallDetected": true
+        },
+        {
+          "method": "POST",
+          "auditCallDetected": true
+        }
+      ],
+      "aliasedMethodsRequireReview": false
+    }
+  ]
+}

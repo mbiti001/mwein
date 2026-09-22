@@ -1,9 +1,10 @@
+import { workforceMfaRequired } from "./mfa-policy";
 export const governanceGateDefinitions = [
   { code: "CLINICAL_UAT", name: "Clinical user acceptance", ownerRole: "Medical director", description: "Clinician-led scenario testing, safety sign-off and issue closure." },
   { code: "DPIA_DPA", name: "Privacy and data protection", ownerRole: "Data protection officer", description: "DPIA, processor agreements, retention schedule and data-subject procedures." },
   { code: "PENETRATION_TEST", name: "Independent security test", ownerRole: "Security owner", description: "Independent penetration test with critical and high findings closed." },
   { code: "BACKUP_RESTORE_DRILL", name: "Backup and restore drill", ownerRole: "Operations owner", description: "Encrypted backup, independent restore and measured recovery objectives." },
-  { code: "MFA_ENFORCEMENT", name: "Workforce MFA", ownerRole: "Identity owner", description: "Production identity provider enforces MFA for every workforce account." },
+  { code: "MFA_ENFORCEMENT", name: "Workforce MFA", ownerRole: "Identity owner", description: "Production enforces MFA for every workforce account, with tested enrollment, recovery and session controls." },
   { code: "INCIDENT_RESPONSE", name: "Incident response", ownerRole: "Facility leadership", description: "Named responders, escalation contacts, downtime procedures and rehearsal evidence." },
   { code: "ICD_TERMINOLOGY", name: "Clinical terminology governance", ownerRole: "Medical director", description: "ICD release, mapping policy and terminology update process are approved." },
   { code: "AUDIT_RETENTION", name: "External audit retention", ownerRole: "Compliance owner", description: "Verified audit exports are retained in access-controlled immutable storage." },
@@ -60,11 +61,11 @@ export function aiGovernanceReadiness(evidence: GovernanceEvidenceRecord[], now 
 }
 
 export function productionConfigurationReadiness(environment: Record<string, string | undefined> = process.env) {
-  const oidcReady = Boolean(environment.OIDC_ISSUER?.startsWith("https://") && environment.OIDC_CLIENT_ID && (environment.OIDC_CLIENT_SECRET?.length || 0) >= 16 && environment.OIDC_REDIRECT_URI?.startsWith("https://"));
+
   const checks = [
     { code: "AUTH_SECRET", ready: Boolean(environment.AUTH_SECRET && environment.AUTH_SECRET.length >= 32) },
     { code: "APP_ORIGIN", ready: Boolean(environment.APP_ORIGIN && /^https:\/\//.test(environment.APP_ORIGIN)) },
-    { code: "EXTERNAL_IDENTITY_PROVIDER", ready: oidcReady },
+    { code: "WORKFORCE_MFA", ready: workforceMfaRequired(environment) && Boolean(environment.AUTH_SECRET && environment.AUTH_SECRET.length >= 32) },
     { code: "AUDIT_RETENTION_TARGET", ready: Boolean(environment.AUDIT_RETENTION_TARGET) },
     { code: "DATABASE_BACKUP_TARGET", ready: Boolean(environment.DATABASE_BACKUP_TARGET) },
     { code: "IMMUTABLE_RELEASE_ID", ready: Boolean(environment.VERCEL_GIT_COMMIT_SHA || environment.DEPLOYMENT_VERSION) },

@@ -15,3 +15,18 @@ describe("audit call inventory", () => {
     expect(inspectRoute('export async function POST() { await closeClinicalVisit(tx); }', { closeClinicalVisit: 'return data' })[0].auditCallDetected).toBe(false);
   });
 });
+
+import { createHash } from "node:crypto";
+import { reviewMatches } from "./audit-coverage.mjs";
+it("invalidates a review when a previously exempt endpoint changes", () => {
+  const source = 'export async function GET() { return { status: "blocked" }; }';
+  const review = { sourceSha256: createHash("sha256").update(source).digest("hex") };
+  expect(reviewMatches(source, review)).toBe(true);
+  expect(reviewMatches(source + '\n// changed', review)).toBe(false);
+  expect(reviewMatches(source, undefined)).toBe(false);
+});
+it("follows the audited response helper and detects its removed audit", () => {
+  const route = 'export async function GET() { return await auditedOperationalJson(actor, "staff", body); }';
+  expect(inspectRoute(route, { auditedOperationalJson: 'await recordDisclosure(actor); return privateJson(body);' })[0].auditCallDetected).toBe(true);
+  expect(inspectRoute(route, { auditedOperationalJson: 'return privateJson(body);' })[0].auditCallDetected).toBe(false);
+});

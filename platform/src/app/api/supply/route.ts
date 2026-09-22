@@ -1,3 +1,4 @@
+import { auditedOperationalJson } from "@/lib/audited-json";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -104,7 +105,7 @@ export async function GET() {
       ...stocktake,
       lines: stocktake.lines.map(line => ({ ...line, systemQuantity: stocktake.status === "OPEN" ? null : line.systemQuantity })),
     }));
-    return NextResponse.json({ suppliers, stores, purchaseOrders, items, batches, pendingCounts, emergencyAdjustments, movements, stocktakes: safeStocktakes, accounting, currentUserId: user.id });
+    return await auditedOperationalJson(user, "supply", { suppliers, stores, purchaseOrders, items, batches, pendingCounts, emergencyAdjustments, movements, stocktakes: safeStocktakes, accounting, currentUserId: user.id });
   } catch (error) { return apiError(error); }
 }
 

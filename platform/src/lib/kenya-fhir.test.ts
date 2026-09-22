@@ -12,6 +12,8 @@ describe("Kenya FHIR preparation boundary", () => {
     const resource = toKenyaCorePatient({ id: "patient-id", patientNumber: "MMS-2026-1", givenName: "Amina", familyName: "Wekesa", fullName: "Amina Wekesa", sexAtBirth: "FEMALE", dateOfBirth: "1990-01-02", identityStatus: "ASSERTED", facility: { code: "MMS" } }, configuration);
     expect(resource).toMatchObject({ resourceType: "Patient", meta: { profile: [configuration.patientProfile] }, gender: "female", birthDate: "1990-01-02" });
     expect(JSON.stringify(resource)).not.toContain("phone");
+    expect(resource.identifier).toEqual([{ system: configuration.patientIdentifierSystem, value: "MMS-2026-1" }]);
+    expect(resource.identifier.some(item => item.value === "MMS" || item.system === configuration.facilityIdentifierSystem)).toBe(false);
   });
   it("blocks exchange of an unreconciled emergency identity", () => {
     expect(() => toKenyaCorePatient({ id: "patient-id", patientNumber: "MMS-2026-2", fullName: "Unidentified patient", sexAtBirth: "UNKNOWN", identityStatus: "UNIDENTIFIED", facility: { code: "MMS" } }, configuration)).toThrow("identity reconciliation");

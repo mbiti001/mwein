@@ -16,13 +16,15 @@ This checklist prepares evidence for review. It is not an attestation that a req
 | DPIA, notices, lawful-processing assessment and processor terms | Outstanding | DPO documents actual data flows, transfers, retention, rights and contractual controls |
 | Hosting, encryption, keys and administrative access evidence | Outstanding | Operations obtains provider/project-specific artifacts; verifies region and access ownership |
 | Clinical/medication/terminology governance | Outstanding approval | Medical director approves rules, terminology release/update process and exception handling |
-| Workforce security and emergency access | Incomplete | Identity owner documents lifecycle and rehearsals; record MFA gap, keep implementation paused |
+| Workforce security and emergency access | Incomplete | MFA and governed recovery implemented in source; identity owner approves lifecycle, trains administrators and witnesses enrollment/recovery before rollout |
 | Audit coverage and immutable retention | Incomplete | Compliance verifies exports, coverage, custody, access and retention schedule |
 | Independent backup, restore and downtime/incident response | Incomplete | Run approved isolated drill and retain timings, reconciliation and response contacts |
 | Reporting and national integration evidence | Incomplete | Confirm mandatory scope; approve datasets/profiles and obtain genuine sandbox acknowledgements |
 | Clinical UAT, performance and accessibility | Protocol drafted; results outstanding | Run synthetic scenarios with accountable testers and approved targets |
 | Independent penetration/lab assessment | Outstanding | Arrange authorized assessment of frozen environment and close findings |
 | Assessor test environment and signed declarations | Not frozen/approved | Provide versioned URL/endpoints, synthetic accounts and controlled test authorization |
+
+Current implementation progress and dependencies: [remaining-work status](REMAINING-WORK-STATUS.md).
 
 ## Approval sheet — all pending
 

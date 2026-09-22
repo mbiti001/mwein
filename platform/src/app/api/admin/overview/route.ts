@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { auditedOperationalJson } from "@/lib/audited-json";
 import { db } from "@/lib/db";
 import { requirePermission, SESSION_IDLE_MS } from "@/lib/auth";
 import { apiError } from "@/lib/http";
@@ -35,7 +35,7 @@ export async function GET() {
     ];
     const configuration = productionConfigurationReadiness();
     const governance = governanceReadiness(governanceEvidence);
-    return NextResponse.json({ metrics: { registeredToday, waiting, visitsToday, activeStaff, outstanding, pendingClaims, pendingOrders, lowStock: lowStock.length, expiringStock: expiringStock.length, activeSessions: sessions.length }, actionItems: { stock: stockActions }, sessions, audits: audits.map((event) => ({ ...event, sequence: event.sequence == null ? null : String(event.sequence) })), operations: {
+    return await auditedOperationalJson(user, "admin/overview", { metrics: { registeredToday, waiting, visitsToday, activeStaff, outstanding, pendingClaims, pendingOrders, lowStock: lowStock.length, expiringStock: expiringStock.length, activeSessions: sessions.length }, actionItems: { stock: stockActions }, sessions: sessions.map(({ tokenHash: _tokenHash, ...session }) => session), audits: audits.map((event) => ({ ...event, sequence: event.sequence == null ? null : String(event.sequence) })), operations: {
       environment: process.env.VERCEL_ENV || "local", release: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) || process.env.npm_package_version || "local",
       databaseLatencyMs, audit: { sequence: auditHead ? String(auditHead.sequence) : "0", updatedAt: auditHead?.updatedAt || null },
       configuration, governance: { approved: governance.approved, total: governance.total, ready: governance.ready },

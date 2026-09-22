@@ -29,7 +29,7 @@ export function toKenyaCorePatient(patient: ExchangePatient, configuration: Keny
   return {
     resourceType: "Patient", id: patient.id,
     meta: { profile: [configuration.patientProfile], tag: [{ system: "https://mweinmedical.co.ke/fhir/release", code: configuration.coreVersion }] },
-    identifier: [{ system: configuration.patientIdentifierSystem, value: patient.patientNumber }, { system: configuration.facilityIdentifierSystem, value: patient.facility.code }],
+    identifier: [{ system: configuration.patientIdentifierSystem, value: patient.patientNumber }],
     active: true,
     name: [{ use: "official", text: patient.fullName, family: patient.familyName || undefined, given: [patient.givenName, patient.middleName].filter(Boolean) }],
     gender,

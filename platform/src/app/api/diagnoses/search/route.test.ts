@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ permission: vi.fn(), history: vi.fn(), sign: vi.fn() }));
+const mocks = vi.hoisted(() => ({ permission: vi.fn(), history: vi.fn(), sign: vi.fn(), disclosure: vi.fn() }));
+vi.mock("@/lib/disclosure-audit", () => ({ recordDisclosure: mocks.disclosure }));
 vi.mock("@/lib/auth", () => ({ requirePermission: mocks.permission }));
 vi.mock("@/lib/db", () => ({ db: { diagnosis: { findMany: mocks.history } } }));
 vi.mock("@/lib/diagnosis-selection", () => ({ createDiagnosisSelectionToken: mocks.sign }));
 const entity = { theCode: "1A00", title: "<em>Cholera</em>", id: "http://id.who.int/icd/release/11/2026-01/mms/257068234", foundationUri: "http://id.who.int/icd/entity/257068234" };
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
 beforeEach(() => {
-  vi.resetModules(); vi.clearAllMocks();
+  vi.resetModules(); vi.clearAllMocks(); mocks.disclosure.mockReset();
   vi.stubEnv("ICD11_CLIENT_ID", "test-client"); vi.stubEnv("ICD11_CLIENT_SECRET", "test-secret"); vi.stubEnv("ICD11_RELEASE", "2026-01");
   mocks.permission.mockResolvedValue({ facilityId: "facility-a" }); mocks.history.mockResolvedValue([]); mocks.sign.mockReturnValue("signed-selection");
 });
@@ -51,4 +52,11 @@ describe("WHO ICD-11 connection", () => {
     const fetcher = vi.fn(); vi.stubGlobal("fetch", fetcher);
     expect((await search()).status).toBe(403); expect(fetcher).not.toHaveBeenCalled();
   });
+});
+
+it("does not treat an audit failure as a WHO outage or disclose unaudited history", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string | URL) => Promise.resolve(String(url).includes("/connect/token") ? json({ access_token: "token", expires_in: 3600 }) : json({ destinationEntities: [entity] }))));
+  mocks.disclosure.mockRejectedValue(new Error("Audit unavailable"));
+  expect((await search()).status).toBe(500);
+  expect(mocks.history).not.toHaveBeenCalled();
 });

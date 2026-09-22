@@ -13,6 +13,7 @@ import { jsonRequest } from "@/lib/client-http";
 import { dateInTimeZone, gestationalAgeLabel, pregnancyDatingFromLnmp } from "@/lib/pregnancy-dating";
 import { BrandMark } from "@/components/FacilityBrand";
 import ReadinessSnapshot from "@/components/ReadinessSnapshot";
+import MfaWorkstation from "@/components/MfaWorkstation";
 import VisitClosurePanel from "@/components/VisitClosurePanel";
 import PatientIdentityPanel from "@/components/PatientIdentityPanel";
 import { shaCancellationOutcomes, visitCancellationReasons } from "@/lib/visit-cancellation";
@@ -40,6 +41,8 @@ type User = {
   permissions: string[];
   roles?: string[];
   mustChangePassword: boolean;
+  mfaRequired: boolean;
+  mfaEnrolled: boolean;
 };
 type Patient = {
   id: string;
@@ -148,7 +151,8 @@ type Screen =
   | "followUps"
   | "surveillance"
   | "reports"
-  | "admin";
+  | "admin"
+  | "security";
 
 async function api<T>(url: string, options?: RequestInit): Promise<T> {
   return jsonRequest<T>(url, options);
@@ -234,6 +238,7 @@ export default function ClinicalApp() {
       reports: "Reports",
       surveillance: "Local IDSR",
       admin: "Administration",
+      security: "Account security",
     };
     document.title = `${titles[screen]} · Mwein HMIS`;
   }, [screen]);
@@ -255,6 +260,12 @@ export default function ClinicalApp() {
         }}
       />
     );
+  if (user.mfaRequired && (user.mfaEnrolled || !user.mustChangePassword))
+    return <MfaWorkstation enrolled={user.mfaEnrolled} required onCompleted={async () => {
+      const result = await api<{ user: User }>("/api/auth/me");
+      setUser(result.user);
+      if (!result.user.mustChangePassword && !result.user.mfaRequired && result.user.permissions.includes("visit.read")) await loadVisits();
+    }} />;
   if (user.mustChangePassword)
     return <PasswordChange onChanged={async () => {
       const result = await api<{ user: User }>("/api/auth/me");
@@ -269,6 +280,7 @@ export default function ClinicalApp() {
   };
   const allNav: [Screen, string, string?][] = [
     ["dashboard", "Home"],
+    ["security", "Account security"],
     ["registration", "Registration", "patient.create"],
     ["appointments", "Appointments", "visit.create"],
     ["followUps", "Follow-up work", "visit.read"],
@@ -349,7 +361,7 @@ export default function ClinicalApp() {
           }}/>
         )}
         {screen !== "dashboard" &&
-          !["summaries", "reports", "surveillance", "vitals", "appointments", "admin"].includes(screen) && (
+          !["summaries", "reports", "surveillance", "vitals", "security", "appointments", "admin"].includes(screen) && (
             <WorkflowSteps screen={screen} />
           )}{" "}
         {contextVisitId && (() => {
@@ -498,6 +510,9 @@ export default function ClinicalApp() {
         {screen === "followUps" && <FollowUpWorkstation/>}
         {screen === "surveillance" && <SurveillanceWorkstation permissions={user.permissions} />}
         {screen === "reports" && <ReportingWorkstation permissions={user.permissions} />}
+        {screen === "security" && <MfaWorkstation enrolled={user.mfaEnrolled} required={false} onCompleted={async () => {
+          const result = await api<{ user: User }>("/api/auth/me"); setUser(result.user); setScreen("dashboard");
+        }} />}
         {screen === "admin" && <AdminCenter permissions={user.permissions} onOpenStock={(focus) => { setStockFocus(focus); setFocusedVisitId(null); setScreen("pharmacy"); }} />}
       </section>
     </main>

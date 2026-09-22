@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { auditedOperationalJson } from "@/lib/audited-json";
 import { requirePermission } from "@/lib/auth";
 import { duplicatePatientGroups } from "@/lib/data-quality";
 import { db } from "@/lib/db";
@@ -19,6 +19,6 @@ export async function GET() {
     const missingAge = patients.filter(patient => !patient.dateOfBirth && patient.estimatedAgeYears == null).map(patient => ({ id: patient.id, patientNumber: patient.patientNumber, fullName: patient.fullName }));
     const missingConsent = patients.filter(patient => !patient.consents.some(consent => consent.type === "ELECTRONIC_RECORD" && consent.granted)).map(patient => ({ id: patient.id, patientNumber: patient.patientNumber, fullName: patient.fullName }));
     const incompleteVisits = visits.map(visit => ({ id: visit.id, visitNumber: visit.visitNumber, patient: visit.patient, status: visit.status, arrivedAt: visit.arrivedAt, flags: [...(!visit.encounters.some(encounter => encounter.status === "SIGNED") ? ["UNSIGNED_ENCOUNTER"] : []), ...(visit.encounters.some(encounter => encounter.status === "SIGNED" && !encounter.diagnoses.some(diagnosis => diagnosis.code)) ? ["UNCODED_DIAGNOSIS"] : []), ...(visit.invoice && !["PAID", "VOID"].includes(visit.invoice.status) ? ["UNSETTLED_INVOICE"] : [])] }));
-    return NextResponse.json({ generatedAt: new Date().toISOString(), summary: { duplicateGroups: duplicates.length, missingContacts: missingContacts.length, missingAge: missingAge.length, missingConsent: missingConsent.length, incompleteVisits: incompleteVisits.length, delayedResults: unsignedResults.length }, issues: { duplicates, missingContacts, missingAge, missingConsent, incompleteVisits, delayedResults: unsignedResults } });
+    return await auditedOperationalJson(user, "admin/data-quality", { generatedAt: new Date().toISOString(), summary: { duplicateGroups: duplicates.length, missingContacts: missingContacts.length, missingAge: missingAge.length, missingConsent: missingConsent.length, incompleteVisits: incompleteVisits.length, delayedResults: unsignedResults.length }, issues: { duplicates, missingContacts, missingAge, missingConsent, incompleteVisits, delayedResults: unsignedResults } });
   } catch (error) { return apiError(error); }
 }

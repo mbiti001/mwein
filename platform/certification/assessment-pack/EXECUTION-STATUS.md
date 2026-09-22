@@ -1,4 +1,6 @@
-# Items 1–4 — execution status, 22 September 2026
+# Items 1–4 — baseline execution status, 22 September 2026
+
+Superseded for current implementation progress by [remaining-work status](REMAINING-WORK-STATUS.md). The historical test counts, paused MFA statement and findings below describe the original audit baseline.
 
 Work completed below is preparation and technical verification. The four workstreams are not all closed; corporate evidence, specialist acceptance and receiving-system requirements remain dependencies.
 

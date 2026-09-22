@@ -40,6 +40,7 @@ const requiredTables = [
   "AccountingJournalLine",
   "AuditChainHead",
   "LoginThrottle",
+  "UserMfa",
   "GovernanceEvidence",
   "PatientProblem",
   "ServicePointControl",

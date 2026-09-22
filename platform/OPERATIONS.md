@@ -143,3 +143,9 @@ The application never sends a notification or asserts verified county receipt. S
 ## Measured vitals release
 
 Migration `20260924120000_measured_vitals` adds append-only measurement history and the nurse-reviewed source link. After applying the pending migrations, review and run `APPROVE_VITALS_ROLE_MAP=true node scripts/release-vitals-permissions.mjs` using the approved target connection. This grants only `vitals.write` to Reception, Nurse, Clinician, Clinician Cover and Medical Director. It does not assign users, reset credentials or grant clinical triage to Reception. Do not use bootstrap for production provisioning. Verify the handoff in staging and refresh sessions after provisioning; see [workflow review](certification/assessment-pack/WORKFLOW-STANDARDIZATION-REVIEW.md).
+
+## Workforce MFA and updated readiness checklist
+
+Follow [MFA onboarding, key custody and recovery requirements](certification/WORKFORCE-MFA-IMPLEMENTATION.md) before rollout. Migration `20260924130000_workforce_mfa` is required before the new build. Explicitly configure `MFA_REQUIRED=true`, safeguard AUTH_SECRET and enroll separate recovery administrators. Password reset does not remove MFA. Lost-factor recovery requires another authorized administrator with a recent MFA sign-in and a protected identity-check record reference.
+
+Run `ENFORCE_AUDIT_COVERAGE=true npm run ops:audit-coverage`. Review changed routes before updating their hashes in `certification/audit-route-review.json`; do not automatically approve an exception after code changes. See [current remaining-work status](certification/assessment-pack/REMAINING-WORK-STATUS.md). App implementation and configuration are not substitutes for approved operational evidence.

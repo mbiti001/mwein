@@ -21,7 +21,7 @@ The source manifest makes no control or deployment assessment. The old static `c
 - ODPC registration is available outside the repository: MWEIN MEDICAL SERVICES is registered as a Data Controller, identification `112-9801-11EB`, valid 2026-09-22 through 2028-09-22. Record the protected evidence reference in the governance register; do not commit the certificate to Git.
 - Approved DPIA, privacy notices, processor agreements, retention/legal-hold and data-subject request procedures remain required.
 - Hosting/database/backup encryption, key ownership and access-policy evidence.
-- OIDC provider configuration, MFA assurance, deprovisioning and emergency-access rehearsal.
+- MFA onboarding/recovery assurance, deprovisioning and emergency-access rehearsal; provider acceptance only if optional OIDC is adopted.
 - Measured backup restoration and downtime/incident-response exercises.
 - Approved Kenya Core/domain profile versions, DHA sandbox results, KHIS/IDSR acknowledgements and SHA credentials/contracts.
 - Clinician-led safety/UAT results, medication-rule approval, accessibility/usability results and independent penetration/laboratory assessment.
@@ -34,3 +34,5 @@ Never replace these documents with environment-variable screenshots or self-atte
 [Local aggregate reporting implementation](LOCAL-REPORTING-IMPLEMENTATION.md) adds the first APP-08 workflow foundation; approved national mappings and IDSR remain outstanding.
 
 [Local IDSR register implementation](LOCAL-IDSR-IMPLEMENTATION.md) adds case/event capture, local review and staff-recorded notification evidence; national rules and transport remain unconfigured.
+
+[Current remaining-work status](assessment-pack/REMAINING-WORK-STATUS.md) records the resumed MFA, expanded audit controls and remaining external dependencies.

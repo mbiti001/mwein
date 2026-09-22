@@ -1,3 +1,4 @@
+import { workforceMfaRequired } from "./mfa-policy";
 export type IntegrationState = "AVAILABLE" | "PREPARED_ON_HOLD" | "NOT_CONFIGURED";
 
 export type IntegrationReadiness = {
@@ -15,11 +16,19 @@ export function integrationReadiness(): IntegrationReadiness[] {
   const kenyaFhir = kenyaFhirConfiguration();
   return [
     {
+      key: "workforce-mfa",
+      name: "Staff authenticator MFA",
+      state: workforceMfaRequired() && (process.env.AUTH_SECRET?.length || 0) >= 32 ? "AVAILABLE" : "NOT_CONFIGURED",
+      purpose: "Password plus authenticator or single-use recovery code",
+      reason: workforceMfaRequired() ? "Staff must complete authenticator verification or enrollment before opening protected work areas. Formal workforce enrollment and recovery acceptance evidence remains a release gate." : "Mandatory enrollment is disabled in this environment. Enrolled accounts still require MFA at sign-in.",
+      requirements: ["Individual staff enrollment", "Securely saved recovery codes", "Identity-verified lost-factor recovery rehearsal", "MFA acceptance evidence"],
+    },
+    {
       key: "workforce-identity",
-      name: "Workforce identity and MFA",
+      name: "Organisation single sign-on (OIDC)",
       state: identity.configured ? "PREPARED_ON_HOLD" : "NOT_CONFIGURED",
-      purpose: "OIDC sign-in, provider-group mapping and workforce MFA",
-      reason: identity.configured ? "OIDC settings and governed role mappings are prepared; production sign-in remains held until provider discovery, callback and MFA acceptance tests are completed." : "Local staff sign-in remains active while the OIDC provider settings and formal acceptance evidence are incomplete.",
+      purpose: "Optional OIDC sign-in and provider-group mapping",
+      reason: identity.configured ? "OIDC settings and governed role mappings are prepared; production sign-in remains held until provider discovery, callback and MFA acceptance tests are completed." : "Local staff sign-in remains available under the configured authenticator MFA policy; optional OIDC provider settings and acceptance evidence are incomplete.",
       requirements: identity.configured ? ["Provider discovery validation", "Callback and logout acceptance testing", "MFA enforcement evidence", "Break-glass access rehearsal"] : ["OIDC issuer", "Client ID and secret", "HTTPS redirect URI", "Provider group names", "MFA enforcement evidence"],
     },
     {

@@ -1,3 +1,4 @@
+import { auditedOperationalJson } from "@/lib/audited-json";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
@@ -11,7 +12,7 @@ export async function GET() {
       include: { inventoryBatches: { where: { active: true }, include: { locationBalances: { include: { store: true } } }, orderBy: { expiryDate: "asc" } } },
       orderBy: { name: "asc" },
     });
-    return NextResponse.json({ items });
+    return await auditedOperationalJson(user, "inventory", { items });
   } catch (error) { return apiError(error); }
 }
 

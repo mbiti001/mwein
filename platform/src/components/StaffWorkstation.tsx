@@ -1,10 +1,11 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import StaffMfaRecovery from "./StaffMfaRecovery";
 import { jsonRequest } from "@/lib/client-http";
 
 type Role = { id: string; code: string; name: string; assignable: boolean; permissions: { permission: { code: string; description: string } }[] };
-type Staff = { id: string; displayName: string; email: string; status: string; manageable: boolean; roles: { role: Role }[] };
+type Staff = { canRecoverMfa?: boolean; mfaCredential?: { enabledAt: string | null } | null; id: string; displayName: string; email: string; status: string; manageable: boolean; roles: { role: Role }[] };
 
 async function request<T>(options?: RequestInit): Promise<T> {
   return jsonRequest<T>("/api/admin/users", options, "Staff request could not be completed");
@@ -68,13 +69,13 @@ export default function StaffWorkstation() {
     <section className="card compact"><div className="cardHead"><div><h2>Facility staff</h2><p>Role or status changes sign the staff member out immediately.</p></div><strong>{staff.length} accounts</strong></div>
       <label className="listSearch">Search staff<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, email, role or status" /></label>
       <p className="listCount">Showing {visibleStaff.length} of {staff.length} accounts</p>
-      <div className="staffList">{visibleStaff.map((person) => <details className="staffDisclosure" key={person.id}><summary><span><strong>{person.displayName}</strong><small>{person.email} · {person.roles[0]?.role.name || "No role"} · {person.status}</small></span><b>{person.manageable ? "Manage" : "Protected"}</b></summary>{person.manageable ? <form className="staffRow" onSubmit={(event) => void update(event, person.id)}>
+      <div className="staffList">{visibleStaff.map((person) => <details className="staffDisclosure" key={person.id}><summary><span><strong>{person.displayName}</strong><small>{person.email} · {person.roles[0]?.role.name || "No role"} · {person.status} · MFA {person.mfaCredential?.enabledAt ? "enrolled" : "setup pending"}</small></span><b>{person.manageable ? "Manage" : "Protected"}</b></summary>{person.manageable ? <form className="staffRow" onSubmit={(event) => void update(event, person.id)}>
         <div><strong>{person.displayName}</strong><small>{person.email}</small></div>
         <label>Role<select name="roleCode" defaultValue={person.roles[0]?.role.code}>{assignableRoles.map((role) => <option value={role.code} key={role.id}>{role.name}</option>)}</select></label>
         <label>Status<select name="status" defaultValue={person.status === "ACTIVE" ? "ACTIVE" : "DISABLED"}><option value="ACTIVE">Active</option><option value="DISABLED">Disabled</option></select></label>
         <label>New temporary password<input name="temporaryPassword" type="password" minLength={16} autoComplete="new-password" placeholder="Leave blank to keep current" /></label>
         <button className="secondary" disabled={busy}>Save access</button>
-      </form> : <div className="managementBody"><p>This governance account can only be changed by an authorized facility or system administrator.</p></div>}</details>)}</div>
+      </form> : <div className="managementBody"><p>This governance account can only be changed by an authorized facility or system administrator.</p></div>}{person.canRecoverMfa && <StaffMfaRecovery userId={person.id} onRecovered={async () => { setNotice("Lost factors and sessions revoked. Share the temporary password securely; new enrollment is required."); await load(); }} />}</details>)}</div>
     </section>
     <details className="card managementPanel"><summary><span><strong>Role autonomy guide</strong><small>See exactly what each role can do before assigning it</small></span><b>{assignableRoles.length} roles</b></summary><div className="roleGuide managementBody">{assignableRoles.map(role => <article key={role.id}><strong>{role.name}</strong><small>{role.permissions.map(item => item.permission.description).join(" · ") || "No operational permissions"}</small></article>)}</div></details>
   </>;

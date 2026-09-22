@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { auditedOperationalJson } from "@/lib/audited-json";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
@@ -108,17 +108,18 @@ export async function GET(request: Request) {
     const clientId = process.env.ICD11_CLIENT_ID?.trim();
     const clientSecret = process.env.ICD11_CLIENT_SECRET?.trim();
     if (clientId && clientSecret) {
+      let results: Result[];
       try {
-        const results = await whoSearch(query, clientId, clientSecret);
-        return NextResponse.json({ results: signed(results, user.facilityId), source: "WHO ICD-11", release: icd11Release() }, { headers: { "Cache-Control": "private, no-store" } });
+        results = await whoSearch(query, clientId, clientSecret);
       } catch (error) {
         console.error(JSON.stringify({ level: "error", event: "icd11_search_failed", name: error instanceof Error ? error.name : "UnknownError" }));
         const results = await facilityHistory(user.facilityId, query);
-        return NextResponse.json({ results: signed(results, user.facilityId), source: "Facility history", upstreamUnavailable: true }, { headers: { "Cache-Control": "private, no-store" } });
+        return await auditedOperationalJson(user, "diagnoses/search", { results: signed(results, user.facilityId), source: "Facility history", upstreamUnavailable: true }, { headers: { "Cache-Control": "private, no-store" } });
       }
+      return await auditedOperationalJson(user, "diagnoses/search", { results: signed(results, user.facilityId), source: "WHO ICD-11", release: icd11Release() });
     }
     const results = await facilityHistory(user.facilityId, query);
-    return NextResponse.json({ results: signed(results, user.facilityId), source: "Facility history", configurationRequired: true }, { headers: { "Cache-Control": "private, no-store" } });
+    return await auditedOperationalJson(user, "diagnoses/search", { results: signed(results, user.facilityId), source: "Facility history", configurationRequired: true }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return apiError(error);
   }

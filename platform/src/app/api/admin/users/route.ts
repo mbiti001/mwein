@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { appendAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { apiError } from "@/lib/http";
+import { recordDisclosure } from "@/lib/disclosure-audit";
+import { apiError, privateJson } from "@/lib/http";
 import { hashPassword } from "@/lib/security";
 import { staffChangeIsSafe } from "@/lib/staff";
 import { canAssignRole, canManageStaff } from "@/lib/staff-access";
@@ -23,7 +23,7 @@ const updateSchema = z.object({
   temporaryPassword: z.string().min(16).max(256).optional(),
 }).refine((value) => value.roleCode || value.status || value.temporaryPassword, "Choose a staff change");
 
-const staffInclude = { roles: { include: { role: true } } } as const;
+const staffInclude = { mfaCredential: { select: { enabledAt: true } }, roles: { include: { role: true } } } as const;
 
 export async function GET() {
   try {
@@ -33,8 +33,9 @@ export async function GET() {
       db.role.findMany({ where: { code: { in: roleCode.options } }, include: { permissions: { include: { permission: { select: { code: true, description: true } } } } }, orderBy: { name: "asc" } }),
     ]);
     const access = { actorRoles: user.roles, canAssignGovernance: user.permissions.includes("admin.assign_governance") };
-    return NextResponse.json({
-      users: users.map(({ passwordHash: _passwordHash, ...staff }) => ({ ...staff, manageable: canManageStaff({ ...access, targetRoleCodes: staff.roles.map(item => item.role.code) }) })),
+    await recordDisclosure(user, "STAFF_ACCESS", users.map(staff => staff.id));
+    return privateJson({
+      users: users.map(({ passwordHash: _passwordHash, ...staff }) => ({ ...staff, canRecoverMfa: staff.id !== user.id && staff.status === "ACTIVE" && Boolean(staff.mfaCredential?.enabledAt) && access.canAssignGovernance && canManageStaff({ ...access, targetRoleCodes: staff.roles.map(item => item.role.code) }), manageable: canManageStaff({ ...access, targetRoleCodes: staff.roles.map(item => item.role.code) }) })),
       roles: roles.map(role => ({ ...role, assignable: canAssignRole({ ...access, roleCode: role.code }) })),
     });
   } catch (error) { return apiError(error); }
@@ -61,10 +62,10 @@ export async function POST(request: Request) {
       return staff;
     });
     const { passwordHash: _passwordHash, ...safeStaff } = created;
-    return NextResponse.json({ user: safeStaff }, { status: 201 });
+    return privateJson({ user: safeStaff }, { status: 201 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
-      return NextResponse.json({ error: "A staff account with this email already exists" }, { status: 409 });
+      return privateJson({ error: "A staff account with this email already exists" }, { status: 409 });
     return apiError(error);
   }
 }
@@ -104,6 +105,6 @@ export async function PATCH(request: Request) {
       return staff;
     });
     const { passwordHash: _passwordHash, ...safeStaff } = updated;
-    return NextResponse.json({ user: safeStaff });
+    return privateJson({ user: safeStaff });
   } catch (error) { return apiError(error); }
 }

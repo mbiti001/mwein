@@ -1,3 +1,4 @@
+import { verifyMandatoryMfa } from "./e2e-mfa-enforcement.mjs";
 import { verifyPrivacy } from "./e2e-privacy.mjs";
 import { createHmac, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
@@ -214,6 +215,11 @@ try {
     ["nurse@example.test", "MMS nurse", "NURSE"],
     ["clinician@example.test", "MMS clinician", "CLINICIAN"],
     ["clinician.cover@example.test", "MMS clinician cover", "CLINICIAN_COVER"],
+    ["mfa.staff@example.test", "MFA test clinician", "CLINICIAN"],
+    ["mfa.lock@example.test", "MFA lock test clinician", "CLINICIAN"],
+    ["mfa.recover@example.test", "MFA recovery test clinician", "CLINICIAN"],
+    ["mfa.admin@example.test", "MFA recovery administrator", "FACILITY_ADMIN"],
+    ["mfa.enforcement@example.test", "Mandatory MFA test clinician", "CLINICIAN"],
     ["imaging@example.test", "MMS imaging", "IMAGING"],
     ["pharmacy@example.test", "MMS pharmacy manager", "PHARMACY_MANAGER"],
     ["billing@example.test", "MMS billing", "BILLING"],
@@ -270,6 +276,7 @@ try {
       DATABASE_URL: applicationDatabaseUrl,
       AUTH_SECRET: authSecret,
       APP_ORIGIN: origin,
+      MFA_REQUIRED: "false",
       NODE_ENV: productionServer ? "production" : "development",
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -931,6 +938,22 @@ try {
   assert(productionReadiness.response.status === 503 && productionReadiness.body.status === "blocked", "Production readiness did not fail closed without approvals and external controls");
   assert(Object.keys(productionReadiness.body).join(",") === "status", "Public readiness exposed internal control details");
   steps.push("verify production readiness fails closed without exposing internal controls");
+
+  if (productionServer) {
+    const mfaPort = await availablePort();
+    const mfaOrigin = `http://127.0.0.1:${mfaPort}`;
+    const mfaServer = spawn("./node_modules/.bin/next", ["start", "--hostname", "127.0.0.1", "-p", String(mfaPort)], {
+      cwd: root,
+      env: { ...process.env, DATABASE_URL: applicationDatabaseUrl, AUTH_SECRET: authSecret, APP_ORIGIN: mfaOrigin, MFA_REQUIRED: "true", NODE_ENV: "production" },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    childProcesses.add(mfaServer);
+    mfaServer.stdout.on("data", () => {}); mfaServer.stderr.on("data", () => {});
+    try {
+      await waitForServer(mfaOrigin, mfaServer);
+      await verifyMandatoryMfa({ origin: mfaOrigin, pg, password: adminPassword, assert, steps });
+    } finally { await stopChild(mfaServer); childProcesses.delete(mfaServer); }
+  }
 
   console.log(`Outpatient E2E passed (${steps.length} checks)`);
   steps.forEach((step, index) => console.log(`${index + 1}. ${step}`));

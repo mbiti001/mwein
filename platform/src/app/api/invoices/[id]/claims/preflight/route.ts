@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { auditedOperationalJson } from "@/lib/audited-json";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
@@ -51,7 +51,7 @@ export async function POST(
       contractReady: gateway.contract.activationReady && fundEnabled,
       gatewayReady: gateway.ready && fundEnabled,
     });
-    return NextResponse.json({ preflight });
+    return await auditedOperationalJson(user, "claims/preflight", { preflight });
   } catch (error) {
     return apiError(error);
   }

@@ -1,3 +1,4 @@
+import { auditedOperationalJson } from "@/lib/audited-json";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -23,7 +24,7 @@ export async function GET() {
   try {
     const user = await requirePermission("admin.clinical_safety");
     const rules = await db.medicationSafetyRule.findMany({ where: { facilityId: user.facilityId }, include: { approvedBy: { select: { displayName: true } } }, orderBy: [{ status: "asc" }, { updatedAt: "desc" }] });
-    return NextResponse.json({ rules });
+    return await auditedOperationalJson(user, "admin/medication-safety", { rules });
   } catch (error) { return apiError(error); }
 }
 

@@ -19,7 +19,7 @@ Proposed product classification: facility outpatient HMIS/EMR. The applicant mus
 | Reports | Include local operational summaries | Do not claim KHIS/IDSR submission, complete notifiable-event workflow or acknowledged delivery |
 | National exchange | Exclude production transmission from proposed claim | Preparation code exists; authority/profile/conformance approval remains outstanding |
 | AI-generated summaries | Exclude from proposed claim pending explicit decision | AI libraries and governance definitions exist in source; do not assume a gate definition proves live enforcement or disabled functionality |
-| Native workforce MFA | Exclude from implemented-feature claims | User paused implementation; its readiness gap remains open |
+| Native workforce MFA | Implemented in remediation source | User resumed work; rollout, enrollment and approved operational evidence remain pending |
 | Other care settings | Exclude unassessed inpatient, theatre, emergency, offline synchronization and device integration | Presence of specialty screens does not establish validated scope |
 
 An exclusion is a claim boundary, not a waiver of a mandatory DHA criterion. If DHA requires an excluded capability for this classification, amend the scope and implementation plan before applying. The current internal readiness engine still has 13 gates, including AI, MFA and national integrations; this draft changes none of them.
@@ -30,7 +30,7 @@ An exclusion is a claim boundary, not a waiver of a mandatory DHA criterion. If 
 |---|---|---|---|
 | DEC-01 | Adopt outpatient core scope above | Facility leadership + medical director | Signed module list, intended use and exclusions |
 | DEC-02 | Exclude AI from this assessment | DPO + medical director + engineering owner | Approved disposition; assessor-environment route/UI/configuration review proving the boundary, or an AI validation and processing pack if included |
-| DEC-03 | Accept remaining MFA gap as unresolved during preparation | Identity owner + facility leadership | Risk disposition and future plan; not permission to implement MFA or approve go-live |
+| DEC-03 | Approve MFA onboarding, recovery and emergency-access operating procedure | Identity owner + facility leadership | Implementation resumed; witnessed recovery, key custody and rollout evidence remain required |
 | DEC-04 | Select DHA classification and mandatory reporting/exchange coverage | Compliance + interoperability owners | Portal/framework mapping with no unsupported non-applicability claims |
 | DEC-05 | Freeze synthetic assessor environment at an approved version | Release + operations owners | URL, release/migration pair, synthetic accounts, reset procedure and test authorization |
 

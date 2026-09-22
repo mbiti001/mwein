@@ -1,10 +1,10 @@
 import { Prisma } from "@prisma/client";
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { appendAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { apiError } from "@/lib/http";
+import { recordDisclosure } from "@/lib/disclosure-audit";
+import { apiError, privateJson } from "@/lib/http";
 import {
   operationalServicePoints,
   queueDurationMinutes,
@@ -47,7 +47,8 @@ export async function GET() {
       db.servicePointControl.findMany({ where: { facilityId: user.facilityId } }),
     ]);
     const ordered = active.sort((left, right) => queueSortValue(left.priority, left.enteredAt) - queueSortValue(right.priority, right.enteredAt));
-    return NextResponse.json({
+    await recordDisclosure(user, "QUEUES", [...active, ...history].map(entry => entry.id));
+    return privateJson({
       entries: ordered,
       controls: operationalServicePoints.map((point) => controls.find((item) => item.servicePoint === point) || { servicePoint: point, paused: false, pauseReason: null, pausedAt: null, targetMinutes: 30 }),
       history: history.map((entry) => ({ ...entry, durationMinutes: queueDurationMinutes(entry.enteredAt, entry.completedAt || new Date()) })),
@@ -126,6 +127,6 @@ export async function POST(request: Request) {
       await appendAudit(tx, { userId: user.id, action: "QUEUE_PATIENT_TRANSFERRED", entityType: "Visit", entityId: entry.visitId, reason: input.reason, beforeHash: entry.servicePoint, afterHash: input.targetServicePoint });
       return { entry: transferred };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    return NextResponse.json(result);
+    return privateJson(result);
   } catch (error) { return apiError(error); }
 }
