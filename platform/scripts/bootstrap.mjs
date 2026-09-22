@@ -1,3 +1,4 @@
+import { clinicianCoverRole } from "./clinician-cover-role.mjs";
 import { PrismaClient } from "@prisma/client";
 import { randomBytes, scryptSync } from "node:crypto";
 
@@ -60,6 +61,7 @@ const role = await db.role.upsert({
 });
 const permissions = await db.permission.findMany();
 const operationalRoles = {
+  [clinicianCoverRole.code]: clinicianCoverRole,
   RECEPTION: { name: "Reception", grants: ["patient.read", "patient.create", "visit.read", "visit.create", "visit.cancel"] },
   NURSE: { name: "Nurse", grants: ["patient.read", "visit.read", "triage.write"] },
   CLINICIAN: { name: "Clinician", grants: ["patient.read", "visit.read", "encounter.write", "clinical.history.read", "clinical.results.read", "clinical.summary.read", "referral.read", "order.write"] },

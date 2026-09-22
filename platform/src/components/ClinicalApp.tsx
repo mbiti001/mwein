@@ -160,6 +160,7 @@ export default function ClinicalApp() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [focusedVisitId, setFocusedVisitId] = useState<string | null>(null);
   const [contextVisitId, setContextVisitId] = useState<string | null>(null);
+  const [returnToConsultation, setReturnToConsultation] = useState(false);
   const [stockFocus, setStockFocus] = useState<StockFocus | null>(null);
   const [visitsLastUpdatedAt, setVisitsLastUpdatedAt] = useState<Date | null>(null);
   const [visitsRefreshFailed, setVisitsRefreshFailed] = useState(false);
@@ -295,7 +296,7 @@ export default function ClinicalApp() {
           {nav.map(([key, label]) => (
             <button
               className={screen === key ? "active" : ""}
-              onClick={() => { setScreen(key); setFocusedVisitId(null); setStockFocus(null); setMobileNavOpen(false); }}
+              onClick={() => { setReturnToConsultation(false); setScreen(key); setFocusedVisitId(null); setStockFocus(null); setMobileNavOpen(false); }}
               key={key}
             >
               {label}
@@ -399,6 +400,7 @@ export default function ClinicalApp() {
           <StartVisit
             patient={selected}
             appointment={appointment}
+            fromConsultation={returnToConsultation}
             onCreated={async (visit) => {
               await loadVisits();
               setAppointment(null);
@@ -415,12 +417,15 @@ export default function ClinicalApp() {
             visits={visits.filter(
               (visit) => visit.status === "AWAITING_TRIAGE",
             )}
-            onCompleted={async (patientName) => {
+            onCompleted={async (patientName, visitId) => {
               await loadVisits();
               setNotice(
                 `Triage completed for ${patientName}; the patient is now awaiting consultation.`,
               );
-              setFocusedVisitId(null); setContextVisitId(null); setScreen("triage");
+              setFocusedVisitId(returnToConsultation ? visitId : null);
+              setContextVisitId(returnToConsultation ? visitId : null);
+              setScreen(returnToConsultation ? "consultation" : "triage");
+              setReturnToConsultation(false);
             }}
             initialVisitId={focusedVisitId}
             onInitialVisitOpened={() => setFocusedVisitId(null)}
@@ -438,6 +443,17 @@ export default function ClinicalApp() {
           />
         )}
         {screen === "consultation" && (
+          <>
+          <section className="card compact" aria-label="Consultation room actions">
+            <h2>Consultation room actions</h2>
+            <p>Start a visit, record measured vitals, consult, then handle billing and clinical discharge as your assigned role permits.</p>
+            <div className="actions">
+              {user.permissions.includes("visit.create") && <button className="primary" onClick={() => { setSelected(null); setAppointment(null); setFocusedVisitId(null); setContextVisitId(null); setReturnToConsultation(true); setNotice(""); setScreen("visit"); }}>Start visit from consultation</button>}
+              {user.permissions.includes("patient.create") && <button className="secondary" onClick={() => { setSelected(null); setAppointment(null); setReturnToConsultation(true); setNotice(""); setScreen("registration"); }}>Register new patient</button>}
+              {user.permissions.includes("triage.write") && <button className="secondary" onClick={() => { setFocusedVisitId(null); setReturnToConsultation(true); setScreen("triage"); }}>Take vitals</button>}
+              {user.permissions.includes("billing.read") && <button className="secondary" onClick={() => { setFocusedVisitId(null); setScreen("billing"); }}>Open billing</button>}
+            </div>
+          </section>
           <ConsultationWorkstation
             visits={visits.filter((visit) =>
               ["AWAITING_CLINICIAN", "UNDER_CONSULTATION"].includes(
@@ -455,6 +471,8 @@ export default function ClinicalApp() {
             initialVisitId={focusedVisitId}
             onInitialVisitOpened={() => setFocusedVisitId(null)}
           />
+          <VisitClosurePanel visits={visits} onUpdated={loadVisits} />
+          </>
         )}
         {screen === "diagnostics" && (
           <LaboratoryWorkstation visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />
@@ -1030,10 +1048,12 @@ function PatientRegister({
 function StartVisit({
   patient,
   appointment,
+  fromConsultation = false,
   onCreated,
 }: {
   patient: Patient | null;
   appointment?: { id: string; clinic: string } | null;
+  fromConsultation?: boolean;
   onCreated: (visit: Visit) => void;
 }) {
   const [matches, setMatches] = useState<Patient[]>([]);
@@ -1076,7 +1096,7 @@ function StartVisit({
     <>
       <header>
         <div>
-          <p className="eyebrow">Reception</p>
+          <p className="eyebrow">{fromConsultation ? "Consultation room" : "Reception"}</p>
           <h1>Clinic check-in</h1>
           <p>
             Confirm the destination clinic and arrival type. Specialty and
@@ -1177,7 +1197,7 @@ function TriageWorkstation({
   facilityTimeZone,
 }: {
   visits: Visit[];
-  onCompleted: (patientName: string) => void;
+  onCompleted: (patientName: string, visitId: string) => void;
   initialVisitId?: string | null;
   onInitialVisitOpened?: () => void;
   facilityTimeZone: string;
@@ -1255,7 +1275,7 @@ function TriageWorkstation({
           notes: f.get("notes") || undefined,
         }),
       });
-      await onCompleted(active.patient.fullName);
+      await onCompleted(active.patient.fullName, active.id);
       setVitals(blankVitals());
       setLnmp("");
       setActive(null);

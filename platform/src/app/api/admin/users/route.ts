@@ -9,7 +9,7 @@ import { hashPassword } from "@/lib/security";
 import { staffChangeIsSafe } from "@/lib/staff";
 import { canAssignRole, canManageStaff } from "@/lib/staff-access";
 
-const roleCode = z.enum(["SYSTEM_ADMIN", "FACILITY_ADMIN", "MEDICAL_DIRECTOR", "FINANCE_MANAGER", "HR_ADMIN", "AUDITOR", "RECEPTION", "NURSE", "CLINICIAN", "LABORATORY", "IMAGING", "PHARMACY", "PHARMACY_MANAGER", "BILLING"]);
+const roleCode = z.enum(["SYSTEM_ADMIN", "FACILITY_ADMIN", "MEDICAL_DIRECTOR", "FINANCE_MANAGER", "HR_ADMIN", "AUDITOR", "RECEPTION", "NURSE", "CLINICIAN", "CLINICIAN_COVER", "LABORATORY", "IMAGING", "PHARMACY", "PHARMACY_MANAGER", "BILLING"]);
 const createSchema = z.object({
   displayName: z.string().trim().min(2).max(120),
   email: z.email().transform((value) => value.toLowerCase()),

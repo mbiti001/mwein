@@ -144,6 +144,7 @@ test("blocks senseless ANC counts and alerts on abnormal clinical ranges", async
 });
 
 for (const role of [
+  { email: "clinician.cover@example.test", visible: ["Consultation", "Registration", "Triage", "Billing"], hidden: ["Pharmacy & stock", "Administration"] },
   { email: "shared.user@example.test", visible: ["Registration", "Appointments"], hidden: ["Triage", "Consultation", "Billing"] },
   { email: "nurse@example.test", visible: ["Triage"], hidden: ["Registration", "Consultation", "Billing"] },
   { email: "clinician@example.test", visible: ["Consultation", "Service points", "Patient records"], hidden: ["Registration", "Billing", "Administration"] },

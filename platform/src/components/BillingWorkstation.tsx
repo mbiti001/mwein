@@ -515,7 +515,7 @@ export default function BillingWorkstation({
                   {money(Number(p.amount), invoice.currency)} ·{" "}
                   {p.receipt?.receiptNumber} · {p.status}
                 </strong>
-                {p.status === "CONFIRMED" && (
+                {permissions.includes("billing.reverse") && p.status === "CONFIRMED" && (
                   <span className="reversalControl">
                     <input
                       aria-label={`Reversal reason ${p.receipt?.receiptNumber}`}
@@ -543,8 +543,8 @@ export default function BillingWorkstation({
           </div>
         )}
       </section>
-      {balance <= 0.001 && <section className="card noPrint visitClosure"><div><h2>Finish this visit</h2><p>Completion removes the patient from active queues. The system will stop and explain what remains if consultation, orders or financial cover are incomplete.</p></div><button className="primary" type="button" disabled={busy} onClick={() => void completeVisit()}>{busy ? "Checking…" : "Complete visit"}</button></section>}
-      <form className="card dataForm noPrint" onSubmit={submit}>
+      {permissions.includes("billing.write") && balance <= 0.001 && <section className="card noPrint visitClosure"><div><h2>Finish this visit</h2><p>Completion removes the patient from active queues. The system will stop and explain what remains if consultation, orders or financial cover are incomplete.</p></div><button className="primary" type="button" disabled={busy} onClick={() => void completeVisit()}>{busy ? "Checking…" : "Complete visit"}</button></section>}
+      {permissions.includes("billing.write") && <form className="card dataForm noPrint" onSubmit={submit}>
         <div className="wide">
           <h2>Receive payment</h2>
           <p>Split payments are supported. The server prevents overpayment.</p>
@@ -586,8 +586,8 @@ export default function BillingWorkstation({
             {busy ? "Recording…" : "Record payment & issue receipt"}
           </button>
         </div>
-      </form>
-      <form className="card dataForm noPrint" onSubmit={claim} onChange={() => setShaPreflight(null)}>
+      </form>}
+      {permissions.includes("claims.write") && <form className="card dataForm noPrint" onSubmit={claim} onChange={() => setShaPreflight(null)}>
         <div className="wide">
           <h2>Submit payer claim</h2>
           <p>
@@ -688,7 +688,7 @@ export default function BillingWorkstation({
             {claimPayer === "SHA" && !shaReady ? "Save SHA claim draft" : "Submit claim"}
           </button>
         </div>
-      </form>
+      </form>}
       {invoice.claims?.length > 0 && (
         <section className="card noPrint">
           <h2>Claims</h2>
@@ -725,7 +725,7 @@ export default function BillingWorkstation({
                   </>}
                 </div>
                 <b>{money(Number(c.amount), invoice.currency)}</b>
-                {allowedClaimStatuses(c.status as ClaimStatus).length > 0 && c.payer !== "SHA" && (
+                {permissions.includes("claims.write") && allowedClaimStatuses(c.status as ClaimStatus).length > 0 && c.payer !== "SHA" && (
                   <div className="claimActions">
                     <select name="status" aria-label={`Status for ${c.claimNumber}`}>
                       {allowedClaimStatuses(c.status as ClaimStatus).map((status) => (

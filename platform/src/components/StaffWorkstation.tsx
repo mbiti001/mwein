@@ -53,6 +53,7 @@ export default function StaffWorkstation() {
 
   return <>
     <header><div><p className="eyebrow">Administration</p><h1>Staff access</h1><p>Create facility accounts and assign one clear operational role.</p></div></header>
+    <section className="card compact"><h2>Clinician shortage cover</h2><p>Assign “Clinician — shortage cover” to an authorised clinician when reception, nursing or billing staff are unavailable. It includes normal clinical access, patient registration, visit check-in, vitals and payment collection. Restore the “Clinician” role when cover ends. Payment reversals and cashier approval remain with finance staff.</p></section>
     {error && <div className="alert">{error}</div>}{notice && <div className="alert success">{notice}</div>}
     <details className="card managementPanel"><summary><span><strong>Add staff member</strong><small>Create a new individual facility account</small></span><b>Open</b></summary><form className="dataForm managementBody" onSubmit={create}>
       <div className="wide"><h2>Add staff member</h2><p>Use an individual account for every person. Passwords must contain at least 16 characters.</p></div>

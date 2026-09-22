@@ -212,6 +212,7 @@ try {
     ["privacy@example.test", "MMS privacy officer", "DATA_PROTECTION_OFFICER"],
     ["nurse@example.test", "MMS nurse", "NURSE"],
     ["clinician@example.test", "MMS clinician", "CLINICIAN"],
+    ["clinician.cover@example.test", "MMS clinician cover", "CLINICIAN_COVER"],
     ["imaging@example.test", "MMS imaging", "IMAGING"],
     ["pharmacy@example.test", "MMS pharmacy manager", "PHARMACY_MANAGER"],
     ["billing@example.test", "MMS billing", "BILLING"],
