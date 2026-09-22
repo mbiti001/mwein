@@ -1,11 +1,11 @@
+import { recordDisclosure } from "@/lib/disclosure-audit";
 import { Prisma } from "@prisma/client";
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { appendAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { operationalReference } from "@/lib/domain";
-import { apiError } from "@/lib/http";
+import { apiError, privateJson } from "@/lib/http";
 import {
   REFERRAL_ATTACHMENT_METADATA_VERSION,
   referralInput,
@@ -51,7 +51,8 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "desc" },
       take: 50,
     });
-    return NextResponse.json({ referrals: referrals.map(serializeReferral) });
+    await recordDisclosure(user, "REFERRALS", referrals.map(item => item.id));
+    return privateJson({ referrals: referrals.map(serializeReferral) });
   } catch (error) {
     return apiError(error);
   }
@@ -201,7 +202,7 @@ export async function POST(request: Request) {
       });
       return serializeReferral(referral);
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    return NextResponse.json({ referral: result }, { status: 201 });
+    return privateJson({ referral: result }, { status: 201 });
   } catch (error) {
     return apiError(error);
   }

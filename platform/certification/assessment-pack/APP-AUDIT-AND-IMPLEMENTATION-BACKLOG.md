@@ -2,6 +2,10 @@
 
 22 September 2026 • Accountable owner: Edwin Mbiti Chavulimu • Status: not certification-ready
 
+## Implementation update
+
+Items 1–4 have now been implemented on `codex/dha-control-remediation`; see [control remediation record](../DHA-CONTROL-REMEDIATION.md). APP-01 through APP-05 are addressed in source; APP-06 has improved inventory and regression coverage with remaining routes explicitly unclassified. The original audit below remains a baseline record. Production rollout, real recovery evidence and external certification approvals remain outstanding. APP-07 is unchanged.
+
 ## Audit boundary and result
 
 Reviewed deployed source `a5e19d3ee6edc08a21f7c8e836962c8be66dfcb7` and documentation HEAD `d468e27`. Application findings refer to that baseline, excluding unpublished MFA work. This is an engineering gap review, not penetration testing, clinical acceptance or a DHA score. The latest retained public probe reports the baseline healthy and readiness blocked. No new production mutation or deployment is part of this audit.

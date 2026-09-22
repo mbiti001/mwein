@@ -1,9 +1,8 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { appendAudit, auditValueFingerprint } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { apiError } from "@/lib/http";
+import { apiError, privateJson } from "@/lib/http";
 import { normalizeName } from "@/lib/security";
 import {
   canTransitionDataSubjectRequest,
@@ -89,7 +88,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       await appendAudit(tx, { userId: user.id, sessionId: user.sessionId, action: "PATIENT_PRIVACY_RECORD_ACCESSED", entityType: "Patient", entityId: id, afterHash: `${consents.length}:${requests.length}` });
       return { consents, requests };
     });
-    return NextResponse.json({ patient, ...result });
+    return privateJson({ patient, ...result });
   } catch (error) { return apiError(error); }
 }
 
@@ -147,6 +146,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       await appendAudit(tx, { userId: user.id, sessionId: user.sessionId, action: "DATA_SUBJECT_REQUEST_UPDATED", entityType: "DataSubjectRequest", entityId: updated.id, beforeHash: current.status, afterHash: updated.status });
       return updated;
     });
-    return NextResponse.json({ record });
+    return privateJson({ record });
   } catch (error) { return apiError(error); }
 }

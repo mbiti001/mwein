@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { recordDisclosure } from "@/lib/disclosure-audit";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { apiError } from "@/lib/http";
+import { apiError, privateJson } from "@/lib/http";
 import { patientAgeYears } from "@/lib/domain";
 
 const monthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Use a valid reporting month");
@@ -10,7 +10,7 @@ const ageBand = (age: number | null) => age == null ? "UNKNOWN" : age < 5 ? "UND
 
 export async function GET(request: Request) {
   try {
-    const user = await requirePermission("billing.read");
+    const user = await requirePermission("reports.clinical");
     const month = monthSchema.parse(new URL(request.url).searchParams.get("month"));
     const [year, value] = month.split("-").map(Number);
     const from = new Date(Date.UTC(year, value - 1, 1) - 3 * 60 * 60 * 1000);
@@ -32,6 +32,8 @@ export async function GET(request: Request) {
       imagingOrders += visit.orders.filter(item => item.type === "IMAGING" && item.status !== "CANCELLED").length;
       medicinesDispensed += visit.orders.filter(item => item.type === "MEDICATION" && item.prescription && !["PENDING", "NOT_DISPENSED"].includes(item.prescription.dispenseStatus)).length;
     }
-    return NextResponse.json({ reportType: "MOH/KHIS monthly source summary", submissionStatus: "REVIEW_REQUIRED", month, facility: user.facility, generatedAt: new Date().toISOString(), attendance, diagnoses: [...diagnoses.values()].sort((a,b) => b.total - a.total), services: { visits: visits.length, laboratoryOrders, imagingOrders, medicinesDispensed, referrals }, completeness: { signedEncounters, unsignedVisits: visits.length - signedEncounters, visitsWithCodedDiagnosis: codedVisits, visitsWithoutCodedDiagnosis: visits.length - codedVisits } });
+    const result = { reportType: "MOH/KHIS monthly source summary", submissionStatus: "REVIEW_REQUIRED", month, facility: user.facility, generatedAt: new Date().toISOString(), attendance, diagnoses: [...diagnoses.values()].sort((a,b) => b.total - a.total), services: { visits: visits.length, laboratoryOrders, imagingOrders, medicinesDispensed, referrals }, completeness: { signedEncounters, unsignedVisits: visits.length - signedEncounters, visitsWithCodedDiagnosis: codedVisits, visitsWithoutCodedDiagnosis: visits.length - codedVisits } };
+    await recordDisclosure(user, "MONTHLY_REPORT", [], result);
+    return privateJson(result);
   } catch (error) { return apiError(error); }
 }

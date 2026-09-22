@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { recordDisclosure } from "@/lib/disclosure-audit";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
-import { apiError } from "@/lib/http";
+import { apiError, privateJson } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
 import {
   dispensingBalance,
@@ -134,7 +134,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const plan = plannedQuantity > 0
       ? planDispensingAllocation(batches, plannedQuantity, preferredBatchId)
       : { allocation: [], standardAllocation: [], fefoOverridden: false };
-    return NextResponse.json({
+    await recordDisclosure(user, "DISPENSING_DETAILS", [order.id]);
+    return privateJson({
       outstanding,
       available,
       allocation: plan.allocation,
@@ -352,6 +353,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         dispensedMedicine: dispensedItem ? { id: dispensedItem.id, code: dispensedItem.code, name: dispensedItem.name } : null,
       };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    return NextResponse.json(result);
+    return privateJson(result);
   } catch (error) { return apiError(error); }
 }

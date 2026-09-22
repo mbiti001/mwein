@@ -35,7 +35,7 @@ Before enabling provider login, run `npm run ops:oidc-verify` in the release env
 
 Set an explicit dedicated `BACKUP_DIR` and run `npm run ops:backup`. The command creates a PostgreSQL custom-format dump and a SHA-256 checksum. Transfer both to the approved encrypted backup target; the local directory is not the retention control.
 
-At the agreed cadence, create a disposable isolated PostgreSQL database, set `RESTORE_DATABASE_URL` and `BACKUP_FILE`, and run `npm run ops:restore-drill`. The script refuses to target the configured source `DATABASE_URL`. Run application smoke tests against the restored database, destroy the disposable database through the provider, and attach the results to the Backup and restore governance gate.
+At the agreed cadence, create a disposable isolated PostgreSQL database, supply the independently reviewed restore approval and source/target/backup settings described under “Verified disposable restore plan”, and run `npm run ops:restore-drill`. The script requires verified distinct approved database systems before restoration. Run application smoke tests against the restored database, destroy the disposable database through the provider, and attach the results to the Backup and restore governance gate.
 
 ## Audit retention
 
@@ -69,3 +69,44 @@ Each cashier opens a shift before accepting cash. At close, the cashier records 
 Alert on 5xx rate, `/api/health` failure, `/api/ready` failure, repeated login throttles, audit-chain export failure, backup failure, and migration failure. Logs must be shipped off-host with access controls and must never include request bodies, passwords, session cookies, clinical notes, or patient identifiers.
 
 If a clinical save fails, staff must not infer it succeeded. Use the facility downtime register, reconcile from the immutable audit and domain records after recovery, and record the incident under the approved response plan.
+
+## DHA access-control release: reporting permissions
+
+The remediation branch separates `reports.clinical` from `reports.operations` and from `billing.read`. Review this proposed definition map before production provisioning:
+
+| Permission | Roles |
+|---|---|
+| reports.clinical | FACILITY_ADMIN, MEDICAL_DIRECTOR |
+| reports.operations | FACILITY_ADMIN, FINANCE_MANAGER, AUDITOR |
+
+Billing, clinician shortage cover and system-administrator-only accounts do not gain these reporting permissions. Clinical reports contain diagnosis aggregates; operations reports contain facility workload, finance, stock and staff-attributed collection summaries. The scoped `scripts/release-report-permissions.mjs` requires `APPROVE_REPORT_ROLE_MAP=true`, synchronizes only these two permission definitions/grants, assigns no users and changes no credentials. Never run the full bootstrap against production. New roles/permissions are seeded automatically only in isolated test/bootstrap environments. DPO role provisioning uses the existing scoped privacy-role script if needed; DPO assignment uses governed Staff access.
+
+Application deployment before permission provisioning denies reports until the reviewed grants exist. Role permissions are resolved from the database on each authenticated request. A role change still revokes the affected user's sessions. Retain role-map approval and deployment/source evidence, and test denial for billing/cover and clinical denial for finance after rollout. No rollout was performed by the implementation task.
+
+## Verified disposable restore plan
+
+`ops:restore-drill` now requires **DATABASE_URL**, **RESTORE_DATABASE_URL**, **BACKUP_FILE** and **RESTORE_APPROVAL_FILE**. The approval file must be stored with restricted access outside source control and contain:
+
+```json
+{
+  "disposable": true,
+  "approvedBy": "named independent reviewer",
+  "reference": "protected drill approval reference",
+  "expiresAt": "future ISO timestamp chosen by the reviewer",
+  "sourceIdentityHash": "SHA-256 of normalized source connection identity",
+  "targetIdentityHash": "SHA-256 of normalized target connection identity",
+  "sourceSystemIdentifier": "verified PostgreSQL system identifier",
+  "targetSystemIdentifier": "verified DISTINCT PostgreSQL system identifier",
+  "backupSha256": "SHA-256 of the approved backup file"
+}
+```
+
+Use `identityHash` exported by `scripts/restore-safety.mjs` to derive connection identity digests in a protected operator environment. The hash covers normalized host/port/database, not credentials. The reviewer must independently establish which provider resources these identities represent; the file must not be mechanically self-approved from arbitrary URLs.
+
+The runner rejects absent source, equivalent/pooler connection identities, unsupported connection overrides, expired/mismatched approval and checksum mismatch before database commands. It then reads each server's system identifier with `psql -X` and checks both against the approved plan. Missing permission to read `pg_control_system()` fails closed. Shared/cloned system identifiers are conservatively rejected even if database names differ: arrange a genuinely distinct disposable PostgreSQL system, rather than weakening the check. Both `psql` and `pg_restore` must be installed.
+
+`pg_restore` receives only the decoded database name as its dbname argument; the runner maps the validated connection into libpq environment parameters and removes inherited PGHOSTADDR/PGSERVICE/PGOPTIONS overrides, keeping credentials out of process arguments; restoration stops on error and runs in one transaction. Treat the backup/approval files, runtime environment and provider routing as protected operator inputs and keep them stable throughout execution. Tool stderr is withheld from general logs. Follow restoration with integrity/application smoke checks and measured RPO/RTO; a successful command alone is not recovery acceptance.
+
+Automated tests exercise guards and process ordering with simulated PostgreSQL tools. They do not prove an actual independent backup restore. A witnessed real drill remains outstanding.
+
+Connection handling follows PostgreSQL’s [libpq environment parameters](https://www.postgresql.org/docs/current/libpq-envars.html) and [pg_restore connection options](https://www.postgresql.org/docs/current/app-pgrestore.html). Operator environments must remain private.

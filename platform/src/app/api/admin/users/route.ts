@@ -9,7 +9,7 @@ import { hashPassword } from "@/lib/security";
 import { staffChangeIsSafe } from "@/lib/staff";
 import { canAssignRole, canManageStaff } from "@/lib/staff-access";
 
-const roleCode = z.enum(["SYSTEM_ADMIN", "FACILITY_ADMIN", "MEDICAL_DIRECTOR", "FINANCE_MANAGER", "HR_ADMIN", "AUDITOR", "RECEPTION", "NURSE", "CLINICIAN", "CLINICIAN_COVER", "LABORATORY", "IMAGING", "PHARMACY", "PHARMACY_MANAGER", "BILLING"]);
+const roleCode = z.enum(["SYSTEM_ADMIN", "FACILITY_ADMIN", "MEDICAL_DIRECTOR", "FINANCE_MANAGER", "HR_ADMIN", "AUDITOR", "DATA_PROTECTION_OFFICER", "RECEPTION", "NURSE", "CLINICIAN", "CLINICIAN_COVER", "LABORATORY", "IMAGING", "PHARMACY", "PHARMACY_MANAGER", "BILLING"]);
 const createSchema = z.object({
   displayName: z.string().trim().min(2).max(120),
   email: z.email().transform((value) => value.toLowerCase()),
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
         mustChangePassword: true,
         roles: { create: { roleId: role.id } },
       }, include: staffInclude });
-      await appendAudit(tx, { userId: user.id, action: "STAFF_CREATED", entityType: "User", entityId: staff.id, afterHash: `${staff.email}:${input.roleCode}` });
+      await appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: "STAFF_CREATED", entityType: "User", entityId: staff.id, afterHash: `${staff.email}:${input.roleCode}` });
       return staff;
     });
     const { passwordHash: _passwordHash, ...safeStaff } = created;
@@ -100,7 +100,7 @@ export async function PATCH(request: Request) {
       }, include: staffInclude });
       if (input.status || input.roleCode || input.temporaryPassword)
         await tx.session.deleteMany({ where: { userId: target.id } });
-      await appendAudit(tx, { userId: user.id, action: input.temporaryPassword ? "STAFF_PASSWORD_RESET" : "STAFF_ACCESS_UPDATED", entityType: "User", entityId: target.id, beforeHash: `${target.status}:${target.roles.map((item) => item.role.code).join(",")}`, afterHash: `${staff.status}:${staff.roles.map((item) => item.role.code).join(",")}` });
+      await appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: input.temporaryPassword ? "STAFF_PASSWORD_RESET" : "STAFF_ACCESS_UPDATED", entityType: "User", entityId: target.id, beforeHash: `${target.status}:${target.roles.map((item) => item.role.code).join(",")}`, afterHash: `${staff.status}:${staff.roles.map((item) => item.role.code).join(",")}` });
       return staff;
     });
     const { passwordHash: _passwordHash, ...safeStaff } = updated;

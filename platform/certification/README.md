@@ -23,3 +23,6 @@ The generated file is tied to the exact Git commit and latest migration. Release
 - Clinician-led safety/UAT results, medication-rule approval, accessibility/usability results and independent penetration/laboratory assessment.
 
 Never replace these documents with environment-variable screenshots or self-attestation by the development team.
+
+
+[Implemented DHA controls 1–4](DHA-CONTROL-REMEDIATION.md) are available on the remediation branch with tests and rollout notes. They are not yet deployed.

@@ -31,18 +31,20 @@ export default function StaffWorkstation() {
 
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setError(""); setNotice("");
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     try {
       await request({ method: "POST", body: JSON.stringify({ displayName: form.get("displayName"), email: form.get("email"), roleCode: form.get("roleCode"), temporaryPassword: form.get("temporaryPassword") }) });
       setNotice("Staff account created. Share the temporary password securely.");
-      event.currentTarget.reset(); await load();
+      formElement.reset(); await load();
     } catch (reason) { setError((reason as Error).message); }
     finally { setBusy(false); }
   }
 
   async function update(event: FormEvent<HTMLFormElement>, id: string) {
     event.preventDefault(); setBusy(true); setError(""); setNotice("");
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     try {
       await request({ method: "PATCH", body: JSON.stringify({ id, roleCode: form.get("roleCode"), status: form.get("status"), temporaryPassword: form.get("temporaryPassword") || undefined }) });
       setNotice("Staff access updated; existing sessions were revoked.");

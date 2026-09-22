@@ -151,7 +151,7 @@ for (const role of [
   { email: "laboratory@example.test", visible: ["Laboratory"], hidden: ["Consultation", "Pharmacy & stock", "Billing"] },
   { email: "imaging@example.test", visible: ["Imaging"], hidden: ["Laboratory", "Pharmacy & stock", "Billing"] },
   { email: "pharmacy@example.test", visible: ["Pharmacy & stock", "Administration"], hidden: ["Registration", "Consultation", "Billing"] },
-  { email: "billing@example.test", visible: ["Billing", "Reports"], hidden: ["Registration", "Consultation", "Pharmacy & stock"] },
+  { email: "billing@example.test", visible: ["Billing"], hidden: ["Reports", "Registration", "Consultation", "Pharmacy & stock"] },
   { email: "finance.manager@example.test", visible: ["Billing", "Reports", "Administration"], hidden: ["Registration", "Consultation"] },
   { email: "facility.admin@example.test", visible: ["Billing", "Reports", "Administration"], hidden: ["Registration", "Consultation"] },
 ] as const) {

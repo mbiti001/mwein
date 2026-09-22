@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { recordDisclosure } from "@/lib/disclosure-audit";
 import { z } from "zod";
 import { appendAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { apiError } from "@/lib/http";
+import { apiError, privateJson } from "@/lib/http";
 
 const inputSchema = z.object({
   description: z.string().trim().min(2).max(500),
@@ -23,7 +23,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       include: { recordedBy: { select: { displayName: true } } },
       orderBy: [{ clinicalStatus: "asc" }, { updatedAt: "desc" }],
     });
-    return NextResponse.json({ problems });
+    await recordDisclosure(user, "PATIENT_PROBLEMS", [id, ...problems.map(item => item.id)]);
+    return privateJson({ problems });
   } catch (error) { return apiError(error); }
 }
 
@@ -60,6 +61,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       });
       return created;
     });
-    return NextResponse.json({ problem }, { status: 201 });
+    return privateJson({ problem }, { status: 201 });
   } catch (error) { return apiError(error); }
 }

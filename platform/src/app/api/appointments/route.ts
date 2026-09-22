@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { recordDisclosure } from "@/lib/disclosure-audit";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { appointmentCanBeBooked, appointmentClinics } from "@/lib/appointments";
 import { appendAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { apiError } from "@/lib/http";
+import { apiError, privateJson } from "@/lib/http";
 
 const inputSchema = z.object({
   patientId: z.uuid(),
@@ -32,7 +32,8 @@ export async function GET(request: Request) {
       include: { patient: { include: { contacts: { where: { primary: true }, take: 1 }, consents: { where: { type: "MESSAGING", granted: true, withdrawnAt: null }, take: 1 } } }, reminderDeliveries: { orderBy: { preparedAt: "desc" }, take: 3 } },
       orderBy: { scheduledAt: "asc" },
     });
-    return NextResponse.json({ appointments });
+    await recordDisclosure(user, "APPOINTMENTS", appointments.map(item => item.id));
+    return privateJson({ appointments });
   } catch (error) {
     return apiError(error);
   }
@@ -56,10 +57,10 @@ export async function POST(request: Request) {
       await appendAudit(tx, { userId: user.id, action: "APPOINTMENT_BOOKED", entityType: "Appointment", entityId: created.id, afterHash: `${created.scheduledAt.toISOString()}:${created.clinic}` });
       return created;
     });
-    return NextResponse.json({ appointment }, { status: 201 });
+    return privateJson({ appointment }, { status: 201 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
-      return NextResponse.json({ error: "This patient already has an appointment at that time" }, { status: 409 });
+      return privateJson({ error: "This patient already has an appointment at that time" }, { status: 409 });
     return apiError(error);
   }
 }

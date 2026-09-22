@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { recordDisclosure } from "@/lib/disclosure-audit";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { apiError } from "@/lib/http";
+import { apiError, privateJson } from "@/lib/http";
 import { isIsoCalendarDate, summarizeCashierActivity, summarizeDispensing, summarizeOperations, summarizeQueuePerformance, summarizeReferralFlow } from "@/lib/reporting";
 
 const dateText = z.string().refine(isIsoCalendarDate, "A valid date is required");
@@ -14,7 +14,7 @@ const querySchema = z
 
 export async function GET(request: Request) {
   try {
-    const user = await requirePermission("billing.read");
+    const user = await requirePermission("reports.operations");
     const url = new URL(request.url);
     const input = querySchema.parse({
       from: url.searchParams.get("from"),
@@ -74,7 +74,7 @@ export async function GET(request: Request) {
       expiring30Days: inventory.filter(item => item.inventoryBatches.some(batch => batch.expiryDate <= inThirtyDays && Number(batch.quantityAvailable) > 0)).length,
       expiring90Days: inventory.filter(item => item.inventoryBatches.some(batch => batch.expiryDate <= inNinetyDays && Number(batch.quantityAvailable) > 0)).length,
     };
-    return NextResponse.json({
+    const result = {
       range: input,
       generatedAt: new Date().toISOString(),
       summary: summarizeOperations(visits),
@@ -84,7 +84,9 @@ export async function GET(request: Request) {
         pharmacy: { consumption: summarizeDispensing(dispensations).slice(0, 12), ...stock },
         cashiers: summarizeCashierActivity(payments),
       },
-    });
+    };
+    await recordDisclosure(user, "OPERATIONS_REPORT", [], result);
+    return privateJson(result);
   } catch (error) {
     return apiError(error);
   }

@@ -210,6 +210,7 @@ try {
   );
   for (const [email, displayName, roleCode] of [
     ["privacy@example.test", "MMS privacy officer", "DATA_PROTECTION_OFFICER"],
+    ["hr.admin@example.test", "MMS HR administrator", "HR_ADMIN"],
     ["nurse@example.test", "MMS nurse", "NURSE"],
     ["clinician@example.test", "MMS clinician", "CLINICIAN"],
     ["clinician.cover@example.test", "MMS clinician cover", "CLINICIAN_COVER"],
@@ -227,7 +228,7 @@ try {
   await pg.query(
     `INSERT INTO "UserRole" ("userId", "roleId")
      SELECT $1, "id" FROM "Role"
-     WHERE "code" IN ('RECEPTION', 'NURSE', 'CLINICIAN', 'LABORATORY', 'IMAGING', 'PHARMACY_MANAGER', 'BILLING', 'MEDICAL_DIRECTOR', 'DATA_PROTECTION_OFFICER')
+     WHERE "code" IN ('RECEPTION', 'NURSE', 'CLINICIAN', 'LABORATORY', 'IMAGING', 'PHARMACY_MANAGER', 'BILLING', 'FINANCE_MANAGER', 'MEDICAL_DIRECTOR', 'DATA_PROTECTION_OFFICER')
      ON CONFLICT DO NOTHING`,
     [admin.id],
   );
