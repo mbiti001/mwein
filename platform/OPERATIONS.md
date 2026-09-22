@@ -2,6 +2,12 @@
 
 Production release is deliberately separate from application build and from first-time provisioning.
 
+## Deployment target and CI
+
+Set the hosting project root to `platform/`, framework to Next.js, install command to `npm ci`, and build command to `npm run vercel-build`. The root repository's `vercel.json`, Dockerfile and cloud bundle are legacy-only. Preview environments must never receive production database credentials.
+
+Require the GitHub **Platform verification** check in branch protection/rulesets. It verifies types, unit tests, migrations, the production build, the isolated outpatient flow and browser workflows. Merely adding the workflow does not configure branch protection. Build jobs need no live database credentials; database changes run in a separately authorised release context.
+
 ## Release order
 
 1. Take and externally retain a verified database backup.
@@ -9,6 +15,7 @@ Production release is deliberately separate from application build and from firs
 3. Deploy the immutable application build (`npm run vercel-build`). The build never migrates or seeds a database.
 4. Check `/api/health` for liveness and `/api/ready` for production readiness. Do not direct clinical traffic while readiness is blocked.
 5. Run `npm test`, `npm run test:migrations`, `npm run test:e2e`, and `npm run test:browser`, then record the release evidence in Administration → Release gates. Browser runners without a system Chrome installation must first install Chromium with `npx playwright install chromium`.
+6. Verify the deployed source and database are the approved pair: `RELEASE_ORIGIN=https://... EXPECTED_RELEASE_SHA=<full commit> EXPECTED_MIGRATION=<migration name> npm run ops:release-verify`. Retain the output with the deployment approval. A mismatch is release drift and blocks clinical use.
 
 Run `npm run db:bootstrap` only for explicit first-time provisioning or a reviewed role/catalogue change. `BOOTSTRAP_ADMIN_PASSWORD` is required to create the initial administrator; reruns do not reactivate a disabled account or overwrite facility metadata.
 
@@ -18,6 +25,8 @@ Run `npm run db:bootstrap` only for explicit first-time provisioning or a review
 - `AUTH_SECRET`: at least 32 random characters, stored in the deployment secret manager.
 - `APP_ORIGIN`: exact public HTTPS origin used by same-origin mutation protection.
 - `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URI`: approved workforce identity provider configuration. Provider groups must be mapped to operational roles in Administration; external identity can never grant `SYSTEM_ADMIN`.
+
+Before enabling provider login, run `npm run ops:oidc-verify` in the release environment. Retain its output, then separately test state/nonce/PKCE callback rejection, logout, MFA assurance claims, deprovisioning and the governed emergency-access procedure with approved test accounts. Discovery success alone does not enable OIDC or prove MFA.
 - `AUDIT_RETENTION_TARGET`: approved immutable external retention target.
 - `DATABASE_BACKUP_TARGET`: approved encrypted backup target.
 - `VERCEL_GIT_COMMIT_SHA` or `DEPLOYMENT_VERSION`: immutable release identity.
@@ -29,6 +38,12 @@ Set an explicit dedicated `BACKUP_DIR` and run `npm run ops:backup`. The command
 At the agreed cadence, create a disposable isolated PostgreSQL database, set `RESTORE_DATABASE_URL` and `BACKUP_FILE`, and run `npm run ops:restore-drill`. The script refuses to target the configured source `DATABASE_URL`. Run application smoke tests against the restored database, destroy the disposable database through the provider, and attach the results to the Backup and restore governance gate.
 
 ## Audit retention
+
+Patient searches, patient history, active visit worklists, visit summaries and verified diagnostic-result reads now append `CLINICAL_RECORDS_ACCESSED` before returning data. The event records the user, session, facility, fixed workflow context and resource references, without names, search text or clinical notes. A list produces one event containing its resource references; even an empty search is recorded. Responses use `private, no-store`. If the append fails, these endpoints return an error instead of disclosing records; use the approved downtime procedure during an audit-storage outage.
+
+These events record authorised server disclosure, not proof of viewing, printing or external delivery. Other endpoints, denied-access monitoring and infrastructure log retention still require a complete coverage review. Audit exports themselves remain sensitive because resource references can identify records.
+
+The public `/api/ready` response contains only `status` and HTTP 200/503. Configuration diagnostics remain in the permission-protected Administration overview; facility governance evidence remains in Release gates. The endpoint is a probe, not an automatic traffic-admission control.
 
 An authorized auditor downloads `/api/admin/audit/export`. The response verifies the serialized facility chain before returning and includes its SHA-256 in `x-audit-export-sha256`. Run `npm run ops:audit-verify -- /absolute/path/to/export.json` independently, then place the export and digest in the approved immutable retention target. Legacy version-1 event count is reported separately because events predating facility-scoped chain version 2 cannot be retroactively re-chained without destroying original evidence.
 

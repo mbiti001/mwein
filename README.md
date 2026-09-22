@@ -2,6 +2,14 @@
 
 > **Canonical application:** the supported product is the Next.js/PostgreSQL application in [`platform/`](platform/). The root Node/SQLite application is retained as a legacy compatibility pilot only; do not use its deployment files for a new clinical deployment.
 
+## Supported platform development and release
+
+Start in `platform/`: run `npm ci`, `npm run db:generate`, then `npm test` and `npm run build`. Database configuration and the controlled release sequence are documented in [`platform/OPERATIONS.md`](platform/OPERATIONS.md).
+
+For Vercel, set the project **Root Directory to `platform`** and use `npm run vercel-build`. Root-level `vercel.json`, Docker and release-bundle commands below belong to the legacy pilot. Platform builds do not migrate or seed databases. Apply migrations separately through `npm run release:migrate` after the release backup and review.
+
+The GitHub check **Platform verification** covers the supported application. Repository administrators must make that check required in branch protection/rulesets before treating it as a merge gate.
+
 ## Facility branding
 
 The existing `platform/src/app/icon.png` is the canonical Mwein “M + QRS wave” mark. The same mark is used by the application shell, receipts, invoices, visit summaries, referral letters, laboratory reports and imaging reports; do not replace it with a medical cross or a separate facility logo. Source letterheads, QA exports, regulatory documents and reusable signing assets remain under the ignored `facility-branding/` directory. Never commit or serve the facility's digital stamp; electronically generated records must show their workflow status and named authorisation evidence instead of applying a reusable image signature.

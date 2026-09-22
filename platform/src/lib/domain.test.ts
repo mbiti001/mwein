@@ -45,6 +45,29 @@ describe("Phase 1 domain rules", () => {
     expect(patientRegistrationSchema.safeParse({ ...base, givenName: "Amina", middleName: "Naliaka", familyName: "Wekesa" }).success).toBe(true);
     expect(patientRegistrationSchema.safeParse({ ...base, givenName: "Amina" }).success).toBe(false);
   });
+  it("allows an unidentified emergency patient without invented demographics or consent", () => {
+    const result = patientRegistrationSchema.safeParse({
+      registrationMode: "EMERGENCY_UNKNOWN",
+      lawfulBasis: "VITAL_INTERESTS",
+      emergencyReason: "Patient arrived unconscious without identification",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.sexAtBirth).toBe("UNKNOWN");
+      expect(result.data.treatmentConsent).toBe(false);
+      expect(result.data.electronicRecordConsent).toBe(false);
+    }
+  });
+  it("requires representative identity for guardian-assisted registration", () => {
+    const base = {
+      registrationMode: "GUARDIAN_ASSISTED",
+      givenName: "Child", familyName: "Patient", estimatedAgeYears: 4,
+      sexAtBirth: "FEMALE", phone: "+254700000001", county: "Busia", subcounty: "Nambale",
+      treatmentConsent: true, electronicRecordConsent: true,
+    } as const;
+    expect(patientRegistrationSchema.safeParse(base).success).toBe(false);
+    expect(patientRegistrationSchema.safeParse({ ...base, representativeName: "Parent Patient", representativeRelationship: "Parent" }).success).toBe(true);
+  });
   it("raises critical triage alerts for dangerous observations", () => {
     const alerts = assessTriageVitals({
       temperatureC: 37,

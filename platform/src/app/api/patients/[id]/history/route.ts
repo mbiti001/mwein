@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
-import { appendAudit } from "@/lib/audit";
+import { recordClinicalAccess } from "@/lib/clinical-access";
 import { visitCancellationReasonLabel } from "@/lib/visit-cancellation";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -10,10 +10,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const user = await requirePermission("clinical.history.read");
     const { id } = await params;
     const currentVisitId = new URL(request.url).searchParams.get("exclude");
-    const result = await db.$transaction(async (tx) => {
-      const patient = await tx.patient.findFirst({ where: { id, facilityId: user.facilityId }, select: { id: true, patientNumber: true, fullName: true, allergies: { where: { active: true }, select: { substance: true, reaction: true, severity: true } } } });
-      if (!patient) throw Object.assign(new Error("Patient not found"), { status: 404 });
-      const [visits, problems, appointments, referrals] = await Promise.all([tx.visit.findMany({
+    const patient = await db.patient.findFirst({ where: { id, facilityId: user.facilityId }, select: { id: true, patientNumber: true, fullName: true, allergies: { where: { active: true }, select: { substance: true, reaction: true, severity: true } } } });
+    if (!patient) throw Object.assign(new Error("Patient not found"), { status: 404 });
+    const [visits, problems, appointments, referrals] = await Promise.all([db.visit.findMany({
       where: { patientId: id, ...(currentVisitId ? { id: { not: currentVisitId } } : {}) },
       orderBy: { arrivedAt: "desc" },
       take: 20,
@@ -29,22 +28,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           imaging: { select: { result: { select: { status: true, conclusion: true } } } },
         } },
       },
-      }), tx.patientProblem.findMany({
+    }), db.patientProblem.findMany({
       where: { patientId: id, facilityId: user.facilityId },
       include: { recordedBy: { select: { displayName: true } } },
       orderBy: [{ clinicalStatus: "asc" }, { updatedAt: "desc" }],
-      }), tx.appointment.findMany({ where: { patientId: id, facilityId: user.facilityId }, select: { id: true, scheduledAt: true, clinic: true, status: true }, orderBy: { scheduledAt: "desc" }, take: 20 }), tx.referral.findMany({ where: { patientId: id, facilityId: user.facilityId }, select: { id: true, referralNumber: true, receivingFacility: true, reason: true, status: true, createdAt: true, returnedAt: true, closedAt: true }, orderBy: { createdAt: "desc" }, take: 20 })]);
-      await appendAudit(tx, {
-        userId: user.id,
-        sessionId: user.sessionId,
-        action: "PATIENT_HISTORY_ACCESSED",
-        entityType: "Patient",
-        entityId: patient.id,
-        afterHash: `${visits.length}:${problems.length}:${appointments.length}:${referrals.length}`,
-      });
-      return { patient, visits, problems, appointments, referrals };
-    });
-    const { patient, visits, problems, appointments, referrals } = result;
+    }), db.appointment.findMany({ where: { patientId: id, facilityId: user.facilityId }, select: { id: true, scheduledAt: true, clinic: true, status: true }, orderBy: { scheduledAt: "desc" }, take: 20 }), db.referral.findMany({ where: { patientId: id, facilityId: user.facilityId }, select: { id: true, referralNumber: true, receivingFacility: true, reason: true, status: true, createdAt: true, returnedAt: true, closedAt: true }, orderBy: { createdAt: "desc" }, take: 20 })]);
     const timeline = [
       ...visits.map(visit => ({
         id: `visit-${visit.id}`,
@@ -59,6 +47,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       ...referrals.map(item => ({ id: `referral-${item.id}`, type: "REFERRAL", occurredAt: item.closedAt || item.returnedAt || item.createdAt, title: `Referral ${item.referralNumber} · ${item.receivingFacility}`, detail: `${item.status} · ${item.reason}` })),
       ...problems.map(item => ({ id: `problem-${item.id}`, type: "PROBLEM", occurredAt: item.updatedAt, title: `${item.clinicalStatus} problem · ${item.description}`, detail: `${item.code || "Uncoded"} · recorded by ${item.recordedBy.displayName}` })),
     ].sort((left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime());
-    return NextResponse.json({ patient, visits, problems, appointments, referrals, timeline });
+    await recordClinicalAccess(user, "PATIENT_HISTORY", [{ type: "Patient", id: patient.id }]);
+    return NextResponse.json({ patient, visits, problems, appointments, referrals, timeline }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) { return apiError(error); }
 }

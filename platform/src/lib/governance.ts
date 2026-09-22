@@ -8,6 +8,8 @@ export const governanceGateDefinitions = [
   { code: "ICD_TERMINOLOGY", name: "Clinical terminology governance", ownerRole: "Medical director", description: "ICD release, mapping policy and terminology update process are approved." },
   { code: "AUDIT_RETENTION", name: "External audit retention", ownerRole: "Compliance owner", description: "Verified audit exports are retained in access-controlled immutable storage." },
   { code: "DHA_INTEGRATIONS", name: "National integration approvals", ownerRole: "Interoperability owner", description: "DHA/SHA/KHIS credentials, certification and production endpoints are approved." },
+  { code: "PUBLIC_HEALTH_REPORTING", name: "Public-health reporting", ownerRole: "Health records officer", description: "Approved datasets, notifiable-event escalation, corrections and delivery acknowledgements are tested." },
+  { code: "RELEASE_TRACEABILITY", name: "Release traceability", ownerRole: "Release owner", description: "Production commit, migration, approval, backup and rollback evidence identify one reproducible release." },
   { code: "AI_DATA_GOVERNANCE", name: "AI data governance", ownerRole: "Data protection officer", description: "Patient-data scope, OpenAI project retention mode, residency, processor terms and incident handling are approved." },
   { code: "AI_CLINICAL_VALIDATION", name: "AI clinical validation", ownerRole: "Medical director", description: "The GPT-6 Astra summary workflow, grounded-output checks, clinician review, eval results and rollback are approved." },
 ] as const;
@@ -65,6 +67,8 @@ export function productionConfigurationReadiness(environment: Record<string, str
     { code: "EXTERNAL_IDENTITY_PROVIDER", ready: oidcReady },
     { code: "AUDIT_RETENTION_TARGET", ready: Boolean(environment.AUDIT_RETENTION_TARGET) },
     { code: "DATABASE_BACKUP_TARGET", ready: Boolean(environment.DATABASE_BACKUP_TARGET) },
+    { code: "IMMUTABLE_RELEASE_ID", ready: Boolean(environment.VERCEL_GIT_COMMIT_SHA || environment.DEPLOYMENT_VERSION) },
+    { code: "KENYA_CORE_PROFILE", ready: Boolean(environment.KENYA_CORE_VERSION && environment.KENYA_CORE_PATIENT_PROFILE?.startsWith("https://") && environment.KENYA_PATIENT_IDENTIFIER_SYSTEM?.startsWith("https://") && environment.KENYA_FACILITY_IDENTIFIER_SYSTEM?.startsWith("https://")) },
   ];
   return { ready: checks.every((check) => check.ready), checks };
 }

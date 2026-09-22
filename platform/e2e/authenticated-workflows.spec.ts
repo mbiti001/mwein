@@ -31,7 +31,7 @@ test("loads administration and production release gates after authentication", a
   await expect(page.getByRole("heading", { name: "Facility control centre" })).toBeVisible();
   await page.getByRole("button", { name: "Release gates" }).click();
   await expect(page.getByRole("heading", { name: "Production release gates" })).toBeVisible();
-  await expect(page.getByText("0/11")).toBeVisible();
+  await expect(page.getByText("0/13")).toBeVisible();
   await expect(page.getByText("Workforce MFA", { exact: true })).toBeVisible();
 });
 

@@ -1,12 +1,15 @@
 ALTER TABLE "Consent"
-  ADD COLUMN "noticeVersion" TEXT NOT NULL DEFAULT 'MWEIN-PRIVACY-1',
+  ADD COLUMN IF NOT EXISTS "noticeVersion" TEXT NOT NULL DEFAULT 'MWEIN-PRIVACY-1',
   ADD COLUMN "method" TEXT NOT NULL DEFAULT 'WRITTEN',
   ADD COLUMN "evidenceReference" TEXT,
   ADD COLUMN "expiresAt" TIMESTAMP(3),
-  ADD COLUMN "withdrawnById" UUID,
+  ADD COLUMN IF NOT EXISTS "withdrawnById" UUID,
   ADD COLUMN "withdrawalReason" TEXT;
 
-CREATE INDEX "Consent_patientId_type_recordedAt_idx" ON "Consent"("patientId", "type", "recordedAt");
+UPDATE "Consent" SET "noticeVersion" = 'MWEIN-PRIVACY-1' WHERE "noticeVersion" IS NULL;
+ALTER TABLE "Consent" ALTER COLUMN "noticeVersion" SET DEFAULT 'MWEIN-PRIVACY-1', ALTER COLUMN "noticeVersion" SET NOT NULL;
+
+CREATE INDEX IF NOT EXISTS "Consent_patientId_type_recordedAt_idx" ON "Consent"("patientId", "type", "recordedAt");
 CREATE INDEX "Consent_patientId_withdrawnAt_expiresAt_idx" ON "Consent"("patientId", "withdrawnAt", "expiresAt");
 
 CREATE TABLE "DataSubjectRequest" (

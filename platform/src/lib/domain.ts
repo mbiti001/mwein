@@ -29,26 +29,50 @@ export function assertVisitTransition(from: VisitStatus, to: VisitStatus) {
 }
 
 export const patientRegistrationSchema = z.object({
+  registrationMode: z.enum(["STANDARD", "GUARDIAN_ASSISTED", "EMERGENCY_UNKNOWN"]).default("STANDARD"),
   givenName: z.string().trim().min(1).max(60).optional(),
   middleName: z.string().trim().max(60).optional(),
   familyName: z.string().trim().min(1).max(60).optional(),
   fullName: z.string().trim().min(3).max(160).optional(),
   dateOfBirth: z.iso.date().optional(),
   estimatedAgeYears: z.coerce.number().int().min(0).max(120).optional(),
-  sexAtBirth: z.enum(["FEMALE", "MALE", "INTERSEX", "UNKNOWN"]),
-  phone: z.string().trim().min(7).max(30),
+  sexAtBirth: z.enum(["FEMALE", "MALE", "INTERSEX", "UNKNOWN"]).default("UNKNOWN"),
+  phone: z.string().trim().min(7).max(30).optional(),
   alternativePhone: z.string().trim().max(30).optional(),
   nationalId: z.string().trim().max(80).optional(),
   shaNumber: z.string().trim().max(80).optional(),
-  county: z.string().trim().min(2).max(80),
-  subcounty: z.string().trim().min(2).max(80),
+  county: z.string().trim().min(2).max(80).optional(),
+  subcounty: z.string().trim().min(2).max(80).optional(),
   ward: z.string().trim().max(80).optional(),
   village: z.string().trim().max(120).optional(),
   preferredLanguage: z.enum(["English", "Kiswahili"]).default("English"),
-  treatmentConsent: z.literal(true),
-  electronicRecordConsent: z.literal(true),
-  messagingConsent: z.boolean().default(false)
-}).refine(value => value.fullName || (value.givenName && value.familyName), { message: "First name and surname are required", path: ["givenName"] }).refine(value => value.dateOfBirth || value.estimatedAgeYears !== undefined, { message: "Date of birth or estimated age is required", path: ["dateOfBirth"] });
+  treatmentConsent: z.boolean().default(false),
+  electronicRecordConsent: z.boolean().default(false),
+  messagingConsent: z.boolean().default(false),
+  noticeVersion: z.string().trim().min(1).max(40).default("MWEIN-PRIVACY-2026-01"),
+  lawfulBasis: z.enum(["CONSENT", "VITAL_INTERESTS", "LEGAL_OBLIGATION", "PROVISION_OF_HEALTH_CARE"]).default("CONSENT"),
+  representativeName: z.string().trim().min(2).max(160).optional(),
+  representativeRelationship: z.string().trim().min(2).max(80).optional(),
+  emergencyReason: z.string().trim().min(5).max(500).optional(),
+}).superRefine((value, context) => {
+  const issue = (path: string, message: string) => context.addIssue({ code: "custom", path: [path], message });
+  if (value.registrationMode === "EMERGENCY_UNKNOWN") {
+    if (!value.emergencyReason) issue("emergencyReason", "Document why normal identity or consent could not be obtained");
+    if (!["VITAL_INTERESTS", "PROVISION_OF_HEALTH_CARE"].includes(value.lawfulBasis)) issue("lawfulBasis", "Emergency registration requires a care or vital-interests lawful basis");
+    return;
+  }
+  if (!(value.fullName || (value.givenName && value.familyName))) issue("givenName", "First name and surname are required");
+  if (!(value.dateOfBirth || value.estimatedAgeYears !== undefined)) issue("dateOfBirth", "Date of birth or estimated age is required");
+  if (!value.phone) issue("phone", "A patient or representative phone number is required");
+  if (!value.county) issue("county", "County is required");
+  if (!value.subcounty) issue("subcounty", "Subcounty is required");
+  if (!value.treatmentConsent) issue("treatmentConsent", "Treatment consent must be recorded");
+  if (!value.electronicRecordConsent) issue("electronicRecordConsent", "Electronic-record consent must be recorded");
+  if (value.registrationMode === "GUARDIAN_ASSISTED") {
+    if (!value.representativeName) issue("representativeName", "Representative name is required");
+    if (!value.representativeRelationship) issue("representativeRelationship", "Representative relationship is required");
+  }
+});
 
 export const triageSchema = z.object({
   chiefComplaint: z.string().trim().min(2).max(500),

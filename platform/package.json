@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "vercel-build": "prisma generate && next build",
     "start": "next start",
     "lint": "tsc --noEmit",
     "test": "vitest run",
@@ -17,6 +17,9 @@
     "ops:backup": "node scripts/backup-postgres.mjs",
     "ops:restore-drill": "node scripts/restore-drill.mjs",
     "ops:audit-verify": "node scripts/verify-audit-export.mjs",
+    "ops:release-verify": "node scripts/verify-release.mjs",
+    "ops:oidc-verify": "node scripts/verify-oidc-provider.mjs",
+    "certification:evidence": "node scripts/certification-evidence.mjs",
     "db:generate": "prisma generate",
     "db:validate": "prisma validate",
     "db:migrate": "prisma migrate dev"

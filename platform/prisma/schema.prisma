@@ -412,6 +412,8 @@ model Patient {
   disabilityStatus  String?
   preferredLanguage String                @default("English")
   restricted        Boolean               @default(false)
+  registrationMode  String                @default("STANDARD")
+  identityStatus    String                @default("ASSERTED")
   active            Boolean               @default(true)
   facility          Facility              @relation(fields: [facilityId], references: [id])
   identifiers       PatientIdentifier[]
@@ -505,6 +507,10 @@ model Consent {
   expiresAt         DateTime?
   withdrawnAt       DateTime?
   withdrawnById     String?   @db.Uuid
+  lawfulBasis String?
+  representativeName String?
+  representativeRelationship String?
+  reason String?
   withdrawalReason  String?
   patient           Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
