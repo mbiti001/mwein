@@ -18,6 +18,8 @@
     "ops:restore-drill": "node scripts/restore-drill.mjs",
     "ops:audit-verify": "node scripts/verify-audit-export.mjs",
     "ops:release-verify": "node scripts/verify-release.mjs",
+    "ops:release-preflight": "node scripts/release-preflight.mjs",
+    "ops:audit-coverage": "node scripts/audit-coverage.mjs",
     "ops:oidc-verify": "node scripts/verify-oidc-provider.mjs",
     "certification:evidence": "node scripts/certification-evidence.mjs",
     "db:generate": "prisma generate",

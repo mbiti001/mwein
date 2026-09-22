@@ -1,5 +1,7 @@
 type CompletionVisit = {
   status: string;
+  clinicallyClosedAt?: Date | string | null;
+  dispositionRecord?: null | { outcome: string };
   encounters: { status: string }[];
   orders: { status: string; displayName?: string }[];
   invoice: null | {
@@ -14,6 +16,8 @@ export function visitCompletionBlockers(visit: CompletionVisit) {
   const blockers: string[] = [];
   if (["COMPLETED", "CANCELLED", "ADMITTED"].includes(visit.status)) blockers.push(`Visit is already ${visit.status.toLowerCase()}`);
   if (!visit.encounters.some(item => item.status === "SIGNED")) blockers.push("Clinical consultation is not signed");
+  if (!visit.dispositionRecord) blockers.push("Clinical discharge disposition is not recorded");
+  if (!visit.clinicallyClosedAt) blockers.push("A clinician must close the visit before financial completion");
   const openOrders = visit.orders.filter(item => ["DRAFT", "REQUESTED", "IN_PROGRESS"].includes(item.status));
   if (openOrders.length) blockers.push(`Resolve ${openOrders.length} open order${openOrders.length === 1 ? "" : "s"}: ${openOrders.slice(0, 3).map(item => item.displayName || "unnamed order").join(", ")}`);
   if (!visit.invoice) blockers.push("Visit has no invoice");

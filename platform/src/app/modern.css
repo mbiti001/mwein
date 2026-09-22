@@ -1,0 +1,70 @@
+/* Mwein clinical design tokens: restrained RGB colours, no remote fonts. */
+:root {
+  --blue: rgb(15 104 99);
+  --blue-dark: rgb(11 77 75);
+  --teal: rgb(15 104 99);
+  --teal-soft: rgb(232 245 241);
+  --ink: rgb(27 43 53);
+  --muted: rgb(85 103 116);
+  --line: rgb(218 228 230);
+  --bg: rgb(246 248 249);
+  --surface: rgb(255 255 255);
+  --danger: rgb(166 35 43);
+  --warning: rgb(145 78 14);
+  --shadow: 0 3px 14px rgb(27 43 53 / 4%);
+}
+@media screen {
+  body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .sidebar { background: rgb(19 43 49); gap: 26px; }
+  .sidebar nav button { padding: 12px 14px; border-radius: 10px; font-weight: 550; }
+  .sidebar nav button.active { background: rgb(215 241 232); color: rgb(19 63 57); font-weight: 700; }
+  .sidebar nav button:hover:not(.active) { background: rgb(255 255 255 / 9%); }
+  .workspace { padding-top: 26px; }
+  .workspace h1 { font-size: clamp(26px, 2.6vw, 34px); font-weight: 650; letter-spacing: -.035em; }
+  .workspace h2 { font-weight: 650; letter-spacing: -.015em; }
+  .workspace > header { margin-block: 24px; }
+  .card, .formCard { border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
+  .metrics { gap: 16px; }
+  .metrics article, .metricGrid .metric { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: none; padding: 20px; }
+  .metrics article strong { font-size: 32px; font-weight: 650; letter-spacing: -.04em; color: var(--ink); }
+  .metrics article small { font-weight: 600; color: var(--muted); }
+  .primary, .new { min-height: 44px; border-radius: 10px; box-shadow: none; }
+  .secondary { min-height: 40px; border-radius: 9px; }
+  input, select, textarea { border-radius: 9px; border-color: var(--line); min-height: 42px; }
+  textarea { line-height: 1.65; }
+  button, input, select, textarea, summary, a { scroll-margin-top: 72px; }
+  :is(button,input,select,textarea,summary,a):focus-visible { outline: 3px solid rgb(26 112 157); outline-offset: 3px; }
+  .taskRow { border-radius: 10px; margin-block: 5px; padding: 16px; border: 1px solid transparent; }
+  .taskRow:hover { background: rgb(239 247 244); border-color: rgb(182 210 199); }
+  .taskRow.overdue { background: rgb(255 249 239); border-color: rgb(230 199 153); }
+  .taskRow.emergency { background: rgb(255 241 242); border-color: rgb(225 166 173); }
+  .patientContext { border-radius: 12px; box-shadow: none; }
+  .workspaceTabs { gap: 6px; padding-bottom: 8px; }
+  .workspaceTabs button { min-height: 42px; border-radius: 8px; }
+  .queueTools { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin: 0 0 18px; }
+  .queueTools label:first-child { flex: 1 1 220px; }
+  .queueTools label { display:grid; gap:5px; color:var(--muted); font-size:13px; }
+  .queueTools .queueToggle { display:flex; align-items:center; gap:8px; padding-top:22px; }
+  .queueToggle input { min-height:auto; width:18px; height:18px; accent-color:var(--teal); }
+  .readinessStrip { margin-block:22px; padding:22px; background:var(--surface); border:1px solid var(--line); border-radius:16px; }
+  .readinessStrip header { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; }
+  .readinessStrip h2 { margin:4px 0; font-size:18px; }
+  .readinessStrip p { color:var(--muted); font-size:13px; margin:5px 0; }
+  .readinessStrip .readinessGrid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:18px; }
+  .readinessGrid article { padding:14px; background:var(--bg); border-radius:10px; }
+  .readinessGrid strong, .readinessGrid small { display:block; }
+  .readinessGrid strong { margin-block:7px; font-size:23px; }
+  .readinessGrid small { color:var(--muted); }
+  .readinessStatus { padding:6px 12px; border-radius:30px; background:rgb(255 246 229); color:rgb(126 71 11); font-size:12px; font-weight:650; }
+  .readinessStatus.ready { background:var(--teal-soft); color:var(--teal); }
+  .mobileNavToggle { background:rgb(19 43 49); }
+  @media(max-width:700px) {
+    .workspace { padding:16px; }
+    .readinessStrip .readinessGrid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .metrics article { padding:14px; }
+    .queueTools .queueToggle { padding-top:0; }
+    .taskRow { flex-wrap:wrap; }
+  }
+  @media(prefers-reduced-motion:reduce) { *, *::before, *::after { scroll-behavior:auto!important; transition:none!important; animation:none!important; } }
+}

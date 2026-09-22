@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
+import { isWaitingOverdue } from "@/lib/service-points";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
@@ -32,6 +34,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       });
       if (!visit) throw Object.assign(new Error("Visit not found"), { status: 404 });
       if (visit.cancellation) throw Object.assign(new Error("This visit is already cancelled"), { status: 409 });
+      if (input.reasonCode === "OVERDUE_UNPROCESSED") {
+        const queue = await tx.queueEntry.findFirst({ where: { visitId: id, status: { in: ["WAITING", "CALLED"] } }, orderBy: { enteredAt: "asc" } });
+        const control = queue ? await tx.servicePointControl.findUnique({ where: { facilityId_servicePoint: { facilityId: user.facilityId, servicePoint: queue.servicePoint } } }) : null;
+        if (!queue || !isWaitingOverdue(visit.priority, Math.floor((Date.now() - queue.enteredAt.getTime()) / 60000), control?.targetMinutes || 30))
+          throw Object.assign(new Error("This visit is not overdue in a waiting queue"), { status: 409 });
+      }
       const blockers = visitCancellationBlockers(visit, input.reasonCode);
       if (blockers.length) throw Object.assign(new Error(blockers.join(". ")), { status: 409, details: { blockers } });
 
@@ -83,7 +91,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         afterHash: `CANCELLED:${input.reasonCode}:${input.shaOutcome || "NOT_SHA"}`,
       });
       return { visit: updated, cancellation };
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return NextResponse.json(result);
   } catch (error) {
     return apiError(error);

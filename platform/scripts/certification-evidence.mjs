@@ -11,6 +11,7 @@ const controls = [
   ["platform_ci", "IMPLEMENTED", "Platform verification runs types, tests, migrations, build, integration and browser checks"],
   ["safe_registration", "IMPLEMENTED", "Standard, guardian-assisted and unidentified-emergency registration are modelled"],
   ["consent_lifecycle", "IMPLEMENTED", "Versioned lawful basis, representative authority, grant and withdrawal are auditable"],
+  ["odpc_registration", "EVIDENCE_AVAILABLE", "MWEIN MEDICAL SERVICES Data Controller registration 112-9801-11EB is valid from 2026-09-22 through 2028-09-22; retain the protected certificate outside Git"],
   ["clinical_read_audit", "PARTIAL", "Core patient, visit, result and consent disclosures are covered; maintain endpoint inventory"],
   ["oidc_mfa", "EXTERNAL_EVIDENCE_REQUIRED", "Provider credentials, callback implementation and MFA/deprovisioning acceptance remain required"],
   ["encryption_key_management", "EXTERNAL_EVIDENCE_REQUIRED", "Hosting, database, backup and key evidence cannot be proven from source"],

@@ -11,6 +11,9 @@ import { careServiceForClinic } from "@/lib/care-service-points";
 import { jsonRequest } from "@/lib/client-http";
 import { dateInTimeZone, gestationalAgeLabel, pregnancyDatingFromLnmp } from "@/lib/pregnancy-dating";
 import { BrandMark } from "@/components/FacilityBrand";
+import ReadinessSnapshot from "@/components/ReadinessSnapshot";
+import VisitClosurePanel from "@/components/VisitClosurePanel";
+import PatientIdentityPanel from "@/components/PatientIdentityPanel";
 import { shaCancellationOutcomes, visitCancellationReasons } from "@/lib/visit-cancellation";
 
 const workspaceLoading = () => <section className="card"><p>Opening workspace…</p></section>;
@@ -56,10 +59,12 @@ type Visit = {
   visitType?: string;
   priority: string;
   status: string;
+  clinicallyClosedAt?: string | null;
   reason?: string;
   arrivedAt: string;
   patient: Patient;
   encounters?: {
+    status?: string;
     diagnoses: { description: string; code?: string | null; primary: boolean }[];
   }[];
   facility?: { name: string; code: string };
@@ -329,6 +334,7 @@ export default function ClinicalApp() {
         {screen === "dashboard" && (
           <Dashboard
             visits={visits}
+            onGovernance={() => setScreen("admin")}
             user={user}
             onStart={() => {
               setScreen("registration");
@@ -601,17 +607,21 @@ function PasswordChange({ onChanged }: { onChanged: () => Promise<void> }) {
 
 function Dashboard({
   visits,
+  onGovernance,
   user,
   onStart,
   onOpenTask,
   onUpdated,
 }: {
   visits: Visit[];
+  onGovernance: () => void;
   user: User;
   onStart: () => void;
   onOpenTask: (screen: Screen, visitId: string) => void;
   onUpdated: () => Promise<void>;
 }) {
+  const [taskSearch, setTaskSearch] = useState("");
+  const [overdueOnly, setOverdueOnly] = useState(false);
   const access: Partial<Record<ServicePointCode, { permission: string; screen: Screen; action: string }>> = {
     TRIAGE: { permission: "triage.write", screen: "triage", action: "Start triage" },
     CONSULTATION: { permission: "encounter.write", screen: "consultation", action: "Open consultation" },
@@ -631,11 +641,12 @@ function Dashboard({
     return { billed: totals.billed + billed, paid: totals.paid + paid, claims: totals.claims + claims };
   }, { billed: 0, paid: 0, claims: 0 });
   const serviceCounts = tasks.reduce<Record<string, number>>((counts, item) => ({ ...counts, [item.point!]: (counts[item.point!] || 0) + 1 }), {});
+  const visibleTasks = tasks.filter(({ visit, wait }) => (!overdueOnly || isWaitingOverdue(visit.priority, wait)) && `${visit.patient.fullName} ${visit.patient.patientNumber} ${visit.clinic}`.toLowerCase().includes(taskSearch.trim().toLowerCase()));
   return (
     <>
       <header>
         <div>
-          <p className="eyebrow">Clinical operations</p>
+          <p className="eyebrow">Mwein · care workspace</p>
           <h1>My work now</h1>
           <p>{user.roles?.join(" · ") || "Clinical operations"} · tasks are ordered by urgency and waiting time.</p>
         </div>
@@ -667,6 +678,7 @@ function Dashboard({
           <span>Across all service points</span>
         </article>
       </div>
+      {user.permissions.includes("admin.dashboard") && <ReadinessSnapshot onOpen={onGovernance} />}
       <section className="dashboardInsights">
         <article className="card"><div className="cardHead"><div><h2>Work by service point</h2><p>Current actionable load for your role.</p></div></div>{Object.keys(serviceCounts).length ? Object.entries(serviceCounts).map(([point, count]) => <div className="summaryLine" key={point}><strong>{point.replaceAll("_", " ")}</strong><span>{count} waiting</span></div>) : <p>No work waiting.</p>}</article>
         {user.permissions.includes("billing.read") && <article className="card"><div className="cardHead"><div><h2>Active-visit finance</h2><p>Live exposure from currently active patient visits.</p></div></div><div className="summaryLine"><strong>Billed</strong><span>KES {financial.billed.toLocaleString()}</span></div><div className="summaryLine"><strong>Collected</strong><span>KES {financial.paid.toLocaleString()}</span></div><div className="summaryLine"><strong>Patient balance</strong><span>KES {Math.max(0, financial.billed - financial.paid - financial.claims).toLocaleString()}</span></div><div className="summaryLine"><strong>Claims in process</strong><span>KES {financial.claims.toLocaleString()}</span></div></article>}
@@ -678,14 +690,19 @@ function Dashboard({
             <p>Open the patient directly—no module hunting.</p>
           </div>
         </div>
-        {tasks.length === 0 ? (
+        <div className="queueTools">
+          <label>Find a task<input type="search" value={taskSearch} onChange={event => setTaskSearch(event.target.value)} placeholder="Patient, number or clinic" /></label>
+          <label className="queueToggle"><input type="checkbox" checked={overdueOnly} onChange={event => setOverdueOnly(event.target.checked)} />Overdue only</label>
+          <span role="status">{visibleTasks.length} of {tasks.length} tasks</span>
+        </div>
+        {visibleTasks.length === 0 ? (
           <div className="empty">
-            <strong>Your queue is clear</strong>
-            <p>New tasks will appear here when a patient reaches your service point.</p>
+            <strong>{tasks.length ? "No matching tasks" : "Your queue is clear"}</strong>
+            <p>{tasks.length ? "Clear the search or overdue filter to see more patients." : "New tasks will appear here when a patient reaches your service point."}</p>
           </div>
         ) : (
           <div className="queue">
-            {tasks.map(({ visit: v, point, wait }) => { const task = access[point!]; const overdue = isWaitingOverdue(v.priority, wait); return (
+            {visibleTasks.map(({ visit: v, point, wait }) => { const task = access[point!]; const overdue = isWaitingOverdue(v.priority, wait); return (
               <button className={`row taskRow ${v.priority.toLowerCase()} ${overdue ? "overdue" : ""}`} key={v.id} onClick={() => onOpenTask(point === "CONSULTATION" && careServiceForClinic(v.clinic) ? "servicePoints" : task!.screen, v.id)}>
                 <span className="dot" />
                 <div>
@@ -700,6 +717,8 @@ function Dashboard({
           </div>
         )}
       </section>
+      {user.permissions.includes("encounter.write") && <VisitClosurePanel visits={visits} onUpdated={onUpdated} />}
+      {user.permissions.includes("patient.create") && user.permissions.includes("patient.read") && <PatientIdentityPanel onUpdated={onUpdated} />}
       <QueueOperationsPanel permissions={user.permissions} onOpenTask={onOpenTask} onUpdated={onUpdated} />
     </>
   );

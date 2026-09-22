@@ -10,7 +10,8 @@ The generated file is tied to the exact Git commit and latest migration. Release
 
 ## Evidence that must come from accountable owners
 
-- ODPC registration, approved DPIA, privacy notices, processor agreements, retention/legal-hold and data-subject request procedures.
+- ODPC registration is available outside the repository: MWEIN MEDICAL SERVICES is registered as a Data Controller, identification `112-9801-11EB`, valid 2026-09-22 through 2028-09-22. Record the protected evidence reference in the governance register; do not commit the certificate to Git.
+- Approved DPIA, privacy notices, processor agreements, retention/legal-hold and data-subject request procedures remain required.
 - Hosting/database/backup encryption, key ownership and access-policy evidence.
 - OIDC provider configuration, MFA assurance, deprovisioning and emergency-access rehearsal.
 - Measured backup restoration and downtime/incident-response exercises.
