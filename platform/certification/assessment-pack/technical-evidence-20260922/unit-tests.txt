@@ -1,0 +1,12 @@
+
+> mwein-hmis-platform@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 <isolated-release>/platform
+
+
+ Test Files  60 passed (60)
+      Tests  239 passed (239)
+   Start at  19:23:29
+   Duration  3.30s (transform 2.37s, setup 0ms, import 6.38s, tests 1.15s, environment 10ms)

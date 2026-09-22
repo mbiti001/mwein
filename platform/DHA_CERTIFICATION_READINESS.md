@@ -2,6 +2,8 @@
 
 Status date: 22 September 2026
 
+Current review: [deployed status and ordered work list](certification/DHA-READINESS-SNAPSHOT-20260922.md). Live release `a5e19d3` is healthy but its readiness probe remains blocked. Clinical priorities 1–4, core privacy workflows, WHO ICD-11 linkage and the clinician shortage-cover role are deployed. MFA is paused by user instruction; its uncommitted local changes are not certification evidence.
+
 This register maps the supported `platform/` application to the Kenya Digital Health Certification Framework. A status of **implemented** means repository evidence exists; it does not substitute for deployment evidence, clinical approval or DHA laboratory confirmation.
 
 ## Authoritative sources
@@ -27,7 +29,7 @@ Do not submit self-attestation until all four rows have retained, reviewable evi
 
 | Area | Weight | Current position | Principal gaps | Repository evidence |
 | --- | ---: | --- | --- | --- |
-| Functionality | 35% | Strong outpatient EMR baseline | National terminology bindings; growth/MCH completeness; adverse-event capture; exchangeable summary and ePrescription; only claim workflows demonstrable in the laboratory | `src/components/ClinicalApp.tsx`, clinical workstations, `prisma/schema.prisma`, automated tests |
+| Functionality | 35% | Strong outpatient EMR baseline | Clinical approval of terminology bindings (WHO ICD-11 API is connected); growth/MCH completeness; adverse-event capture; exchangeable summary and ePrescription; only claim workflows demonstrable in the laboratory | `src/components/ClinicalApp.tsx`, clinical workstations, `prisma/schema.prisma`, automated tests |
 | Security, privacy and confidentiality | 30% | Partial implementation | Production OIDC/MFA; complete data-access audit coverage; emergency access; patient-facing delivery channel; penetration test; deployed encryption, retention and recovery evidence | `src/lib/auth.ts`, `src/lib/audit.ts`, `src/lib/privacy.ts`, `src/app/api/patients/[id]/privacy/route.ts`, `OPERATIONS.md` |
 | Reporting and public-health alerts | 20% | Monthly source summary only | Immediate notifiable-disease alerts; weekly/monthly IDSR; public-health events; approved KHIS mappings; submission acknowledgement and retry | `src/app/api/reports/moh-monthly/route.ts` |
 | Information exchange and interoperability | 15% | Preparation only | Kenya Core FHIR API; HIE authentication; client/facility/worker/terminology/product registries; conformance validation; consent-aware exchange | `src/lib/integrations.ts`, SHA preparation modules |
@@ -45,7 +47,7 @@ Do not submit self-attestation until all four rows have retained, reviewable evi
 
 - [x] Inspect the supplied ODPC data-controller registration certificate and record its validity.
 - [ ] Complete and approve the system DPIA; confirm whether separate processor registration applies.
-- [ ] Implement production OIDC login, callback, logout, account linking and enforced MFA.
+- [ ] Workforce identity and MFA — paused by user instruction; no MFA deployment or enrollment is claimed. Confirm the chosen approach before resuming.
 - [ ] Implement controlled, justified and audited emergency access.
 - [ ] Audit patient searches, clinical-history reads, exports, disclosures and other patient-data access.
 - [x] Add consent-version, purpose, evidence and withdrawal workflows.
@@ -76,7 +78,8 @@ Do not submit self-attestation until all four rows have retained, reviewable evi
 - [ ] Obtain clinical approval for medication-safety rules and terminology mappings.
 - [ ] Add or explicitly exclude unsupported ancillary workflows from the certification scope.
 - [ ] Run clinical UAT, accessibility, load, concurrency, recovery and security scenarios.
-- [ ] Prepare a fixed synthetic-data test environment and deterministic demonstration scripts.
+- [x] Maintain an automated isolated synthetic-data test environment and browser/API scenarios.
+- [ ] Freeze the assessor testing environment and clinician demonstration scripts for the declared certification scope.
 - [ ] Freeze a release, retain its dependency/build/test evidence and conduct a mock DHA assessment.
 
 ## Evidence rules
@@ -90,3 +93,13 @@ Do not submit self-attestation until all four rows have retained, reviewable evi
 ## Reviewed ODPC evidence
 
 The supplied `MWEIN MEDICAL SERVICES Registration Certificate.pdf` was visually reviewed on 22 September 2026. It names MWEIN MEDICAL SERVICES as a Data Controller, identification `112-9801-11EB`, serial `27289`, valid 22 September 2026 through 22 September 2028. File SHA-256: `c8b29ea5a5b489df4fce051509aabb5703a38d23a4d8550abe9b61610a224cf7`. The original is retained outside Git. This review does not claim online registry verification, processor registration, or DHA certification.
+
+
+## Assessment preparation pack — 22 September 2026
+
+The [draft assessment pack](certification/assessment-pack/README.md) now provides the proposed outpatient scope, accountable-role register, requirements, system manual, architecture/data flows, evidence inventory, synthetic UAT protocol and submission/sign-off checklist. Its release manifest is derived from deployed commit `a5e19d3ee6edc08a21f7c8e836962c8be66dfcb7`, excluding paused MFA work. Edwin is accountable across all workstreams; signed approvals, official clause mapping and external evidence remain outstanding. Drafting this pack does not approve a governance gate or change production.
+
+
+## App audit and implementation queue
+
+See the [22 September app audit](certification/assessment-pack/APP-AUDIT-AND-IMPLEMENTATION-BACKLOG.md) for DPO access, disclosure audit, reporting authorization, response headers, restore safety and reproducible evidence packages. These are specified for implementation, not claimed fixed. CR13, ODPC and Edwin’s tax documents are indexed; individual/innovator checklist and fee treatment remain unverified.

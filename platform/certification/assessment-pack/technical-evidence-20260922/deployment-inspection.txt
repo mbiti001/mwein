@@ -1,0 +1,28 @@
+Vercel CLI 59.11.7 (Node.js 24.14.0)
+Fetching deployment "dpl_7FW4ub563CBkcojpxEc8biEEvhci" in mbitis-projects
+> Fetched deployment "mwein-hmis-platform-5jz63v526-mbitis-projects.vercel.app" in mbitis-projects [1s]
+
+  General
+
+    id		dpl_7FW4ub563CBkcojpxEc8biEEvhci
+    name	mwein-hmis-platform
+    target	production
+    status	● Ready
+    url		https://mwein-hmis-platform-5jz63v526-mbitis-projects.vercel.app
+    created	Tue Sep 22 2026 17:36:47 GMT+0300 (East Africa Time) [2h ago]
+
+
+  Aliases
+
+    ╶ https://mwein-hmis-platform-mbitis-projects.vercel.app
+
+
+  Builds
+
+    ┌ .        [0ms]
+    ├── λ index (796.1KB) [iad1]
+    ├── λ _not-found (796.1KB) [iad1]
+    ├── λ _not-found.rsc (796.1KB) [iad1]
+    ├── λ index.rsc (796.1KB) [iad1]
+    ├── λ _global-error (796.1KB) [iad1]
+    └── 131 output items hidden

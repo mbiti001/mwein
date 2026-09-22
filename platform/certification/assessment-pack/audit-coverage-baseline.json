@@ -1,0 +1,216 @@
+{
+  "generatedAt": "2026-09-22T16:48:35.710Z",
+  "routes": 25,
+  "gaps": 9,
+  "coverage": [
+    {
+      "route": "appointments/[id]/reminder",
+      "methods": [
+        "POST"
+      ],
+      "readAudit": true,
+      "mutationAudit": true
+    },
+    {
+      "route": "appointments/[id]/status",
+      "methods": [
+        "PATCH"
+      ],
+      "readAudit": true,
+      "mutationAudit": true
+    },
+    {
+      "route": "appointments",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "readAudit": false,
+      "mutationAudit": true
+    },
+    {
+      "route": "orders/[id]/dispense",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "readAudit": false,
+      "mutationAudit": true
+    },
+    {
+      "route": "orders/[id]/imaging-result",
+      "methods": [
+        "POST"
+      ],
+      "readAudit": true,
+      "mutationAudit": true
+    },
+    {
+      "route": "orders/[id]/laboratory-result",
+      "methods": [
+        "POST"
+      ],
+      "readAudit": true,
+      "mutationAudit": true
+    },
+    {
+      "route": "orders/[id]/specimen",
+      "methods": [
+        "POST"
+      ],
+      "readAudit": true,
+      "mutationAudit": true
+    },
+    {
+      "route": "patients/[id]/consents",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "readAudit": true,
+      "mutationAudit": true
+    },
+    {
+      "route": "patients/[id]/history",
+      "methods": [
+        "GET"
+      ],
+      "readAudit": true,
+      "mutationAudit": true
+    },
+    {
+      "route": "patients/[id]/identity-reconciliation",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "readAudit": false,
+      "mutationAudit": true
+    },
+    {
+      "route": "patients/[id]/privacy/export",
+      "methods": [
+        "POST"
+      ],
+      "readAudit": true,
+      "mutationAudit": true
+    },
+    {
+      "route": "patients/[id]/privacy",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "readAudit": false,
+      "mutationAudit": true
+    },
+    {
+      "route": "patients/[id]/problems/[problemId]",
+      "methods": [
+        "PATCH"
+      ],
+      "readAudit": true,
+      "mutationAudit": true
+    },
+    {
+      "route": "patients/[id]/problems",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "readAudit": false,
+      "mutationAudit": true
+    },
+    {
+      "route": "patients",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "readAudit": true,
+      "mutationAudit": true
+    },
+    {
+      "route": "referrals/[id]",
+      "methods": [
+        "PATCH"
+      ],
+      "readAudit": true,
+      "mutationAudit": true
+    },
+    {
+      "route": "referrals",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "readAudit": false,
+      "mutationAudit": true
+    },
+    {
+      "route": "reports/moh-monthly",
+      "methods": [
+        "GET"
+      ],
+      "readAudit": false,
+      "mutationAudit": true
+    },
+    {
+      "route": "reports/operations",
+      "methods": [
+        "GET"
+      ],
+      "readAudit": false,
+      "mutationAudit": true
+    },
+    {
+      "route": "visits/[id]/cancel",
+      "methods": [
+        "POST"
+      ],
+      "readAudit": true,
+      "mutationAudit": true
+    },
+    {
+      "route": "visits/[id]/complete",
+      "methods": [
+        "POST"
+      ],
+      "readAudit": true,
+      "mutationAudit": true
+    },
+    {
+      "route": "visits/[id]/consultation",
+      "methods": [
+        "POST"
+      ],
+      "readAudit": true,
+      "mutationAudit": true
+    },
+    {
+      "route": "visits/[id]/discharge",
+      "methods": [
+        "POST"
+      ],
+      "readAudit": true,
+      "mutationAudit": false
+    },
+    {
+      "route": "visits/[id]/triage",
+      "methods": [
+        "POST"
+      ],
+      "readAudit": true,
+      "mutationAudit": true
+    },
+    {
+      "route": "visits",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "readAudit": true,
+      "mutationAudit": true
+    }
+  ]
+}
