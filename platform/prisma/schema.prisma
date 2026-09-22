@@ -276,6 +276,7 @@ model ReferenceSequence {
 }
 
 model User {
+  measuredVitals MeasuredVitals[]
   surveillanceEntries SurveillanceEntry[]
   preparedLocalReports LocalReportRevision[] @relation("LocalReportPreparedBy")
   reviewedLocalReports LocalReportRevision[] @relation("LocalReportReviewedBy")
@@ -574,6 +575,7 @@ model Allergy {
 }
 
 model Visit {
+  measuredVitals MeasuredVitals[]
   id                   String                @id @default(uuid()) @db.Uuid
   facilityId           String                @db.Uuid
   patientId            String                @db.Uuid
@@ -733,6 +735,8 @@ model ServicePointControl {
 }
 
 model TriageRecord {
+  reviewedVitalsId String? @db.Uuid
+  reviewedVitals MeasuredVitals? @relation(fields: [reviewedVitalsId], references: [id], onDelete: Restrict)
   id                    String        @id @default(uuid()) @db.Uuid
   visitId               String        @unique @db.Uuid
   chiefComplaint        String
@@ -1877,4 +1881,19 @@ model SurveillanceEntry {
   record SurveillanceRecord @relation(fields: [recordId], references: [id], onDelete: Restrict)
   actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
   @@unique([recordId, version])
+}
+
+
+model MeasuredVitals {
+  reviewedInTriage TriageRecord[]
+  id String @id @default(uuid()) @db.Uuid
+  visitId String @db.Uuid
+  recordedById String @db.Uuid
+  measuredAt DateTime
+  values Json
+  note String?
+  recordedAt DateTime @default(now())
+  visit Visit @relation(fields: [visitId], references: [id], onDelete: Restrict)
+  recordedBy User @relation(fields: [recordedById], references: [id], onDelete: Restrict)
+  @@index([visitId, recordedAt])
 }

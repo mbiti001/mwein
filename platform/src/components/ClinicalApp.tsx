@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import dynamic from "next/dynamic";
 import { assessTriageVitals, patientClinicalGroup } from "@/lib/domain";
 import type { StockFocus } from "@/components/InventoryWorkstation";
+import VisitVitalsPanel from "@/components/VisitVitalsPanel";
 import SaveFeedback from "@/components/SaveFeedback";
 import { currentServicePoint, isWaitingOverdue, waitingMinutes, type ServicePointCode } from "@/lib/service-points";
 import { appointmentClinics } from "@/lib/appointments";
@@ -24,6 +25,7 @@ const BillingWorkstation = dynamic(() => import("@/components/BillingWorkstation
 const VisitSummaryWorkstation = dynamic(() => import("@/components/VisitSummaryWorkstation"), { loading: workspaceLoading });
 const ImagingWorkstation = dynamic(() => import("@/components/ImagingWorkstation"), { loading: workspaceLoading });
 const SurveillanceWorkstation = dynamic(() => import("@/components/SurveillanceWorkstation"), { loading: workspaceLoading });
+const VitalsWorkstation = dynamic(() => import("@/components/VitalsWorkstation"), { loading: workspaceLoading });
 const ReportingWorkstation = dynamic(() => import("@/components/ReportingWorkstation"), { loading: workspaceLoading });
 const AppointmentWorkstation = dynamic(() => import("@/components/AppointmentWorkstation"), { loading: workspaceLoading });
 const AdminCenter = dynamic(() => import("@/components/AdminCenter"), { loading: workspaceLoading });
@@ -134,6 +136,7 @@ type Screen =
   | "registration"
   | "appointments"
   | "visit"
+  | "vitals"
   | "triage"
   | "servicePoints"
   | "consultation"
@@ -219,6 +222,7 @@ export default function ClinicalApp() {
       appointments: "Appointments",
       visit: "Clinic check-in",
       triage: "Triage",
+      vitals: "Vitals",
       servicePoints: "Service points",
       consultation: "Consultation",
       diagnostics: "Laboratory",
@@ -269,6 +273,7 @@ export default function ClinicalApp() {
     ["appointments", "Appointments", "visit.create"],
     ["followUps", "Follow-up work", "visit.read"],
     ["triage", "Triage", "triage.write"],
+    ["vitals", "Vitals", "vitals.write"],
     ["servicePoints", "Service points", "encounter.write"],
     ["consultation", "Consultation", "encounter.write"],
     ["diagnostics", "Laboratory", "laboratory.write"],
@@ -344,7 +349,7 @@ export default function ClinicalApp() {
           }}/>
         )}
         {screen !== "dashboard" &&
-          !["summaries", "reports", "surveillance", "appointments", "admin"].includes(screen) && (
+          !["summaries", "reports", "surveillance", "vitals", "appointments", "admin"].includes(screen) && (
             <WorkflowSteps screen={screen} />
           )}{" "}
         {contextVisitId && (() => {
@@ -412,10 +417,11 @@ export default function ClinicalApp() {
               setFocusedVisitId(visit.id);
               const direct = visit.clinic === "Walk-in";
               setNotice(`${visit.visitNumber} started and sent to ${direct ? "the walk-in clinical review" : "triage"}.`);
-              setScreen(direct ? "servicePoints" : "triage");
+              setScreen(direct && user.permissions.includes("encounter.write") ? "servicePoints" : user.permissions.includes("triage.write") ? "triage" : user.permissions.includes("vitals.write") ? "vitals" : "dashboard");
             }}
           />
         )}
+        {screen === "vitals" && user.permissions.includes("vitals.write") && <VitalsWorkstation visits={visits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />}
         {screen === "triage" && (
           <TriageWorkstation
             visits={visits.filter(
@@ -454,7 +460,7 @@ export default function ClinicalApp() {
             <div className="actions">
               {user.permissions.includes("visit.create") && <button className="primary" onClick={() => { setSelected(null); setAppointment(null); setFocusedVisitId(null); setContextVisitId(null); setReturnToConsultation(true); setNotice(""); setScreen("visit"); }}>Start visit from consultation</button>}
               {user.permissions.includes("patient.create") && <button className="secondary" onClick={() => { setSelected(null); setAppointment(null); setReturnToConsultation(true); setNotice(""); setScreen("registration"); }}>Register new patient</button>}
-              {user.permissions.includes("triage.write") && <button className="secondary" onClick={() => { setFocusedVisitId(null); setReturnToConsultation(true); setScreen("triage"); }}>Take vitals</button>}
+              {user.permissions.includes("vitals.write") && <button className="secondary" onClick={() => { setFocusedVisitId(null); setReturnToConsultation(true); setScreen(user.permissions.includes("triage.write") ? "triage" : "vitals"); }}>Take vitals</button>}
               {user.permissions.includes("billing.read") && <button className="secondary" onClick={() => { setFocusedVisitId(null); setScreen("billing"); }}>Open billing</button>}
             </div>
           </section>
@@ -675,7 +681,7 @@ function Dashboard({
   const [taskSearch, setTaskSearch] = useState("");
   const [overdueOnly, setOverdueOnly] = useState(false);
   const access: Partial<Record<ServicePointCode, { permission: string; screen: Screen; action: string }>> = {
-    TRIAGE: { permission: "triage.write", screen: "triage", action: "Start triage" },
+    TRIAGE: user.permissions.includes("triage.write") ? { permission: "triage.write", screen: "triage", action: "Start triage" } : { permission: "vitals.write", screen: "vitals", action: "Record vitals" },
     CONSULTATION: { permission: "encounter.write", screen: "consultation", action: "Open consultation" },
     LABORATORY: { permission: "laboratory.write", screen: "diagnostics", action: "Open laboratory" },
     IMAGING: { permission: "imaging.write", screen: "imaging", action: "Open imaging" },
@@ -1231,6 +1237,10 @@ function TriageWorkstation({
   const [error, setError] = useState("");
   const [vitals, setVitals] = useState<TriageDraft>(blankVitals);
   const [lnmp, setLnmp] = useState("");
+  const [weight, setWeight] = useState("");
+  const [height, setHeight] = useState("");
+  const [reviewedVitalsId, setReviewedVitalsId] = useState<string | undefined>();
+  useEffect(() => { setWeight(""); setHeight(""); setReviewedVitalsId(undefined); }, [active?.id]);
   const facilityToday = dateInTimeZone(new Date(), facilityTimeZone);
   const pregnancyDating = useMemo(
     () => lnmp ? pregnancyDatingFromLnmp(lnmp, facilityToday) : null,
@@ -1270,7 +1280,7 @@ function TriageWorkstation({
       await api(`/api/visits/${active.id}/triage`, {
         method: "POST",
         body: JSON.stringify({
-          ...vitals,
+          ...vitals, reviewedVitalsId,
           chiefComplaint: f.get("chiefComplaint"),
           weightKg: f.get("weightKg"),
           heightCm: f.get("heightCm") || undefined,
@@ -1382,6 +1392,10 @@ function TriageWorkstation({
         <strong>Confidential safeguarding review required</strong>
         <span>This ANC client is under 15 with documented positive pregnancy confirmation. Provide private, respectful assessment, consider coercion or violence without judgement, and follow the facility child-protection pathway. Do not delay antenatal care.</span>
       </div>}
+      <VisitVitalsPanel key={active.id} visitId={active.id} onUse={(values, id) => {
+        setVitals({ ...blankVitals(), temperatureC: values.temperatureC?.toString() ?? "", pulseBpm: values.pulseBpm?.toString() ?? "", respiratoryRate: values.respiratoryRate?.toString() ?? "", systolicBp: values.systolicBp?.toString() ?? "", diastolicBp: values.diastolicBp?.toString() ?? "", oxygenSaturation: values.oxygenSaturation?.toString() ?? "" });
+        setWeight(values.weightKg?.toString() ?? ""); setHeight(values.heightCm?.toString() ?? ""); setReviewedVitalsId(id);
+      }} />
       <form className="card dataForm triageForm" onSubmit={submit}>
         {error && <div className="alert wide">{error}</div>}
         <div className="privacyNotice wide">
@@ -1470,6 +1484,7 @@ function TriageWorkstation({
             Weight kg
             <input
               name="weightKg"
+              value={weight} onChange={event => setWeight(event.target.value)}
               type="number"
               step="0.1"
               min="0.1"
@@ -1481,6 +1496,7 @@ function TriageWorkstation({
             Height cm
             <input
               name="heightCm"
+              value={height} onChange={event => setHeight(event.target.value)}
               type="number"
               step="0.1"
               min="20"

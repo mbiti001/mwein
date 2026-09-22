@@ -22,6 +22,7 @@ for (const migration of migrations) {
 }
 
 const requiredTables = [
+  "MeasuredVitals",
   "SurveillanceRecord",
   "SurveillanceEntry",
   "LocalReportRevision",
@@ -169,6 +170,24 @@ for (const statement of [
   let rejected = false;
   try { await db.exec(statement); } catch (error) { rejected = String(error).includes("immutable"); }
   if (!rejected) throw new Error("Surveillance history could be changed");
+}
+
+// Measurements remain attributable even when writes bypass the application.
+await db.exec(`
+  INSERT INTO "Patient" ("id", "facilityId", "patientNumber", "fullName", "normalizedName", "sexAtBirth", "updatedAt")
+  VALUES ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1', '11111111-1111-4111-8111-111111111111', 'VITALS-SMOKE', 'Synthetic Measurement', 'synthetic measurement', 'MALE', CURRENT_TIMESTAMP);
+  INSERT INTO "Visit" ("id", "facilityId", "patientId", "visitNumber", "clinic", "visitType", "reason", "updatedAt")
+  VALUES ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2', '11111111-1111-4111-8111-111111111111', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1', 'VITALS-SMOKE', 'General', 'OUTPATIENT', 'Synthetic verification', CURRENT_TIMESTAMP);
+  INSERT INTO "MeasuredVitals" ("id", "visitId", "recordedById", "measuredAt", "values")
+  VALUES ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb3', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2', '22222222-2222-4222-8222-222222222222', CURRENT_TIMESTAMP, '{"temperatureC":37}');
+`);
+for (const statement of [
+  `UPDATE "MeasuredVitals" SET "values" = '{}' WHERE "id" = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb3'`,
+  `DELETE FROM "MeasuredVitals" WHERE "id" = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb3'`,
+]) {
+  let rejected = false;
+  try { await db.exec(statement); } catch (error) { rejected = String(error).includes("immutable"); }
+  if (!rejected) throw new Error("Measured vitals history could be changed");
 }
 
 console.log(`verified ${migrations.length} migrations, ${requiredTables.length} required tables, immutable triggers, stocktake and cashier-shift uniqueness, and balanced journal constraints`);

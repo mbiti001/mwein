@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { patientClinicalGroup } from "@/lib/domain";
 import { jsonRequest } from "@/lib/client-http";
 import { calculateDispenseQuantity } from "@/lib/medication";
+import VisitVitalsPanel from "@/components/VisitVitalsPanel";
 import PatientTrends, { type TrendVisit } from "@/components/PatientTrends";
 import {
   SearchableMultiPicker,
@@ -1116,6 +1117,8 @@ export default function ConsultationWorkstation({
       </>
     );
   return (
+    <>
+    <VisitVitalsPanel key={`vitals-${active.id}`} visitId={active.id} />
     <ConsultationForm
       key={active.id}
       visit={active}
@@ -1123,6 +1126,7 @@ export default function ConsultationWorkstation({
       onCompleted={onCompleted}
       onOpenServicePoints={onOpenServicePoints}
     />
+    </>
   );
 }
 

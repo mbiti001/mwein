@@ -30,8 +30,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       if (!visit) throw Object.assign(new Error("Visit not found"), { status: 404 });
       if (visit.triage) throw Object.assign(new Error("Triage has already been completed for this visit"), { status: 409 });
       assertVisitTransition(visit.status, "AWAITING_CLINICIAN");
+      if (input.reviewedVitalsId && !await tx.measuredVitals.findFirst({ where: { id: input.reviewedVitalsId, visitId: visit.id }, select: { id: true } })) throw Object.assign(new Error("Source measurements do not belong to this visit"), { status: 422 });
       await tx.triageRecord.create({ data: {
-        visitId: visit.id, chiefComplaint: input.chiefComplaint, triageCategory: input.triageCategory, notes: input.notes,
+        visitId: visit.id, reviewedVitalsId: input.reviewedVitalsId, chiefComplaint: input.chiefComplaint, triageCategory: input.triageCategory, notes: input.notes,
         pregnancyStatus: input.pregnancyStatus, lastMenstrualPeriod: input.lastMenstrualPeriod ? new Date(input.lastMenstrualPeriod) : null,
         estimatedDeliveryDate: dating ? new Date(`${dating.estimatedDeliveryDate}T00:00:00.000Z`) : null,
         gestationalAgeWeeks: dating?.gestationalAgeWeeks,

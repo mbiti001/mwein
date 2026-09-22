@@ -75,6 +75,7 @@ export const patientRegistrationSchema = z.object({
 });
 
 export const triageSchema = z.object({
+  reviewedVitalsId: z.uuid().optional(),
   chiefComplaint: z.string().trim().min(2).max(500),
   temperatureC: z.coerce.number().min(25).max(45),
   pulseBpm: z.coerce.number().int().min(20).max(300),
