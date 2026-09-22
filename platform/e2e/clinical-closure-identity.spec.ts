@@ -22,7 +22,7 @@ test("clinician discharges a signed visit and reverses a reviewed identity corre
   await identity.getByLabel("Given name", { exact: true }).fill("Child");
   await identity.getByLabel("Family name", { exact: true }).fill("Browser Correction");
   await identity.getByLabel("Or estimated age").fill("8");
-  await identity.getByLabel("Sex at birth", { exact: true }).selectOption("FEMALE");
+  await identity.getByRole("combobox", { name: "Sex at birth", exact: true }).selectOption("FEMALE");
   await identity.getByLabel("Identifier type").selectOption("BIRTH_CERTIFICATE");
   await identity.getByLabel("Identifier value").fill("BROWSER-CHILD-IDENTITY-1");
   await identity.getByLabel("Evidence reference").fill("BROWSER-SYNTHETIC-DOCUMENT-1");
