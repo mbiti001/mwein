@@ -15,6 +15,7 @@ Require the GitHub **Platform verification** check in branch protection/rulesets
 3. Deploy the immutable application build (`npm run vercel-build`). The build never migrates or seeds a database.
 4. Check `/api/health` for liveness and `/api/ready` for production readiness. Do not direct clinical traffic while readiness is blocked.
 5. Run `npm test`, `npm run test:migrations`, `npm run test:e2e`, and `npm run test:browser`, then record the release evidence in Administration → Release gates. Browser runners without a system Chrome installation must first install Chromium with `npx playwright install chromium`.
+6. Verify the deployed source and database are the approved pair: `RELEASE_ORIGIN=https://... EXPECTED_RELEASE_SHA=<full commit> EXPECTED_MIGRATION=<migration name> npm run ops:release-verify`. Retain the output with the deployment approval. A mismatch is release drift and blocks clinical use.
 
 Run `npm run db:bootstrap` only for explicit first-time provisioning or a reviewed role/catalogue change. `BOOTSTRAP_ADMIN_PASSWORD` is required to create the initial administrator; reruns do not reactivate a disabled account or overwrite facility metadata.
 
@@ -24,6 +25,8 @@ Run `npm run db:bootstrap` only for explicit first-time provisioning or a review
 - `AUTH_SECRET`: at least 32 random characters, stored in the deployment secret manager.
 - `APP_ORIGIN`: exact public HTTPS origin used by same-origin mutation protection.
 - `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URI`: approved workforce identity provider configuration. Provider groups must be mapped to operational roles in Administration; external identity can never grant `SYSTEM_ADMIN`.
+
+Before enabling provider login, run `npm run ops:oidc-verify` in the release environment. Retain its output, then separately test state/nonce/PKCE callback rejection, logout, MFA assurance claims, deprovisioning and the governed emergency-access procedure with approved test accounts. Discovery success alone does not enable OIDC or prove MFA.
 - `AUDIT_RETENTION_TARGET`: approved immutable external retention target.
 - `DATABASE_BACKUP_TARGET`: approved encrypted backup target.
 - `VERCEL_GIT_COMMIT_SHA` or `DEPLOYMENT_VERSION`: immutable release identity.

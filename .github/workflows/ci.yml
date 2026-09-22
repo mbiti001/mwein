@@ -45,6 +45,15 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Verify browser workflows
         run: npm run test:browser
+      - name: Build certification evidence index
+        run: npm run certification:evidence > certification/evidence-index.json
+      - name: Retain certification evidence index
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-certification-evidence
+          path: platform/certification/evidence-index.json
+          if-no-files-found: error
+          retention-days: 30
       - name: Retain browser failure evidence
         if: failure()
         uses: actions/upload-artifact@v4

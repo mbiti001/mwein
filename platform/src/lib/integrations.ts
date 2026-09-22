@@ -12,6 +12,7 @@ export type IntegrationReadiness = {
 export function integrationReadiness(): IntegrationReadiness[] {
   const icdConfigured = Boolean(process.env.ICD11_CLIENT_ID && process.env.ICD11_CLIENT_SECRET);
   const identity = externalIdentityConfiguration();
+  const kenyaFhir = kenyaFhirConfiguration();
   return [
     {
       key: "workforce-identity",
@@ -36,6 +37,14 @@ export function integrationReadiness(): IntegrationReadiness[] {
       purpose: "Search and record standard diagnosis codes",
       reason: icdConfigured ? "WHO API credentials are configured; the local curated fallback remains available." : "The curated local diagnosis list is active while WHO API credentials are pending.",
       requirements: icdConfigured ? [] : ["WHO ICD API client ID", "WHO ICD API client secret"],
+    },
+    {
+      key: "kenya-core-fhir",
+      name: "Kenya Core FHIR exchange",
+      state: kenyaFhir ? "PREPARED_ON_HOLD" : "NOT_CONFIGURED",
+      purpose: "Profiled national patient and clinical-data exchange",
+      reason: kenyaFhir ? "Approved canonical URLs are configured and the patient mapper is available; transmission stays held until DHA sandbox validation, authentication, provenance, retries and acknowledgements pass." : "No national profile is assumed. Configure the exact DHA-approved version and canonical identifier systems before conformance testing.",
+      requirements: kenyaFhir ? ["DHA validator results", "OAuth acceptance", "Provenance mapping", "Retry/idempotency tests", "Acknowledgement and rejection evidence"] : ["Approved Kenya Core version", "Patient profile canonical URL", "Patient identifier system", "Facility identifier system", "DHA sandbox access"],
     },
     {
       key: "khis",
@@ -64,3 +73,4 @@ export function integrationReadiness(): IntegrationReadiness[] {
   ];
 }
 import { externalIdentityConfiguration } from "./external-identity";
+import { kenyaFhirConfiguration } from "./kenya-fhir";

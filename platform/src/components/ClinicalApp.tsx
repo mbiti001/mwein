@@ -809,6 +809,7 @@ function PatientRegister({
 }) {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [error, setError] = useState("");
+  const [registrationMode, setRegistrationMode] = useState("STANDARD");
   async function search(value: string) {
     if (value.trim().length < 2) return setPatients([]);
     try {
@@ -888,9 +889,17 @@ function PatientRegister({
           <p>Required fields are marked with an asterisk.</p>
           {error && <div className="alert">{error}</div>}
         </div>
-        <label>First name *<input name="givenName" required autoComplete="given-name" /></label>
+        <label className="wide">Registration route
+          <select name="registrationMode" value={registrationMode} onChange={(event) => setRegistrationMode(event.target.value)}>
+            <option value="STANDARD">Patient provides identity and consent</option>
+            <option value="GUARDIAN_ASSISTED">Parent, guardian or representative</option>
+            <option value="EMERGENCY_UNKNOWN">Emergency unidentified patient</option>
+          </select>
+        </label>
+        {registrationMode === "EMERGENCY_UNKNOWN" && <div className="wide notice">Create a restricted temporary identity without inventing a name, age, phone or consent. Reconcile identity as soon as clinically safe.</div>}
+        <label>First name {registrationMode !== "EMERGENCY_UNKNOWN" ? "*" : ""}<input name="givenName" required={registrationMode !== "EMERGENCY_UNKNOWN"} autoComplete="given-name" /></label>
         <label>Middle name<input name="middleName" autoComplete="additional-name" /></label>
-        <label>Surname *<input name="familyName" required autoComplete="family-name" /></label>
+        <label>Surname {registrationMode !== "EMERGENCY_UNKNOWN" ? "*" : ""}<input name="familyName" required={registrationMode !== "EMERGENCY_UNKNOWN"} autoComplete="family-name" /></label>
         <label>
           Date of birth
           <input name="dateOfBirth" type="date" />
@@ -912,7 +921,7 @@ function PatientRegister({
           </select>
         </label>
         <label>
-          Phone *<input name="phone" type="tel" required />
+          {registrationMode === "GUARDIAN_ASSISTED" ? "Representative phone *" : `Phone ${registrationMode === "EMERGENCY_UNKNOWN" ? "" : "*"}`}<input name="phone" type="tel" required={registrationMode !== "EMERGENCY_UNKNOWN"} />
         </label>
         <label>
           National ID
@@ -923,10 +932,10 @@ function PatientRegister({
           <input name="shaNumber" />
         </label>
         <label>
-          County *<input name="county" defaultValue="Busia" required />
+          County {registrationMode !== "EMERGENCY_UNKNOWN" ? "*" : ""}<input name="county" defaultValue={registrationMode === "EMERGENCY_UNKNOWN" ? "" : "Busia"} required={registrationMode !== "EMERGENCY_UNKNOWN"} />
         </label>
         <label>
-          Subcounty *<input name="subcounty" required />
+          Subcounty {registrationMode !== "EMERGENCY_UNKNOWN" ? "*" : ""}<input name="subcounty" required={registrationMode !== "EMERGENCY_UNKNOWN"} />
         </label>
         <label>
           Ward
@@ -943,14 +952,21 @@ function PatientRegister({
             <option>Kiswahili</option>
           </select>
         </label>
+        {registrationMode === "GUARDIAN_ASSISTED" && <>
+          <label>Representative name *<input name="representativeName" required /></label>
+          <label>Relationship *<input name="representativeRelationship" required placeholder="Parent, guardian, spouse…" /></label>
+        </>}
+        {registrationMode === "EMERGENCY_UNKNOWN" && <label className="wide">Emergency registration reason *<textarea name="emergencyReason" required minLength={5} placeholder="Why identity and consent cannot currently be obtained" /></label>}
+        <input type="hidden" name="noticeVersion" value="MWEIN-PRIVACY-2026-01" />
+        <input type="hidden" name="lawfulBasis" value={registrationMode === "EMERGENCY_UNKNOWN" ? "VITAL_INTERESTS" : "CONSENT"} />
         <div className="wide checks">
           <label>
-            <input name="treatmentConsent" type="checkbox" required /> Consent
-            to treatment *
+            <input name="treatmentConsent" type="checkbox" required={registrationMode !== "EMERGENCY_UNKNOWN"} /> Consent
+            to treatment {registrationMode !== "EMERGENCY_UNKNOWN" ? "*" : ""}
           </label>
           <label>
-            <input name="electronicRecordConsent" type="checkbox" required />{" "}
-            Consent to electronic record *
+            <input name="electronicRecordConsent" type="checkbox" required={registrationMode !== "EMERGENCY_UNKNOWN"} />{" "}
+            Consent to electronic record {registrationMode !== "EMERGENCY_UNKNOWN" ? "*" : ""}
           </label>
           <label>
             <input name="messagingConsent" type="checkbox" /> Consent to

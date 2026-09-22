@@ -61,24 +61,43 @@ export async function POST(request: Request) {
   try {
     const user = await requirePermission("patient.create");
     const input = patientRegistrationSchema.parse(await request.json());
-    const fullName = input.fullName || [input.givenName, input.middleName, input.familyName].filter(Boolean).join(" ");
-    const normalizedName = normalizeName(fullName);
-    const identifiers = [{ type: "PHONE", value: input.phone }, ...(input.nationalId ? [{ type: "NATIONAL_ID", value: input.nationalId }] : []), ...(input.shaNumber ? [{ type: "SHA", value: input.shaNumber }] : [])];
-    const duplicate = await db.patient.findFirst({ where: { facilityId: user.facilityId, active: true, OR: [{ identifiers: { some: { OR: identifiers.map(item => ({ type: item.type, value: item.value })) } } }, { AND: [{ normalizedName }, ...(input.dateOfBirth ? [{ dateOfBirth: new Date(input.dateOfBirth) }] : [])] }] }, select: { id: true, patientNumber: true, fullName: true } });
-    if (duplicate) return NextResponse.json({ error: "Possible duplicate patient found", duplicate }, { status: 409 });
+    const statedName = input.fullName || [input.givenName, input.middleName, input.familyName].filter(Boolean).join(" ");
+    const normalizedName = statedName ? normalizeName(statedName) : "";
+    // A phone is a contact route, not a unique identity. Siblings and dependants
+    // may legitimately share a representative's number.
+    const identifiers = [...(input.nationalId ? [{ type: "NATIONAL_ID", value: input.nationalId }] : []), ...(input.shaNumber ? [{ type: "SHA", value: input.shaNumber }] : [])];
+    const duplicateSignals = [
+      ...(identifiers.length ? [{ identifiers: { some: { OR: identifiers.map(item => ({ type: item.type, value: item.value })) } } }] : []),
+      ...(normalizedName && input.dateOfBirth ? [{ AND: [{ normalizedName }, { dateOfBirth: new Date(input.dateOfBirth) }] }] : []),
+    ];
+    const duplicate = duplicateSignals.length ? await db.patient.findFirst({ where: { facilityId: user.facilityId, active: true, OR: duplicateSignals }, select: { id: true, patientNumber: true, fullName: true } }) : null;
+    if (duplicate) return NextResponse.json({ error: "A strong identity match requires duplicate review", duplicate }, { status: 409 });
     const created = await db.$transaction(async tx => {
       const facility = await tx.facility.findUniqueOrThrow({ where: { id: user.facilityId } });
       const year = new Date().getFullYear();
       const sequence = await tx.referenceSequence.upsert({ where: { facilityId_kind_year: { facilityId: user.facilityId, kind: "PATIENT", year } }, update: { nextValue: { increment: 1 } }, create: { facilityId: user.facilityId, kind: "PATIENT", year, nextValue: 2 } });
       const assigned = sequence.nextValue - 1n;
+      const assignedNumber = patientNumber(facility.code, year, assigned);
+      const fullName = input.registrationMode === "EMERGENCY_UNKNOWN" ? `Unidentified patient ${assignedNumber}` : statedName;
       const patient = await tx.patient.create({ data: {
-        facilityId: user.facilityId, patientNumber: patientNumber(facility.code, year, assigned), givenName: input.givenName, middleName: input.middleName, familyName: input.familyName, fullName, normalizedName,
+        facilityId: user.facilityId, patientNumber: assignedNumber, givenName: input.givenName, middleName: input.middleName, familyName: input.familyName, fullName, normalizedName: normalizeName(fullName),
         dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null, estimatedAgeYears: input.estimatedAgeYears, sexAtBirth: input.sexAtBirth, preferredLanguage: input.preferredLanguage,
-        identifiers: { create: identifiers }, contacts: { create: [{ type: "PHONE", value: input.phone, primary: true }, ...(input.alternativePhone ? [{ type: "ALTERNATIVE_PHONE", value: input.alternativePhone }] : [])] },
-        addresses: { create: { county: input.county, subcounty: input.subcounty, ward: input.ward, village: input.village } },
-        consents: { create: [{ type: "TREATMENT", granted: input.treatmentConsent, recordedById: user.id }, { type: "ELECTRONIC_RECORD", granted: input.electronicRecordConsent, recordedById: user.id }, { type: "MESSAGING", granted: input.messagingConsent, recordedById: user.id }] }
+        registrationMode: input.registrationMode,
+        identityStatus: input.registrationMode === "EMERGENCY_UNKNOWN" ? "UNIDENTIFIED" : input.registrationMode === "GUARDIAN_ASSISTED" ? "REPRESENTATIVE_ASSERTED" : "ASSERTED",
+        restricted: input.registrationMode === "EMERGENCY_UNKNOWN",
+        ...(identifiers.length ? { identifiers: { create: identifiers } } : {}),
+        ...((input.phone || input.alternativePhone) ? { contacts: { create: [
+          ...(input.phone ? [{ type: "PHONE", value: input.phone, primary: true, relationship: input.registrationMode === "GUARDIAN_ASSISTED" ? input.representativeRelationship : undefined }] : []),
+          ...(input.alternativePhone ? [{ type: "ALTERNATIVE_PHONE", value: input.alternativePhone, primary: false }] : []),
+        ] } } : {}),
+        ...(input.county && input.subcounty ? { addresses: { create: { county: input.county, subcounty: input.subcounty, ward: input.ward, village: input.village } } } : {}),
+        consents: { create: [
+          { type: "TREATMENT", granted: input.treatmentConsent, recordedById: user.id, noticeVersion: input.noticeVersion, lawfulBasis: input.lawfulBasis, representativeName: input.representativeName, representativeRelationship: input.representativeRelationship, reason: input.emergencyReason },
+          { type: "ELECTRONIC_RECORD", granted: input.electronicRecordConsent, recordedById: user.id, noticeVersion: input.noticeVersion, lawfulBasis: input.lawfulBasis, representativeName: input.representativeName, representativeRelationship: input.representativeRelationship, reason: input.emergencyReason },
+          { type: "MESSAGING", granted: input.messagingConsent, recordedById: user.id, noticeVersion: input.noticeVersion, lawfulBasis: "CONSENT", representativeName: input.representativeName, representativeRelationship: input.representativeRelationship },
+        ] }
       }, include: { identifiers: true, contacts: true, addresses: true } });
-      await appendAudit(tx, { userId: user.id, action: "PATIENT_REGISTERED", entityType: "Patient", entityId: patient.id, afterHash: patient.patientNumber });
+      await appendAudit(tx, { userId: user.id, action: "PATIENT_REGISTERED", entityType: "Patient", entityId: patient.id, afterHash: patient.patientNumber, reason: JSON.stringify({ registrationMode: input.registrationMode, identityStatus: patient.identityStatus }) });
       return patient;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return NextResponse.json({ patient: created }, { status: 201 });

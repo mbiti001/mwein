@@ -7,7 +7,7 @@ type Resource = {
   type: "Patient" | "Visit" | "LaboratoryResult" | "ImagingResult";
   id: string;
 };
-type AccessContext = "PATIENT_SEARCH" | "PATIENT_HISTORY" | "VISIT_SUMMARIES" | "CLINICAL_RESULT" | "VISIT_WORKLIST";
+type AccessContext = "PATIENT_SEARCH" | "PATIENT_HISTORY" | "PATIENT_CONSENTS" | "VISIT_SUMMARIES" | "CLINICAL_RESULT" | "VISIT_WORKLIST";
 
 /** Record the authorised disclosure before returning it. Never log search terms or clinical content.
  * A single event covers the response's resource set, avoiding one chain lock per list item.

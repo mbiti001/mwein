@@ -369,6 +369,22 @@ try {
   });
   const patient = patientResult.body.patient;
   assert(patient.patientNumber?.startsWith("MMS-"), "Patient number was not assigned");
+  const dependantResult = await api("register dependant sharing guardian phone", "/api/patients", {
+    method: "POST",
+    body: JSON.stringify({
+      registrationMode: "GUARDIAN_ASSISTED", givenName: "Child", familyName: "E2E Patient", estimatedAgeYears: 4,
+      sexAtBirth: "MALE", phone: "+254700000001", county: "Nairobi", subcounty: "Westlands",
+      treatmentConsent: true, electronicRecordConsent: true, messagingConsent: false,
+      representativeName: "Amina E2E Patient", representativeRelationship: "Parent",
+    }),
+  });
+  assert(dependantResult.response.status === 201 && dependantResult.body.patient.identityStatus === "REPRESENTATIVE_ASSERTED", "Shared guardian phone was treated as a unique identity");
+  const unidentifiedResult = await api("register unidentified emergency patient", "/api/patients", {
+    method: "POST",
+    body: JSON.stringify({ registrationMode: "EMERGENCY_UNKNOWN", lawfulBasis: "VITAL_INTERESTS", emergencyReason: "Patient arrived unconscious without identification" }),
+  });
+  assert(unidentifiedResult.response.status === 201 && unidentifiedResult.body.patient.identityStatus === "UNIDENTIFIED" && unidentifiedResult.body.patient.restricted === true, "Emergency registration invented identity or failed to restrict the record");
+  steps.push("verify shared guardian contact and unidentified emergency registration");
 
   await pg.query(`UPDATE "CatalogPriceVersion" SET "unitPrice" = 650 WHERE "catalogItemId" IN (SELECT "id" FROM "CatalogItem" WHERE "facilityId" = $1 AND "code" = 'CONSULT-OUTPATIENT')`, [facility.id]);
   const shaCancellationVisit = await api("open visit for SHA eligibility outcome", "/api/visits", {
@@ -538,6 +554,10 @@ try {
   const appointmentId = appointmentResult.body.appointment.id;
   const reminder = await api("prepare consented appointment reminder", `/api/appointments/${appointmentId}/reminder`, { method: "POST" });
   assert(reminder.body.contact === "+254700000001" && reminder.body.message, "Appointment reminder was not prepared for the consented contact");
+  await api("withdraw appointment messaging consent", `/api/patients/${patient.id}/consents`, { method: "POST", body: JSON.stringify({ action: "WITHDRAW", type: "MESSAGING", noticeVersion: "MWEIN-PRIVACY-2026-01", lawfulBasis: "CONSENT", reason: "Patient opted out during the E2E consent lifecycle test" }) });
+  const reminderAfterWithdrawal = await requestWithCookie(`/api/appointments/${appointmentId}/reminder`, sessionCookie, { method: "POST" });
+  assert(reminderAfterWithdrawal.response.status === 422, "Reminder preparation ignored withdrawn messaging consent");
+  steps.push("verify consent withdrawal immediately blocks reminders");
   const rescheduledTime = new Date(appointmentTime.getTime() + 86400000);
   await api("reschedule follow-up appointment", `/api/appointments/${appointmentId}/status`, { method: "PATCH", body: JSON.stringify({ action: "RESCHEDULE", scheduledAt: rescheduledTime.toISOString(), reason: "Patient requested a different clinic day" }) });
   const appointments = await api("verify appointment reminder history", "/api/appointments?scope=all");
