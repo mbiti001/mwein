@@ -6,6 +6,9 @@ const db = new PrismaClient();
 const password = (process.env.BOOTSTRAP_ADMIN_PASSWORD || "").trim();
 
 const permissionDefinitions = [
+  ["surveillance.read", "View local surveillance records"],
+  ["surveillance.record", "Capture local surveillance and manual notification history"],
+  ["surveillance.review", "Review and close local surveillance concerns"],
   ["patient.read", "View patient records"],
   ["patient.create", "Register patients"],
   ["privacy.manage", "Manage patient consent and data-subject requests"],
@@ -67,14 +70,14 @@ const permissions = await db.permission.findMany();
 const operationalRoles = {
   [clinicianCoverRole.code]: clinicianCoverRole,
   RECEPTION: { name: "Reception", grants: ["patient.read", "patient.create", "visit.read", "visit.create", "visit.cancel"] },
-  NURSE: { name: "Nurse", grants: ["patient.read", "visit.read", "triage.write"] },
-  CLINICIAN: { name: "Clinician", grants: ["patient.read", "visit.read", "encounter.write", "clinical.history.read", "clinical.results.read", "clinical.summary.read", "referral.read", "order.write"] },
+  NURSE: { name: "Nurse", grants: ["surveillance.read", "surveillance.record", "patient.read", "visit.read", "triage.write"] },
+  CLINICIAN: { name: "Clinician", grants: ["surveillance.read", "surveillance.record", "patient.read", "visit.read", "encounter.write", "clinical.history.read", "clinical.results.read", "clinical.summary.read", "referral.read", "order.write"] },
   LABORATORY: { name: "Laboratory", grants: ["patient.read", "visit.read", "laboratory.write"] },
   IMAGING: { name: "Imaging", grants: ["patient.read", "visit.read", "imaging.write"] },
   PHARMACY: { name: "Pharmacy & inventory officer", grants: ["patient.read", "visit.read", "pharmacy.dispense", "inventory.view", "inventory.receive", "inventory.count", "inventory.correct_metadata", "inventory.transfer", "procurement.manage_suppliers", "procurement.create"] },
   PHARMACY_MANAGER: { name: "Pharmacy & inventory manager", grants: ["patient.read", "visit.read", "pharmacy.dispense", "inventory.view", "inventory.receive", "inventory.count", "inventory.correct_metadata", "inventory.adjust", "inventory.reconcile", "inventory.transfer", "inventory.manage_stores", "procurement.manage_suppliers", "procurement.create", "procurement.approve", "accounting.view", "admin.dashboard", "audit.view"] },
   FACILITY_ADMIN: { name: "Facility administrator", grants: ["reports.prepare", "reports.clinical", "reports.operations", "patient.read", "visit.read", "visit.cancel", "billing.read", "accounting.view", "admin.dashboard", "admin.users", "admin.assign_governance", "admin.catalog", "admin.operations", "audit.view", "inventory.view"] },
-  MEDICAL_DIRECTOR: { name: "Medical director", grants: ["reports.prepare", "reports.review", "reports.clinical", "patient.read", "visit.read", "encounter.write", "clinical.history.read", "clinical.results.read", "clinical.summary.read", "referral.read", "order.write", "admin.dashboard", "admin.clinical_safety", "audit.view"] },
+  MEDICAL_DIRECTOR: { name: "Medical director", grants: ["surveillance.read", "surveillance.record", "surveillance.review", "reports.prepare", "reports.review", "reports.clinical", "patient.read", "visit.read", "encounter.write", "clinical.history.read", "clinical.results.read", "clinical.summary.read", "referral.read", "order.write", "admin.dashboard", "admin.clinical_safety", "audit.view"] },
   FINANCE_MANAGER: { name: "Finance manager", grants: ["reports.operations", "patient.read", "visit.read", "visit.cancel", "billing.read", "billing.write", "billing.reverse", "billing.approve_shift", "claims.write", "inventory.view", "accounting.view", "admin.dashboard", "audit.view"] },
   HR_ADMIN: { name: "HR administrator", grants: ["admin.dashboard", "admin.users", "audit.view"] },
   AUDITOR: { name: "Auditor", grants: ["reports.operations", "admin.dashboard", "audit.view", "billing.read", "inventory.view", "accounting.view"] },

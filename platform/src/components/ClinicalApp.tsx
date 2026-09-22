@@ -23,6 +23,7 @@ const PharmacyCenter = dynamic(() => import("@/components/PharmacyCenter"), { lo
 const BillingWorkstation = dynamic(() => import("@/components/BillingWorkstation"), { loading: workspaceLoading });
 const VisitSummaryWorkstation = dynamic(() => import("@/components/VisitSummaryWorkstation"), { loading: workspaceLoading });
 const ImagingWorkstation = dynamic(() => import("@/components/ImagingWorkstation"), { loading: workspaceLoading });
+const SurveillanceWorkstation = dynamic(() => import("@/components/SurveillanceWorkstation"), { loading: workspaceLoading });
 const ReportingWorkstation = dynamic(() => import("@/components/ReportingWorkstation"), { loading: workspaceLoading });
 const AppointmentWorkstation = dynamic(() => import("@/components/AppointmentWorkstation"), { loading: workspaceLoading });
 const AdminCenter = dynamic(() => import("@/components/AdminCenter"), { loading: workspaceLoading });
@@ -142,6 +143,7 @@ type Screen =
   | "billing"
   | "summaries"
   | "followUps"
+  | "surveillance"
   | "reports"
   | "admin";
 
@@ -226,6 +228,7 @@ export default function ClinicalApp() {
       summaries: "Patient records",
       followUps: "Follow-up work",
       reports: "Reports",
+      surveillance: "Local IDSR",
       admin: "Administration",
     };
     document.title = `${titles[screen]} · Mwein HMIS`;
@@ -273,6 +276,7 @@ export default function ClinicalApp() {
     ["pharmacy", "Pharmacy & stock", "inventory.view"],
     ["billing", "Billing", "billing.read"],
     ["summaries", "Patient records", "clinical.summary.read"],
+    ["surveillance", "Local IDSR", "surveillance.read"],
   ];
   const nav: [Screen, string][] = allNav.filter(([, , permission]) => !permission || user.permissions.includes(permission)).map(([key, label]) => [key, label]);
   if (user.permissions.some(permission => ["reports.clinical", "reports.operations"].includes(permission)))
@@ -340,7 +344,7 @@ export default function ClinicalApp() {
           }}/>
         )}
         {screen !== "dashboard" &&
-          !["summaries", "reports", "appointments", "admin"].includes(screen) && (
+          !["summaries", "reports", "surveillance", "appointments", "admin"].includes(screen) && (
             <WorkflowSteps screen={screen} />
           )}{" "}
         {contextVisitId && (() => {
@@ -486,6 +490,7 @@ export default function ClinicalApp() {
         )}
         {screen === "summaries" && <VisitSummaryWorkstation canAddendum={user.permissions.includes("encounter.write")} />}
         {screen === "followUps" && <FollowUpWorkstation/>}
+        {screen === "surveillance" && <SurveillanceWorkstation permissions={user.permissions} />}
         {screen === "reports" && <ReportingWorkstation permissions={user.permissions} />}
         {screen === "admin" && <AdminCenter permissions={user.permissions} onOpenStock={(focus) => { setStockFocus(focus); setFocusedVisitId(null); setScreen("pharmacy"); }} />}
       </section>

@@ -125,6 +125,7 @@ enum CatalogCategory {
 }
 
 model Facility {
+  surveillanceRecords SurveillanceRecord[]
   localReportRevisions LocalReportRevision[]
   id                      String                          @id @default(uuid()) @db.Uuid
   code                    String                          @unique
@@ -275,6 +276,7 @@ model ReferenceSequence {
 }
 
 model User {
+  surveillanceEntries SurveillanceEntry[]
   preparedLocalReports LocalReportRevision[] @relation("LocalReportPreparedBy")
   reviewedLocalReports LocalReportRevision[] @relation("LocalReportReviewedBy")
   id                            String                          @id @default(uuid()) @db.Uuid
@@ -407,6 +409,7 @@ model LoginThrottle {
 }
 
 model Patient {
+  surveillanceRecords SurveillanceRecord[]
   id                      String                          @id @default(uuid()) @db.Uuid
   facilityId              String                          @db.Uuid
   patientNumber           String
@@ -1838,4 +1841,40 @@ model LocalReportRevision {
   successor LocalReportRevision? @relation("LocalReportCorrection")
   @@unique([facilityId, familyId, revision])
   @@index([facilityId, createdAt])
+}
+
+
+model SurveillanceRecord {
+  id String @id @default(uuid()) @db.Uuid
+  facilityId String @db.Uuid
+  patientId String? @db.Uuid
+  version Int @default(1)
+  status String @default("OPEN")
+  priority String @default("UNASSESSED")
+  details Json
+  duplicateOfId String? @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  patient Patient? @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  duplicateOf SurveillanceRecord? @relation("SurveillanceDuplicates", fields: [duplicateOfId], references: [id], onDelete: Restrict)
+  duplicates SurveillanceRecord[] @relation("SurveillanceDuplicates")
+  entries SurveillanceEntry[]
+  @@index([facilityId, status, updatedAt])
+}
+
+model SurveillanceEntry {
+  id String @id @default(uuid()) @db.Uuid
+  recordId String @db.Uuid
+  version Int
+  actorId String @db.Uuid
+  action String
+  reason String
+  snapshot Json
+  evidence Json?
+  snapshotHash String
+  occurredAt DateTime @default(now())
+  record SurveillanceRecord @relation(fields: [recordId], references: [id], onDelete: Restrict)
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  @@unique([recordId, version])
 }

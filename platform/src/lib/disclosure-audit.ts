@@ -3,7 +3,7 @@ import { appendAudit, auditEntitySetFingerprint, auditValueFingerprint } from ".
 import { db } from "./db";
 
 type Actor = { id: string; facilityId: string; sessionId: string };
-export type DisclosureContext = "LOCAL_REPORT" | "APPOINTMENTS" | "DISPENSING_DETAILS" | "PATIENT_PROBLEMS" | "REFERRALS" | "MONTHLY_REPORT" | "OPERATIONS_REPORT";
+export type DisclosureContext = "SURVEILLANCE" | "LOCAL_REPORT" | "APPOINTMENTS" | "DISPENSING_DETAILS" | "PATIENT_PROBLEMS" | "REFERRALS" | "MONTHLY_REPORT" | "OPERATIONS_REPORT";
 
 // Do not retain query text, patient identifiers or report values in the audit record.
 // Await this before returning data: an audit failure must prevent disclosure.

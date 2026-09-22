@@ -49,3 +49,5 @@ See [reporting and IDSR requirements](REPORTING-IDSR-REQUIREMENTS.md) for four w
 Facility context supplied by the user: Busia County, Nambale Subcounty, MFL 31749; currently reports to the county, with no assigned surveillance officer. Registry verification, KHIS org-unit mapping and exact authorized county routing remain pending. Local workflow development can proceed with configurable contracts; no recipient or national mapping is inferred.
 
 Local foundation update: [implementation and validation](../LOCAL-REPORTING-IMPLEMENTATION.md) now covers manual aggregate drafts, independent review, immutable approval and linked corrections. This does not change the monthly source endpoint into an approved national return or implement IDSR notifications.
+
+Local IDSR follow-up: [implementation scope](../LOCAL-IDSR-IMPLEMENTATION.md) records case/event capture and reviewed history, including explicitly staff-recorded external contact and acknowledgement. This is partial INT-05; INT-04 authoritative definitions/routing, weekly returns, automated escalation and receiving-service transport/acceptance remain unfulfilled.

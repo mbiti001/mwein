@@ -32,3 +32,5 @@ Never replace these documents with environment-variable screenshots or self-atte
 [Implemented DHA controls 1–4](DHA-CONTROL-REMEDIATION.md) are available on the remediation branch with tests and rollout notes. They are not yet deployed.
 
 [Local aggregate reporting implementation](LOCAL-REPORTING-IMPLEMENTATION.md) adds the first APP-08 workflow foundation; approved national mappings and IDSR remain outstanding.
+
+[Local IDSR register implementation](LOCAL-IDSR-IMPLEMENTATION.md) adds case/event capture, local review and staff-recorded notification evidence; national rules and transport remain unconfigured.

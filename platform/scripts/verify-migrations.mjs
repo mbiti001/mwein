@@ -22,6 +22,8 @@ for (const migration of migrations) {
 }
 
 const requiredTables = [
+  "SurveillanceRecord",
+  "SurveillanceEntry",
   "LocalReportRevision",
   "Facility",
   "Patient",
@@ -152,6 +154,21 @@ for (const statement of [
   let rejected = false;
   try { await db.exec(statement); } catch (error) { rejected = String(error).includes("immutable"); }
   if (!rejected) throw new Error("Approved reporting history could be changed");
+}
+
+await db.exec(`
+  INSERT INTO "SurveillanceRecord" ("id", "facilityId", "details", "updatedAt")
+  VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaadd', '11111111-1111-4111-8111-111111111111', '{}', CURRENT_TIMESTAMP);
+  INSERT INTO "SurveillanceEntry" ("id", "recordId", "version", "actorId", "action", "reason", "snapshot", "snapshotHash")
+  VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaade', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaadd', 1, '22222222-2222-4222-8222-222222222222', 'CREATE', 'Synthetic capture', '{}', 'synthetic-hash');
+`);
+for (const statement of [
+  `UPDATE "SurveillanceEntry" SET "reason" = 'tampered' WHERE "id" = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaade'`,
+  `DELETE FROM "SurveillanceEntry" WHERE "id" = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaade'`,
+]) {
+  let rejected = false;
+  try { await db.exec(statement); } catch (error) { rejected = String(error).includes("immutable"); }
+  if (!rejected) throw new Error("Surveillance history could be changed");
 }
 
 console.log(`verified ${migrations.length} migrations, ${requiredTables.length} required tables, immutable triggers, stocktake and cashier-shift uniqueness, and balanced journal constraints`);

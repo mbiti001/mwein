@@ -1,0 +1,91 @@
+import { expect, test, type Page } from "@playwright/test";
+async function login(page: Page, email: string) {
+  await page.goto("/"); await page.getByLabel("Facility code").fill("MMS");
+  await page.getByLabel("Email").fill(email); await page.getByLabel("Password").fill("Mwein-E2E-Password-2026!");
+  await page.getByRole("button", { name: "Sign in securely" }).click();
+  await expect(page.getByRole("button", { name: "Home", exact: true })).toBeVisible();
+}
+async function api(page: Page, method: string, body?: unknown, query = "") {
+  return page.evaluate(async ({ method, body, query }) => {
+    const r = await fetch(`/api/surveillance${query}`, { method, ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}) });
+    return { status: r.status, cache: r.headers.get("cache-control"), data: await r.json() };
+  }, { method, body, query });
+}
+test("local event capture, early manual notification, review and immutable history", async ({ page, browser }) => {
+  await login(page, "nurse@example.test");
+  await page.getByRole("button", { name: "Local IDSR", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Local IDSR register" })).toBeVisible();
+  await page.getByRole("combobox", { name: "Record type", exact: true }).selectOption("EVENT");
+  await page.getByRole("combobox", { name: "Local priority", exact: true }).selectOption("URGENT");
+  await page.getByLabel("Concern or suspected condition").fill("Synthetic unusual cluster");
+  await page.getByLabel("Observed concern").fill("Synthetic exercise: unusual event for local review");
+  await page.getByLabel("Location or affected area").fill("Synthetic test location");
+  await expect(page.getByLabel("Find patient (optional)")).toHaveCount(0);
+  await page.getByRole("button", { name: "Save local concern", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Concern · OPEN", exact: true })).toBeVisible();
+  let record = (await api(page, "GET")).data.records.find((r: any) => r.details.concern === "Synthetic unusual cluster");
+  expect(record.details.patientId).toBeNull();
+  expect((await api(page, "PATCH", { id: record.id, version: record.version, action: "REVIEW", reason: "Unauthorized review" })).status).toBe(403);
+  await page.getByLabel("Change or review reason").fill("Synthetic call already attempted through established process");
+  await page.getByText("Record an external notification or acknowledgement", { exact: true }).click();
+  await page.getByLabel("Recipient or responding office").fill("Synthetic county office");
+  await page.getByLabel("Protected evidence reference").fill("Protected synthetic call log 01");
+  await page.getByRole("button", { name: "Record notification history", exact: true }).click();
+  await expect(page.getByLabel("Change or review reason")).toHaveValue("");
+  const notified = await api(page, "GET", undefined, `?id=${record.id}`);
+  expect(notified.cache).toContain("no-store"); expect(notified.data.transport).toBe("DISABLED");
+  record = notified.data.record;
+  expect(record.status).toBe("OPEN"); expect(record.entries[0].action).toBe("NOTIFY");
+  expect(record.entries[0].evidence.outcome).toBe("ATTEMPTED");
+  const noteId = record.entries[0].id, originalHash = record.entries[0].snapshotHash;
+  await page.getByLabel("Change or review reason").fill("Synthetic response reported by staff");
+  await page.getByRole("combobox", { name: "Referenced history entry", exact: true }).selectOption(noteId);
+  await page.getByRole("button", { name: "Record manual acknowledgement", exact: true }).click();
+  await expect(page.getByLabel("Change or review reason")).toHaveValue("");
+  record = (await api(page, "GET", undefined, `?id=${record.id}`)).data.record;
+  expect(record.entries[0].action).toBe("ACKNOWLEDGE"); expect(record.entries[0].evidence.assurance).toBe("STAFF_RECORDED_ONLY");
+  expect(record.entries[0].evidence.notificationId).toBe(noteId);
+  await page.getByLabel("Change or review reason").fill("Correction: call evidence reference is synthetic log 02");
+  await page.getByRole("combobox", { name: "Referenced history entry", exact: true }).selectOption(noteId);
+  await page.getByRole("button", { name: "Append correction note", exact: true }).click();
+  await expect(page.getByLabel("Change or review reason")).toHaveValue("");
+  record = (await api(page, "GET", undefined, `?id=${record.id}`)).data.record;
+  expect(record.entries[0].action).toBe("ANNOTATE");
+  expect(record.entries.find((e: any) => e.id === noteId).snapshotHash).toBe(originalHash);
+  const context = await browser.newContext(); const reviewer = await context.newPage();
+  await login(reviewer, "medical.director@example.test");
+  await reviewer.getByRole("button", { name: "Local IDSR", exact: true }).click();
+  await reviewer.getByRole("button", { name: /Synthetic unusual cluster · EVENT/ }).click();
+  await reviewer.getByLabel("Change or review reason").fill("Local concern reviewed; follow up through established process");
+  await reviewer.getByRole("button", { name: "Record local review", exact: true }).click();
+  await expect(reviewer.getByRole("heading", { name: "Concern · REVIEWED", exact: true })).toBeVisible();
+  const reviewed = (await api(page, "GET", undefined, `?id=${record.id}`)).data.record;
+  const change = { id: record.id, version: reviewed.version, action: "UPDATE", reason: "Additional observation", details: { ...record.details, description: "New synthetic observation reopens review" } };
+  const race = await Promise.all([api(page, "PATCH", change), api(page, "PATCH", change)]);
+  expect(race.map(r => r.status).sort()).toEqual([200, 409]);
+  record = race.find(r => r.status === 200)!.data.record; expect(record.status).toBe("OPEN");
+  record = (await api(reviewer, "PATCH", { id: record.id, version: record.version, action: "REVIEW", reason: "Reviewed changed observation" })).data.record;
+  record = (await api(reviewer, "PATCH", { id: record.id, version: record.version, action: "CLOSE", reason: "Local exercise resolved" })).data.record;
+  expect(record.status).toBe("CLOSED");
+  expect((await api(page, "PATCH", { ...change, version: record.version })).status).toBe(409);
+  expect((await api(reviewer, "PATCH", { id: record.id, version: record.version, action: "REOPEN", reason: "New follow-up information" })).data.record.status).toBe("OPEN");
+  await context.close();
+});
+test("unidentified case and reviewed duplicate link need no signed encounter or billing", async ({ page }) => {
+  await login(page, "medical.director@example.test");
+  await page.getByRole("button", { name: "Local IDSR", exact: true }).click();
+  await page.getByLabel("Concern or suspected condition").fill("Synthetic unidentified case");
+  await page.getByLabel("Observed concern").fill("Synthetic observed concern before identity is established");
+  await page.getByRole("button", { name: "Save local concern", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Concern · OPEN", exact: true })).toBeVisible();
+  const original = (await api(page, "GET")).data.records.find((r: any) => r.details.concern === "Synthetic unidentified case");
+  expect(original.details.patientId).toBeNull();
+  expect((await api(page, "PATCH", { id: original.id, version: original.version, action: "REVIEW", reason: "Not yet assessed" })).status).toBe(422);
+  const duplicate = (await api(page, "POST", { details: { ...original.details, concern: "Synthetic duplicate concern" } })).data.record;
+  expect((await api(page, "PATCH", { id: duplicate.id, version: duplicate.version, action: "DUPLICATE", reason: "Linked by clinical reviewer", duplicateOfId: original.id })).data.record.duplicateOfId).toBe(original.id);
+  expect((await api(page, "PATCH", { id: original.id, version: original.version, action: "DUPLICATE", reason: "Must not make a cycle", duplicateOfId: duplicate.id })).status).toBe(422);
+});
+for (const email of ["finance.manager@example.test", "facility.admin@example.test", "system.only@example.test"]) test(`${email} cannot access case-level surveillance`, async ({ page }) => {
+  await login(page, email); await expect(page.getByRole("button", { name: "Local IDSR", exact: true })).toHaveCount(0);
+  expect((await api(page, "GET")).status).toBe(403); expect((await api(page, "POST", {})).status).toBe(403);
+});

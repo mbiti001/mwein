@@ -125,3 +125,17 @@ These are manual local worksheets under `LOCAL_MANUAL_AGGREGATE_V1`; arbitrary i
 Reads are audited before disclosure. Mutations and their audit entries commit together. Optimistic versions plus serializable transactions reject concurrent/stale changes; duplicate correction creation is constrained. API reads are limited to the 100 newest revisions in a selected month and explicitly signal truncation; older records remain stored. Extend retrieval before relying on the interface for facilities exceeding that volume. No delete or outbound-delivery API is provided.
 
 Before production activation: retain migration/recovery evidence, authorize the reporting role map, ensure a separate qualified reviewer is assigned, and verify facility boundaries and the review/correction flow with synthetic records. Reporting permission provisioning, production migration and deployment were not performed in this implementation task.
+
+## Local IDSR register release
+
+[Implementation scope and staff workflow](certification/LOCAL-IDSR-IMPLEMENTATION.md) describes the local case/event register and manual notification history. The release adds migration `20260924110000_local_surveillance`; apply it before exposing the workspace.
+
+| Permission | Proposed role grants |
+|---|---|
+| surveillance.read | NURSE, CLINICIAN, CLINICIAN_COVER, MEDICAL_DIRECTOR |
+| surveillance.record | NURSE, CLINICIAN, CLINICIAN_COVER, MEDICAL_DIRECTOR |
+| surveillance.review | MEDICAL_DIRECTOR |
+
+Use the scoped `scripts/release-surveillance-permissions.mjs` with `APPROVE_SURVEILLANCE_ROLE_MAP=true` after role-map review. It changes no user assignments. Finance, facility-admin-only and system-admin-only accounts must remain denied case-level access. Verify capture without patient identity, manual notification before review, independent facility isolation, corrections, closure/reopening and immutable history using synthetic records before activation. Local review is recorded as a clinical-role action, not an independent certification sign-off.
+
+The application never sends a notification or asserts verified county receipt. Staff should document actions already taken through their established reporting route and reference protected evidence; no contact list, case definition, automatic threshold or deadline has been configured. A manual acknowledgement is explicitly unverified by the receiving service. Notifications may be recorded before review and after local closure. Reopen a closed concern before changing its case details; append a correction note to clarify mistaken history entries.

@@ -14,7 +14,7 @@ export function inspectRoute(source, delegates = {}) {
 }
 export function auditInventory(platformRoot) {
   const root = path.join(platformRoot, "src/app/api");
-  const families = ["patients", "visits", "orders", "referrals", "reports", "appointments", "visit-summaries"];
+  const families = ["surveillance", "patients", "visits", "orders", "referrals", "reports", "appointments", "visit-summaries"];
   function files(directory) { return readdirSync(directory).flatMap(name => { const target = path.join(directory, name); return statSync(target).isDirectory() ? files(target) : target.endsWith("route.ts") ? [target] : []; }); }
   const report = files(root).map(file => {
     const route = path.relative(root, file).split(path.sep).join("/").replace(/\/route\.ts$/, "");
