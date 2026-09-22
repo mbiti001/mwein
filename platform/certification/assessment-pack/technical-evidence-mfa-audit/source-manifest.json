@@ -1,0 +1,382 @@
+{
+  "formatVersion": 2,
+  "generatedAt": "2026-09-22T18:32:36.337Z",
+  "application": "mwein-hmis-platform",
+  "evidenceType": "COMMITTED_SOURCE_MANIFEST",
+  "commit": "b15ac73690c47b631d8598d42d05f2d8bd7800c2",
+  "latestMigration": "20260924130000_workforce_mfa",
+  "migrationCount": 47,
+  "source": {
+    "selection": "CLEAN_HEAD",
+    "workingTreeUsed": false
+  },
+  "collection": {
+    "documentCommit": "b15ac73690c47b631d8598d42d05f2d8bd7800c2",
+    "workingTreeDirty": false,
+    "generatorSha256": "ed3a65cad2da716262e7ca5bba2f70d74e0d70127f70b38cfcf64f1e8381b644",
+    "note": "Document checkout HEAD and generator hash describe collection tooling, not the selected application release."
+  },
+  "artifacts": [
+    {
+      "path": "platform/prisma/schema.prisma",
+      "gitBlob": "be2c5b10537dc4a23929e96fdaf9d135c0d0e0ef",
+      "sha256": "7de39d91709ff50f97ceb4aa1e9d98b02935e632ad6a7dcffec58784c4fb4c04",
+      "bytes": 78063
+    },
+    {
+      "path": "platform/prisma/migrations/migration_lock.toml",
+      "gitBlob": "2fe25d87cc30b78fc25be5e171a4876951691252",
+      "sha256": "1db17a8d051aa136110736752c5e1f8b7ed92b6ea8e803112fbbe2497047c210",
+      "bytes": 24
+    },
+    {
+      "path": "platform/package.json",
+      "gitBlob": "0765cf9c9910730a0884ecdf2174cdcb77f0b34e",
+      "sha256": "4a65d7af18d3244a13b6a60811049ae36b2a2de76e5d40e53f1f88f9665a1ad7",
+      "bytes": 1843
+    },
+    {
+      "path": "platform/package-lock.json",
+      "gitBlob": "cdccd34404e4b6485c26455ae2dbe36032ad60a6",
+      "sha256": "888f901ab4094699df7e05b48da28adf69d6a7c07e50d7027d210b4f7db9bc7e",
+      "bytes": 146122
+    }
+  ],
+  "migrations": [
+    {
+      "name": "20260829201000_phase1_core",
+      "path": "platform/prisma/migrations/20260829201000_phase1_core/migration.sql",
+      "gitBlob": "eaf00b8d2e205f83aeb3a58af75bc294843dc7bb",
+      "sha256": "4bdda7e5d2e9107f9242bf1135a416938099d5ca1932ed600d770e2fcffe1c39",
+      "bytes": 19265
+    },
+    {
+      "name": "20260831070000_patient_addresses",
+      "path": "platform/prisma/migrations/20260831070000_patient_addresses/migration.sql",
+      "gitBlob": "26176e15c6b178c4b4099073dc9439632fc775a8",
+      "sha256": "d470460cbc1125e19a4c2451db38cc2dc04feb6086b5eb8b7bd0a75fced96303",
+      "bytes": 460
+    },
+    {
+      "name": "20260902150000_staged_clinical_workflow",
+      "path": "platform/prisma/migrations/20260902150000_staged_clinical_workflow/migration.sql",
+      "gitBlob": "4f5e245c9c2ba7f9dbf317684b555c31d4d0b128",
+      "sha256": "6d176b5ad0e42156b413618f8fd6796601ea8249644bdc7a6c69dc2bdc7cf8d3",
+      "bytes": 1633
+    },
+    {
+      "name": "20260902153000_catalogue_management",
+      "path": "platform/prisma/migrations/20260902153000_catalogue_management/migration.sql",
+      "gitBlob": "cb3eb869899010e207b5adca9e82e24d8590d03a",
+      "sha256": "86ec6357168bb938dc48f46c43aac8c0bdb2c6efbf79b0bf153a36dae82724ff",
+      "bytes": 1149
+    },
+    {
+      "name": "20260902160000_csv_and_lab_ranges",
+      "path": "platform/prisma/migrations/20260902160000_csv_and_lab_ranges/migration.sql",
+      "gitBlob": "07bdf600d0935c6d27db109f550532ea60cd96c3",
+      "sha256": "7080a3fdf3f9b4b53c0d7877491a379c5a0cc2f259513bb320b3d2d9e40cc071",
+      "bytes": 1538
+    },
+    {
+      "name": "20260902163000_specimen_workflow",
+      "path": "platform/prisma/migrations/20260902163000_specimen_workflow/migration.sql",
+      "gitBlob": "54ba369dd3d2b37e97de4169b24045bfdaf94933",
+      "sha256": "6c1eece9e37768c27c109c7d2bb868bca48988596a064a45f22e9aaac05ab03a",
+      "bytes": 296
+    },
+    {
+      "name": "20260902180000_pharmacy_dispensing",
+      "path": "platform/prisma/migrations/20260902180000_pharmacy_dispensing/migration.sql",
+      "gitBlob": "5a2cd4ca8f3d8afbe79176b0719a66a2e9fa8216",
+      "sha256": "6a3ebbe31cf6f970acc83ab9961e222d645198424834fec1094c7fdbc76b1f11",
+      "bytes": 408
+    },
+    {
+      "name": "20260903130000_imaging_and_inventory",
+      "path": "platform/prisma/migrations/20260903130000_imaging_and_inventory/migration.sql",
+      "gitBlob": "db5a35f023e1815e51a0fb50cb45c67e848866ed",
+      "sha256": "acd647ac409ddd8c0819146d20fda25333e060d3ed5e4b22d312987290c69c35",
+      "bytes": 2688
+    },
+    {
+      "name": "20260903143000_claims_and_reversals",
+      "path": "platform/prisma/migrations/20260903143000_claims_and_reversals/migration.sql",
+      "gitBlob": "712dc317f63b36b4984f9951f4ee66e56c06c06b",
+      "sha256": "f8bab63cf6b2f8f8c137add876f4f058c5755f2aa9583febf9bebd990ca92dad",
+      "bytes": 1257
+    },
+    {
+      "name": "20260903153000_lab_interoperability",
+      "path": "platform/prisma/migrations/20260903153000_lab_interoperability/migration.sql",
+      "gitBlob": "78575db05e70ccbe884a9f26eae10221f2546798",
+      "sha256": "920dfe1b1bda713443f318575387d685bf7552d5274b5c2f34fa763e4b77bee0",
+      "bytes": 1043
+    },
+    {
+      "name": "20260903170000_appointments",
+      "path": "platform/prisma/migrations/20260903170000_appointments/migration.sql",
+      "gitBlob": "f86821f1063fbafaa4bf0238734e1c5b72e9d6c4",
+      "sha256": "ec781c468b1b98016fac8d529f4b66ba8b88a4471badbe7844ec57b5fddc1bb2",
+      "bytes": 1400
+    },
+    {
+      "name": "20260904110000_pharmacy_counselling_traceability",
+      "path": "platform/prisma/migrations/20260904110000_pharmacy_counselling_traceability/migration.sql",
+      "gitBlob": "fd93a821869355beeff362b3c1d122481c5327b0",
+      "sha256": "4c20622b160395a3194cf1c8140e88d5da5c385ecf10ccb642a1456506f1c6b3",
+      "bytes": 438
+    },
+    {
+      "name": "20260904130000_prescription_safety",
+      "path": "platform/prisma/migrations/20260904130000_prescription_safety/migration.sql",
+      "gitBlob": "9982d25cca6bb6ddbffe7f1eb199432178826d42",
+      "sha256": "25d1ad3aa2db24043cedeeb1fe5e782287aac95e3cafef66e21b85ce11eb4bd0",
+      "bytes": 3732
+    },
+    {
+      "name": "20260904170000_immutable_dispensations",
+      "path": "platform/prisma/migrations/20260904170000_immutable_dispensations/migration.sql",
+      "gitBlob": "54d217276c0689777c0f292e48cfc737ba745ec1",
+      "sha256": "c37a36fff2fe758fdbdb64938ffae76ac2016c00ac9c354cb6a67b77f3d94b0c",
+      "bytes": 2965
+    },
+    {
+      "name": "20260904190000_same_visit_medication_uniqueness",
+      "path": "platform/prisma/migrations/20260904190000_same_visit_medication_uniqueness/migration.sql",
+      "gitBlob": "31b0be47435b4ce97c29c7aa744ab3461d13c58e",
+      "sha256": "42c3533ab89a5271702c084a294139b97fd77ad99cfa3d140c40d439fc8512a6",
+      "bytes": 663
+    },
+    {
+      "name": "20260905010000_connected_workflow_context",
+      "path": "platform/prisma/migrations/20260905010000_connected_workflow_context/migration.sql",
+      "gitBlob": "e7ecb86ddc1793d007b360a6c455da81d9fa5c5a",
+      "sha256": "b257ed7cbaf1dc5c3037ab0e46ffc64460d6938a9e10be7f86aaf86d26ec486b",
+      "bytes": 6665
+    },
+    {
+      "name": "20260905090000_procurement_controls",
+      "path": "platform/prisma/migrations/20260905090000_procurement_controls/migration.sql",
+      "gitBlob": "3bd5d661b2dda702b11ac1bcdbbd0551b4b5220d",
+      "sha256": "756c0603ec94b072e09c0896c15b3ccb2623f09f27a034207ffecd3f30374219",
+      "bytes": 1287
+    },
+    {
+      "name": "20260905120000_catalogue_cost_price",
+      "path": "platform/prisma/migrations/20260905120000_catalogue_cost_price/migration.sql",
+      "gitBlob": "81f232e973a3458bdb59a8c22c7884f500787369",
+      "sha256": "2fdc37c7b971cb4c4201e97dc2fe8717cac27ca627d8354ccd389b4a15510944",
+      "bytes": 64
+    },
+    {
+      "name": "20260905170000_catalogue_pack_size",
+      "path": "platform/prisma/migrations/20260905170000_catalogue_pack_size/migration.sql",
+      "gitBlob": "42e1fc2c2a5ad4f0670533a57dbad1146ffab1b9",
+      "sha256": "6da3ff05139f7f487f64443ed74f3a8cd9069172b261dabcfd6664563da15510",
+      "bytes": 63
+    },
+    {
+      "name": "20260906040000_structured_patient_names",
+      "path": "platform/prisma/migrations/20260906040000_structured_patient_names/migration.sql",
+      "gitBlob": "38f43d00a2566d92c926486c185512a00ea73e0d",
+      "sha256": "8739e60a5c6b9d113dbdf0e73718873645e184fd0e50992d9af2b04b20d390c0",
+      "bytes": 111
+    },
+    {
+      "name": "20260906090000_claim_line_allocation",
+      "path": "platform/prisma/migrations/20260906090000_claim_line_allocation/migration.sql",
+      "gitBlob": "34ba52b3d109773b504162bec15c72f6fe228605",
+      "sha256": "6cd05414a97f3ed65f0c16cbd7bc8f73bedae056e99804b5e85a63b9fb5828d2",
+      "bytes": 703
+    },
+    {
+      "name": "20260906130000_service_points_and_referrals",
+      "path": "platform/prisma/migrations/20260906130000_service_points_and_referrals/migration.sql",
+      "gitBlob": "20bb63a41d556f5e81d92714c425cb8b8962b099",
+      "sha256": "06db43e5185294c841ba6be16dc68cf4a0920e608f045224445b5d1570f1f246",
+      "bytes": 4602
+    },
+    {
+      "name": "20260907193000_pharmacy_stock_ledger",
+      "path": "platform/prisma/migrations/20260907193000_pharmacy_stock_ledger/migration.sql",
+      "gitBlob": "d0666258d410c514707fd13b6951bdaf9833e54d",
+      "sha256": "81694bc80aa4333ac2257b04e3277a82eb1c85501ec727306d4e20c5499d53e7",
+      "bytes": 864
+    },
+    {
+      "name": "20260907203000_dispensing_overrides",
+      "path": "platform/prisma/migrations/20260907203000_dispensing_overrides/migration.sql",
+      "gitBlob": "e7c49039cb41573a4f37fc9b70317b21b74ee84d",
+      "sha256": "27eaec10fbdfe8154e6eac8bf36e37e56843daed2b15cd8afd859d1d1a610a24",
+      "bytes": 476
+    },
+    {
+      "name": "20260907214500_pharmacy_reconciliation_accounting",
+      "path": "platform/prisma/migrations/20260907214500_pharmacy_reconciliation_accounting/migration.sql",
+      "gitBlob": "f73030f9687e99a13e1209a29057dde60a7d794b",
+      "sha256": "d995a5c48c23914ff81f378110194d67978ebfff9b1efe040833016a70824659",
+      "bytes": 5681
+    },
+    {
+      "name": "20260908090000_referral_result_links_and_acknowledgements",
+      "path": "platform/prisma/migrations/20260908090000_referral_result_links_and_acknowledgements/migration.sql",
+      "gitBlob": "a1794e89e2a79a490d5af582abb1811588cd498a",
+      "sha256": "654ebb76139ed398538b86f14e800a3287bd3e7416d269372325e86982ef3814",
+      "bytes": 3668
+    },
+    {
+      "name": "20260911120000_security_audit_governance_problems",
+      "path": "platform/prisma/migrations/20260911120000_security_audit_governance_problems/migration.sql",
+      "gitBlob": "c5d2cc3501bc987a031def64060528f804136a3b",
+      "sha256": "c71fa8cd240f9e8f0b44fa7afc55530922f12720d4997e883d4442603ab25323",
+      "bytes": 5395
+    },
+    {
+      "name": "20260914110000_operational_controls_and_safety",
+      "path": "platform/prisma/migrations/20260914110000_operational_controls_and_safety/migration.sql",
+      "gitBlob": "89805ef02741dcdf0f25173e7f28b30f5c83b5fb",
+      "sha256": "86f424e8cc0d0e2c930e0531969402ad1dec2b9f31e23f0bb87cbd32e0148614",
+      "bytes": 8357
+    },
+    {
+      "name": "20260914160000_gpt6_astra_visit_summaries",
+      "path": "platform/prisma/migrations/20260914160000_gpt6_astra_visit_summaries/migration.sql",
+      "gitBlob": "bb448baca22a4e3ab8dd922142d516af862d3752",
+      "sha256": "18bfafefcef244ae07c18c3dfc5bcb8108e068e8ad0a7913bd5bf3c0392631bb",
+      "bytes": 2654
+    },
+    {
+      "name": "20260915100000_operational_workbenches",
+      "path": "platform/prisma/migrations/20260915100000_operational_workbenches/migration.sql",
+      "gitBlob": "6e95074722f32b00226825a2dfa6f6e5c86232da",
+      "sha256": "cecc5851b0c9d96ab44ad2c1d3f2967f31374092f926f634150adb782be49762",
+      "bytes": 4144
+    },
+    {
+      "name": "20260915130000_anc_admission_safety",
+      "path": "platform/prisma/migrations/20260915130000_anc_admission_safety/migration.sql",
+      "gitBlob": "cc33774fdf5288cbec9a3416adfa75f99f51bfcf",
+      "sha256": "9c2b2ed84540149bb9c569a2f45d1c59f39eaca6c323a10d2055a3850b668b7a",
+      "bytes": 2001
+    },
+    {
+      "name": "20260915150000_lnmp_pregnancy_dating",
+      "path": "platform/prisma/migrations/20260915150000_lnmp_pregnancy_dating/migration.sql",
+      "gitBlob": "36f998af7654d2c2e2e150e5ea56cad8466583f3",
+      "sha256": "12d417de7c8495834ecfa613881fc5155abf775ce328049ac30369ff25e04cc7",
+      "bytes": 768
+    },
+    {
+      "name": "20260916113000_sha_draft_contract_preparation",
+      "path": "platform/prisma/migrations/20260916113000_sha_draft_contract_preparation/migration.sql",
+      "gitBlob": "e5da6ea691a546249795b3b559bb175457303468",
+      "sha256": "6c7c7611890a8461ca2eb17172b4b36331e28e42b0c24260b38cac61c70fb26e",
+      "bytes": 1494
+    },
+    {
+      "name": "20260916150000_effective_catalog_pricing",
+      "path": "platform/prisma/migrations/20260916150000_effective_catalog_pricing/migration.sql",
+      "gitBlob": "a6934428d1a6846f34e8b6edc74419d8f9fc94af",
+      "sha256": "cdf7c1a06e2e32bb9844d4de92294b94c2706d0e5f0f124eeb9c6fd36bdc4c66",
+      "bytes": 3361
+    },
+    {
+      "name": "20260919110000_visit_cancellation",
+      "path": "platform/prisma/migrations/20260919110000_visit_cancellation/migration.sql",
+      "gitBlob": "c6c98838c5e4a0c04212a8ee995cd3b6c1cd89ca",
+      "sha256": "e9d50cdaf07d7f77c9752060ef182c786a567a2b4ab96a92a1281ccc5cf3f719",
+      "bytes": 2696
+    },
+    {
+      "name": "20260920130000_clinic_consultation_tariffs",
+      "path": "platform/prisma/migrations/20260920130000_clinic_consultation_tariffs/migration.sql",
+      "gitBlob": "985cd3d48ad79f863fa3d43afc38f93c34c9ddf0",
+      "sha256": "e70334c703dac1997b546419b2b24946f0cf96e5df77e0983b9f4c2434f10d1a",
+      "bytes": 1131
+    },
+    {
+      "name": "20260921120000_immutable_dispensation_invoice_lines",
+      "path": "platform/prisma/migrations/20260921120000_immutable_dispensation_invoice_lines/migration.sql",
+      "gitBlob": "d92715b253a2eb79843e0a752e06492720992ce6",
+      "sha256": "f4c3b41ed62fa51e4da373c5907dc8e01c22e1da0398fe23217e2f73af22af61",
+      "bytes": 273
+    },
+    {
+      "name": "20260921150000_icd11_release_traceability",
+      "path": "platform/prisma/migrations/20260921150000_icd11_release_traceability/migration.sql",
+      "gitBlob": "5bc46b33451cd8f89b4e79d5c607b0e17f5f4b92",
+      "sha256": "8b6624f1d9f07f532558fe6ccc1e52f2926f4df825ebc65fd0e013721fb5a13a",
+      "bytes": 97
+    },
+    {
+      "name": "20260922120000_safe_registration_and_consent_lifecycle",
+      "path": "platform/prisma/migrations/20260922120000_safe_registration_and_consent_lifecycle/migration.sql",
+      "gitBlob": "57a10648fd3d5ccb7dee93489cdf76d2e35c5086",
+      "sha256": "d5ddc3422e20a2cec99a43e3ca026569db3a012adfb872ecfeb5a2587de353bd",
+      "bytes": 499
+    },
+    {
+      "name": "20260922133000_privacy_rights_workflows",
+      "path": "platform/prisma/migrations/20260922133000_privacy_rights_workflows/migration.sql",
+      "gitBlob": "684b38fcdbfc50d49f360500b6f4c8a63398cefc",
+      "sha256": "979e60d8fc97506e4ed125bd71a5734a6adc854908954dcaf12eb0f166ff3f28",
+      "bytes": 2621
+    },
+    {
+      "name": "20260923100000_certification_workflows",
+      "path": "platform/prisma/migrations/20260923100000_certification_workflows/migration.sql",
+      "gitBlob": "46dda901d8a3421c93e22bda546f319a8f5e7031",
+      "sha256": "c9b7a3da5db86b8e56bd01578e1192d9ed82a50adea0ebe377ef914db9ca00b7",
+      "bytes": 4783
+    },
+    {
+      "name": "20260923120000_core_visit_disposition",
+      "path": "platform/prisma/migrations/20260923120000_core_visit_disposition/migration.sql",
+      "gitBlob": "810a531885528f8ccf4c6f15801726078598c55c",
+      "sha256": "7b7b9e79fb8d5599ae1821050bd2aa751f54677af506b5a5c9f4a8245858bf4a",
+      "bytes": 1109
+    },
+    {
+      "name": "20260923140000_clinical_closure_identity_history",
+      "path": "platform/prisma/migrations/20260923140000_clinical_closure_identity_history/migration.sql",
+      "gitBlob": "2e416da4eb2c7e0e444245760c5b0456916a3a43",
+      "sha256": "daf8e651d6a48991d2847b6369ec49c10225ce9a8ebf87d24c767394dccf2f61",
+      "bytes": 686
+    },
+    {
+      "name": "20260924100000_local_report_revisions",
+      "path": "platform/prisma/migrations/20260924100000_local_report_revisions/migration.sql",
+      "gitBlob": "171d9ce069fb6819d4e9c1a8a1aa28496a1685c4",
+      "sha256": "a4ed2741e778411c04eb9ab7ac8fe94e81eefb9098cdbea1159ff77c311b4197",
+      "bytes": 3002
+    },
+    {
+      "name": "20260924110000_local_surveillance",
+      "path": "platform/prisma/migrations/20260924110000_local_surveillance/migration.sql",
+      "gitBlob": "2aa610d4afec88f336b0c98f07656615cc3c26e2",
+      "sha256": "1f39b4ededa3bba9f15512fbd5c56499fc67cacd6163ded54bdef8f931135be2",
+      "bytes": 3030
+    },
+    {
+      "name": "20260924120000_measured_vitals",
+      "path": "platform/prisma/migrations/20260924120000_measured_vitals/migration.sql",
+      "gitBlob": "cb44eeacf1ed834fbe239487f1cdbb421cb6cd6e",
+      "sha256": "5588aca18a6a753df2a2eb7487b8be1e5c096b57db46de6da60e622d5a4b6072",
+      "bytes": 1453
+    },
+    {
+      "name": "20260924130000_workforce_mfa",
+      "path": "platform/prisma/migrations/20260924130000_workforce_mfa/migration.sql",
+      "gitBlob": "4adda995fe8a39897707536f2ed853ac8d209cda",
+      "sha256": "bfb5e3f81dd97e886435776fcef0bc0bbb7521cae6aaa4cf47304b7493c59942",
+      "bytes": 619
+    }
+  ],
+  "runtimeVerification": {
+    "status": "NOT_PERFORMED",
+    "note": "Run ops:release-verify with this commit and latestMigration and retain the dated result separately."
+  },
+  "controlAssessment": "NOT_PERFORMED",
+  "declaration": "Committed source inventory only. This does not prove deployment, operational controls, DHA certification, legal approval or clinical acceptance."
+}

@@ -74,7 +74,7 @@ Running 43 tests using 1 worker
   ✓  43 e2e/visit-summary.spec.ts:3:5 › visit summary preserves disclosure content when printing and fits mobile (2.5s)
 
 
-  1) e2e/mfa.spec.ts:121:5 › lost-factor recovery preserves MFA, revokes sessions and requires identity attestation by a separate verified admin 
+  1) e2e/mfa.spec.ts:121:5 › lost-factor recovery preserves MFA, revokes sessions and requires identity attestation by a separate verified admin
 
     TypeError: Cannot read properties of undefined (reading 'mfaRequired')
 
@@ -110,5 +110,5 @@ Running 43 tests using 1 worker
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
   1 failed
-    e2e/mfa.spec.ts:121:5 › lost-factor recovery preserves MFA, revokes sessions and requires identity attestation by a separate verified admin 
+    e2e/mfa.spec.ts:121:5 › lost-factor recovery preserves MFA, revokes sessions and requires identity attestation by a separate verified admin
   42 passed (1.9m)

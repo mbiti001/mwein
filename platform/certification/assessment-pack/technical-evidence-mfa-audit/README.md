@@ -13,3 +13,5 @@
 - All 25 source-draft hashes in the original checkout remain unchanged. The reviewed implementation exists in the remediation checkout.
 
 The retained pre-fix browser output intentionally preserves the failed test result. The focused output records its successful rerun. Source code fixes were included in the production build used for these tests; only the test wait helper changed between the final full suite and focused run. Formatting-only removal of trailing whitespace does not alter runtime behavior.
+
+Application source commit: `b15ac73` (full SHA in source-manifest.json). The clean-source preflight and manifest were generated after the application commit; they bind 47 migrations and 51 source artifacts to that commit. They do not approve rollout or verify a deployed version. Retained text logs have trailing whitespace normalized; substantive results are unchanged.
