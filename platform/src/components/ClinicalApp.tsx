@@ -729,7 +729,7 @@ function Dashboard({
           </div>
         )}
       </section>
-      <QueueOperationsPanel permissions={user.permissions} onOpenTask={onOpenTask} onUpdated={onUpdated} />
+      {user.permissions.includes("visit.read") && <QueueOperationsPanel permissions={user.permissions} onOpenTask={onOpenTask} onUpdated={onUpdated} />}
     </>
   );
 }
