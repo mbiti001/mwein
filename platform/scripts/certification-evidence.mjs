@@ -1,34 +1,65 @@
 import { execFileSync } from "node:child_process";
-import { readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+const scriptPath = fileURLToPath(import.meta.url);
+const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
-const root = path.resolve(import.meta.dirname, "..");
-const repo = path.resolve(root, "..");
-const commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repo, encoding: "utf8" }).trim();
-const migrations = readdirSync(path.join(root, "prisma/migrations"), { withFileTypes: true }).filter((item) => item.isDirectory()).map((item) => item.name).sort();
-const controls = [
-  ["release_identity", "IMPLEMENTED", "Immutable commit is exposed by /api/health and verified with ops:release-verify"],
-  ["platform_ci", "IMPLEMENTED", "Platform verification runs types, tests, migrations, build, integration and browser checks"],
-  ["safe_registration", "IMPLEMENTED", "Standard, guardian-assisted and unidentified-emergency registration are modelled"],
-  ["consent_lifecycle", "IMPLEMENTED", "Versioned lawful basis, representative authority, grant and withdrawal are auditable"],
-  ["odpc_registration", "EVIDENCE_AVAILABLE", "MWEIN MEDICAL SERVICES Data Controller registration 112-9801-11EB is valid from 2026-09-22 through 2028-09-22; retain the protected certificate outside Git"],
-  ["clinical_read_audit", "PARTIAL", "Core patient, visit, result and consent disclosures are covered; maintain endpoint inventory"],
-  ["oidc_mfa", "EXTERNAL_EVIDENCE_REQUIRED", "Provider credentials, callback implementation and MFA/deprovisioning acceptance remain required"],
-  ["encryption_key_management", "EXTERNAL_EVIDENCE_REQUIRED", "Hosting, database, backup and key evidence cannot be proven from source"],
-  ["odpc_dpia", "EXTERNAL_EVIDENCE_REQUIRED", "ODPC registration, DPIA, processor terms and approved policies require accountable owners"],
-  ["kenya_core_fhir", "EXTERNAL_EVIDENCE_REQUIRED", "Confirm profiles and validate exchanges in the DHA sandbox"],
-  ["public_health_reporting", "EXTERNAL_EVIDENCE_REQUIRED", "Approve datasets, urgent notifications and acknowledgement workflow"],
-  ["clinical_validation", "EXTERNAL_EVIDENCE_REQUIRED", "Named clinical owner must execute and sign the hazard-based UAT set"],
-  ["penetration_test", "EXTERNAL_EVIDENCE_REQUIRED", "Independent laboratory/security assessment and remediation evidence required"],
-];
-
-const result = {
-  generatedAt: new Date().toISOString(),
-  application: "mwein-hmis-platform",
-  commit,
-  latestMigration: migrations.at(-1),
-  migrationCount: migrations.length,
-  controls: controls.map(([code, status, evidence]) => ({ code, status, evidence })),
-  declaration: "Engineering evidence index only. It is not DHA certification, legal approval or clinical acceptance.",
-};
-console.log(JSON.stringify(result, null, 2));
+export function collectEvidence({ repo, commit: requestedCommit }) {
+  const git = (...args) => execFileSync("git", args, { cwd: repo, stdio: ["ignore", "pipe", "pipe"], maxBuffer: 32 * 1024 * 1024 });
+  const resolve = (ref) => {
+    if (typeof ref !== "string" || !ref.trim() || ref.startsWith("-")) throw new Error("Select a valid Git commit or ref.");
+    try { return git("rev-parse", "--verify", "--end-of-options", `${ref}^{commit}`).toString().trim(); }
+    catch { throw new Error("The selected Git commit could not be resolved."); }
+  };
+  const documentCommit = resolve("HEAD");
+  const dirty = git("status", "--porcelain=v1", "--untracked-files=all").length > 0;
+  if (dirty && requestedCommit === undefined) throw new Error("Working tree has unpublished changes. Select --commit explicitly to collect committed source only.");
+  const commit = resolve(requestedCommit ?? "HEAD");
+  const tree = git("ls-tree", "-r", "-z", commit, "--", "platform/").toString().split("\0").filter(Boolean).map((entry) => {
+    const separator = entry.indexOf("\t");
+    const [mode, type, oid] = entry.slice(0, separator).split(" ");
+    return { mode, type, oid, path: entry.slice(separator + 1) };
+  });
+  const artifact = (name) => {
+    const entry = tree.find((item) => item.path === name);
+    if (!entry || entry.type !== "blob" || !["100644", "100755"].includes(entry.mode)) throw new Error(`Required committed regular file is missing: ${name}`);
+    const bytes = git("cat-file", "blob", entry.oid);
+    return { path: name, gitBlob: entry.oid, sha256: sha256(bytes), bytes: bytes.length };
+  };
+  const migrations = tree.filter((entry) => /^platform\/prisma\/migrations\/[^/]+\/migration\.sql$/.test(entry.path))
+    .sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0)
+    .map((entry) => ({ name: entry.path.split("/").at(-2), ...artifact(entry.path) }));
+  if (!migrations.length) throw new Error("The selected commit contains no migration SQL files.");
+  return {
+    formatVersion: 2,
+    generatedAt: new Date().toISOString(),
+    application: "mwein-hmis-platform",
+    evidenceType: "COMMITTED_SOURCE_MANIFEST",
+    commit,
+    latestMigration: migrations.at(-1).name,
+    migrationCount: migrations.length,
+    source: { selection: requestedCommit === undefined ? "CLEAN_HEAD" : "EXPLICIT_COMMIT", workingTreeUsed: false },
+    collection: { documentCommit, workingTreeDirty: dirty, generatorSha256: sha256(readFileSync(scriptPath)), note: "Document checkout HEAD and generator hash describe collection tooling, not the selected application release." },
+    artifacts: ["platform/prisma/schema.prisma", "platform/prisma/migrations/migration_lock.toml", "platform/package.json", "platform/package-lock.json"].map(artifact),
+    migrations,
+    runtimeVerification: { status: "NOT_PERFORMED", note: "Run ops:release-verify with this commit and latestMigration and retain the dated result separately." },
+    controlAssessment: "NOT_PERFORMED",
+    declaration: "Committed source inventory only. This does not prove deployment, operational controls, DHA certification, legal approval or clinical acceptance.",
+  };
+}
+export function parseArguments(args) {
+  if (args.length === 0) return {};
+  if (args.length === 2 && args[0] === "--commit" && args[1] && !args[1].startsWith("-")) return { commit: args[1] };
+  throw new Error("Usage: node scripts/certification-evidence.mjs [--commit <commit-or-ref>]");
+}
+if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+  try {
+    console.log(JSON.stringify(collectEvidence({ repo: path.resolve(path.dirname(scriptPath), "../.."), ...parseArguments(process.argv.slice(2)) }), null, 2));
+  } catch (error) {
+    // Git stderr can contain local configuration; keep it out of evidence output.
+    console.error(error?.stderr !== undefined ? "Unable to read committed source from Git." : error.message);
+    process.exitCode = 1;
+  }
+}

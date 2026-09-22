@@ -4,7 +4,7 @@
 
 ## Implementation update
 
-Items 1–4 have now been implemented on `codex/dha-control-remediation`; see [control remediation record](../DHA-CONTROL-REMEDIATION.md). APP-01 through APP-05 are addressed in source; APP-06 has improved inventory and regression coverage with remaining routes explicitly unclassified. The original audit below remains a baseline record. Production rollout, real recovery evidence and external certification approvals remain outstanding. APP-07 is unchanged.
+Items 1–4 have now been implemented on `codex/dha-control-remediation`; see [control remediation record](../DHA-CONTROL-REMEDIATION.md). APP-01 through APP-05 are addressed in source; APP-06 has improved inventory and regression coverage with remaining routes explicitly unclassified. The original audit below remains a baseline record. Production rollout, real recovery evidence and external certification approvals remain outstanding. APP-07 is now implemented in source: committed-blob evidence collection, artifact hashes, explicit release selection and dirty-checkout regression tests. See the [evidence collection instructions](../README.md). No production verification is implied.
 
 ## Audit boundary and result
 
@@ -88,6 +88,8 @@ Files: restore-drill script, focused command-construction/guard tests and operat
 Acceptance: absent source, equivalent URLs, reordered query parameters, pooler/direct aliases to the same database and unverified targets are rejected before process spawn; an explicitly verified distinct synthetic target restores successfully; checksum failure stops execution. Production restore is not part of implementation testing.
 
 ### Package E — reproducible evidence generation (APP-07)
+
+Implemented on `codex/dha-control-remediation`. Validation: 288 unit tests passed across 67 files, including seven collector regressions. Collection against application commit `a5e19d3ee6edc08a21f7c8e836962c8be66dfcb7` produced 43 migrations and 47 independently checked artifact hashes from both the remediation checkout and the original dirty checkout; all 25 paused-draft file hashes remained unchanged. No runtime probe or deployment was performed for this change. The original scope and acceptance criteria below are retained. The collector produces source-only evidence; operational and certification claims require separate evidence.
 
 Files: certification-evidence script/tests and release documentation. Read selected commit tree for migration inventory/schema hashes, record source SHA and collection time, and distinguish runtime observations and document commit from application release. Reject unsupported dirty-source generation or clearly mark it non-release evidence.
 

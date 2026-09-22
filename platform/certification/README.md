@@ -4,13 +4,17 @@ This directory indexes evidence without claiming certification.
 
 Start with the [DHA assessment preparation pack](assessment-pack/README.md), drafted against deployed commit `a5e19d3ee6edc08a21f7c8e836962c8be66dfcb7`. It contains the proposed scope, requirements, manual, architecture, evidence register, UAT protocol and document checklist. Approvals remain pending.
 
-The current working tree contains paused, unpublished MFA work. Do not generate release evidence from that working tree. The pack includes a manifest derived directly from the deployed commit. In a clean checkout of the intended release, generate the machine-readable index with:
+Generate a source manifest for an explicitly selected application commit (run from `platform`):
 
 ```bash
-npm run certification:evidence > certification/evidence-index.json
+npm run --silent certification:evidence -- --commit a5e19d3ee6edc08a21f7c8e836962c8be66dfcb7 > /tmp/mwein-source-evidence.json
 ```
 
-The generated file is tied to the exact Git commit and latest migration. Release evidence is valid only when `npm run ops:release-verify` confirms that production runs that same pair.
+Use the full SHA of the intended release. Explicit selection reads only committed Git blobs, even if local edits or paused MFA drafts exist. Without `--commit`, the generator accepts only a clean checkout and selects HEAD. Save output outside the checkout so shell redirection does not introduce an untracked file before the clean-tree check. `--silent` keeps npm banners out of JSON.
+
+Format version 2 records the resolved application commit, collection time, every committed migration, and SHA-256 hashes, Git blob IDs and byte counts for migration SQL, schema, migration lock and dependency manifests. `collection.documentCommit` identifies the checkout HEAD; `generatorSha256` fingerprints the collector actually executed. These are separate from the selected application release. Dirty status is reported without listing private local filenames. Source contents, credentials and source certificate files are not included.
+
+The source manifest makes no control or deployment assessment. The old static `controls` claims have been removed; use the evidence register for reviewed controls and protected external records. Runtime observations must be collected separately with `npm run ops:release-verify`, setting `RELEASE_ORIGIN`, `EXPECTED_RELEASE_SHA` and `EXPECTED_MIGRATION` to the intended URL and the manifest's `commit`/`latestMigration`. Retain the dated verification result alongside the manifest. Source hashes alone do not prove that production runs those files.
 
 ## Evidence that must come from accountable owners
 
