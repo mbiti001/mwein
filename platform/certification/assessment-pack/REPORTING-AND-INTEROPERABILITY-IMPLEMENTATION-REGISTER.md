@@ -2,15 +2,15 @@
 
 Accountable owner for this workstream: **Edwin Mbiti Chavulimu**, per the user’s instruction of 22 September 2026. Listed lead/reviewer roles describe delivery expertise, not separate accountable ownership.
 
-Reviewed against deployed source a5e19d3 on 22 September 2026. This records verified implementation boundaries and the remaining acceptance work; it does not enable national transport or select a legal classification.
+Baseline reviewed against deployed source a5e19d3 on 22 September 2026; reporting permission/disclosure notes updated against remediation commit 99754d0. This records verified implementation boundaries and the remaining acceptance work; it does not enable national transport or select a legal classification.
 
 The [DHA certification portal](https://certification.dha.go.ke/) includes public-health reporting and information exchange in assessment. The [official Kenya Core guide](https://fhir.dha.go.ke/ig/index.html) currently identifies version 1.0.0/FHIR R4 and a local-development-build label; domain guides extend the core. Confirm the accepted package/version with the intended receiving service before configuring it. This is reference discovery, not conformance certification.
 
 ## Current reporting semantics, from source
 
-`src/app/api/reports/moh-monthly/route.ts` requires billing.read and filters facility visits by arrival within Nairobi calendar-month boundaries, excluding cancelled visits. Attendance is visits, not unique patients. Age is computed at arrival and grouped into under 5, 5–14, 15–24, 25–49, 50+ or unknown. Diagnoses come from a selected signed encounter; totals count coded diagnosis rows. Laboratory/imaging counts are non-cancelled orders, not verified results. Medicines count qualifying prescription-order dispense states, not units dispensed. Referrals use sentAt within the period independently of the originating visit's arrival. The response declares REVIEW_REQUIRED; no KHIS submission/acknowledgement is established.
+`src/app/api/reports/moh-monthly/route.ts` requires `reports.clinical` on the remediation branch and filters facility visits by arrival within Nairobi calendar-month boundaries, excluding cancelled visits. Attendance is visits, not unique patients. Age is computed at arrival and grouped into under 5, 5–14, 15–24, 25–49, 50+ or unknown. Diagnoses come from a selected signed encounter; totals count coded diagnosis rows. Laboratory/imaging counts are non-cancelled orders, not verified results. Medicines count qualifying prescription-order dispense states, not units dispensed. Referrals use sentAt within the period independently of the originating visit's arrival. The response declares REVIEW_REQUIRED; no KHIS submission/acknowledgement is established.
 
-These definitions must not be relabelled as approved MOH indicators. The route uses current record state when regenerated; a historical snapshot/revision trail is not demonstrated by this endpoint alone. Review whether multiple signed encounters or duplicate codes should contribute differently to an approved dataset. The current billing.read permission is also a minimum-access/privacy review item.
+These definitions must not be relabelled as approved MOH indicators. The route uses current record state when regenerated; a historical snapshot/revision trail is not demonstrated by this endpoint alone. Review whether multiple signed encounters or duplicate codes should contribute differently to an approved dataset. The remediation branch now separates clinical report permission from billing and audits the disclosure with private/no-store responses; these changes still require production rollout.
 
 ## Action and acceptance matrix
 
@@ -41,3 +41,7 @@ WHO ICD-11 search connectivity is separate from registry validation and HIE tran
 - Sandbox credentials, receiving-service contacts and authorization: not supplied in this pack.
 
 Engineering can proceed with implementation once these concrete contracts are verified. Until then, keep national submission disabled and accurately label local summaries.
+
+## APP-08 / APP-09 requirements package
+
+See [reporting and IDSR requirements](REPORTING-IDSR-REQUIREMENTS.md) for four workflow scopes, versioned input contracts, review/delivery controls, planned acceptance tests and an explicit pending-input register. Requirements are prepared; mappings, workflows and national transport are not implemented by this package.

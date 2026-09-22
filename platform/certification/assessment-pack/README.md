@@ -55,3 +55,5 @@ Tax evidence received: [Edwin’s KRA PIN and Tax Compliance Certificate review]
 ## Implementation backlog
 
 The [app audit and implementation backlog](APP-AUDIT-AND-IMPLEMENTATION-BACKLOG.md) records confirmed code gaps, five implementation-ready packages, acceptance tests and external dependencies. It distinguishes scanner false positives and excludes paused MFA work.
+
+Reporting follow-up: [APP-08 / APP-09 requirements and acceptance plan](REPORTING-IDSR-REQUIREMENTS.md), including the facility and receiving-service inputs still needed.

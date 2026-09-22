@@ -95,6 +95,8 @@ Files: certification-evidence script/tests and release documentation. Read selec
 
 Acceptance: the paused MFA migration cannot be counted under the deployed SHA; clean release produces exactly the expected 43 migration entries; changed/untracked schema or migration files cannot produce a misleading clean-release record; generated hashes match committed blobs. Keep secrets out of output.
 
+Reporting/IDSR follow-up: the [APP-08 / APP-09 requirements package](REPORTING-IDSR-REQUIREMENTS.md) now defines workflows, configuration contracts and acceptance tests. Implementation and authoritative input approval remain outstanding.
+
 ## Work requiring external inputs or approval
 
 - **Reporting/IDSR (APP-08/09):** approved dataset/version, organization-unit mapping, case definitions, periods, code lists, escalation recipients and acknowledgement contracts. Build versioned reporting records after these inputs are fixed; do not invent disease triggers from ICD text.
