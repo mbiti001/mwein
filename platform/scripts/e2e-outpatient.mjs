@@ -927,6 +927,9 @@ try {
   console.log(`Outpatient E2E passed (${steps.length} checks)`);
   steps.forEach((step, index) => console.log(`${index + 1}. ${step}`));
   if (process.env.E2E_HOLD === "1") {
+    const browserClosureId = randomUUID();
+    await pg.query(`INSERT INTO "Visit" ("id", "facilityId", "patientId", "visitNumber", "clinic", "visitType", "status", "reason", "updatedAt") VALUES ($1,$2,$3,'E2E-BROWSER-CLOSE','Outpatient','WALK_IN','ADMITTED','Browser closure regression',now())`, [browserClosureId, facility.id, patient.id]);
+    await pg.query(`INSERT INTO "Encounter" ("id", "visitId", "clinicianId", "status", "signedAt", "updatedAt") VALUES ($1,$2,$3,'SIGNED',now(),now())`, [randomUUID(), browserClosureId, admin.id]);
     console.log(`Browser fixture ready at ${origin}`);
     await new Promise((resolve) => {
       process.once("SIGINT", resolve);

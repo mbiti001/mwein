@@ -27,7 +27,7 @@ test("requires a temporary password replacement before opening records", async (
 test("loads administration and production release gates after authentication", async ({ page }) => {
   await login(page, "admin@mwein.local");
   await expect(page.getByRole("heading", { name: "My work now" })).toBeVisible();
-  await page.getByRole("button", { name: "Administration" }).click();
+  await page.getByRole("button", { name: "Administration", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Facility control centre" })).toBeVisible();
   await page.getByRole("button", { name: "Release gates" }).click();
   await expect(page.getByRole("heading", { name: "Production release gates" })).toBeVisible();
@@ -37,7 +37,7 @@ test("loads administration and production release gates after authentication", a
 
 test("keeps a system-administrator-only account in administration", async ({ page }) => {
   await login(page, "system.only@example.test");
-  await expect(page.getByRole("button", { name: "Administration" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Administration", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Registration" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Consultation" })).toHaveCount(0);
   await expect(page.getByRole("searchbox", { name: "Find a patient anywhere" })).toHaveCount(0);
@@ -99,7 +99,7 @@ test("keeps authenticated navigation usable at a mobile breakpoint", async ({ pa
   await expect(menu).toBeVisible();
   await menu.click();
   await expect(page.getByRole("button", { name: "Close menu" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Administration" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Administration", exact: true })).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBe(0);
 });
@@ -164,7 +164,7 @@ for (const role of [
 
 test("lets the medical director govern medication safety without user administration", async ({ page }) => {
   await login(page, "medical.director@example.test");
-  await page.getByRole("button", { name: "Administration" }).click();
+  await page.getByRole("button", { name: "Administration", exact: true }).click();
   await expect(page.getByRole("button", { name: "Medication safety" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Users & access" })).toHaveCount(0);
   await page.getByRole("button", { name: "Medication safety" }).click();
@@ -173,7 +173,7 @@ test("lets the medical director govern medication safety without user administra
 
 test("shows the new administration workbenches to an authorised administrator", async ({ page }) => {
   await login(page, "facility.admin@example.test");
-  await page.getByRole("button", { name: "Administration" }).click();
+  await page.getByRole("button", { name: "Administration", exact: true }).click();
   await expect(page.getByRole("button", { name: "Data quality" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Operations evidence" })).toBeVisible();
   await page.getByRole("button", { name: "Data quality" }).click();
