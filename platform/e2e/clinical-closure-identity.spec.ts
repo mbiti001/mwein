@@ -6,7 +6,7 @@ test("clinician discharges a signed visit and reverses a reviewed identity corre
   await page.getByLabel("Email", { exact: true }).fill("admin@mwein.local");
   await page.getByLabel("Password", { exact: true }).fill("Mwein-E2E-Password-2026!");
   await page.getByRole("button", { name: "Sign in securely" }).click();
-  const closure = page.locator("section").filter({ has: page.getByRole("heading", { name: "Clinical discharge", exact: true }) });
+  const closure = page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Clinical discharge", exact: true }) });
   await closure.getByLabel("Patient and visit").selectOption({ label: "Amina E2E Patient · E2E-BROWSER-CLOSE · ADMITTED" });
   await closure.getByLabel("Clinical outcome").selectOption("OUTPATIENT");
   await closure.getByLabel("Closure summary, follow-up and handover").fill("Stable for outpatient follow-up; return precautions reviewed.");
@@ -15,7 +15,7 @@ test("clinician discharges a signed visit and reverses a reviewed identity corre
   await expect(closure.locator("option").filter({ hasText: "E2E-BROWSER-CLOSE" })).toHaveCount(0);
 
   await page.getByText("Patient identity review and corrections", { exact: true }).click();
-  const identity = page.locator("section").filter({ has: page.getByText("Patient identity review and corrections", { exact: true }) });
+  const identity = page.locator("section.card").filter({ has: page.getByText("Patient identity review and corrections", { exact: true }) });
   await identity.getByLabel("Find identity record").fill("Child");
   await identity.getByRole("button", { name: "Search", exact: true }).click();
   await identity.getByRole("button", { name: /Child E2E Patient/ }).click();

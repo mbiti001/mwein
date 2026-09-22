@@ -9,7 +9,7 @@ test("workspace presents evidence honestly and filters queues", async ({ page })
   await expect(page.getByRole("heading", { name: "Readiness, backed by evidence" })).toBeVisible();
   await expect(page.getByText("Internal evidence indicators supporting DHA preparation. Not a DHA score or certification.")).toBeVisible();
   await page.getByRole("searchbox", { name: "Find a task", exact: true }).fill("no-matching-patient-xyz");
-  await expect(page.locator(".taskRow")).toHaveCount(0);
+  await expect(page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Next actions", exact: true }) }).locator(".taskRow")).toHaveCount(0);
   await page.getByRole("checkbox", { name: "Overdue only" }).check();
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
