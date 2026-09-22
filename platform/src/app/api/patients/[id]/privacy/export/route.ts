@@ -1,15 +1,16 @@
+import { z } from "zod";
 import { appendAudit, auditValueFingerprint } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiError } from "@/lib/http";
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await requirePermission("privacy.manage");
     const { id } = await params;
-    const requestId = new URL(request.url).searchParams.get("requestId");
-    if (!requestId) throw Object.assign(new Error("A verified request ID is required"), { status: 422 });
+    const { requestId } = z.object({ requestId: z.uuid() }).parse(await request.json());
     const result = await db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "DataSubjectRequest" WHERE id = ${requestId}::uuid AND "facilityId" = ${user.facilityId}::uuid FOR UPDATE`;
       const rightsRequest = await tx.dataSubjectRequest.findFirst({ where: { id: requestId, patientId: id, facilityId: user.facilityId } });
       if (!rightsRequest) throw Object.assign(new Error("Data-subject request not found"), { status: 404 });
       if (!["ACCESS", "PORTABLE_EXPORT"].includes(rightsRequest.type) || rightsRequest.status !== "IN_REVIEW")

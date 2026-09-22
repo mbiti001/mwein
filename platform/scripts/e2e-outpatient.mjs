@@ -1,3 +1,4 @@
+import { verifyPrivacy } from "./e2e-privacy.mjs";
 import { createHmac, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { readdir } from "node:fs/promises";
@@ -208,6 +209,7 @@ try {
     [systemOnlyUserId],
   );
   for (const [email, displayName, roleCode] of [
+    ["privacy@example.test", "MMS privacy officer", "DATA_PROTECTION_OFFICER"],
     ["nurse@example.test", "MMS nurse", "NURSE"],
     ["clinician@example.test", "MMS clinician", "CLINICIAN"],
     ["imaging@example.test", "MMS imaging", "IMAGING"],
@@ -224,7 +226,7 @@ try {
   await pg.query(
     `INSERT INTO "UserRole" ("userId", "roleId")
      SELECT $1, "id" FROM "Role"
-     WHERE "code" IN ('RECEPTION', 'NURSE', 'CLINICIAN', 'LABORATORY', 'IMAGING', 'PHARMACY_MANAGER', 'BILLING', 'MEDICAL_DIRECTOR')
+     WHERE "code" IN ('RECEPTION', 'NURSE', 'CLINICIAN', 'LABORATORY', 'IMAGING', 'PHARMACY_MANAGER', 'BILLING', 'MEDICAL_DIRECTOR', 'DATA_PROTECTION_OFFICER')
      ON CONFLICT DO NOTHING`,
     [admin.id],
   );
@@ -385,6 +387,8 @@ try {
   });
   assert(unidentifiedResult.response.status === 201 && unidentifiedResult.body.patient.identityStatus === "UNIDENTIFIED" && unidentifiedResult.body.patient.restricted === true, "Emergency registration invented identity or failed to restrict the record");
   steps.push("verify shared guardian contact and unidentified emergency registration");
+
+  await verifyPrivacy({ api, requestWithCookie, authenticate, patient, assert, steps, origin });
 
   await pg.query(`UPDATE "CatalogPriceVersion" SET "unitPrice" = 650 WHERE "catalogItemId" IN (SELECT "id" FROM "CatalogItem" WHERE "facilityId" = $1 AND "code" = 'CONSULT-OUTPATIENT')`, [facility.id]);
   const shaCancellationVisit = await api("open visit for SHA eligibility outcome", "/api/visits", {

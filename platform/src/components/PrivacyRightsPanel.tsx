@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { jsonRequest } from "@/lib/client-http";
 
 type Patient = { id: string; patientNumber: string; fullName: string };
@@ -9,6 +9,7 @@ type RightsRequest = { id: string; type: string; status: string; details: string
 type PrivacyRecord = { patient: Patient; consents: Consent[]; requests: RightsRequest[] };
 
 export default function PrivacyRightsPanel() {
+  const selectedId = useRef<string | null>(null);
   const [query, setQuery] = useState("");
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selected, setSelected] = useState<Patient | null>(null);
@@ -31,37 +32,41 @@ export default function PrivacyRightsPanel() {
   const load = useCallback(async (patient: Patient) => {
     setError("");
     const data = await jsonRequest<PrivacyRecord>(`/api/patients/${patient.id}/privacy`);
-    setRecord(data);
+    if (selectedId.current === patient.id) setRecord(data);
   }, []);
 
   async function select(patient: Patient) {
-    setSelected(patient); setPatients([]); setQuery(""); setNotice("");
+    if (busy) return;
+    selectedId.current = patient.id;
+    setRecord(null); setSelected(patient); setPatients([]); setQuery(""); setNotice("");
     try { await load(patient); } catch (reason) { setError((reason as Error).message); }
   }
 
   async function act(payload: object, success: string) {
-    if (!selected) return;
+    if (!selected || busy || record?.patient.id !== selected.id) return false;
     setBusy(true); setError(""); setNotice("");
     try {
       await jsonRequest(`/api/patients/${selected.id}/privacy`, { method: "POST", body: JSON.stringify(payload) });
-      await load(selected); setNotice(success);
-    } catch (reason) { setError((reason as Error).message); }
+      await load(selected); setNotice(success); return true;
+    } catch (reason) { setError((reason as Error).message); return false; }
     finally { setBusy(false); }
   }
 
   async function recordConsent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    await act({ action: "RECORD_CONSENT", type: form.get("type"), granted: form.get("granted") === "true", noticeVersion: form.get("noticeVersion"), method: form.get("method"), evidenceReference: form.get("evidenceReference") || undefined, expiresAt: form.get("expiresAt") ? new Date(String(form.get("expiresAt"))).toISOString() : undefined }, "Consent decision recorded.");
-    event.currentTarget.reset();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const saved = await act({ action: "RECORD_CONSENT", type: form.get("type"), granted: form.get("granted") === "true", noticeVersion: form.get("noticeVersion"), method: form.get("method"), evidenceReference: form.get("evidenceReference") || undefined, expiresAt: form.get("expiresAt") ? new Date(String(form.get("expiresAt"))).toISOString() : undefined }, "Consent decision recorded.");
+    if (saved) formElement.reset();
   }
 
   async function createRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const dueAt = new Date(`${String(form.get("dueAt"))}T23:59:59`);
-    await act({ action: "CREATE_REQUEST", type: form.get("type"), details: form.get("details"), dueAt: dueAt.toISOString() }, "Data-subject request recorded.");
-    event.currentTarget.reset();
+    const saved = await act({ action: "CREATE_REQUEST", type: form.get("type"), details: form.get("details"), dueAt: dueAt.toISOString() }, "Data-subject request recorded.");
+    if (saved) formElement.reset();
   }
 
   async function updateRequest(item: RightsRequest, status: string) {
@@ -81,6 +86,29 @@ export default function PrivacyRightsPanel() {
     await act(payload, `Request moved to ${status.replaceAll("_", " ").toLowerCase()}.`);
   }
 
+  async function downloadExport(item: RightsRequest) {
+    if (!selected || busy || record?.patient.id !== selected.id) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const response = await fetch(`/api/patients/${selected.id}/privacy/export`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId: item.id }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Export could not be generated");
+      }
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url; link.download = `mwein-patient-export-${item.id}.json`;
+      document.body.appendChild(link); link.click(); link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      await load(selected);
+      setNotice("Export generated and request completed. Retain it in the approved secure delivery location.");
+    } catch (reason) { setError((reason as Error).message); }
+    finally { setBusy(false); }
+  }
+
   async function applyCorrection(item: RightsRequest) {
     const field = window.prompt("Field to correct: givenName, middleName, familyName, dateOfBirth, estimatedAgeYears, sexAtBirth, gender, preferredLanguage, bloodGroup, occupation, maritalStatus, or disabilityStatus");
     if (!field) return;
@@ -98,11 +126,11 @@ export default function PrivacyRightsPanel() {
   return <div className="embeddedWorkspace">
     {error && <div className="alert">{error}</div>}{notice && <div className="alert success">{notice}</div>}
     <section className="card"><div className="cardHead"><div><h2>Patient privacy and rights</h2><p>Record versioned consent decisions and manage access, correction, export and disclosure requests.</p></div></div>
-      <label>Find patient<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name or patient number" /></label>
-      {!!patients.length && <div className="queue">{patients.map((patient) => <button type="button" className="row stockAction" key={patient.id} onClick={() => void select(patient)}><span className="dot"/><div><strong>{patient.fullName}</strong><small>{patient.patientNumber}</small></div><b>Open</b></button>)}</div>}
+      <label>Find patient<input disabled={busy} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name or patient number" /></label>
+      {!!patients.length && <div className="queue">{patients.map((patient) => <button type="button" className="row stockAction" disabled={busy} key={patient.id} onClick={() => void select(patient)}><span className="dot"/><div><strong>{patient.fullName}</strong><small>{patient.patientNumber}</small></div><b>Open</b></button>)}</div>}
       {selected && <div className="notice">Managing privacy record for <strong>{selected.fullName}</strong> · {selected.patientNumber}</div>}
     </section>
-    {record && <>
+    {record && record.patient.id === selected?.id && <div key={record.patient.id}>
       <div className="supplyGrid"><section className="card"><div className="cardHead"><div><h2>Record consent decision</h2><p>A new decision supersedes the active record of the same type without deleting its history.</p></div></div>
         <form className="dataForm" onSubmit={recordConsent}>
           <label>Purpose<select name="type"><option>TREATMENT</option><option>ELECTRONIC_RECORD</option><option>MESSAGING</option><option>DATA_EXCHANGE</option><option>RESEARCH</option></select></label>
@@ -123,7 +151,7 @@ export default function PrivacyRightsPanel() {
         </form>
       </section></div>
       <section className="card"><div className="cardHead"><div><h2>Consent history</h2><p>Withdrawals and superseded decisions remain visible and auditable.</p></div><strong>{record.consents.length}</strong></div><div className="queue">{record.consents.map((consent) => <div className="row" key={consent.id}><span className="dot"/><div><strong>{consent.type.replaceAll("_", " ")} · {consent.granted ? "GRANTED" : "DECLINED"}</strong><small>{consent.noticeVersion} · {consent.method.replaceAll("_", " ")} · {new Date(consent.recordedAt).toLocaleString()}</small>{consent.evidenceReference && <small>Evidence: {consent.evidenceReference}</small>}{consent.withdrawnAt && <small>Withdrawn {new Date(consent.withdrawnAt).toLocaleString()} · {consent.withdrawalReason}</small>}</div><span className={`statusPill ${consent.withdrawnAt ? "waiting" : "done"}`}>{consent.withdrawnAt ? "WITHDRAWN" : "CURRENT"}</span>{!consent.withdrawnAt && <button className="secondary" disabled={busy} onClick={() => { const reason = window.prompt("Withdrawal reason:"); if (reason) void act({ action: "WITHDRAW_CONSENT", consentId: consent.id, reason }, "Consent withdrawn."); }}>Withdraw</button>}</div>)}</div></section>
-      <section className="card"><div className="cardHead"><div><h2>Data-subject requests</h2><p>Identity verification is required before review; completion requires retained response evidence.</p></div><strong>{record.requests.length}</strong></div><div className="queue">{record.requests.map((item) => <div className="row" key={item.id}><span className="dot"/><div><strong>{item.type.replaceAll("_", " ")} · {item.status.replaceAll("_", " ")}</strong><small>Due {new Date(item.dueAt).toLocaleDateString()} · opened by {item.createdBy.displayName}</small><small>{item.details}</small>{item.resolution && <small>Resolution: {item.resolution}</small>}{item.denialReason && <small>Denied: {item.denialReason}</small>}{item.evidenceReference && <small>Evidence: {item.evidenceReference}</small>}</div><div className="workstationActions">{item.status === "RECEIVED" && <button className="secondary" disabled={busy} onClick={() => void updateRequest(item, "IDENTITY_VERIFIED")}>Verify identity</button>}{item.status === "IDENTITY_VERIFIED" && <button className="secondary" disabled={busy} onClick={() => void updateRequest(item, "IN_REVIEW")}>Start review</button>}{item.status === "IN_REVIEW" && <>{item.type === "CORRECTION" ? <button className="primary" disabled={busy} onClick={() => void applyCorrection(item)}>Apply correction</button> : ["ACCESS", "PORTABLE_EXPORT"].includes(item.type) ? <a className="primary" href={`/api/patients/${record.patient.id}/privacy/export?requestId=${item.id}`} download onClick={() => window.setTimeout(() => void load(record.patient), 1200)}>Generate export</a> : <button className="primary" disabled={busy} onClick={() => void updateRequest(item, "COMPLETED")}>Complete</button>}<button className="secondary" disabled={busy} onClick={() => void updateRequest(item, "DENIED")}>Deny</button></>}{!["COMPLETED", "DENIED", "CANCELLED"].includes(item.status) && <button className="secondary" disabled={busy} onClick={() => void updateRequest(item, "CANCELLED")}>Cancel</button>}</div></div>)}</div></section>
-    </>}
+      <section className="card"><div className="cardHead"><div><h2>Data-subject requests</h2><p>Identity verification is required before review; completion requires retained response evidence.</p></div><strong>{record.requests.length}</strong></div><div className="queue">{record.requests.map((item) => <div className="row" key={item.id}><span className="dot"/><div><strong>{item.type.replaceAll("_", " ")} · {item.status.replaceAll("_", " ")}</strong><small>Due {new Date(item.dueAt).toLocaleDateString()} · opened by {item.createdBy.displayName}</small><small>{item.details}</small>{item.resolution && <small>Resolution: {item.resolution}</small>}{item.denialReason && <small>Denied: {item.denialReason}</small>}{item.evidenceReference && <small>Evidence: {item.evidenceReference}</small>}</div><div className="workstationActions">{item.status === "RECEIVED" && <button className="secondary" disabled={busy} onClick={() => void updateRequest(item, "IDENTITY_VERIFIED")}>Verify identity</button>}{item.status === "IDENTITY_VERIFIED" && <button className="secondary" disabled={busy} onClick={() => void updateRequest(item, "IN_REVIEW")}>Start review</button>}{item.status === "IN_REVIEW" && <>{item.type === "CORRECTION" ? <button className="primary" disabled={busy} onClick={() => void applyCorrection(item)}>Apply correction</button> : ["ACCESS", "PORTABLE_EXPORT"].includes(item.type) ? <button className="primary" disabled={busy} onClick={() => void downloadExport(item)}>Generate export</button> : <button className="primary" disabled={busy} onClick={() => void updateRequest(item, "COMPLETED")}>Complete</button>}<button className="secondary" disabled={busy} onClick={() => void updateRequest(item, "DENIED")}>Deny</button></>}{!["COMPLETED", "DENIED", "CANCELLED"].includes(item.status) && <button className="secondary" disabled={busy} onClick={() => void updateRequest(item, "CANCELLED")}>Cancel</button>}</div></div>)}</div></section>
+    </div>}
   </div>;
 }
