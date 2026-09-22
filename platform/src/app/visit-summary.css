@@ -1,0 +1,54 @@
+/* Scoped to visit summaries; other clinical documents keep their own layout. */
+.compactVisitSummary { gap: 20px; padding: clamp(16px, 2.5vw, 32px); }
+.compactVisitSummary .summaryIdentity { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.compactVisitSummary .summaryIdentity > div { min-width: 0; padding: 0; background: none; }
+.compactVisitSummary .summaryIdentity strong { font-size: 14px; }
+.compactVisitSummary .summaryAlert { align-items: baseline; padding: 10px 12px; }
+.visitSummaryGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 32px; align-items: start; }
+.compactVisitSummary .summarySection { min-width: 0; gap: 8px; font-size: 13px; line-height: 1.55; }
+.compactVisitSummary .summarySection h2 { font-size: 14px; padding-bottom: 8px; }
+.compactVisitSummary .summarySectionWide { grid-column: 1 / -1; }
+.compactVisitSummary .summaryLine { display: grid; grid-template-columns: minmax(100px, 26%) minmax(0, 1fr); gap: 6px 16px; padding: 7px 0; }
+.compactVisitSummary .summaryLine span { text-align: left; color: var(--ink); }
+.compactVisitSummary .summaryLine > small { grid-column: 2; }
+.compactVisitSummary :is(pre, p, span, strong, td) { overflow-wrap: anywhere; }
+.compactVisitSummary .summaryFold { display: block; border-top: 1px solid var(--line); }
+.compactVisitSummary .summaryFold > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 11px 0; cursor: pointer; list-style: none; }
+.compactVisitSummary .summaryFold > summary::-webkit-details-marker { display: none; }
+.compactVisitSummary .summaryFold > summary::after { content: '+'; color: var(--blue); font-size: 18px; }
+.compactVisitSummary .summaryFold[open] > summary::after { content: '−'; }
+.compactVisitSummary .summaryFold > summary h2 { margin: 0; padding: 0; border: 0; }
+.summaryFoldBody { display: grid; gap: 10px; padding: 0 0 12px; }
+.compactVisitSummary .summaryDisclosure { color: var(--muted); font-size: 12px; }
+.compactVisitSummary .summaryDisclosure > summary { padding: 6px 0; cursor: pointer; }
+.compactVisitSummary .summaryDisclosure > :not(summary) { margin-top: 6px; }
+.compactVisitSummary .summaryDisclosure small { display: block; }
+.compactVisitSummary .summaryDispensing { grid-column: 2; }
+.compactVisitSummary summary:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 3px; }
+.compactVisitSummary .reportResults { width: 100%; table-layout: fixed; }
+@media (max-width: 1000px) {
+  .compactVisitSummary .summaryIdentity { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .visitSummaryGrid { gap: 20px; }
+}
+@media (max-width: 650px) {
+  .visitSummaryGrid { grid-template-columns: minmax(0, 1fr); }
+  .compactVisitSummary .summaryLine { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+  .compactVisitSummary .summaryLine > small,
+  .compactVisitSummary .summaryDispensing { grid-column: 1; }
+  .compactVisitSummary .summaryAlert { display: grid; gap: 4px; }
+}
+@media print {
+  .compactVisitSummary { display: block; padding: 0; }
+  .compactVisitSummary .summaryIdentity { grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 12px 0; }
+  .compactVisitSummary .summaryAlert { margin-bottom: 12px; }
+  .visitSummaryGrid { display: block; }
+  .compactVisitSummary .summarySection { margin-bottom: 12px; }
+  .compactVisitSummary .summarySection h2 { break-after: avoid; }
+  .compactVisitSummary .summaryFold > summary,
+  .compactVisitSummary .summaryDisclosure > summary { display: block !important; }
+  .compactVisitSummary .summaryFold > summary::after { display: none; }
+  .compactVisitSummary details::details-content { content-visibility: visible; }
+  .compactVisitSummary .summaryLine { grid-template-columns: 26% minmax(0, 1fr); break-inside: avoid; }
+  .compactVisitSummary .summaryDispensing { grid-column: 2; }
+  .compactVisitSummary .reportResults tr { break-inside: avoid; }
+}

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { jsonRequest } from "@/lib/client-http";
 import { careServiceProfile } from "@/lib/care-service-points";
 import { FacilityLetterhead } from "@/components/FacilityBrand";
@@ -26,6 +26,7 @@ function age(patient: Summary["patient"]) {
 }
 
 export default function VisitSummaryWorkstation({ canAddendum = false }: { canAddendum?: boolean }) {
+  const paperRef = useRef<HTMLElement>(null);
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [active, setActive] = useState<Summary | null>(null);
   const [error, setError] = useState("");
@@ -50,6 +51,23 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
   }
   useEffect(() => {
     load();
+  }, []);
+  useEffect(() => {
+    let collapsed: HTMLDetailsElement[] = [];
+    const expandForPrint = () => {
+      collapsed = Array.from(paperRef.current?.querySelectorAll<HTMLDetailsElement>("details:not([open])") || []);
+      collapsed.forEach(detail => { detail.open = true; });
+    };
+    const restoreAfterPrint = () => {
+      collapsed.forEach(detail => { detail.open = false; });
+      collapsed = [];
+    };
+    window.addEventListener("beforeprint", expandForPrint);
+    window.addEventListener("afterprint", restoreAfterPrint);
+    return () => {
+      window.removeEventListener("beforeprint", expandForPrint);
+      window.removeEventListener("afterprint", restoreAfterPrint);
+    };
   }, []);
   if (!active)
     return (
@@ -132,6 +150,9 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
   const investigations = active.orders.filter((o: Summary) =>
     ["LABORATORY", "IMAGING"].includes(o.type),
   );
+  const verifiedImaging = investigations.filter(
+    (o: Summary) => o.type === "IMAGING" && o.imaging?.result?.status === "VERIFIED",
+  );
   const total =
     active.invoice?.items.reduce(
       (s: number, i: Summary) => s + Number(i.quantity) * Number(i.unitPrice),
@@ -147,10 +168,7 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
       <header className="noPrint">
         <div>
           <p className="eyebrow">Visit summary</p>
-          <h1>{active.patient.fullName}</h1>
-          <p>
-            {active.patient.patientNumber} · {active.visitNumber}
-          </p>
+          <h1>Clinical record</h1>
         </div>
         <div>
           <button className="secondary" onClick={() => setActive(null)}>
@@ -161,7 +179,8 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
           </button>
         </div>
       </header>
-      <article className="visitSummaryPaper">
+      {error && <div className="alert noPrint" role="alert">{error}</div>}
+      <article className="visitSummaryPaper compactVisitSummary" ref={paperRef}>
         <FacilityLetterhead
           facilityName={active.facility.name}
           title="Visit summary"
@@ -210,6 +229,7 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
             </span>
           </section>
         )}
+        <div className="visitSummaryGrid">
         <SummarySection title="Reason for visit and history">
           {complaints.length > 0 ? (
             complaints.map((complaint: Summary, index: number) => (
@@ -233,17 +253,17 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
           <p>
             <b>History:</b> {display(e?.subjective.historyPresentingIllness)}
           </p>
-          <details>
-            <summary>Additional documented history</summary>
-            <pre>{display(e?.subjective.reviewOfSystems)}</pre>
-            <pre>{display(e?.subjective.pastMedicalHistory)}</pre>
-          </details>
+          {(e?.subjective.reviewOfSystems || e?.subjective.pastMedicalHistory) && <details className="summaryDisclosure">
+            <summary>Additional history</summary>
+            {e.subjective.reviewOfSystems && <div><strong>Review of systems</strong><pre>{e.subjective.reviewOfSystems}</pre></div>}
+            {e.subjective.pastMedicalHistory && <div><strong>Past medical history</strong><pre>{e.subjective.pastMedicalHistory}</pre></div>}
+          </details>}
         </SummarySection>
         <SummarySection title="Examination">
           <pre>{display(e?.objective.generalExamination)}</pre>
           <pre>{display(e?.objective.systemicExamination)}</pre>
         </SummarySection>
-        {e?.servicePointRecord && serviceProfile && <SummarySection title={`${serviceProfile.label} assessment`}>
+        {e?.servicePointRecord && serviceProfile && <SummarySection title={`${serviceProfile.label} assessment`} collapsible wide>
           <div className="summaryLine"><strong>Risk</strong><span>{display(e.servicePointRecord.riskLevel)}</span></div>
           {serviceFields.filter((field) => {
             const value = e.servicePointRecord.data?.[field.key];
@@ -266,11 +286,26 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
             <p>No diagnosis recorded.</p>
           )}
         </SummarySection>
-        {e?.status === "SIGNED" && <SummarySection title="Signed-note addenda">
+        <SummarySection title="Plan and follow-up">
+          <p>{display(e?.plan.plan)}</p>
+          <div className="summaryLine">
+            <strong>Disposition</strong>
+            <span>{display(e?.plan.disposition)}</span>
+          </div>
+          <div className="summaryLine">
+            <strong>Follow-up</strong>
+            <span>
+              {e?.plan.followUpDate
+                ? new Date(e.plan.followUpDate).toLocaleDateString()
+                : "Not scheduled"}
+            </span>
+          </div>
+        </SummarySection>
+        {e?.status === "SIGNED" && (e.addenda?.length > 0 || canAddendum) && <SummarySection title="Signed-note addenda" collapsible wide>
           {e.addenda?.length ? e.addenda.map((item: Summary) => <div className="summaryLine" key={item.id}><strong>{new Date(item.createdAt).toLocaleString()} · {item.author.displayName}</strong><span>{item.reason}: {item.text}</span></div>) : <p>No addenda recorded.</p>}
-          {canAddendum && <form className="dataForm noPrint" onSubmit={async event => { event.preventDefault(); setSavingAddendum(true); setError(""); const form = new FormData(event.currentTarget); try { const result = await jsonRequest<any>(`/api/encounters/${e.id}/addenda`, { method: "POST", body: JSON.stringify({ reason: form.get("reason"), text: form.get("text") }) }, "Addendum could not be saved"); setActive({ ...active, encounter: { ...e, addenda: [...(e.addenda || []), result.addendum] } }); event.currentTarget.reset(); } catch (reason) { setError((reason as Error).message); } finally { setSavingAddendum(false); } }}><label>Reason *<input name="reason" required minLength={5} placeholder="Correction, clarification, or late information" /></label><label>Addendum *<textarea name="text" required minLength={5} rows={3} placeholder="Add new information without changing the signed note" /></label><button className="secondary" disabled={savingAddendum}>{savingAddendum ? "Adding…" : "Add signed addendum"}</button></form>}
+          {canAddendum && <form className="dataForm noPrint" onSubmit={async event => { event.preventDefault(); setSavingAddendum(true); setError(""); const formElement = event.currentTarget; const form = new FormData(formElement); try { const result = await jsonRequest<any>(`/api/encounters/${e.id}/addenda`, { method: "POST", body: JSON.stringify({ reason: form.get("reason"), text: form.get("text") }) }, "Addendum could not be saved"); setActive({ ...active, encounter: { ...e, addenda: [...(e.addenda || []), result.addendum] } }); formElement.reset(); } catch (reason) { setError((reason as Error).message); } finally { setSavingAddendum(false); } }}><label>Reason *<input name="reason" required minLength={5} placeholder="Correction, clarification, or late information" /></label><label>Addendum *<textarea name="text" required minLength={5} rows={3} placeholder="Add new information without changing the signed note" /></label><button className="secondary" disabled={savingAddendum}>{savingAddendum ? "Adding…" : "Add signed addendum"}</button></form>}
         </SummarySection>}
-        <SummarySection title="Investigations">
+        <SummarySection title="Investigations" wide>
           {investigations.length ? (
             investigations.map((o: Summary) => (
               <div className="summaryLine" key={o.id}>
@@ -284,7 +319,7 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
             <p>No investigations requested.</p>
           )}
         </SummarySection>
-        <SummarySection title="Laboratory findings">
+        {verifiedLabs.length > 0 && <SummarySection title="Laboratory findings" collapsible wide>
           {verifiedLabs.length ? verifiedLabs.map((o: Summary) => (
             <table className="reportResults" key={o.id}>
               <caption>
@@ -313,13 +348,13 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
               </tbody>
             </table>
           )) : <p>No verified laboratory findings for this visit.</p>}
-        </SummarySection>
-        <SummarySection title="Imaging findings">
-          {investigations.filter((o: Summary) => o.type === "IMAGING" && o.imaging?.result?.status === "VERIFIED").map((o: Summary) => (
+        </SummarySection>}
+        {verifiedImaging.length > 0 && <SummarySection title="Imaging findings" collapsible wide>
+          {verifiedImaging.map((o: Summary) => (
             <div className="reportComment" key={`report-${o.id}`}><strong>{o.displayName} conclusion</strong><p>{o.imaging.result.conclusion}</p><small>Verified by {o.imaging.result.verifiedBy?.displayName || "Imaging service"}</small></div>
           ))}
-        </SummarySection>
-        <SummarySection title="Medicines">
+        </SummarySection>}
+        <SummarySection title="Medicines" wide>
           {meds.length ? (
             meds.map((o: Summary) => (
               <div className="summaryLine" key={o.id}>
@@ -333,34 +368,21 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
                     : ""}{" "}
                   · {o.prescription.dispenseStatus.replaceAll("_", " ")}
                 </span>
+                {(o.prescription.stockMovements?.length > 0 || o.prescription.dispensations?.length > 0) && <details className="summaryDisclosure summaryDispensing"><summary>Dispensing details</summary>
                 {o.prescription.stockMovements?.length ? <small>Batch trace: {o.prescription.stockMovements.map((movement: Summary) => `${movement.batch.batchNumber} (${Math.abs(Number(movement.quantity))}, exp ${new Date(movement.batch.expiryDate).toLocaleDateString()})`).join(" · ")} · Counselling {o.prescription.counsellingCompleted ? "confirmed" : "not confirmed"}</small> : null}
                 {o.prescription.dispensations?.map((dispensation: Summary) => <small key={dispensation.id}>Supplied: {dispensation.catalogItem?.name || o.prescription.genericName || o.displayName} · {Number(dispensation.quantity)} · {dispensation.items.map((item: Summary) => `${item.batch.batchNumber} (${Number(item.quantity)})`).join(" · ")}{dispensation.substitutionReason ? ` · Substitution reason: ${dispensation.substitutionReason}` : ""}{dispensation.fefoOverrideReason ? ` · FEFO override reason: ${dispensation.fefoOverrideReason}` : ""}</small>)}
+                </details>}
               </div>
             ))
           ) : (
             <p>No medicines prescribed.</p>
           )}
         </SummarySection>
-        <SummarySection title="Plan and follow-up">
-          <p>{display(e?.plan.plan)}</p>
-          <div className="summaryLine">
-            <strong>Disposition</strong>
-            <span>{display(e?.plan.disposition)}</span>
-          </div>
-          <div className="summaryLine">
-            <strong>Follow-up</strong>
-            <span>
-              {e?.plan.followUpDate
-                ? new Date(e.plan.followUpDate).toLocaleDateString()
-                : "Not scheduled"}
-            </span>
-          </div>
-        </SummarySection>
-        <SummarySection title="Referrals">
+        {active.referrals?.length > 0 && <SummarySection title="Referrals" wide>
           {active.referrals?.length ? active.referrals.map((referral: Summary) => <div className="summaryLine" key={referral.id}><strong>{referral.referralNumber} · {referral.status}</strong><span>{referral.urgency} · {referral.reason} · To {referral.receivingFacility}{referral.receivingDepartment ? ` / ${referral.receivingDepartment}` : ""}{referral.feedback ? ` · Feedback: ${referral.feedback}` : ""}</span></div>) : <p>No referrals recorded for this visit.</p>}
-        </SummarySection>
+        </SummarySection>}
         {active.invoice && (
-          <SummarySection title="Billing">
+          <SummarySection title="Billing" collapsible wide>
             <div className="summaryLine">
               <strong>{active.invoice.invoiceNumber}</strong>
               <span>
@@ -372,6 +394,7 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
             </div>
           </SummarySection>
         )}
+        </div>
         <footer>
           <p>
             This summary supports continuity of care. Seek urgent medical
@@ -386,14 +409,20 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
 function SummarySection({
   title,
   children,
+  collapsible = false,
+  wide = false,
 }: {
   title: string;
   children: React.ReactNode;
+  collapsible?: boolean;
+  wide?: boolean;
 }) {
-  return (
-    <section className="summarySection">
-      <h2>{title}</h2>
-      {children}
-    </section>
+  const className = `summarySection${wide ? " summarySectionWide" : ""}`;
+  if (collapsible) return (
+    <details className={`${className} summaryFold`}>
+      <summary><h2>{title}</h2></summary>
+      <div className="summaryFoldBody">{children}</div>
+    </details>
   );
+  return <section className={className}><h2>{title}</h2>{children}</section>;
 }

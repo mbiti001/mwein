@@ -815,8 +815,8 @@ try {
 
   const productionReadiness = await requestWithCookie("/api/ready", "");
   assert(productionReadiness.response.status === 503 && productionReadiness.body.status === "blocked", "Production readiness did not fail closed without approvals and external controls");
-  assert(productionReadiness.body.facilities.every((item) => item.missing.length === 11), "Production readiness omitted governance gates");
-  steps.push("verify production readiness fails closed until external evidence exists");
+  assert(Object.keys(productionReadiness.body).join(",") === "status", "Public readiness exposed internal control details");
+  steps.push("verify production readiness fails closed without exposing internal controls");
 
   console.log(`Outpatient E2E passed (${steps.length} checks)`);
   steps.forEach((step, index) => console.log(`${index + 1}. ${step}`));

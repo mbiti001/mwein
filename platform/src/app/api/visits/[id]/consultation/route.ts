@@ -48,7 +48,7 @@ export async function POST(
             invoice: true,
             encounters: { orderBy: { createdAt: "desc" } },
             patient: { include: { allergies: { where: { active: true } } } },
-            orders: { include: { laboratory: true, imaging: true, prescription: true, invoiceItem: true } },
+            orders: { include: { laboratory: true, imaging: true, prescription: true, invoiceItems: true } },
           },
         });
         if (!visit)
@@ -141,6 +141,8 @@ export async function POST(
               code: input.data.code,
               title: input.data.title,
               foundationUri: input.data.foundationUri,
+              linearizationUri: input.data.linearizationUri,
+              codingVersion: input.data.codingVersion,
             });
           } catch (reason) {
             throw Object.assign(new Error((reason as Error).message), { status: 422 });
@@ -160,6 +162,8 @@ export async function POST(
               codingSystem: "ICD-11 MMS",
               code: input.data.code.toUpperCase(),
               foundationUri: input.data.foundationUri,
+              linearizationUri: input.data.linearizationUri,
+              codingVersion: input.data.codingVersion,
               primary: input.data.primary,
             },
           });
@@ -409,7 +413,7 @@ export async function POST(
                 medicationConceptId,
                 order: { visit: { patientId: visit.patientId }, status: { in: ["DRAFT", "REQUESTED", "IN_PROGRESS"] } },
               },
-              include: { order: { include: { invoiceItem: true } }, catalogItem: true },
+              include: { order: { include: { invoiceItems: true } }, catalogItem: true },
             });
             const sameVisit = activeCandidates.find(candidate => candidate.order.visitId === id);
             const exact = activeCandidates.find(candidate =>
@@ -452,12 +456,12 @@ export async function POST(
                 ...(sameVisit ? { visitMedicationKey: sameVisitMedicationKey(id, medicationConceptId) } : {}),
               } });
               await tx.clinicalOrder.update({ where: { id: duplicate.order.id }, data: { orderedById: user.id, displayName: item.name, clinicalIndication: medicine.indication, status: input.data.submit ? "REQUESTED" : "DRAFT" } });
-              if (duplicate.order.invoiceItem) {
+              if (duplicate.order.invoiceItems.length) {
                 const alreadyDispensed = Number(duplicate.dispensedQuantity || 0);
-                const price = effectiveCatalogPrice(item, now);
-                if (alreadyDispensed > 0)
-                  await tx.invoiceItem.update({ where: { id: duplicate.order.invoiceItem.id }, data: { quantity: new Prisma.Decimal(alreadyDispensed), unitPrice: new Prisma.Decimal(Number(price.unitPrice)), catalogItemId: item.id, priceVersionId: price.priceVersionId, description: item.name } });
-                else await tx.invoiceItem.delete({ where: { id: duplicate.order.invoiceItem.id } });
+                // Dispensed lines are financial history and must retain the medicine and tariff
+                // recorded at the time of supply. Only remove an unfulfilled placeholder.
+                if (alreadyDispensed === 0)
+                  await tx.invoiceItem.deleteMany({ where: { orderId: duplicate.order.id } });
               }
               await tx.medicationSafetyOverride.create({ data: { prescriptionId: updated.id, existingPrescriptionId: duplicate.id, prescriberId: user.id, warningCode: sameVisit ? "SAME_VISIT_EDIT" : input.data.duplicateAction!, justification: input.data.duplicateReason!, originalDetails: original, revisedDetails: revised } });
               if (safetyResults.length) await tx.medicationSafetyAssessment.createMany({ data: safetyResults.map(result => ({ prescriptionId: updated.id, ruleId: result.ruleId, warningCode: result.warningCode, severity: result.severity, outcome: result.outcome, message: result.message, ruleVersion: result.ruleVersion, contextHash })) });

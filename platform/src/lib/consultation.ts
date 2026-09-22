@@ -54,8 +54,13 @@ export const diagnosisSchema = z.object({
   primary: z.boolean().default(false),
   foundationUri: z
     .url()
-    .startsWith("https://id.who.int/icd/entity/")
+    .refine((value) => /^https?:\/\/id\.who\.int\/icd\/entity\//.test(value), "A valid WHO ICD-11 foundation URI is required")
     .optional(),
+  linearizationUri: z
+    .url()
+    .refine((value) => /^https?:\/\/id\.who\.int\/icd\/release\/11\/.+\/mms\//.test(value), "A valid WHO ICD-11 MMS URI is required")
+    .optional(),
+  codingVersion: z.string().regex(/^\d{4}-\d{2}$/).optional(),
 });
 
 export const investigationOrderSchema = z

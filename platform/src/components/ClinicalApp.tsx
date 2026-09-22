@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { assessTriageVitals, patientClinicalGroup } from "@/lib/domain";
 import type { StockFocus } from "@/components/InventoryWorkstation";
@@ -156,17 +156,35 @@ export default function ClinicalApp() {
   const [focusedVisitId, setFocusedVisitId] = useState<string | null>(null);
   const [contextVisitId, setContextVisitId] = useState<string | null>(null);
   const [stockFocus, setStockFocus] = useState<StockFocus | null>(null);
-  const loadVisits = useCallback(
-    async () =>
-      setVisits((await api<{ visits: Visit[] }>("/api/visits")).visits),
-    [],
-  );
+  const [visitsLastUpdatedAt, setVisitsLastUpdatedAt] = useState<Date | null>(null);
+  const [visitsRefreshFailed, setVisitsRefreshFailed] = useState(false);
+  const visitsRequest = useRef<Promise<void> | null>(null);
+  const loadVisits = useCallback(() => {
+    if (visitsRequest.current) return visitsRequest.current;
+    let request: Promise<void>;
+    request = api<{ visits: Visit[] }>("/api/visits")
+      .then((result) => {
+        setVisits(result.visits);
+        setVisitsLastUpdatedAt(new Date());
+        setVisitsRefreshFailed(false);
+      })
+      .catch((error) => {
+        setVisitsRefreshFailed(true);
+        throw error;
+      })
+      .finally(() => {
+        if (visitsRequest.current === request) visitsRequest.current = null;
+      });
+    visitsRequest.current = request;
+    return request;
+  }, []);
 
   useEffect(() => {
     api<{ user: User }>("/api/auth/me")
-      .then(async (result) => {
+      .then((result) => {
         setUser(result.user);
-        if (!result.user.mustChangePassword && result.user.permissions.includes("visit.read")) await loadVisits();
+        if (!result.user.mustChangePassword && result.user.permissions.includes("visit.read"))
+          void loadVisits().catch(() => undefined);
       })
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
@@ -294,6 +312,17 @@ export default function ClinicalApp() {
         </div>
       </aside>
       <section className="workspace">
+        {visitsRefreshFailed && user.permissions.includes("visit.read") && (
+          <div className="alert syncWarning" role="status">
+            <span>
+              <strong>Live queue updates are paused.</strong>{" "}
+              {visitsLastUpdatedAt
+                ? `Showing data last updated at ${visitsLastUpdatedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.`
+                : "Queue data is not available yet."}
+            </span>
+            <button className="secondary" onClick={() => void loadVisits().catch(() => undefined)}>Retry</button>
+          </div>
+        )}
         {user.permissions.includes("patient.read") && (
           <GlobalPatientFinder onSelect={(patient) => {
             const activeVisit = visits.find(visit => visit.patient.id === patient.id);

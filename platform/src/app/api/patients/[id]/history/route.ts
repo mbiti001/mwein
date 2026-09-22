@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
+import { appendAudit } from "@/lib/audit";
 import { visitCancellationReasonLabel } from "@/lib/visit-cancellation";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -9,9 +10,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const user = await requirePermission("clinical.history.read");
     const { id } = await params;
     const currentVisitId = new URL(request.url).searchParams.get("exclude");
-    const patient = await db.patient.findFirst({ where: { id, facilityId: user.facilityId }, select: { id: true, patientNumber: true, fullName: true, allergies: { where: { active: true }, select: { substance: true, reaction: true, severity: true } } } });
-    if (!patient) throw Object.assign(new Error("Patient not found"), { status: 404 });
-    const [visits, problems, appointments, referrals] = await Promise.all([db.visit.findMany({
+    const result = await db.$transaction(async (tx) => {
+      const patient = await tx.patient.findFirst({ where: { id, facilityId: user.facilityId }, select: { id: true, patientNumber: true, fullName: true, allergies: { where: { active: true }, select: { substance: true, reaction: true, severity: true } } } });
+      if (!patient) throw Object.assign(new Error("Patient not found"), { status: 404 });
+      const [visits, problems, appointments, referrals] = await Promise.all([tx.visit.findMany({
       where: { patientId: id, ...(currentVisitId ? { id: { not: currentVisitId } } : {}) },
       orderBy: { arrivedAt: "desc" },
       take: 20,
@@ -27,11 +29,22 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           imaging: { select: { result: { select: { status: true, conclusion: true } } } },
         } },
       },
-    }), db.patientProblem.findMany({
+      }), tx.patientProblem.findMany({
       where: { patientId: id, facilityId: user.facilityId },
       include: { recordedBy: { select: { displayName: true } } },
       orderBy: [{ clinicalStatus: "asc" }, { updatedAt: "desc" }],
-    }), db.appointment.findMany({ where: { patientId: id, facilityId: user.facilityId }, select: { id: true, scheduledAt: true, clinic: true, status: true }, orderBy: { scheduledAt: "desc" }, take: 20 }), db.referral.findMany({ where: { patientId: id, facilityId: user.facilityId }, select: { id: true, referralNumber: true, receivingFacility: true, reason: true, status: true, createdAt: true, returnedAt: true, closedAt: true }, orderBy: { createdAt: "desc" }, take: 20 })]);
+      }), tx.appointment.findMany({ where: { patientId: id, facilityId: user.facilityId }, select: { id: true, scheduledAt: true, clinic: true, status: true }, orderBy: { scheduledAt: "desc" }, take: 20 }), tx.referral.findMany({ where: { patientId: id, facilityId: user.facilityId }, select: { id: true, referralNumber: true, receivingFacility: true, reason: true, status: true, createdAt: true, returnedAt: true, closedAt: true }, orderBy: { createdAt: "desc" }, take: 20 })]);
+      await appendAudit(tx, {
+        userId: user.id,
+        sessionId: user.sessionId,
+        action: "PATIENT_HISTORY_ACCESSED",
+        entityType: "Patient",
+        entityId: patient.id,
+        afterHash: `${visits.length}:${problems.length}:${appointments.length}:${referrals.length}`,
+      });
+      return { patient, visits, problems, appointments, referrals };
+    });
+    const { patient, visits, problems, appointments, referrals } = result;
     const timeline = [
       ...visits.map(visit => ({
         id: `visit-${visit.id}`,

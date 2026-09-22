@@ -8,6 +8,7 @@ type Report = {
   summary: {
     visits: number;
     completedVisits: number;
+    cancelledVisits: number;
     emergencyVisits: number;
     billed: number;
     received: number;
@@ -22,7 +23,7 @@ type Report = {
     }[];
   };
   departments: {
-    queues: { servicePoint: string; count: number; completed: number; averageMinutes: number; p90Minutes: number }[];
+    queues: { servicePoint: string; count: number; completed: number; cancelled: number; averageMinutes: number; p90Minutes: number }[];
     referrals: { created: number; sent: number; attended: number; closedLoop: number; closureRate: number };
     pharmacy: { consumption: { code: string; name: string; quantity: number; revenue: number; cost: number }[]; lowStock: { code: string; name: string }[]; expiring30Days: number; expiring90Days: number };
     cashiers: { cashier: string; confirmed: number; reversed: number; transactions: number; methods: Record<string, number> }[];
@@ -85,7 +86,7 @@ export default function ReportingWorkstation() {
       {report && (
         <>
           <section className="metrics reportMetrics">
-            <article><small>Visits</small><strong>{report.summary.visits}</strong><span>{report.summary.completedVisits} completed</span></article>
+            <article><small>Visits</small><strong>{report.summary.visits}</strong><span>{report.summary.completedVisits} completed · {report.summary.cancelledVisits} cancelled</span></article>
             <article><small>Emergency visits</small><strong>{report.summary.emergencyVisits}</strong><span>Within selected arrival dates</span></article>
             <article><small>Gross billed</small><strong>{money(report.summary.billed)}</strong><span>Before reversals and adjustments</span></article>
             <article><small>Confirmed receipts</small><strong>{money(report.summary.received)}</strong><span>{money(report.summary.outstanding)} outstanding</span></article>
@@ -104,7 +105,7 @@ export default function ReportingWorkstation() {
             ) : <div className="empty"><strong>No claim exceptions</strong><p>The selected period has no rejected or stale submitted claims.</p></div>}
           </section>
           <div className="supplyGrid">
-            <section className="card"><div className="cardHead"><div><h2>Service-point performance</h2><p>Elapsed time from queue entry to completion. P90 highlights the slowest patient experience.</p></div></div><div className="queue compact">{report.departments.queues.map(point => <div className="row" key={point.servicePoint}><span className="dot"/><div><strong>{point.servicePoint.replaceAll("_", " ")}</strong><small>{point.completed}/{point.count} completed · average {point.averageMinutes} min</small></div><b>P90 {point.p90Minutes} min</b></div>)}{!report.departments.queues.length && <p>No queue activity in this period.</p>}</div></section>
+            <section className="card"><div className="cardHead"><div><h2>Service-point performance</h2><p>Elapsed time from queue entry to completion. Cancelled entries are excluded from wait-time calculations.</p></div></div><div className="queue compact">{report.departments.queues.map(point => <div className="row" key={point.servicePoint}><span className="dot"/><div><strong>{point.servicePoint.replaceAll("_", " ")}</strong><small>{point.completed}/{point.count} completed · {point.cancelled} cancelled · average {point.averageMinutes} min</small></div><b>P90 {point.p90Minutes} min</b></div>)}{!report.departments.queues.length && <p>No queue activity in this period.</p>}</div></section>
             <section className="card"><div className="cardHead"><div><h2>Referral closure</h2><p>Track whether outbound referrals return actionable feedback.</p></div></div><div className="metrics"><article><small>Sent</small><strong>{report.departments.referrals.sent}</strong></article><article><small>Attended</small><strong>{report.departments.referrals.attended}</strong></article><article><small>Closed loop</small><strong>{report.departments.referrals.closureRate}%</strong><span>{report.departments.referrals.closedLoop} returned or closed</span></article></div></section>
           </div>
           <div className="supplyGrid">

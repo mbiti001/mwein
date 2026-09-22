@@ -10,7 +10,7 @@ export type IntegrationReadiness = {
 };
 
 export function integrationReadiness(): IntegrationReadiness[] {
-  const icdConfigured = Boolean(process.env.ICD11_CLIENT_ID && process.env.ICD11_CLIENT_SECRET);
+  const icdConfigured = Boolean(process.env.ICD11_CLIENT_ID?.trim() && process.env.ICD11_CLIENT_SECRET?.trim());
   const identity = externalIdentityConfiguration();
   return [
     {
@@ -34,8 +34,8 @@ export function integrationReadiness(): IntegrationReadiness[] {
       name: "WHO ICD-11",
       state: icdConfigured ? "AVAILABLE" : "NOT_CONFIGURED",
       purpose: "Search and record standard diagnosis codes",
-      reason: icdConfigured ? "WHO API credentials are configured; the local curated fallback remains available." : "The curated local diagnosis list is active while WHO API credentials are pending.",
-      requirements: icdConfigured ? [] : ["WHO ICD API client ID", "WHO ICD API client secret"],
+      reason: icdConfigured ? "WHO API credentials are configured; previously validated facility diagnoses remain available during a temporary upstream outage." : "Only diagnoses previously recorded at this facility can be searched until WHO API credentials are configured.",
+      requirements: icdConfigured ? [] : ["WHO ICD API client ID", "WHO ICD API client secret", "Confirm the approved ICD-11 MMS release"],
     },
     {
       key: "khis",

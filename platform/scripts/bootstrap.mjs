@@ -7,6 +7,7 @@ const password = (process.env.BOOTSTRAP_ADMIN_PASSWORD || "").trim();
 const permissionDefinitions = [
   ["patient.read", "View patient records"],
   ["patient.create", "Register patients"],
+  ["privacy.manage", "Manage patient consent and data-subject requests"],
   ["visit.read", "View visits and queues"],
   ["visit.create", "Create visits"],
   ["visit.cancel", "Cancel visits with a documented reason"],
@@ -72,6 +73,7 @@ const operationalRoles = {
   HR_ADMIN: { name: "HR administrator", grants: ["admin.dashboard", "admin.users", "audit.view"] },
   AUDITOR: { name: "Auditor", grants: ["admin.dashboard", "audit.view", "billing.read", "inventory.view", "accounting.view"] },
   BILLING: { name: "Billing", grants: ["patient.read", "visit.read", "visit.cancel", "billing.read", "billing.write", "billing.reverse", "claims.write"] },
+  DATA_PROTECTION_OFFICER: { name: "Data protection officer", grants: ["patient.read", "privacy.manage", "admin.dashboard", "audit.view"] },
 };
 await db.rolePermission.deleteMany({ where: { roleId: role.id, permissionId: { notIn: permissions.map(item => item.id) } } });
 for (const permission of permissions)

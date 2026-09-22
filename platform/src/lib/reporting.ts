@@ -2,6 +2,7 @@ export type ReportVisit = {
   priority: string;
   status: string;
   invoice?: {
+    status: string;
     items: { quantity: unknown; unitPrice: unknown }[];
     payments: { amount: unknown; status: string }[];
     claims: {
@@ -44,6 +45,7 @@ export function summarizeOperations(visits: ReportVisit[], now = new Date()) {
   const staleSubmittedAt = now.getTime() - 7 * 24 * 60 * 60 * 1000;
   for (const visit of visits) {
     if (!visit.invoice) continue;
+    if (visit.status === "CANCELLED" || visit.invoice.status === "VOID") continue;
     billed += visit.invoice.items.reduce(
       (sum, item) => sum + Number(item.quantity) * Number(item.unitPrice),
       0,
@@ -72,6 +74,7 @@ export function summarizeOperations(visits: ReportVisit[], now = new Date()) {
   return {
     visits: visits.length,
     completedVisits: visits.filter((visit) => visit.status === "COMPLETED").length,
+    cancelledVisits: visits.filter((visit) => visit.status === "CANCELLED").length,
     emergencyVisits: visits.filter((visit) => visit.priority === "EMERGENCY").length,
     billed,
     received,
@@ -83,16 +86,19 @@ export function summarizeOperations(visits: ReportVisit[], now = new Date()) {
 export function summarizeQueuePerformance(entries: { servicePoint: string; status: string; enteredAt: Date | string; completedAt: Date | string | null }[]) {
   const grouped = new Map<string, number[]>();
   const counts = new Map<string, number>();
+  const cancelled = new Map<string, number>();
   for (const entry of entries) {
     counts.set(entry.servicePoint, (counts.get(entry.servicePoint) || 0) + 1);
-    if (!entry.completedAt) continue;
+    if (entry.status === "CANCELLED")
+      cancelled.set(entry.servicePoint, (cancelled.get(entry.servicePoint) || 0) + 1);
+    if (entry.status !== "COMPLETED" || !entry.completedAt) continue;
     const minutes = Math.max(0, Math.round((new Date(entry.completedAt).getTime() - new Date(entry.enteredAt).getTime()) / 60000));
     grouped.set(entry.servicePoint, [...(grouped.get(entry.servicePoint) || []), minutes]);
   }
   return [...counts.entries()].map(([servicePoint, count]) => {
     const durations = [...(grouped.get(servicePoint) || [])].sort((a, b) => a - b);
     return {
-      servicePoint, count, completed: durations.length,
+      servicePoint, count, completed: durations.length, cancelled: cancelled.get(servicePoint) || 0,
       averageMinutes: durations.length ? Math.round(durations.reduce((sum, value) => sum + value, 0) / durations.length) : 0,
       p90Minutes: durations.length ? durations[Math.max(0, Math.ceil(durations.length * 0.9) - 1)] : 0,
     };

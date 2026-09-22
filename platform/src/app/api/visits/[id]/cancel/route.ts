@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
@@ -83,7 +84,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         afterHash: `CANCELLED:${input.reasonCode}:${input.shaOutcome || "NOT_SHA"}`,
       });
       return { visit: updated, cancellation };
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return NextResponse.json(result);
   } catch (error) {
     return apiError(error);

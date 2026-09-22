@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
-import { appendAudit } from "@/lib/audit";
+import { appendAudit, auditEntitySetFingerprint } from "@/lib/audit";
 import { normalizeName } from "@/lib/security";
 import { patientNumber, patientRegistrationSchema } from "@/lib/domain";
 
@@ -14,42 +14,53 @@ export async function GET(request: Request) {
     const canRegister = user.permissions.includes("patient.create");
     const canViewContactDetails = canRegister || user.permissions.includes("encounter.write");
     const canViewAllergies = user.permissions.some((permission) => ["encounter.write", "pharmacy.dispense", "triage.write"].includes(permission));
-    const patients = await db.patient.findMany({
-      where: {
-        facilityId: user.facilityId,
-        active: true,
-        ...(query ? {
-          OR: [
-            { fullName: { contains: query, mode: "insensitive" } },
-            { patientNumber: { contains: query, mode: "insensitive" } },
-            ...(canViewContactDetails ? [
-              { contacts: { some: { value: { contains: query } } } },
-              { identifiers: { some: { value: { contains: query, mode: "insensitive" as const } } } },
-            ] : [])
-          ]
-        } : {})
-      },
-      select: {
-        id: true,
-        patientNumber: true,
-        fullName: true,
-        dateOfBirth: true,
-        estimatedAgeYears: true,
-        sexAtBirth: true,
-        ...(canViewContactDetails ? {
-          givenName: true,
-          middleName: true,
-          familyName: true,
-          preferredLanguage: true,
-          identifiers: true,
-          contacts: true,
-        } : {}),
-        ...(canRegister ? {
-          addresses: { where: { primary: true }, take: 1 },
-        } : {}),
-        ...(canViewAllergies ? { allergies: { where: { active: true } } } : {}),
-      },
-      orderBy: { updatedAt: "desc" }, take: 50
+    const patients = await db.$transaction(async (tx) => {
+      const records = await tx.patient.findMany({
+        where: {
+          facilityId: user.facilityId,
+          active: true,
+          ...(query ? {
+            OR: [
+              { fullName: { contains: query, mode: "insensitive" } },
+              { patientNumber: { contains: query, mode: "insensitive" } },
+              ...(canViewContactDetails ? [
+                { contacts: { some: { value: { contains: query } } } },
+                { identifiers: { some: { value: { contains: query, mode: "insensitive" as const } } } },
+              ] : [])
+            ]
+          } : {})
+        },
+        select: {
+          id: true,
+          patientNumber: true,
+          fullName: true,
+          dateOfBirth: true,
+          estimatedAgeYears: true,
+          sexAtBirth: true,
+          ...(canViewContactDetails ? {
+            givenName: true,
+            middleName: true,
+            familyName: true,
+            preferredLanguage: true,
+            identifiers: true,
+            contacts: true,
+          } : {}),
+          ...(canRegister ? {
+            addresses: { where: { primary: true }, take: 1 },
+          } : {}),
+          ...(canViewAllergies ? { allergies: { where: { active: true } } } : {}),
+        },
+        orderBy: { updatedAt: "desc" }, take: 50
+      });
+      await appendAudit(tx, {
+        userId: user.id,
+        sessionId: user.sessionId,
+        action: query ? "PATIENT_DIRECTORY_SEARCHED" : "PATIENT_DIRECTORY_VIEWED",
+        entityType: "PatientDirectory",
+        entityId: user.facilityId,
+        afterHash: auditEntitySetFingerprint(records.map((patient) => patient.id)),
+      });
+      return records;
     });
     return NextResponse.json({ patients });
   } catch (error) { return apiError(error); }

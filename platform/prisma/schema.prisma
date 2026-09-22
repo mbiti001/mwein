@@ -156,6 +156,7 @@ model Facility {
   operationsEvidence    OperationsEvidence[]
   ancAdmissionEvidence  AncAdmissionEvidence[]
   visitCancellations    VisitCancellation[]
+  dataSubjectRequests   DataSubjectRequest[]
   shaContractProfile    ShaContractProfile?
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
@@ -324,6 +325,8 @@ model User {
   updatedShaContractProfiles   ShaContractProfile[]       @relation("ShaContractProfileUpdatedBy")
   createdCatalogPrices         CatalogPriceVersion[]      @relation("CatalogPriceVersionCreatedBy")
   cancelledVisits              VisitCancellation[]        @relation("VisitCancellationCancelledBy")
+  createdDataSubjectRequests   DataSubjectRequest[]        @relation("DataSubjectRequestCreatedBy")
+  updatedDataSubjectRequests   DataSubjectRequest[]        @relation("DataSubjectRequestUpdatedBy")
   createdAt                    DateTime                   @default(now())
   updatedAt                    DateTime                   @updatedAt
 
@@ -415,6 +418,7 @@ model Patient {
   contacts          PatientContact[]
   addresses         PatientAddress[]
   consents          Consent[]
+  dataSubjectRequests DataSubjectRequest[]
   allergies         Allergy[]
   visits            Visit[]
   invoices          Invoice[]
@@ -489,14 +493,49 @@ model PatientAddress {
 }
 
 model Consent {
-  id           String    @id @default(uuid()) @db.Uuid
-  patientId    String    @db.Uuid
-  type         String
-  granted      Boolean
-  recordedById String    @db.Uuid
-  recordedAt   DateTime  @default(now())
-  withdrawnAt  DateTime?
-  patient      Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  id                String    @id @default(uuid()) @db.Uuid
+  patientId         String    @db.Uuid
+  type              String
+  granted           Boolean
+  noticeVersion     String    @default("MWEIN-PRIVACY-1")
+  method            String    @default("WRITTEN")
+  evidenceReference String?
+  recordedById      String    @db.Uuid
+  recordedAt        DateTime  @default(now())
+  expiresAt         DateTime?
+  withdrawnAt       DateTime?
+  withdrawnById     String?   @db.Uuid
+  withdrawalReason  String?
+  patient           Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, type, recordedAt])
+  @@index([patientId, withdrawnAt, expiresAt])
+}
+
+model DataSubjectRequest {
+  id                String    @id @default(uuid()) @db.Uuid
+  facilityId        String    @db.Uuid
+  patientId         String    @db.Uuid
+  type              String
+  status            String    @default("RECEIVED")
+  details           String
+  requestedAt       DateTime  @default(now())
+  dueAt             DateTime
+  completedAt       DateTime?
+  resolution        String?
+  denialReason      String?
+  evidenceReference String?
+  createdById       String    @db.Uuid
+  updatedById       String    @db.Uuid
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  facility          Facility  @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  patient           Patient   @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  createdBy         User      @relation("DataSubjectRequestCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy         User      @relation("DataSubjectRequestUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@index([facilityId, status, dueAt])
+  @@index([patientId, requestedAt])
 }
 
 model Allergy {
@@ -841,8 +880,10 @@ model Diagnosis {
   description   String
   icd10Code     String?
   codingSystem  String         @default("ICD-11 MMS")
+  codingVersion String?
   code          String?
   foundationUri String?
+  linearizationUri String?
   primary       Boolean        @default(false)
   encounter     Encounter      @relation(fields: [encounterId], references: [id], onDelete: Cascade)
   prescriptions Prescription[]
@@ -864,7 +905,7 @@ model ClinicalOrder {
   laboratory         LaboratoryOrder?
   imaging            ImagingOrder?
   prescription       Prescription?
-  invoiceItem        InvoiceItem?
+  invoiceItems       InvoiceItem[]
 
   @@index([visitId, type, status])
 }
@@ -1368,7 +1409,7 @@ model Invoice {
 model InvoiceItem {
   id             String               @id @default(uuid()) @db.Uuid
   invoiceId      String               @db.Uuid
-  orderId        String?              @unique @db.Uuid
+  orderId        String?              @db.Uuid
   catalogItemId  String?              @db.Uuid
   priceVersionId String?              @db.Uuid
   serviceCode    String
@@ -1383,6 +1424,7 @@ model InvoiceItem {
 
   @@index([catalogItemId])
   @@index([priceVersionId])
+  @@index([orderId])
 }
 
 model Payment {

@@ -36,6 +36,7 @@ export async function GET(request: Request) {
         status: true,
         invoice: {
           select: {
+            status: true,
             items: { select: { quantity: true, unitPrice: true } },
             payments: { select: { amount: true, status: true } },
             claims: {

@@ -310,15 +310,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       } });
       if (input.action === "DISPENSE") {
         const price = effectiveCatalogPrice(dispensedItem!);
-        await tx.invoiceItem.upsert({
-          where: { orderId: order.id },
-          update: { quantity: new Prisma.Decimal(balance!.cumulativeDispensed), unitPrice: new Prisma.Decimal(Number(price.unitPrice)), catalogItemId: dispensedItem!.id, priceVersionId: price.priceVersionId, serviceCode: `MED-${dispensedItem!.code}`, description: dispensedItem!.name },
-          create: {
+        await tx.invoiceItem.create({
+          data: {
             invoiceId: order.visit.invoice!.id,
             orderId: order.id,
             serviceCode: `MED-${dispensedItem!.code}`,
             description: dispensedItem!.name,
-            quantity: new Prisma.Decimal(balance!.cumulativeDispensed),
+            quantity: new Prisma.Decimal(quantity),
             unitPrice: new Prisma.Decimal(Number(price.unitPrice)),
             catalogItemId: dispensedItem!.id,
             priceVersionId: price.priceVersionId,
