@@ -2005,6 +2005,7 @@ export function ConsultationForm({
                 placeholder="Type a condition, symptom or ICD-11 code"
               />
             </label>
+            <small>Live searches send the diagnosis term to WHO. Use condition names or codes; leave out patient details.</small>
             {diagnosisSearching && <small>Searching diagnoses…</small>}
             {diagnosisResults.length > 0 && (
               <div className="diagnosisResults" role="listbox">
