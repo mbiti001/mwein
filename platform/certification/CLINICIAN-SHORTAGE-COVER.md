@@ -23,3 +23,13 @@ The role does not grant payment reversal, cashier-shift approval, payer-claim su
 The Playwright shortage-cover scenario uses only synthetic local data. It checks consultation-room entry, registration/check-in, blank initial vital observations, automatic routing to the same patient's consultation, real consultation API signing under the cover clinician's session, browser cash collection with a receipt, explicit browser discharge and retained confirmed payment. It also checks server rejection of reversal and cashier approval, and denial of the extra powers to a standard clinician. The wider role navigation suite covers the new role.
 
 Validation on 22 September 2026: 239 unit tests, all 28 browser scenarios, TypeScript checking and the production build passed. The browser harness also completed its isolated database/API prerequisites. The cover role was tested with synthetic users; no live patient encounter was created for verification.
+
+## Published release
+
+Source commit: `a5e19d3ee6edc08a21f7c8e836962c8be66dfcb7`.
+
+Role provisioning job `dpl_84viV8TonPJHrfoVcRW6xNArYAno` succeeded at 14:36:26 UTC on 22 September 2026 and confirmed 13 permissions, no user assignments and no credential changes.
+
+Application deployment `dpl_7FW4ub563CBkcojpxEc8biEEvhci` (`mwein-hmis-platform-5jz63v526-mbitis-projects.vercel.app`) built successfully in 35 seconds and was promoted to https://mwein-hmis-platform.vercel.app/ after the staged health probe verified its exact commit and unchanged migration `20260923140000_clinical_closure_identity_history`. The public release verifier confirmed the same pair after promotion.
+
+The existing authenticated standard-clinician browser session loaded the published Consultation workspace and its clinical discharge panel. The extra cover controls remained absent for that unmodified role, as intended. No live patient was created or altered for verification. The immediate deployment error-log query returned no matching logs; this is a bounded check, not long-term monitoring evidence. Existing clinical go-live and certification gates remain unchanged.
