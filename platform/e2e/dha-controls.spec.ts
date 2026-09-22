@@ -35,7 +35,7 @@ test("DPO is assignable by governance admin but protected from HR management", a
   await page.getByRole("button", { name: "Administration", exact: true }).click();
   await page.getByRole("button", { name: "Users & access", exact: true }).click();
   await page.locator("summary").filter({ hasText: "Add staff member" }).click();
-  await page.getByLabel("Role *", { exact: true }).selectOption("DATA_PROTECTION_OFFICER");
+  await page.getByRole("combobox", { name: "Role *", exact: true }).selectOption("DATA_PROTECTION_OFFICER");
   const staff = await api(page, "/api/admin/users");
   expect(staff.status).toBe(200);
   expect(staff.data.roles.find((r: any) => r.code === "DATA_PROTECTION_OFFICER").assignable).toBe(true);

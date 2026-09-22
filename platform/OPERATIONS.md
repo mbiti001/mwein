@@ -78,8 +78,10 @@ The remediation branch separates `reports.clinical` from `reports.operations` an
 |---|---|
 | reports.clinical | FACILITY_ADMIN, MEDICAL_DIRECTOR |
 | reports.operations | FACILITY_ADMIN, FINANCE_MANAGER, AUDITOR |
+| reports.prepare | FACILITY_ADMIN, MEDICAL_DIRECTOR |
+| reports.review | MEDICAL_DIRECTOR |
 
-Billing, clinician shortage cover and system-administrator-only accounts do not gain these reporting permissions. Clinical reports contain diagnosis aggregates; operations reports contain facility workload, finance, stock and staff-attributed collection summaries. The scoped `scripts/release-report-permissions.mjs` requires `APPROVE_REPORT_ROLE_MAP=true`, synchronizes only these two permission definitions/grants, assigns no users and changes no credentials. Never run the full bootstrap against production. New roles/permissions are seeded automatically only in isolated test/bootstrap environments. DPO role provisioning uses the existing scoped privacy-role script if needed; DPO assignment uses governed Staff access.
+Billing, clinician shortage cover and system-administrator-only accounts do not gain these reporting permissions. Clinical reports contain diagnosis aggregates; operations reports contain facility workload, finance, stock and staff-attributed collection summaries. The scoped `scripts/release-report-permissions.mjs` requires `APPROVE_REPORT_ROLE_MAP=true`, synchronizes only these four permission definitions/grants, assigns no users and changes no credentials. Never run the full bootstrap against production. New roles/permissions are seeded automatically only in isolated test/bootstrap environments. DPO role provisioning uses the existing scoped privacy-role script if needed; DPO assignment uses governed Staff access.
 
 Application deployment before permission provisioning denies reports until the reviewed grants exist. Role permissions are resolved from the database on each authenticated request. A role change still revokes the affected user's sessions. Retain role-map approval and deployment/source evidence, and test denial for billing/cover and clinical denial for finance after rollout. No rollout was performed by the implementation task.
 
@@ -110,3 +112,16 @@ The runner rejects absent source, equivalent/pooler connection identities, unsup
 Automated tests exercise guards and process ordering with simulated PostgreSQL tools. They do not prove an actual independent backup restore. A witnessed real drill remains outstanding.
 
 Connection handling follows PostgreSQL’s [libpq environment parameters](https://www.postgresql.org/docs/current/libpq-envars.html) and [pg_restore connection options](https://www.postgresql.org/docs/current/app-pgrestore.html). Operator environments must remain private.
+
+
+## Local reporting draft/review release
+
+Apply migration `20260924100000_local_report_revisions` using the normal reviewed migration release process before deploying this feature, then provision the four reporting permission definitions above with the scoped script. This migration adds a local reporting table, status enum, approval-evidence constraints and an immutable-approved-history trigger. It does not seed county contacts, national datasets or users. Do not use the unpublished MFA migration from another checkout.
+
+In **Reports → Local reporting drafts**, select a month, enter aggregate indicator counts and a non-identifying source/register reference, then save. Blank counts are missing, not zero. An all-zero worksheet requires explicit confirmation before review. Save edits, give a reason and request review. A medical director who has not contributed to this revision can return it with a reason or approve it. Approval freezes its payload. Later corrections create a linked draft and retain the original approval and values. All inherited contributors remain in a correction's contributor list, so an independent reviewer must remain available. No shortage-cover exception to independent approval is implemented.
+
+These are manual local worksheets under `LOCAL_MANUAL_AGGREGATE_V1`; arbitrary indicator labels do not become approved national indicator definitions. They do not calculate a weekly IDSR return, classify a reportable disease, prove source-register reconciliation, notify the county or submit to KHIS. The interface and API label national configuration as pending and submission as not performed. Facility scoping derives from the authenticated account; Busia/Nambale/MFL 31749 are not hard-coded into other facilities.
+
+Reads are audited before disclosure. Mutations and their audit entries commit together. Optimistic versions plus serializable transactions reject concurrent/stale changes; duplicate correction creation is constrained. API reads are limited to the 100 newest revisions in a selected month and explicitly signal truncation; older records remain stored. Extend retrieval before relying on the interface for facilities exceeding that volume. No delete or outbound-delivery API is provided.
+
+Before production activation: retain migration/recovery evidence, authorize the reporting role map, ensure a separate qualified reviewer is assigned, and verify facility boundaries and the review/correction flow with synthetic records. Reporting permission provisioning, production migration and deployment were not performed in this implementation task.

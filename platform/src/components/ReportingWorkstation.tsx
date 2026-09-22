@@ -1,5 +1,6 @@
 "use client";
 
+import LocalReportingWorkstation from "./LocalReportingWorkstation";
 import { FormEvent, useEffect, useState } from "react";
 
 type Report = {
@@ -116,6 +117,7 @@ export default function ReportingWorkstation({ permissions }: { permissions: str
           </div>
         </>
       )}
+      {canClinical && <LocalReportingWorkstation permissions={permissions} />}
       {canClinical && <section className="card noPrint">
         <div className="cardHead"><div><h2>Monthly MOH/KHIS source summary</h2><p>Aggregate outpatient activity for review before entry or import into KHIS. This is not an automatic Ministry submission.</p></div></div>
         <form className="reportFilters" onSubmit={event => { event.preventDefault(); void loadMoh(String(new FormData(event.currentTarget).get("month"))); }}><label>Reporting month<input name="month" type="month" defaultValue={currentMonth} required/></label><button className="primary" disabled={busy}>{busy ? "Generating…" : "Generate monthly summary"}</button></form>

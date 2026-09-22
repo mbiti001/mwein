@@ -125,6 +125,7 @@ enum CatalogCategory {
 }
 
 model Facility {
+  localReportRevisions LocalReportRevision[]
   id                      String                          @id @default(uuid()) @db.Uuid
   code                    String                          @unique
   name                    String
@@ -274,6 +275,8 @@ model ReferenceSequence {
 }
 
 model User {
+  preparedLocalReports LocalReportRevision[] @relation("LocalReportPreparedBy")
+  reviewedLocalReports LocalReportRevision[] @relation("LocalReportReviewedBy")
   id                            String                          @id @default(uuid()) @db.Uuid
   facilityId                    String                          @db.Uuid
   email                         String
@@ -1800,4 +1803,39 @@ model ExchangeSubmission {
 
   @@index([facilityId, channel, status, createdAt])
   @@index([facilityId, nextAttemptAt])
+}
+
+
+enum LocalReportStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+}
+
+model LocalReportRevision {
+  id String @id @default(uuid()) @db.Uuid
+  facilityId String @db.Uuid
+  familyId String @db.Uuid
+  revision Int @default(1)
+  previousId String? @unique @db.Uuid
+  version Int @default(1)
+  status LocalReportStatus @default(DRAFT)
+  month String
+  payload Json
+  payloadHash String
+  preparedById String @db.Uuid
+  contributorIds String[] @db.Uuid
+  reviewedById String? @db.Uuid
+  reviewedAt DateTime?
+  reviewNote String?
+  correctionReason String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  preparedBy User @relation("LocalReportPreparedBy", fields: [preparedById], references: [id], onDelete: Restrict)
+  reviewedBy User? @relation("LocalReportReviewedBy", fields: [reviewedById], references: [id], onDelete: Restrict)
+  previous LocalReportRevision? @relation("LocalReportCorrection", fields: [previousId], references: [id], onDelete: Restrict)
+  successor LocalReportRevision? @relation("LocalReportCorrection")
+  @@unique([facilityId, familyId, revision])
+  @@index([facilityId, createdAt])
 }
