@@ -45,3 +45,5 @@ Engineering can proceed with implementation once these concrete contracts are ve
 ## APP-08 / APP-09 requirements package
 
 See [reporting and IDSR requirements](REPORTING-IDSR-REQUIREMENTS.md) for four workflow scopes, versioned input contracts, review/delivery controls, planned acceptance tests and an explicit pending-input register. Requirements are prepared; mappings, workflows and national transport are not implemented by this package.
+
+Facility context supplied by the user: Busia County, Nambale Subcounty, MFL 31749; currently reports to the county, with no assigned surveillance officer. Registry verification, KHIS org-unit mapping and exact authorized county routing remain pending. Local workflow development can proceed with configurable contracts; no recipient or national mapping is inferred.

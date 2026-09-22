@@ -2,6 +2,14 @@
 
 Prepared 22 September 2026. Status: engineering requirements draft; authoritative dataset, clinical rules and receiving-service approval pending. Source reviewed: remediation commit `99754d0`; this is not a statement about deployed functionality. Edwin Mbiti Chavulimu remains accountable for this workstream. Clinical/surveillance expertise and receiving-service approval must be arranged separately; ownership does not confer clinical qualifications. Charles Karani remains the data-protection contact.
 
+## Facility context supplied by the owner
+
+The user confirmed **Busia County**, **Nambale Subcounty**, **MFL code 31749**, no assigned surveillance officer yet, and a current practice of reporting to the county. These are user-supplied details, not independently verified registry information. The corresponding KHIS organization-unit identifier and facility dataset assignments remain unknown; do not substitute 31749 as a KHIS ID.
+
+Use a configurable county reporting destination for the proposed workflow. Keep the exact authorized county recipient, channel, backup contact, response expectations and escalation timings pending. An assigned individual officer is not a prerequisite for developing local drafts, review queues, revision history or a manual-delivery evidence register. Operational routing still needs a verified recipient/channel and approved protocol; do not invent contact details or mark a report delivered merely because the destination says “Busia County.”
+
+The next implementation can build the local draft/review/revision foundation and manual case/event capture with synthetic test dictionaries. Display dataset configuration as pending until approved metadata is available. Keep case/event review separate from routine-return approval, preserve the ability to document action through the facility's established reporting process, and make no automated national submission or disease-trigger claims. Facility details belong in per-facility configuration, not hard-coded rules for every app customer.
+
 ## What the app has and what is missing
 
 | Capability | Evidence from current source | Remaining work |
@@ -95,10 +103,10 @@ All fixtures must be synthetic. This list is planned acceptance work, not comple
 
 | Input | Status | Responsible follow-up |
 |---|---|---|
-| County, sub-county, verified facility MFL and KHIS org-unit | Pending user/facility confirmation | Edwin / facility records lead |
+| County, sub-county, verified facility MFL and KHIS org-unit | User supplied Busia / Nambale / MFL 31749; registry verification and KHIS org-unit mapping pending | Edwin / facility records lead |
 | Current assigned routine and weekly forms with metadata export | Not supplied | Edwin / health-records lead and KHIS administrator |
 | Applicable national IDSR edition plus current disease updates | Full authoritative package not obtained | Edwin / qualified surveillance reviewer |
-| Designated surveillance officer and primary/backup routing | Not supplied | Edwin / county or sub-county surveillance service |
+| Designated surveillance officer and primary/backup routing | User reports to county; no assigned officer. Exact county recipient, channel and backup not supplied | Edwin / Busia County surveillance service |
 | Calendar, cutoffs, notification timing and zero-report rules | Not approved | Receiving service and surveillance reviewer |
 | Clinical reviewer, reporting preparer/submitter and shortage cover | Not assigned/approved for this workflow | Edwin |
 | Applicant-specific DHA reporting test cases | Not obtained | Edwin / DHA applicant portal |
