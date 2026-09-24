@@ -74,21 +74,21 @@ export async function PATCH(request: Request) {
   try {
     const user = await requirePermission("admin.users");
     const input = updateSchema.parse(await request.json());
-    const target = await db.user.findFirst({ where: { id: input.id, facilityId: user.facilityId }, include: staffInclude });
-    if (!target) throw Object.assign(new Error("Staff account not found"), { status: 404 });
-    const access = { actorRoles: user.roles, canAssignGovernance: user.permissions.includes("admin.assign_governance") };
-    if (!canManageStaff({ ...access, targetRoleCodes: target.roles.map(item => item.role.code) }))
-      throw Object.assign(new Error("Your role cannot change this governance account"), { status: 403 });
-    if (input.roleCode && !canAssignRole({ ...access, roleCode: input.roleCode }))
-      throw Object.assign(new Error("Your role cannot assign this governance level"), { status: 403 });
-    const targetIsAdmin = target.roles.some((item) => item.role.code === "SYSTEM_ADMIN");
-    const activeAdminCount = await db.user.count({ where: { facilityId: user.facilityId, status: "ACTIVE", roles: { some: { role: { code: "SYSTEM_ADMIN" } } } } });
-    const safety = staffChangeIsSafe({ targetUserId: target.id, actingUserId: user.id, targetIsAdmin, activeAdminCount, nextStatus: input.status, nextRoleCode: input.roleCode });
-    if (!safety.safe) throw Object.assign(new Error(safety.reason), { status: 409 });
-    const role = input.roleCode ? await db.role.findUnique({ where: { code: input.roleCode } }) : null;
-    if (input.roleCode && !role) throw Object.assign(new Error("Selected staff role is not configured"), { status: 422 });
-
     const updated = await db.$transaction(async (tx) => {
+      const target = await tx.user.findFirst({ where: { id: input.id, facilityId: user.facilityId }, include: staffInclude });
+      if (!target) throw Object.assign(new Error("Staff account not found"), { status: 404 });
+      const access = { actorRoles: user.roles, canAssignGovernance: user.permissions.includes("admin.assign_governance") };
+      if (!canManageStaff({ ...access, targetRoleCodes: target.roles.map(item => item.role.code) }))
+        throw Object.assign(new Error("Your role cannot change this governance account"), { status: 403 });
+      if (input.roleCode && !canAssignRole({ ...access, roleCode: input.roleCode }))
+        throw Object.assign(new Error("Your role cannot assign this governance level"), { status: 403 });
+      const targetIsAdmin = target.roles.some((item) => item.role.code === "SYSTEM_ADMIN");
+      const activeAdminCount = await tx.user.count({ where: { facilityId: user.facilityId, status: "ACTIVE", roles: { some: { role: { code: "SYSTEM_ADMIN" } } } } });
+      const safety = staffChangeIsSafe({ targetUserId: target.id, actingUserId: user.id, targetIsAdmin, activeAdminCount, nextStatus: input.status, nextRoleCode: input.roleCode });
+      if (!safety.safe) throw Object.assign(new Error(safety.reason), { status: 409 });
+      const role = input.roleCode ? await tx.role.findUnique({ where: { code: input.roleCode } }) : null;
+      if (input.roleCode && !role) throw Object.assign(new Error("Selected staff role is not configured"), { status: 422 });
+
       if (role) {
         await tx.userRole.deleteMany({ where: { userId: target.id } });
         await tx.userRole.create({ data: { userId: target.id, roleId: role.id } });
@@ -103,7 +103,7 @@ export async function PATCH(request: Request) {
         await tx.session.deleteMany({ where: { userId: target.id } });
       await appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: input.temporaryPassword ? "STAFF_PASSWORD_RESET" : "STAFF_ACCESS_UPDATED", entityType: "User", entityId: target.id, beforeHash: `${target.status}:${target.roles.map((item) => item.role.code).join(",")}`, afterHash: `${staff.status}:${staff.roles.map((item) => item.role.code).join(",")}` });
       return staff;
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     const { passwordHash: _passwordHash, ...safeStaff } = updated;
     return privateJson({ user: safeStaff });
   } catch (error) { return apiError(error); }

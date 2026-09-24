@@ -31,12 +31,23 @@ async function finishSetup(page: Page) {
   await expect(page.getByRole("heading", { name: "My work now" })).toBeVisible();
   return { secret, codes, usedCode };
 }
+async function confirmViaApi(page: Page, secret: string) {
+  const usedCode = code(secret);
+  const confirmed = await request(page, "/api/auth/mfa", { action: "CONFIRM", code: usedCode });
+  expect(confirmed.status).toBe(200);
+  expect(confirmed.body.recoveryCodes).toHaveLength(10);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "My work now" })).toBeVisible();
+  return { secret, codes: confirmed.body.recoveryCodes as string[], usedCode };
+}
 async function enroll(page: Page, email: string) {
   await login(page, email);
-  await page.getByRole("button", { name: "Account security", exact: true }).click();
-  await page.getByLabel("Current password").fill(password);
-  await page.getByRole("button", { name: "Start MFA setup" }).click();
-  return finishSetup(page);
+  // Optional account-security navigation was intentionally removed. Exercise its
+  // authenticated API controls; required sign-in/recovery screens remain UI-tested.
+  await expect(page.getByRole("button", { name: "Account security", exact: true })).toHaveCount(0);
+  const setup = await request(page, "/api/auth/mfa", { action: "START", password });
+  expect(setup.status).toBe(200);
+  return confirmViaApi(page, setup.body.secret);
 }
 async function relogin(page: Page, email: string) {
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
@@ -70,25 +81,18 @@ test("MFA enrollment, replay protection, recovery and protected replacement", as
   await verify(page, first.codes[0]);
   await expect(page.getByRole("alert").filter({ hasText: "Verification failed" })).toContainText("Verification failed");
   await verify(page, first.codes[1]);
-  await page.getByRole("button", { name: "Account security", exact: true }).click();
-  await page.getByRole("button", { name: "Generate new recovery codes", exact: true }).click();
-  await page.getByLabel("Current password").fill(password);
-  await page.getByLabel("Authenticator or recovery code").fill(first.codes[2]);
-  await page.getByRole("button", { name: "Generate recovery codes", exact: true }).click();
-  const regenerated = (await page.getByLabel("Recovery codes", { exact: true }).innerText()).trim().split("\n");
+  const regeneratedResponse = await request(page, "/api/auth/mfa", { action: "RECOVERY_CODES", password, code: first.codes[2] });
+  expect(regeneratedResponse.status).toBe(200);
+  const regenerated = regeneratedResponse.body.recoveryCodes as string[];
+  expect(regenerated).toHaveLength(10);
   expect(regenerated).not.toEqual(first.codes);
-  await page.getByLabel("I have saved my recovery codes securely").check();
-  await page.getByRole("button", { name: "Continue to workspace" }).click();
   await relogin(page, email);
   await verify(page, first.codes[3]);
   await expect(page.getByRole("alert").filter({ hasText: "Verification failed" })).toContainText("Verification failed");
   await verify(page, regenerated[0]);
-  await page.getByRole("button", { name: "Account security", exact: true }).click();
-  await page.getByRole("button", { name: "Replace authenticator", exact: true }).click();
-  await page.getByLabel("Current password").fill(password);
-  await page.getByLabel("Authenticator or recovery code").fill(regenerated[1]);
-  await page.getByRole("button", { name: "Start replacement" }).click();
-  const replacement = await finishSetup(page);
+  const replacementResponse = await request(page, "/api/auth/mfa", { action: "REPLACE", password, code: regenerated[1] });
+  expect(replacementResponse.status).toBe(200);
+  const replacement = await confirmViaApi(page, replacementResponse.body.secret);
   expect(replacement.secret).not.toBe(first.secret);
   await relogin(page, email);
   await verify(page, code(first.secret, 30000));

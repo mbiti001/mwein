@@ -53,3 +53,11 @@ describe.each(cases)("$name disclosure", c => {
     expect(response.headers.get("cache-control")).toBe("private, no-store");
   });
 });
+
+it("loads only the monthly aggregate's required patient and clinical fields", async () => {
+  await monthly(new Request("http://localhost/api/reports/moh-monthly?month=2026-09"));
+  const query = vi.mocked(db.visit.findMany).mock.calls[0][0];
+  expect(query).not.toHaveProperty("include");
+  expect(query?.select?.patient).toEqual({ select: { dateOfBirth: true, estimatedAgeYears: true, sexAtBirth: true } });
+  expect(query?.select).not.toHaveProperty("triage");
+});

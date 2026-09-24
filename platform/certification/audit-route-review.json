@@ -64,7 +64,7 @@
       "methodExceptions": {}
     },
     "admin/users": {
-      "sourceSha256": "f46cf50aaafcef64616deb645ed4a0b6399f77bd17a606dc2ca71a9a6a674323",
+      "sourceSha256": "fd89f2f5f01f996edb37f510c23abeb59486ea5e1075ed5b2595e7492d47583d",
       "methodExceptions": {}
     },
     "appointments/[id]/reminder": {
@@ -238,7 +238,7 @@
       "methodExceptions": {}
     },
     "reports/moh-monthly": {
-      "sourceSha256": "ff3a30d0b91e7e5d79cdc51b7f42a78b9125be87a12a3bb028734ee6fb437f0c",
+      "sourceSha256": "9387825f5ff76e975431ec8a0b38963cec778ee04b4d69aca2ac9ddd109f01c4",
       "methodExceptions": {}
     },
     "reports/operations": {

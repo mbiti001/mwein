@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     const from = new Date(Date.UTC(year, value - 1, 1) - 3 * 60 * 60 * 1000);
     const through = new Date(Date.UTC(year, value, 1) - 3 * 60 * 60 * 1000);
     const [visits, referrals] = await Promise.all([
-      db.visit.findMany({ where: { facilityId: user.facilityId, arrivedAt: { gte: from, lt: through }, status: { not: "CANCELLED" } }, include: { patient: true, triage: true, encounters: { include: { diagnoses: true } }, orders: { include: { prescription: true } } } }),
+      db.visit.findMany({ where: { facilityId: user.facilityId, arrivedAt: { gte: from, lt: through }, status: { not: "CANCELLED" } }, select: { arrivedAt: true, patient: { select: { dateOfBirth: true, estimatedAgeYears: true, sexAtBirth: true } }, encounters: { select: { status: true, diagnoses: { select: { code: true, description: true } } } }, orders: { select: { type: true, status: true, prescription: { select: { dispenseStatus: true } } } } } }),
       db.referral.count({ where: { facilityId: user.facilityId, sentAt: { gte: from, lt: through } } }),
     ]);
     const attendance: Record<string, number> = {};

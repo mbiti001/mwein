@@ -46,7 +46,7 @@ jobs:
       - name: Verify browser workflows
         run: npm run test:browser
       - name: Build certification evidence index
-        run: npm run certification:evidence > certification/evidence-index.json
+        run: node scripts/certification-evidence.mjs --commit "$GITHUB_SHA" > certification/evidence-index.json
       - name: Retain certification evidence index
         uses: actions/upload-artifact@v4
         with:
