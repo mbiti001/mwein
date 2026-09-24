@@ -1,3 +1,4 @@
+import { recordOutpatientAccess, privateResponse } from "@/lib/outpatient-access";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -32,9 +33,10 @@ export async function GET(request: Request) {
       include: { patient: { include: { contacts: { where: { primary: true }, take: 1 }, consents: { where: { type: "MESSAGING", granted: true, withdrawnAt: null }, take: 1 } } }, reminderDeliveries: { orderBy: { preparedAt: "desc" }, take: 3 } },
       orderBy: { scheduledAt: "asc" },
     });
-    return NextResponse.json({ appointments });
+    await recordOutpatientAccess(user, "APPOINTMENT_LIST", appointments.map(({ id }) => id));
+    return privateResponse(NextResponse.json({ appointments }));
   } catch (error) {
-    return apiError(error);
+    return privateResponse(apiError(error));
   }
 }
 

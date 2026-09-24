@@ -903,6 +903,12 @@ try {
   const deathState = (await pg.query(`SELECT v."status", (SELECT "status" FROM "ClinicalOrder" WHERE "id"=$2) AS "orderStatus", (SELECT COUNT(*)::int FROM "QueueEntry" WHERE "visitId"=v."id" AND "status" IN ('WAITING','CALLED','IN_PROGRESS')) AS "activeQueues" FROM "Visit" v WHERE v."id"=$1`, [deathId, unstartedOrder])).rows[0];
   assert(deathState.status === "DISCHARGED" && deathState.orderStatus === "CANCELLED" && deathState.activeQueues === 0, "Deceased patient remained in an ordinary care queue");
 
+  for (const path of ["/api/appointments?scope=all", `/api/patients/${patient.id}/problems`, "/api/referrals"]) {
+    const disclosure = await requestWithCookie(path, sessionCookie);
+    assert(disclosure.response.ok, `Outpatient disclosure failed: ${path}`);
+    assert(disclosure.response.headers.get("cache-control") === "private, no-store", `Outpatient disclosure allowed caching: ${path}`);
+  }
+
   const auditExport = await requestWithCookie("/api/admin/audit/export", sessionCookie);
   assert(auditExport.response.ok, `Audit export failed: ${JSON.stringify(auditExport.body)}`);
   assert(auditExport.body.chain.valid === true && Number(auditExport.body.chain.eventCount) > 0, "Audit export did not verify its serialized chain");
@@ -911,6 +917,13 @@ try {
   assert(accessEvents.some((event) => JSON.parse(event.reason).context === "PATIENT_HISTORY"), "Patient history disclosure was missing from the retained audit chain");
   assert(accessEvents.some((event) => JSON.parse(event.reason).context === "VISIT_WORKLIST"), "Visit worklist disclosure was missing from the retained audit chain");
   assert(accessEvents.every((event) => event.userId && event.sessionId && event.facilityId === facility.id), "Read audit events omitted their actor/session/facility boundary");
+  for (const context of ["APPOINTMENT_LIST", "PATIENT_PROBLEM_LIST", "REFERRAL_LIST", "DISPENSING_PREVIEW"]) {
+    const evidence = accessEvents.filter((event) => JSON.parse(event.reason).context === context);
+    assert(evidence.length > 0, `Missing outpatient disclosure evidence: ${context}`);
+    assert(evidence.every((event) => /^\d+:[a-f0-9]{64}$/.test(event.afterHash)), `Missing bounded resource fingerprint: ${context}`);
+    assert(evidence.every((event) => Object.keys(JSON.parse(event.reason)).sort().join(",") === "context,outcome,version"), `Unexpected patient metadata in outpatient audit: ${context}`);
+  }
+  steps.push("verify outpatient disclosure fingerprints in the retained audit chain");
   steps.push("verify clinical access events are retained with actor, session and facility");
   steps.push("verify facility audit chain and export digest");
 

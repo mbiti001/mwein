@@ -1,3 +1,4 @@
+import { recordOutpatientAccess, privateResponse } from "@/lib/outpatient-access";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -51,9 +52,10 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "desc" },
       take: 50,
     });
-    return NextResponse.json({ referrals: referrals.map(serializeReferral) });
+    await recordOutpatientAccess(user, "REFERRAL_LIST", referrals.map(({ id }) => id));
+    return privateResponse(NextResponse.json({ referrals: referrals.map(serializeReferral) }));
   } catch (error) {
-    return apiError(error);
+    return privateResponse(apiError(error));
   }
 }
 

@@ -1,3 +1,4 @@
+import { recordOutpatientAccess, privateResponse } from "@/lib/outpatient-access";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { appendAudit } from "@/lib/audit";
@@ -23,8 +24,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       include: { recordedBy: { select: { displayName: true } } },
       orderBy: [{ clinicalStatus: "asc" }, { updatedAt: "desc" }],
     });
-    return NextResponse.json({ problems });
-  } catch (error) { return apiError(error); }
+    await recordOutpatientAccess(user, "PATIENT_PROBLEM_LIST", problems.map(({ id }) => id));
+    return privateResponse(NextResponse.json({ problems }));
+  } catch (error) { return privateResponse(apiError(error)); }
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {

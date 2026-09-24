@@ -1,3 +1,4 @@
+import { recordOutpatientAccess, privateResponse } from "@/lib/outpatient-access";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -134,7 +135,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const plan = plannedQuantity > 0
       ? planDispensingAllocation(batches, plannedQuantity, preferredBatchId)
       : { allocation: [], standardAllocation: [], fefoOverridden: false };
-    return NextResponse.json({
+    await recordOutpatientAccess(user, "DISPENSING_PREVIEW", [order.id]);
+    return privateResponse(NextResponse.json({
       outstanding,
       available,
       allocation: plan.allocation,
@@ -150,8 +152,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         available: item.inventoryBatches.reduce((sum, batch) => sum + Number(batch.locationBalances[0]?.quantity || 0), 0),
       })),
       batches,
-    });
-  } catch (error) { return apiError(error); }
+    }));
+  } catch (error) { return privateResponse(apiError(error)); }
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
