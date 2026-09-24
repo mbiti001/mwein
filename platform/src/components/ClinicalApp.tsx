@@ -11,12 +11,14 @@ import { appointmentClinics } from "@/lib/appointments";
 import { careServiceForClinic } from "@/lib/care-service-points";
 import { jsonRequest } from "@/lib/client-http";
 import { dateInTimeZone, gestationalAgeLabel, pregnancyDatingFromLnmp } from "@/lib/pregnancy-dating";
-import { BrandMark } from "@/components/FacilityBrand";
+import { BrandWordmark } from "@/components/FacilityBrand";
 import ReadinessSnapshot from "@/components/ReadinessSnapshot";
 import MfaWorkstation from "@/components/MfaWorkstation";
 import VisitClosurePanel from "@/components/VisitClosurePanel";
 import PatientIdentityPanel from "@/components/PatientIdentityPanel";
 import { shaCancellationOutcomes, visitCancellationReasons } from "@/lib/visit-cancellation";
+
+const ClinicForms = dynamic(() => import("@/components/ClinicForms"));
 
 const workspaceLoading = () => <section className="card"><p>Opening workspace…</p></section>;
 const ConsultationWorkstation = dynamic(() => import("@/components/ConsultationWorkstation"), { loading: workspaceLoading });
@@ -147,6 +149,7 @@ type Screen =
   | "imaging"
   | "pharmacy"
   | "billing"
+  | "forms"
   | "summaries"
   | "followUps"
   | "surveillance"
@@ -222,6 +225,7 @@ export default function ClinicalApp() {
   useEffect(() => {
     const titles: Record<Screen, string> = {
       dashboard: "Home",
+      forms: "Clinic forms",
       registration: "Patient registration",
       appointments: "Appointments",
       visit: "Clinic check-in",
@@ -299,14 +303,15 @@ export default function ClinicalApp() {
     nav.push(["reports", "Reports"]);
   if ((user.permissions || []).includes("admin.dashboard"))
     nav.push(["admin", "Administration"]);
+  if (user.permissions.includes("visit.read")) nav.push(["forms", "Clinic forms"]);
   return (
     <main className="shell">
       <SaveFeedback />
-      <button className="mobileNavToggle" aria-expanded={mobileNavOpen} aria-controls="main-navigation" onClick={() => setMobileNavOpen(value => !value)}>{mobileNavOpen ? "Close menu" : "☰ Menu"}</button>
+      <button className="mobileNavToggle" aria-label={mobileNavOpen ? "Close menu" : "☰ Menu"} aria-expanded={mobileNavOpen} aria-controls="main-navigation" onClick={() => setMobileNavOpen(value => !value)}><span>{mobileNavOpen ? "Close menu" : "☰ Menu"}</span><span aria-hidden="true"><BrandWordmark className="mobileWordmark" /></span></button>
       {mobileNavOpen && <button className="navScrim" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
       <aside className={`sidebar ${mobileNavOpen ? "mobileOpen" : ""}`} id="main-navigation">
-        <div className="brand">
-          <BrandMark />
+        <div className="brand brandWithWordmark">
+          <BrandWordmark />
           <div>
             <strong>Mwein HMIS</strong>
             <small>Exceptional care close to you.</small>
@@ -360,7 +365,7 @@ export default function ClinicalApp() {
           }}/>
         )}
         {screen !== "dashboard" &&
-          !["summaries", "reports", "surveillance", "vitals", "security", "appointments", "admin"].includes(screen) && (
+          !["forms", "summaries", "reports", "surveillance", "vitals", "security", "appointments", "admin"].includes(screen) && (
             <WorkflowSteps screen={screen} />
           )}{" "}
         {contextVisitId && (() => {
@@ -395,6 +400,7 @@ export default function ClinicalApp() {
             onUpdated={loadVisits}
           />
         )}
+        {screen === "forms" && user.permissions.includes("visit.read") && <ClinicForms facilityName={user.facility.name} />}
         {screen === "registration" && (
           <PatientRegister
             onRegistered={(patient) => {
@@ -605,8 +611,8 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
   return (
     <main className="publicEntry">
       <nav className="publicNav" aria-label="Public navigation">
-        <div className="brand dark">
-          <BrandMark />
+        <div className="brand dark brandWithWordmark">
+          <BrandWordmark />
           <div>
             <strong>Mwein HMIS</strong>
             <small>Connected outpatient care</small>

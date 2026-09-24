@@ -5,7 +5,7 @@ import { BrandMark, FacilityLetterhead, MWEIN_BRAND } from "@/components/Facilit
 describe("facility branding", () => {
   it("renders the reviewed public brand asset", () => {
     const html = renderToStaticMarkup(<BrandMark decorative={false} />);
-    expect(MWEIN_BRAND.logoPath).toBe("/icon.png");
+    expect(MWEIN_BRAND.logoPath).toBe("/brand/mwein-pulse-icon.png");
     expect(html).toContain(MWEIN_BRAND.logoPath);
     expect(html).toContain("Mwein Medical Services");
     expect(html).not.toContain("mwein-medical-logo");
@@ -20,6 +20,7 @@ describe("facility branding", () => {
         badge={<strong>PAID</strong>}
       />,
     );
+    expect(html).toContain(MWEIN_BRAND.wordmarkPath);
     expect(html).toContain(MWEIN_BRAND.location);
     expect(html).toContain(MWEIN_BRAND.phone);
     expect(html).toContain(MWEIN_BRAND.email);
@@ -35,6 +36,7 @@ describe("facility branding", () => {
     );
     expect(html).toContain("Other Facility");
     expect(html).not.toContain(MWEIN_BRAND.logoPath);
+    expect(html).not.toContain(MWEIN_BRAND.wordmarkPath);
     expect(html).not.toContain(MWEIN_BRAND.phone);
     expect(html).not.toContain("facilityLetterheadWave");
   });

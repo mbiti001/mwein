@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { BrandWordmark } from "@/components/FacilityBrand";
 import { jsonRequest } from "@/lib/client-http";
 
 type BatchAllocation = { id: string; batchNumber: string; expiryDate: string; quantity: number; quantityAvailable: number; daysToExpiry?: number };
@@ -37,6 +38,7 @@ type Prescription = {
 };
 type Order = { id: string; type: string; status: string; priority?: string; requestedAt?: string; displayName: string; clinicalIndication?: string | null; orderedBy?: { displayName: string }; prescription?: Prescription | null };
 type Visit = {
+  facility?: { name: string };
   id: string; visitNumber: string; priority: string; status: string; arrivedAt: string;
   patient: { fullName: string; patientNumber: string; sexAtBirth?: string; dateOfBirth?: string | null; estimatedAgeYears?: number | null; allergies?: { substance: string; reaction?: string | null; severity?: string | null }[] };
   triage?: { observations: { code: string; valueDecimal?: string | null; unit?: string | null }[] } | null;
@@ -77,7 +79,7 @@ export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId,
   const [choices, setChoices] = useState<Record<string, DispensingChoice>>({});
   const requestKeys = useRef<Record<string, string>>({});
   const stockRequestIds = useRef<Record<string, number>>({});
-  const [label, setLabel] = useState<{ patient: string; medicine: string; directions: string; batches: string } | null>(null);
+  const [label, setLabel] = useState<{ facility?: string; patient: string; medicine: string; directions: string; batches: string } | null>(null);
   const prescriptions = active?.orders?.filter(o => o.type === "MEDICATION" && o.prescription && ["REQUESTED", "IN_PROGRESS"].includes(o.status)) || [];
   useEffect(() => {
     if (!initialVisitId) return;
@@ -137,7 +139,7 @@ export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId,
         substitutionReason: form.get("substitutionReason") || undefined,
         fefoOverrideReason: form.get("fefoOverrideReason") || undefined,
       });
-      if (result.allocations?.length) setLabel({ patient: active!.patient.fullName, medicine: result.dispensedMedicine?.name || `${order.prescription!.genericName || order.displayName}${order.prescription!.strength ? ` ${order.prescription!.strength}` : ""}`, directions: order.prescription!.instructions || `${order.prescription!.dose} · ${order.prescription!.frequency}`, batches: result.allocations.map(item => item.batchNumber).join(", ") });
+      if (result.allocations?.length) setLabel({ facility: active!.facility?.name, patient: active!.patient.fullName, medicine: result.dispensedMedicine?.name || `${order.prescription!.genericName || order.displayName}${order.prescription!.strength ? ` ${order.prescription!.strength}` : ""}`, directions: order.prescription!.instructions || `${order.prescription!.dose} · ${order.prescription!.frequency}`, batches: result.allocations.map(item => item.batchNumber).join(", ") });
       delete requestKeys.current[order.id];
       const controls = [result.substituted ? "substitution recorded" : "", result.fefoOverridden ? "FEFO override recorded" : ""].filter(Boolean).join("; ");
       setNotice(result.replayed ? "Already recorded. Stock and billing were not changed again." : result.allocations?.length ? `Dispensed ${result.dispensedMedicine?.name || "medicine"} from ${result.allocations.map(item => `${item.batchNumber} (${item.quantity})`).join(", ")}. Stock and billing are updated${controls ? `; ${controls}` : ""}.` : "Decision recorded. No stock was deducted.");
@@ -148,7 +150,7 @@ export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId,
   if (!active) return <>
     <header><div><p className="eyebrow">Pharmacy workstation</p><h1>Prescription queue</h1><p>Review, supply and trace every medicine from prescription to batch and bill.</p></div></header>
     {notice && <div className="alert success">{notice}</div>}
-    {label && <section className="medicineLabel card"><strong>{label.patient}</strong><h2>{label.medicine}</h2><p>{label.directions}</p><small>Batch: {label.batches} · Mwein Medical Services</small><button className="secondary noPrint" onClick={() => { document.body.classList.add("printingMedicineLabel"); window.print(); window.setTimeout(() => document.body.classList.remove("printingMedicineLabel"), 500); }}>Print medicine label</button></section>}
+    {label && <section className="medicineLabel card">{label.facility?.toLowerCase().includes("mwein") && <BrandWordmark className="medicineLabelWordmark" />}<strong>{label.patient}</strong><h2>{label.medicine}</h2><p>{label.directions}</p><small>Batch: {label.batches}{label.facility ? ` · ${label.facility}` : ""}</small><button className="secondary noPrint" onClick={() => { document.body.classList.add("printingMedicineLabel"); window.print(); window.setTimeout(() => document.body.classList.remove("printingMedicineLabel"), 500); }}>Print medicine label</button></section>}
     <div className="pharmacyTabs" role="tablist">{(["AWAITING", "PARTIAL", "DISPENSED", "CLARIFICATION"] as const).map(value => { const count = medicationVisits.filter(v => v.orders?.some(order => order.type === "MEDICATION" && !!order.prescription && (value === "AWAITING" ? order.status === "REQUESTED" && order.prescription.dispenseStatus === "PENDING" : value === "PARTIAL" ? order.prescription.dispenseStatus === "PARTIALLY_DISPENSED" : value === "DISPENSED" ? order.prescription.dispenseStatus === "DISPENSED" : order.prescription.dispenseStatus === "NOT_DISPENSED"))).length; return <button type="button" role="tab" aria-selected={tab === value} className={tab === value ? "active" : ""} onClick={() => setTab(value)} key={value}>{value === "CLARIFICATION" ? "Not supplied" : value.toLowerCase().replace(/^./, letter => letter.toUpperCase())} <b>{count}</b></button>;})}</div>
     <section className="card">{queue.length ? <div className="queue">{queue.map(v => <button className={`row ${v.priority.toLowerCase()}`} onClick={() => ["AWAITING", "PARTIAL"].includes(tab) && setActive(v)} disabled={!(["AWAITING", "PARTIAL"] as string[]).includes(tab)} key={v.id}>
       <span className="dot"/><div><strong>{v.patient.fullName}</strong><small>{v.patient.patientNumber} · {v.visitNumber} · {v.orders?.filter(o => o.type === "MEDICATION" && ["REQUESTED", "IN_PROGRESS"].includes(o.status)).length} medicine(s)</small></div><b>{v.priority}</b><time>{new Date(v.arrivedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>

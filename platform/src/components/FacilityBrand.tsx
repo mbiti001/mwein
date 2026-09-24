@@ -7,7 +7,8 @@ export const MWEIN_BRAND = {
   phone: "+254 707 711 888",
   email: "mweinmedical@gmail.com",
   availability: "Open 24 hours, 7 days",
-  logoPath: "/icon.png",
+  logoPath: "/brand/mwein-pulse-icon.png",
+  wordmarkPath: "/brand/mwein-wordmark.png",
 } as const;
 
 export function BrandMark({
@@ -29,6 +30,10 @@ export function BrandMark({
   );
 }
 
+export function BrandWordmark({ className = "brandWordmark" }: { className?: string }) {
+  return <img className={className} src={MWEIN_BRAND.wordmarkPath} alt="Mwein Medical Services" width={1024} height={344} />;
+}
+
 export function FacilityLetterhead({
   facilityName = MWEIN_BRAND.name,
   title,
@@ -46,9 +51,9 @@ export function FacilityLetterhead({
   return (
     <header className="facilityLetterhead">
       <div className="facilityLetterheadIdentity">
-        {isMwein && <BrandMark className="facilityLetterheadLogo" decorative={false} />}
+        {isMwein && <BrandWordmark className="facilityLetterheadWordmark" />}
         <div className="facilityLetterheadIdentityCopy">
-          <p className="facilityLetterheadName">{resolvedName}</p>
+          {!isMwein && <p className="facilityLetterheadName">{resolvedName}</p>}
           {isMwein && (
             <>
               <p className="facilityLetterheadTagline">{MWEIN_BRAND.tagline}</p>
@@ -62,7 +67,7 @@ export function FacilityLetterhead({
         </div>
       </div>
       <div className="facilityLetterheadDocument">
-        <span>Official clinical document</span>
+        <span>Facility document</span>
         <h1>{title}</h1>
         {reference && <p>{reference}</p>}
       </div>
