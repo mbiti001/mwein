@@ -1,3 +1,4 @@
+import { verifyGovernanceAccess } from "./e2e-governance-access.mjs";
 import { verifyPrivacy } from "./e2e-privacy.mjs";
 import { createHmac, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
@@ -209,6 +210,8 @@ try {
     [systemOnlyUserId],
   );
   for (const [email, displayName, roleCode] of [
+    ["reports@example.test", "MMS reporting officer", "REPORTING_OFFICER"],
+    ["hr@example.test", "MMS HR administrator", "HR_ADMIN"],
     ["privacy@example.test", "MMS privacy officer", "DATA_PROTECTION_OFFICER"],
     ["nurse@example.test", "MMS nurse", "NURSE"],
     ["clinician@example.test", "MMS clinician", "CLINICIAN"],
@@ -227,7 +230,7 @@ try {
   await pg.query(
     `INSERT INTO "UserRole" ("userId", "roleId")
      SELECT $1, "id" FROM "Role"
-     WHERE "code" IN ('RECEPTION', 'NURSE', 'CLINICIAN', 'LABORATORY', 'IMAGING', 'PHARMACY_MANAGER', 'BILLING', 'MEDICAL_DIRECTOR', 'DATA_PROTECTION_OFFICER')
+     WHERE "code" IN ('RECEPTION', 'NURSE', 'CLINICIAN', 'LABORATORY', 'IMAGING', 'PHARMACY_MANAGER', 'BILLING', 'MEDICAL_DIRECTOR', 'DATA_PROTECTION_OFFICER', 'REPORTING_OFFICER')
      ON CONFLICT DO NOTHING`,
     [admin.id],
   );
@@ -908,6 +911,8 @@ try {
     assert(disclosure.response.ok, `Outpatient disclosure failed: ${path}`);
     assert(disclosure.response.headers.get("cache-control") === "private, no-store", `Outpatient disclosure allowed caching: ${path}`);
   }
+
+  await verifyGovernanceAccess({ requestWithCookie, authenticate, pg, facility, patient, sessionCookie, otherFacilityId, adminPassword, steps });
 
   const auditExport = await requestWithCookie("/api/admin/audit/export", sessionCookie);
   assert(auditExport.response.ok, `Audit export failed: ${JSON.stringify(auditExport.body)}`);

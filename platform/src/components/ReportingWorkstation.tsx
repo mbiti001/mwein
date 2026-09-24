@@ -34,7 +34,9 @@ type MohReport = { month: string; reportType: string; submissionStatus: string; 
 const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Nairobi" });
 const money = (value: number) => `KES ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export default function ReportingWorkstation() {
+export default function ReportingWorkstation({ permissions }: { permissions: string[] }) {
+  const canReadOperations = permissions.includes("reports.operations.read");
+  const canReadClinical = permissions.includes("reports.clinical.read");
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -56,7 +58,8 @@ export default function ReportingWorkstation() {
     }
   }
 
-  useEffect(() => { void load(today(), today()); }, []);
+  useEffect(() => { if (canReadOperations) void load(today(), today()); else setReport(null); }, [canReadOperations]);
+  useEffect(() => { if (!canReadClinical) setMoh(null); }, [canReadClinical]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -75,15 +78,15 @@ export default function ReportingWorkstation() {
           <h1>Facility reports</h1>
           <p>Review workload, collections and payer exceptions without exporting patient-level data.</p>
         </div>
-        <div className="actions noPrint"><button className="secondary" onClick={downloadOperations} disabled={!report}>Export CSV</button><button className="primary" onClick={() => window.print()} disabled={!report}>Print / Save PDF</button></div>
+        {canReadOperations && <div className="actions noPrint"><button className="secondary" onClick={downloadOperations} disabled={!report}>Export CSV</button><button className="primary" onClick={() => window.print()} disabled={!report}>Print / Save PDF</button></div>}
       </header>
       {error && <div className="alert">{error}</div>}
-      <form className="card reportFilters noPrint" onSubmit={submit}>
+      {canReadOperations && <form className="card reportFilters noPrint" onSubmit={submit}>
         <label>From<input name="from" type="date" defaultValue={today()} required /></label>
         <label>To<input name="to" type="date" defaultValue={today()} required /></label>
         <button className="primary" disabled={busy}>{busy ? "Generating…" : "Generate report"}</button>
-      </form>
-      {report && (
+      </form>}
+      {canReadOperations && report && (
         <>
           <section className="metrics reportMetrics">
             <article><small>Visits</small><strong>{report.summary.visits}</strong><span>{report.summary.completedVisits} completed · {report.summary.cancelledVisits} cancelled</span></article>
@@ -114,11 +117,11 @@ export default function ReportingWorkstation() {
           </div>
         </>
       )}
-      <section className="card noPrint">
+      {canReadClinical && <section className="card noPrint">
         <div className="cardHead"><div><h2>Monthly MOH/KHIS source summary</h2><p>Aggregate outpatient activity for review before entry or import into KHIS. This is not an automatic Ministry submission.</p></div></div>
         <form className="reportFilters" onSubmit={event => { event.preventDefault(); void loadMoh(String(new FormData(event.currentTarget).get("month"))); }}><label>Reporting month<input name="month" type="month" defaultValue={currentMonth} required/></label><button className="primary" disabled={busy}>{busy ? "Generating…" : "Generate monthly summary"}</button></form>
-      </section>
-      {moh && <section className="card mohReport"><div className="cardHead"><div><h2>{moh.reportType}</h2><p>{moh.facility.code} · {moh.facility.name} · {moh.month}</p></div><div className="actions noPrint"><button className="secondary" onClick={() => window.print()}>Print</button><button className="primary" onClick={downloadMoh}>Download CSV</button></div></div><div className="metrics"><article><small>Outpatient visits</small><strong>{moh.services.visits}</strong></article><article><small>Laboratory orders</small><strong>{moh.services.laboratoryOrders}</strong></article><article><small>Medicines dispensed</small><strong>{moh.services.medicinesDispensed}</strong></article><article><small>Referrals sent</small><strong>{moh.services.referrals}</strong></article></div>{(moh.completeness.unsignedVisits > 0 || moh.completeness.visitsWithoutCodedDiagnosis > 0) && <div className="alert"><strong>Resolve before reporting:</strong> {moh.completeness.unsignedVisits} unsigned visit(s); {moh.completeness.visitsWithoutCodedDiagnosis} without a coded diagnosis.</div>}<h3>Attendance by sex and age band</h3><div className="summaryGrid">{Object.entries(moh.attendance).map(([group,count]) => <div className="summaryLine" key={group}><strong>{group.replaceAll("_", " ")}</strong><span>{count}</span></div>)}</div><h3>Diagnosis totals</h3><table className="reportResults"><thead><tr><th>ICD-11</th><th>Diagnosis</th><th>Male</th><th>Female</th><th>Other</th><th>Total</th></tr></thead><tbody>{moh.diagnoses.map(item => <tr key={item.code}><td>{item.code}</td><td>{item.description}</td><td>{item.male}</td><td>{item.female}</td><td>{item.other}</td><td>{item.total}</td></tr>)}</tbody></table></section>}
+      </section>}
+      {canReadClinical && moh && <section className="card mohReport"><div className="cardHead"><div><h2>{moh.reportType}</h2><p>{moh.facility.code} · {moh.facility.name} · {moh.month}</p></div><div className="actions noPrint"><button className="secondary" onClick={() => window.print()}>Print</button><button className="primary" onClick={downloadMoh}>Download CSV</button></div></div><div className="metrics"><article><small>Outpatient visits</small><strong>{moh.services.visits}</strong></article><article><small>Laboratory orders</small><strong>{moh.services.laboratoryOrders}</strong></article><article><small>Medicines dispensed</small><strong>{moh.services.medicinesDispensed}</strong></article><article><small>Referrals sent</small><strong>{moh.services.referrals}</strong></article></div>{(moh.completeness.unsignedVisits > 0 || moh.completeness.visitsWithoutCodedDiagnosis > 0) && <div className="alert"><strong>Resolve before reporting:</strong> {moh.completeness.unsignedVisits} unsigned visit(s); {moh.completeness.visitsWithoutCodedDiagnosis} without a coded diagnosis.</div>}<h3>Attendance by sex and age band</h3><div className="summaryGrid">{Object.entries(moh.attendance).map(([group,count]) => <div className="summaryLine" key={group}><strong>{group.replaceAll("_", " ")}</strong><span>{count}</span></div>)}</div><h3>Diagnosis totals</h3><table className="reportResults"><thead><tr><th>ICD-11</th><th>Diagnosis</th><th>Male</th><th>Female</th><th>Other</th><th>Total</th></tr></thead><tbody>{moh.diagnoses.map(item => <tr key={item.code}><td>{item.code}</td><td>{item.description}</td><td>{item.male}</td><td>{item.female}</td><td>{item.other}</td><td>{item.total}</td></tr>)}</tbody></table></section>}
     </>
   );
 }

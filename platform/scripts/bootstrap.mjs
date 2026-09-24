@@ -34,6 +34,8 @@ const permissionDefinitions = [
   ["procurement.manage_suppliers", "Create and manage suppliers"],
   ["procurement.create", "Draft and submit purchase orders"],
   ["procurement.approve", "Approve or cancel purchase orders"],
+  ["reports.clinical.read", "View facility monthly clinical source summaries"],
+  ["reports.operations.read", "View facility operational, pharmacy and financial reports"],
   ["billing.read", "View invoices"],
   ["billing.write", "Receive payments and close settled visits"],
   ["billing.reverse", "Reverse payments with a documented reason"],
@@ -60,6 +62,8 @@ const role = await db.role.upsert({
   create: { code: "SYSTEM_ADMIN", name: "System administrator", system: true },
 });
 const permissions = await db.permission.findMany();
+// Reporting requires an explicitly assigned reporting role; never grant it to system administration.
+const systemPermissions = permissions.filter(item => !item.code.startsWith("reports."));
 const operationalRoles = {
   [clinicianCoverRole.code]: clinicianCoverRole,
   RECEPTION: { name: "Reception", grants: ["patient.read", "patient.create", "visit.read", "visit.create", "visit.cancel"] },
@@ -75,10 +79,11 @@ const operationalRoles = {
   HR_ADMIN: { name: "HR administrator", grants: ["admin.dashboard", "admin.users", "audit.view"] },
   AUDITOR: { name: "Auditor", grants: ["admin.dashboard", "audit.view", "billing.read", "inventory.view", "accounting.view"] },
   BILLING: { name: "Billing", grants: ["patient.read", "visit.read", "visit.cancel", "billing.read", "billing.write", "billing.reverse", "claims.write"] },
+  REPORTING_OFFICER: { name: "Reporting officer", grants: ["reports.clinical.read", "reports.operations.read"] },
   DATA_PROTECTION_OFFICER: { name: "Data protection officer", grants: ["patient.read", "privacy.manage", "admin.dashboard", "audit.view"] },
 };
-await db.rolePermission.deleteMany({ where: { roleId: role.id, permissionId: { notIn: permissions.map(item => item.id) } } });
-for (const permission of permissions)
+await db.rolePermission.deleteMany({ where: { roleId: role.id, permissionId: { notIn: systemPermissions.map(item => item.id) } } });
+for (const permission of systemPermissions)
   await db.rolePermission.upsert({ where: { roleId_permissionId: { roleId: role.id, permissionId: permission.id } }, update: {}, create: { roleId: role.id, permissionId: permission.id } });
 
 for (const [code, definition] of Object.entries(operationalRoles)) {

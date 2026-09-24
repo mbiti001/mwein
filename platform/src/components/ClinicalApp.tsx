@@ -275,7 +275,7 @@ export default function ClinicalApp() {
     ["summaries", "Patient records", "clinical.summary.read"],
   ];
   const nav: [Screen, string][] = allNav.filter(([, , permission]) => !permission || user.permissions.includes(permission)).map(([key, label]) => [key, label]);
-  if ((user.permissions || []).includes("billing.read"))
+  if (user.permissions.some(permission => ["reports.clinical.read", "reports.operations.read"].includes(permission)))
     nav.push(["reports", "Reports"]);
   if ((user.permissions || []).includes("admin.dashboard"))
     nav.push(["admin", "Administration"]);
@@ -486,7 +486,7 @@ export default function ClinicalApp() {
         )}
         {screen === "summaries" && <VisitSummaryWorkstation canAddendum={user.permissions.includes("encounter.write")} />}
         {screen === "followUps" && <FollowUpWorkstation/>}
-        {screen === "reports" && <ReportingWorkstation />}
+        {screen === "reports" && <ReportingWorkstation permissions={user.permissions} />}
         {screen === "admin" && <AdminCenter permissions={user.permissions} onOpenStock={(focus) => { setStockFocus(focus); setFocusedVisitId(null); setScreen("pharmacy"); }} />}
       </section>
     </main>

@@ -1,3 +1,4 @@
+import { privateResponse } from "@/lib/outpatient-access";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { appendAudit, auditValueFingerprint } from "@/lib/audit";
@@ -86,11 +87,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         tx.consent.findMany({ where: { patientId: id }, orderBy: { recordedAt: "desc" } }),
         tx.dataSubjectRequest.findMany({ where: { patientId: id, facilityId: user.facilityId }, include: { createdBy: { select: { displayName: true } }, updatedBy: { select: { displayName: true } } }, orderBy: { requestedAt: "desc" } }),
       ]);
-      await appendAudit(tx, { userId: user.id, sessionId: user.sessionId, action: "PATIENT_PRIVACY_RECORD_ACCESSED", entityType: "Patient", entityId: id, afterHash: `${consents.length}:${requests.length}` });
+      await appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: "PATIENT_PRIVACY_RECORD_ACCESSED", entityType: "Patient", entityId: id, afterHash: `${consents.length}:${requests.length}` });
       return { consents, requests };
     });
-    return NextResponse.json({ patient, ...result });
-  } catch (error) { return apiError(error); }
+    return privateResponse(NextResponse.json({ patient, ...result }));
+  } catch (error) { return privateResponse(apiError(error)); }
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {

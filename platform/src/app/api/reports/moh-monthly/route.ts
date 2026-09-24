@@ -1,3 +1,5 @@
+import { recordReportAccess } from "@/lib/report-access";
+import { privateResponse } from "@/lib/outpatient-access";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
@@ -10,13 +12,13 @@ const ageBand = (age: number | null) => age == null ? "UNKNOWN" : age < 5 ? "UND
 
 export async function GET(request: Request) {
   try {
-    const user = await requirePermission("billing.read");
+    const user = await requirePermission("reports.clinical.read");
     const month = monthSchema.parse(new URL(request.url).searchParams.get("month"));
     const [year, value] = month.split("-").map(Number);
     const from = new Date(Date.UTC(year, value - 1, 1) - 3 * 60 * 60 * 1000);
     const through = new Date(Date.UTC(year, value, 1) - 3 * 60 * 60 * 1000);
     const [visits, referrals] = await Promise.all([
-      db.visit.findMany({ where: { facilityId: user.facilityId, arrivedAt: { gte: from, lt: through }, status: { not: "CANCELLED" } }, include: { patient: true, triage: true, encounters: { include: { diagnoses: true } }, orders: { include: { prescription: true } } } }),
+      db.visit.findMany({ where: { facilityId: user.facilityId, arrivedAt: { gte: from, lt: through }, status: { not: "CANCELLED" } }, select: { arrivedAt: true, patient: { select: { dateOfBirth: true, estimatedAgeYears: true, sexAtBirth: true } }, encounters: { select: { status: true, diagnoses: { select: { code: true, description: true } } } }, orders: { select: { type: true, status: true, prescription: { select: { dispenseStatus: true } } } } } }),
       db.referral.count({ where: { facilityId: user.facilityId, sentAt: { gte: from, lt: through } } }),
     ]);
     const attendance: Record<string, number> = {};
@@ -32,6 +34,8 @@ export async function GET(request: Request) {
       imagingOrders += visit.orders.filter(item => item.type === "IMAGING" && item.status !== "CANCELLED").length;
       medicinesDispensed += visit.orders.filter(item => item.type === "MEDICATION" && item.prescription && !["PENDING", "NOT_DISPENSED"].includes(item.prescription.dispenseStatus)).length;
     }
-    return NextResponse.json({ reportType: "MOH/KHIS monthly source summary", submissionStatus: "REVIEW_REQUIRED", month, facility: user.facility, generatedAt: new Date().toISOString(), attendance, diagnoses: [...diagnoses.values()].sort((a,b) => b.total - a.total), services: { visits: visits.length, laboratoryOrders, imagingOrders, medicinesDispensed, referrals }, completeness: { signedEncounters, unsignedVisits: visits.length - signedEncounters, visitsWithCodedDiagnosis: codedVisits, visitsWithoutCodedDiagnosis: visits.length - codedVisits } });
-  } catch (error) { return apiError(error); }
+    const report = { reportType: "MOH/KHIS monthly source summary", submissionStatus: "REVIEW_REQUIRED", month, facility: user.facility, generatedAt: new Date().toISOString(), attendance, diagnoses: [...diagnoses.values()].sort((a,b) => b.total - a.total), services: { visits: visits.length, laboratoryOrders, imagingOrders, medicinesDispensed, referrals }, completeness: { signedEncounters, unsignedVisits: visits.length - signedEncounters, visitsWithCodedDiagnosis: codedVisits, visitsWithoutCodedDiagnosis: visits.length - codedVisits } };
+    await recordReportAccess(user, "MONTHLY_CLINICAL", report);
+    return privateResponse(NextResponse.json(report));
+  } catch (error) { return privateResponse(apiError(error)); }
 }

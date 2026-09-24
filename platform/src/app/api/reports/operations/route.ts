@@ -1,3 +1,5 @@
+import { recordReportAccess } from "@/lib/report-access";
+import { privateResponse } from "@/lib/outpatient-access";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
@@ -14,7 +16,7 @@ const querySchema = z
 
 export async function GET(request: Request) {
   try {
-    const user = await requirePermission("billing.read");
+    const user = await requirePermission("reports.operations.read");
     const url = new URL(request.url);
     const input = querySchema.parse({
       from: url.searchParams.get("from"),
@@ -74,7 +76,7 @@ export async function GET(request: Request) {
       expiring30Days: inventory.filter(item => item.inventoryBatches.some(batch => batch.expiryDate <= inThirtyDays && Number(batch.quantityAvailable) > 0)).length,
       expiring90Days: inventory.filter(item => item.inventoryBatches.some(batch => batch.expiryDate <= inNinetyDays && Number(batch.quantityAvailable) > 0)).length,
     };
-    return NextResponse.json({
+    const report = {
       range: input,
       generatedAt: new Date().toISOString(),
       summary: summarizeOperations(visits),
@@ -84,8 +86,10 @@ export async function GET(request: Request) {
         pharmacy: { consumption: summarizeDispensing(dispensations).slice(0, 12), ...stock },
         cashiers: summarizeCashierActivity(payments),
       },
-    });
+    };
+    await recordReportAccess(user, "OPERATIONS", report);
+    return privateResponse(NextResponse.json(report));
   } catch (error) {
-    return apiError(error);
+    return privateResponse(apiError(error));
   }
 }

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/report-access", () => ({ recordReportAccess: vi.fn() }));
 vi.mock("@/lib/auth", () => ({
   requirePermission: vi.fn().mockResolvedValue({
     facilityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",

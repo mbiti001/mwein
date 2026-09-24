@@ -18,3 +18,13 @@ describe("staff role boundaries", () => {
     expect(canManageStaff({ actorRoles: ["HR_ADMIN"], canAssignGovernance: false, targetRoleCodes: ["PHARMACY"] })).toBe(true);
   });
 });
+
+describe("protected privacy and reporting appointments", () => {
+  it.each(["DATA_PROTECTION_OFFICER", "REPORTING_OFFICER"])("requires governance authority to assign and manage %s", roleCode => {
+    for (const allowed of [false, true]) {
+      const actor = { actorRoles: ["HR_ADMIN"], canAssignGovernance: allowed };
+      expect(canAssignRole({ ...actor, roleCode })).toBe(allowed);
+      expect(canManageStaff({ ...actor, targetRoleCodes: ["RECEPTION", roleCode] })).toBe(allowed);
+    }
+  });
+});

@@ -1,11 +1,16 @@
-import { execFileSync } from "node:child_process";
-import { readdirSync } from "node:fs";
 import path from "node:path";
+import { collectCertificationSource } from "./certification-source.mjs";
 
-const root = path.resolve(import.meta.dirname, "..");
-const repo = path.resolve(root, "..");
-const commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repo, encoding: "utf8" }).trim();
-const migrations = readdirSync(path.join(root, "prisma/migrations"), { withFileTypes: true }).filter((item) => item.isDirectory()).map((item) => item.name).sort();
+const args = process.argv.slice(2);
+let ref = "HEAD";
+let allowDirty = false;
+for (let index = 0; index < args.length; index++) {
+  if (args[index] === "--allow-dirty") allowDirty = true;
+  else if (args[index] === "--commit" && args[index + 1]) ref = args[++index];
+  else throw new Error("Usage: certification-evidence.mjs [--commit <ref>] [--allow-dirty]");
+}
+const repo = path.resolve(import.meta.dirname, "../..");
+const source = collectCertificationSource({ repo, ref, allowDirty });
 const controls = [
   ["release_identity", "IMPLEMENTED", "Immutable commit is exposed by /api/health and verified with ops:release-verify"],
   ["platform_ci", "IMPLEMENTED", "Platform verification runs types, tests, migrations, build, integration and browser checks"],
@@ -25,9 +30,8 @@ const controls = [
 const result = {
   generatedAt: new Date().toISOString(),
   application: "mwein-hmis-platform",
-  commit,
-  latestMigration: migrations.at(-1),
-  migrationCount: migrations.length,
+  ...source,
+  controlsProvenance: "Collector checklist only; these descriptions are not validation results for the selected source or deployed runtime.",
   controls: controls.map(([code, status, evidence]) => ({ code, status, evidence })),
   declaration: "Engineering evidence index only. It is not DHA certification, legal approval or clinical acceptance.",
 };
