@@ -31,3 +31,7 @@ No universal seven-year retention rule was adopted: the ODPC health-data guidanc
 ## Submission status
 
 Drafting does not close the `DPIA_DPA`, `BACKUP_RESTORE_DRILL`, `INCIDENT_RESPONSE` or `AUDIT_RETENTION` gates. Only actual retained evidence and accountable decisions can support those approvals. The current [DHA readiness review](../DHA-READINESS-20260925.md) covers clinical, reporting, integration and independent-assessment work beyond this pack.
+
+## Follow-up operations evidence
+
+[25 September hosting/TLS evidence and backup preparation](technical-evidence-20260925-operations/README.md) records the newer public release `83fdd61` (documentation-only difference), provider inspection, verified public TLS, unavailable external SSD/toolchain and tested backup credential protection. Physical backup/restore and DPO approval remain pending.

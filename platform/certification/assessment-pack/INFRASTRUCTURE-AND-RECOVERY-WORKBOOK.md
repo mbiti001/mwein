@@ -68,3 +68,7 @@ Artifact ID / title / version: pending. Source and release: pending. Operator / 
 ## Completion order
 
 First obtain SSD encryption and key-custody evidence, exact private location and separate-site decision; agree RPO/RTO and the operator/observer. In parallel collect provider, TLS/encryption and executed contract records. Then make and verify the approved encrypted backup and run the witnessed isolated restore. Complete monitoring and incident/downtime rehearsals. Retain evidence and approvals against the actual governance gates; do not mark them approved because this workbook exists.
+
+## Follow-up operations evidence
+
+[25 September hosting/TLS evidence and backup preparation](technical-evidence-20260925-operations/README.md) records the newer public release `83fdd61` (documentation-only difference), provider inspection, verified public TLS, unavailable external SSD/toolchain and tested backup credential protection. Physical backup/restore and DPO approval remain pending.

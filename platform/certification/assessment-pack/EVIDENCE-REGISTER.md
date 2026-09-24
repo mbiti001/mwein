@@ -37,3 +37,7 @@ The baseline source contains useful tests including `src/lib/clinical-closure.te
 ## Current preparation record
 
 [25 September review handoff](PRIVACY-OPERATIONS-HANDOFF-20260925.md) identifies owner decisions, completed drafting and the concrete evidence still required. Earlier dated execution records remain historical; they are not the current release baseline.
+
+## Follow-up operations evidence
+
+[25 September hosting/TLS evidence and backup preparation](technical-evidence-20260925-operations/README.md) records the newer public release `83fdd61` (documentation-only difference), provider inspection, verified public TLS, unavailable external SSD/toolchain and tested backup credential protection. Physical backup/restore and DPO approval remain pending.

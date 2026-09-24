@@ -57,3 +57,7 @@ Tax evidence received: [Edwin’s KRA PIN and Tax Compliance Certificate review]
 The [app audit and implementation backlog](APP-AUDIT-AND-IMPLEMENTATION-BACKLOG.md) records confirmed code gaps, five implementation-ready packages, acceptance tests and external dependencies. It distinguishes scanner false positives and describes historical implementation gaps; consult the current readiness review for later closures.
 
 Reporting follow-up: [APP-08 / APP-09 requirements and acceptance plan](REPORTING-IDSR-REQUIREMENTS.md), including the facility and receiving-service inputs still needed.
+
+## Latest operational observation
+
+The [25 September follow-up](technical-evidence-20260925-operations/README.md) records public release `83fdd61`, a documentation-only successor to the application baseline above, and fresh TLS/provider evidence. Backup preparation is tested; the physical SSD restore remains pending.
