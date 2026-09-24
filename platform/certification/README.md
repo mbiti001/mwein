@@ -36,3 +36,7 @@ Never replace these documents with environment-variable screenshots or self-atte
 [Local IDSR register implementation](LOCAL-IDSR-IMPLEMENTATION.md) adds case/event capture, local review and staff-recorded notification evidence; national rules and transport remain unconfigured.
 
 [Current remaining-work status](assessment-pack/REMAINING-WORK-STATUS.md) records the resumed MFA, expanded audit controls and remaining external dependencies.
+
+## Latest review
+
+See [25 September DHA readiness and ODPC evidence](DHA-READINESS-20260925.md) and [verified production release](DEPLOYMENT-20260925.md) for the current position; older dated records describe their respective releases.

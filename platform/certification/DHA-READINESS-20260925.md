@@ -8,7 +8,7 @@ The [official DHA certification portal](https://certification.dha.go.ke/) lists 
 
 | Requirement | Evidence reviewed | What remains / accountable owner |
 |---|---|---|
-| ODPC registration | Owner confirmed on 25 September 2026 that both controller and processor certificates are held. The existing register also retains review metadata for the controller certificate, valid to 22 September 2028 | DPO: retain both originals and verify the processor certificate’s entity, number, scope and validity for the submission pack; processor document and online registry have not been inspected in this task |
+| ODPC registration | Both supplied PDFs visually reviewed on 25 September 2026: MWEIN MEDICAL SERVICES, identification 112-9801-11EB. Controller serial 27289: 22 September 2026–22 September 2028. Processor serial 27735: 24 September 2026–24 September 2028 | Evidence supplied for both roles. DPO: retain originals in the private submission pack; online registry authenticity and applicant-specific acceptance have not been independently verified |
 | System DPIA and privacy arrangements | Draft DPIA/procedures, consent and rights workflows | DPO/leadership: completed approved Mwein-specific DPIA, processor agreements, retention and incident procedures, actual hosting/AI processing scope |
 | Encryption at rest and key management | Hosting evidence workbook; database/backup tools exist | Operations/security: provider/database/backup encryption standard, key/access custody, regions, retention, and supporting records |
 | Encryption in transit | Live HTTPS application; source requires secure configuration | Operations/security: retained edge, database and integration TLS evidence, certificate lifecycle and all supported connection paths |
@@ -37,3 +37,14 @@ Edwin is the accountable owner across the existing workstreams; specialist evide
 5. Freeze the assessment release and evidence pack; complete self-attestation/document review and laboratory testing through the official programme.
 
 Publishing the app does not approve these gates. The readiness probe must continue to report blocked until the actual required configuration and approval evidence are complete. Do not replace missing evidence with placeholder approvals.
+
+## ODPC evidence register
+
+Read-only visual inspection of both original PDFs; certificate images and originals remain outside Git and deployment. These registrations do not certify the HMIS itself.
+
+| Role | Original filename | SHA-256 |
+|---|---|---|
+| Controller | MWEIN MEDICAL SERVICES Registration Certificate.pdf | `c8b29ea5a5b489df4fce051509aabb5703a38d23a4d8550abe9b61610a224cf7` |
+| Processor | MWEIN MEDICAL SERVICES Registration Certificate (1).pdf | `5e46770ecc01ebcb0753a1561731c4464a366e4bba0864779abfa45b0fb0e410` |
+
+Release verification is recorded in [the 25 September deployment record](DEPLOYMENT-20260925.md).
