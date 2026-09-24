@@ -1,0 +1,60 @@
+{
+  "collectedAt": "2026-09-24T21:52:26.760Z",
+  "origin": "https://mwein-hmis-platform.vercel.app",
+  "checks": [
+    {
+      "path": "/api/health",
+      "status": 200,
+      "cacheControl": "no-store",
+      "body": {
+        "status": "ok",
+        "database": "connected",
+        "migration": "20260924130000_workforce_mfa",
+        "release": {
+          "commit": "83fdd6133c024ce057ef87d12bef4e7577635b84",
+          "shortCommit": "83fdd6133c02",
+          "environment": "production",
+          "application": "mwein-hmis-platform"
+        },
+        "time": "2026-09-24T21:52:27.615Z"
+      }
+    },
+    {
+      "path": "/api/ready",
+      "status": 503,
+      "cacheControl": "no-store",
+      "body": {
+        "status": "blocked"
+      }
+    },
+    {
+      "path": "/api/patients",
+      "status": 401,
+      "cacheControl": "private, no-store",
+      "body": {
+        "error": "Authentication required",
+        "reason": "Authentication required"
+      }
+    }
+  ],
+  "tls": {
+    "authorized": true,
+    "protocol": "TLSv1.3",
+    "cipher": {
+      "name": "TLS_AES_128_GCM_SHA256",
+      "standardName": "TLS_AES_128_GCM_SHA256",
+      "version": "TLSv1.3"
+    },
+    "validFrom": "Aug 29 19:48:09 2026 GMT",
+    "validTo": "Nov 27 19:48:08 2026 GMT",
+    "fingerprint256": "8F:46:C4:A0:A2:89:BF:DE:40:60:D0:69:86:F2:AF:76:1E:E6:2D:66:8D:DE:97:2E:6B:EF:46:87:EE:4F:60:93",
+    "issuer": {
+      "C": "US",
+      "O": "Google Trust Services",
+      "CN": "WR1"
+    },
+    "subject": {
+      "CN": "*.vercel.app"
+    }
+  }
+}

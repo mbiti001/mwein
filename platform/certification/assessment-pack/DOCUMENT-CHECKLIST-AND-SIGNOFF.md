@@ -13,10 +13,10 @@ This checklist prepares evidence for review. It is not an attestation that a req
 | Scope, intended use, exclusions and owner register | Draft ready | Ownership assigned to Edwin for every workstream; complete the remaining DEC-01 to DEC-05 approvals |
 | System manual, requirements and architecture/data flows | Draft ready | Clinical, technical and privacy review; version and sign approved copies |
 | Official framework mapping | Not complete | Attach authoritative current framework; map actual clause IDs and portal-required documents |
-| DPIA, notices, lawful-processing assessment and processor terms | Outstanding | DPO documents actual data flows, transfers, retention, rights and contractual controls |
+| DPIA, notices, lawful-processing assessment and processor terms | Version 2 drafts prepared; approval outstanding | Review [DPIA](PRIVACY-DPIA-AND-PROCEDURES-DRAFT.md) and [MOH/Kenyan-law decision schedules](PRIVACY-DECISION-SCHEDULES.md); supply class-specific authority, contracts and decisions |
 | Hosting, encryption, keys and administrative access evidence | Outstanding | Operations obtains provider/project-specific artifacts; verifies region and access ownership |
 | Clinical/medication/terminology governance | Outstanding approval | Medical director approves rules, terminology release/update process and exception handling |
-| Workforce security and emergency access | Incomplete | MFA and governed recovery implemented in source; identity owner approves lifecycle, trains administrators and witnesses enrollment/recovery before rollout |
+| Workforce security and emergency access | Incomplete | MFA and governed recovery deployed; identity owner approves lifecycle, trains administrators and witnesses enrollment/recovery |
 | Audit coverage and immutable retention | Incomplete | Compliance verifies exports, coverage, custody, access and retention schedule |
 | Independent backup, restore and downtime/incident response | Incomplete | Run approved isolated drill and retain timings, reconciliation and response contacts |
 | Reporting and national integration evidence | Incomplete | Confirm mandatory scope; approve datasets/profiles and obtain genuine sandbox acknowledgements |

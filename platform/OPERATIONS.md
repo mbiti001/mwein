@@ -33,7 +33,7 @@ Before enabling provider login, run `npm run ops:oidc-verify` in the release env
 
 ## Backup and restore evidence
 
-Set an explicit dedicated `BACKUP_DIR` and run `npm run ops:backup`. The command creates a PostgreSQL custom-format dump and a SHA-256 checksum. Transfer both to the approved encrypted backup target; the local directory is not the retention control.
+Set an explicit dedicated `BACKUP_DIR` and run `npm run ops:backup`. The command creates a PostgreSQL custom-format dump and a SHA-256 checksum. Use an approved encrypted destination volume: the dump itself is not encrypted. Connection credentials are passed through validated libpq environment variables rather than process arguments; raw tool diagnostics are withheld. Files are private and incomplete outputs are removed on handled failures. After interruption or power loss, inspect the protected directory for partial files before retrying. Transfer both to the approved encrypted backup target; the local directory is not the retention control.
 
 At the agreed cadence, create a disposable isolated PostgreSQL database, supply the independently reviewed restore approval and source/target/backup settings described under “Verified disposable restore plan”, and run `npm run ops:restore-drill`. The script requires verified distinct approved database systems before restoration. Run application smoke tests against the restored database, destroy the disposable database through the provider, and attach the results to the Backup and restore governance gate.
 

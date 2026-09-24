@@ -19,7 +19,7 @@ Proposed product classification: facility outpatient HMIS/EMR. The applicant mus
 | Reports | Include local operational summaries | Do not claim KHIS/IDSR submission, complete notifiable-event workflow or acknowledged delivery |
 | National exchange | Exclude production transmission from proposed claim | Preparation code exists; authority/profile/conformance approval remains outstanding |
 | AI-generated summaries | Exclude from proposed claim pending explicit decision | AI libraries and governance definitions exist in source; do not assume a gate definition proves live enforcement or disabled functionality |
-| Native workforce MFA | Implemented in remediation source | User resumed work; rollout, enrollment and approved operational evidence remain pending |
+| Native workforce MFA | Deployed and required in current release | Individual enrollment and approved operational evidence remain pending |
 | Other care settings | Exclude unassessed inpatient, theatre, emergency, offline synchronization and device integration | Presence of specialty screens does not establish validated scope |
 
 An exclusion is a claim boundary, not a waiver of a mandatory DHA criterion. If DHA requires an excluded capability for this classification, amend the scope and implementation plan before applying. The current internal readiness engine still has 13 gates, including AI, MFA and national integrations; this draft changes none of them.
