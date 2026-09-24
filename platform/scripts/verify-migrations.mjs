@@ -22,6 +22,10 @@ for (const migration of migrations) {
 }
 
 const requiredTables = [
+  "MeasuredVitals",
+  "SurveillanceRecord",
+  "SurveillanceEntry",
+  "LocalReportRevision",
   "Facility",
   "Patient",
   "Visit",
@@ -36,6 +40,7 @@ const requiredTables = [
   "AccountingJournalLine",
   "AuditChainHead",
   "LoginThrottle",
+  "UserMfa",
   "GovernanceEvidence",
   "PatientProblem",
   "ServicePointControl",
@@ -136,6 +141,55 @@ const balanceResult = await db.query(
 );
 if (balanceResult.rows[0]?.debit !== balanceResult.rows[0]?.credit)
   throw new Error("Migration smoke journal is not balanced");
+
+// Protect approved reporting snapshots even when writes bypass the application.
+await db.exec(`
+  INSERT INTO "User" ("id", "facilityId", "email", "displayName", "passwordHash", "updatedAt")
+  VALUES ('22222222-2222-4222-8222-222222222223', '11111111-1111-4111-8111-111111111111', 'reviewer@example.test', 'Independent reviewer', 'not-a-real-hash', CURRENT_TIMESTAMP);
+  INSERT INTO "LocalReportRevision" ("id", "facilityId", "familyId", "month", "payload", "payloadHash", "preparedById", "contributorIds", "status", "reviewedById", "reviewedAt", "updatedAt")
+  VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab', '11111111-1111-4111-8111-111111111111', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaac', '2026-09', '{}', 'synthetic-hash', '22222222-2222-4222-8222-222222222222', ARRAY['22222222-2222-4222-8222-222222222222']::uuid[], 'APPROVED', '22222222-2222-4222-8222-222222222223', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+`);
+for (const statement of [
+  `UPDATE "LocalReportRevision" SET "payload" = '{"tampered":true}' WHERE "id" = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab'`,
+  `DELETE FROM "LocalReportRevision" WHERE "id" = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab'`,
+]) {
+  let rejected = false;
+  try { await db.exec(statement); } catch (error) { rejected = String(error).includes("immutable"); }
+  if (!rejected) throw new Error("Approved reporting history could be changed");
+}
+
+await db.exec(`
+  INSERT INTO "SurveillanceRecord" ("id", "facilityId", "details", "updatedAt")
+  VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaadd', '11111111-1111-4111-8111-111111111111', '{}', CURRENT_TIMESTAMP);
+  INSERT INTO "SurveillanceEntry" ("id", "recordId", "version", "actorId", "action", "reason", "snapshot", "snapshotHash")
+  VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaade', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaadd', 1, '22222222-2222-4222-8222-222222222222', 'CREATE', 'Synthetic capture', '{}', 'synthetic-hash');
+`);
+for (const statement of [
+  `UPDATE "SurveillanceEntry" SET "reason" = 'tampered' WHERE "id" = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaade'`,
+  `DELETE FROM "SurveillanceEntry" WHERE "id" = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaade'`,
+]) {
+  let rejected = false;
+  try { await db.exec(statement); } catch (error) { rejected = String(error).includes("immutable"); }
+  if (!rejected) throw new Error("Surveillance history could be changed");
+}
+
+// Measurements remain attributable even when writes bypass the application.
+await db.exec(`
+  INSERT INTO "Patient" ("id", "facilityId", "patientNumber", "fullName", "normalizedName", "sexAtBirth", "updatedAt")
+  VALUES ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1', '11111111-1111-4111-8111-111111111111', 'VITALS-SMOKE', 'Synthetic Measurement', 'synthetic measurement', 'MALE', CURRENT_TIMESTAMP);
+  INSERT INTO "Visit" ("id", "facilityId", "patientId", "visitNumber", "clinic", "visitType", "reason", "updatedAt")
+  VALUES ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2', '11111111-1111-4111-8111-111111111111', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1', 'VITALS-SMOKE', 'General', 'OUTPATIENT', 'Synthetic verification', CURRENT_TIMESTAMP);
+  INSERT INTO "MeasuredVitals" ("id", "visitId", "recordedById", "measuredAt", "values")
+  VALUES ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb3', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2', '22222222-2222-4222-8222-222222222222', CURRENT_TIMESTAMP, '{"temperatureC":37}');
+`);
+for (const statement of [
+  `UPDATE "MeasuredVitals" SET "values" = '{}' WHERE "id" = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb3'`,
+  `DELETE FROM "MeasuredVitals" WHERE "id" = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb3'`,
+]) {
+  let rejected = false;
+  try { await db.exec(statement); } catch (error) { rejected = String(error).includes("immutable"); }
+  if (!rejected) throw new Error("Measured vitals history could be changed");
+}
 
 console.log(`verified ${migrations.length} migrations, ${requiredTables.length} required tables, immutable triggers, stocktake and cashier-shift uniqueness, and balanced journal constraints`);
 await db.close();

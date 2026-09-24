@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { recordDisclosure } from "@/lib/disclosure-audit";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
-import { apiError } from "@/lib/http";
+import { apiError, privateJson } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
 import {
   dispensingBalance,
@@ -134,7 +134,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const plan = plannedQuantity > 0
       ? planDispensingAllocation(batches, plannedQuantity, preferredBatchId)
       : { allocation: [], standardAllocation: [], fefoOverridden: false };
-    return NextResponse.json({
+    await recordDisclosure(user, "DISPENSING_DETAILS", [order.id]);
+    return privateJson({
       outstanding,
       available,
       allocation: plan.allocation,
@@ -177,6 +178,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         include: { prescription: true, visit: { include: { orders: true, invoice: true } } },
       });
       if (!order?.prescription) fail("Active prescription not found", 404);
+      if (order.visit.clinicallyClosedAt || ["DISCHARGED", "COMPLETED", "CANCELLED"].includes(order.visit.status)) fail("Clinical visit is closed", 409);
       const prescribed = Number(order.prescription.quantity);
       const quantity = input.action === "DISPENSE" ? input.quantity! : 0;
       const previouslyDispensed = Number(order.prescription.dispensedQuantity || 0);
@@ -310,15 +312,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       } });
       if (input.action === "DISPENSE") {
         const price = effectiveCatalogPrice(dispensedItem!);
-        await tx.invoiceItem.upsert({
-          where: { orderId: order.id },
-          update: { quantity: new Prisma.Decimal(balance!.cumulativeDispensed), unitPrice: new Prisma.Decimal(Number(price.unitPrice)), catalogItemId: dispensedItem!.id, priceVersionId: price.priceVersionId, serviceCode: `MED-${dispensedItem!.code}`, description: dispensedItem!.name },
-          create: {
+        await tx.invoiceItem.create({
+          data: {
             invoiceId: order.visit.invoice!.id,
             orderId: order.id,
             serviceCode: `MED-${dispensedItem!.code}`,
             description: dispensedItem!.name,
-            quantity: new Prisma.Decimal(balance!.cumulativeDispensed),
+            quantity: new Prisma.Decimal(quantity),
             unitPrice: new Prisma.Decimal(Number(price.unitPrice)),
             catalogItemId: dispensedItem!.id,
             priceVersionId: price.priceVersionId,
@@ -353,6 +353,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         dispensedMedicine: dispensedItem ? { id: dispensedItem.id, code: dispensedItem.code, name: dispensedItem.name } : null,
       };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    return NextResponse.json(result);
+    return privateJson(result);
   } catch (error) { return apiError(error); }
 }

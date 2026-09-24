@@ -18,3 +18,16 @@ describe("staff role boundaries", () => {
     expect(canManageStaff({ actorRoles: ["HR_ADMIN"], canAssignGovernance: false, targetRoleCodes: ["PHARMACY"] })).toBe(true);
   });
 });
+
+describe("DPO governance boundary", () => {
+  it("denies HR assignment and all management of DPO accounts", () => {
+    const actor = { actorRoles: ["HR_ADMIN"], canAssignGovernance: false };
+    expect(canAssignRole({ ...actor, roleCode: "DATA_PROTECTION_OFFICER" })).toBe(false);
+    expect(canManageStaff({ ...actor, targetRoleCodes: ["DATA_PROTECTION_OFFICER"] })).toBe(false);
+  });
+  it("allows explicitly authorized governance administrators", () => {
+    const actor = { actorRoles: ["FACILITY_ADMIN"], canAssignGovernance: true };
+    expect(canAssignRole({ ...actor, roleCode: "DATA_PROTECTION_OFFICER" })).toBe(true);
+    expect(canManageStaff({ ...actor, targetRoleCodes: ["DATA_PROTECTION_OFFICER"] })).toBe(true);
+  });
+});

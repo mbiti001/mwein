@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { auditedOperationalJson } from "@/lib/audited-json";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -98,12 +98,12 @@ export async function POST(request: Request) {
     const input = requestSchema.parse(await request.json());
     const rows = parseCsv(input.csv);
     if (!rows.length)
-      return NextResponse.json(
+      return await auditedOperationalJson(user, "admin/import",
         { error: "The CSV has headers but no data rows" },
         { status: 422 },
       );
     if (rows.length > 10000)
-      return NextResponse.json(
+      return await auditedOperationalJson(user, "admin/import",
         { error: "A single import is limited to 10,000 rows" },
         { status: 422 },
       );
@@ -114,7 +114,7 @@ export async function POST(request: Request) {
     const invalid = preview.filter((row) => row.errors.length);
     if (!input.publish || invalid.length) {
       const start = (input.page - 1) * input.pageSize;
-      return NextResponse.json({
+      return await auditedOperationalJson(user, "admin/import", {
         preview: preview.slice(start, start + input.pageSize),
         total: rows.length,
         valid: rows.length - invalid.length,
@@ -402,7 +402,7 @@ export async function POST(request: Request) {
       },
       { timeout: 120000 },
     );
-    return NextResponse.json({ imported: imported.count, skippedDuplicates: imported.skippedDuplicates, openingStockSkipped: imported.openingStockSkipped, dataset: input.dataset });
+    return await auditedOperationalJson(user, "admin/import", { imported: imported.count, skippedDuplicates: imported.skippedDuplicates, openingStockSkipped: imported.openingStockSkipped, dataset: input.dataset });
   } catch (error) {
     return apiError(error);
   }

@@ -1,0 +1,114 @@
+
+> mwein-hmis-platform@0.1.0 test:browser
+> playwright test
+
+[WebServer] (node:71967) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:71967) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:71978) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:71976) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:71979) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:71981) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:71980) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:71982) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:71977) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:72003) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 43 tests using 1 worker
+
+(node:72016) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 e2e/authenticated-workflows.spec.ts:13:5 › renders the tenant-aware staff sign-in (2.2s)
+  ✓   2 e2e/authenticated-workflows.spec.ts:20:5 › requires a temporary password replacement before opening records (1.4s)
+  ✓   3 e2e/authenticated-workflows.spec.ts:27:5 › loads administration and production release gates after authentication (2.0s)
+  ✓   4 e2e/authenticated-workflows.spec.ts:38:5 › keeps a system-administrator-only account in administration (1.3s)
+  ✓   5 e2e/authenticated-workflows.spec.ts:46:5 › starts triage with blank measured observations and an explicit concern (1.7s)
+  ✓   6 e2e/authenticated-workflows.spec.ts:71:5 › cancels an undelivered visit with a documented SHA benefit outcome (1.8s)
+  ✓   7 e2e/authenticated-workflows.spec.ts:95:5 › keeps authenticated navigation usable at a mobile breakpoint (1.1s)
+  ✓   8 e2e/authenticated-workflows.spec.ts:107:5 › shows WHO-aligned ANC confirmation and adolescent safeguarding controls (1.4s)
+  ✓   9 e2e/authenticated-workflows.spec.ts:125:5 › blocks senseless ANC counts and alerts on abnormal clinical ranges (2.1s)
+  ✓  10 e2e/authenticated-workflows.spec.ts:158:7 › shows only the intended work areas for clinician.cover@example.test (826ms)
+  ✓  11 e2e/authenticated-workflows.spec.ts:158:7 › shows only the intended work areas for shared.user@example.test (1.0s)
+  ✓  12 e2e/authenticated-workflows.spec.ts:158:7 › shows only the intended work areas for nurse@example.test (1.0s)
+  ✓  13 e2e/authenticated-workflows.spec.ts:158:7 › shows only the intended work areas for clinician@example.test (984ms)
+  ✓  14 e2e/authenticated-workflows.spec.ts:158:7 › shows only the intended work areas for laboratory@example.test (1.1s)
+  ✓  15 e2e/authenticated-workflows.spec.ts:158:7 › shows only the intended work areas for imaging@example.test (959ms)
+  ✓  16 e2e/authenticated-workflows.spec.ts:158:7 › shows only the intended work areas for pharmacy@example.test (997ms)
+  ✓  17 e2e/authenticated-workflows.spec.ts:158:7 › shows only the intended work areas for billing@example.test (970ms)
+  ✓  18 e2e/authenticated-workflows.spec.ts:158:7 › shows only the intended work areas for finance.manager@example.test (1.0s)
+  ✓  19 e2e/authenticated-workflows.spec.ts:158:7 › shows only the intended work areas for facility.admin@example.test (1.0s)
+  ✓  20 e2e/authenticated-workflows.spec.ts:166:5 › lets the medical director govern medication safety without user administration (1.4s)
+  ✓  21 e2e/authenticated-workflows.spec.ts:175:5 › shows the new administration workbenches to an authorised administrator (1.3s)
+  ✓  22 e2e/authenticated-workflows.spec.ts:184:5 › completes registration and triage through the browser and routes to consultation (1.8s)
+  ✓  23 e2e/clinical-closure-identity.spec.ts:3:5 › clinician discharges a signed visit and reverses a reviewed identity correction (1.9s)
+  ✓  24 e2e/clinician-cover.spec.ts:19:5 › ordinary clinicians cannot acquire shortage-cover powers (1.2s)
+  ✓  25 e2e/clinician-cover.spec.ts:29:5 › shortage-cover clinician starts in consultation, records vitals, bills and discharges (3.4s)
+  ✓  26 e2e/dha-controls.spec.ts:16:7 › billing@example.test keeps billing without reports (1.1s)
+  ✓  27 e2e/dha-controls.spec.ts:16:7 › clinician.cover@example.test keeps billing without reports (1.2s)
+  ✓  28 e2e/dha-controls.spec.ts:25:5 › finance reports do not grant clinical summaries (2.0s)
+  ✓  29 e2e/dha-controls.spec.ts:33:5 › DPO is assignable by governance admin but protected from HR management (5.2s)
+  ✓  30 e2e/local-reports.spec.ts:14:5 › local reports preserve review, frozen approval and correction history (5.5s)
+  ✓  31 e2e/local-reports.spec.ts:74:5 › finance cannot read or prepare local clinical reports (1.3s)
+  ✓  32 e2e/mfa.spec.ts:49:5 › MFA enrollment, replay protection, recovery and protected replacement (6.0s)
+  ✓  33 e2e/mfa.spec.ts:107:5 › five wrong MFA attempts lock the account across new password sessions (2.6s)
+  ✘  34 e2e/mfa.spec.ts:121:5 › lost-factor recovery preserves MFA, revokes sessions and requires identity attestation by a separate verified admin (5.2s)
+(node:72283) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  35 e2e/modern-workspace.spec.ts:3:5 › workspace presents evidence honestly and filters queues (1.9s)
+  ✓  36 e2e/privacy-rights.spec.ts:3:5 › DPO records consent and fulfills an audited export without mixing patient forms (5.2s)
+  ✓  37 e2e/reception-vitals.spec.ts:4:5 › Reception captures vitals after check-in and nurse reviews them without re-entry (6.3s)
+  ✓  38 e2e/surveillance.spec.ts:14:5 › local event capture, early manual notification, review and immutable history (7.0s)
+  ✓  39 e2e/surveillance.spec.ts:74:5 › unidentified case and reviewed duplicate link need no signed encounter or billing (2.0s)
+  ✓  40 e2e/surveillance.spec.ts:88:118 › finance.manager@example.test cannot access case-level surveillance (1.5s)
+  ✓  41 e2e/surveillance.spec.ts:88:118 › facility.admin@example.test cannot access case-level surveillance (1.4s)
+  ✓  42 e2e/surveillance.spec.ts:88:118 › system.only@example.test cannot access case-level surveillance (1.2s)
+  ✓  43 e2e/visit-summary.spec.ts:3:5 › visit summary preserves disclosure content when printing and fits mobile (2.5s)
+
+
+  1) e2e/mfa.spec.ts:121:5 › lost-factor recovery preserves MFA, revokes sessions and requires identity attestation by a separate verified admin
+
+    TypeError: Cannot read properties of undefined (reading 'mfaRequired')
+
+      149 |     await login(page, targetEmail, recoveryPassword);
+      150 |     const pending = (await request(page, "/api/auth/me")).body.user;
+    > 151 |     expect(pending.mfaRequired).toBe(true); expect(pending.mfaEnrolled).toBe(false); expect(pending.permissions).toEqual([]);
+          |                    ^
+      152 |     expect((await request(page, "/api/visits")).status).toBe(403);
+      153 |     expect((await request(page, "/api/auth/mfa", { action: "VERIFY", code: original.codes[0] })).status).toBe(409);
+      154 |     const newPassword = "Replacement-Password-2026!";
+        at /Users/useruser/Downloads/mwein-dha-controls/platform/e2e/mfa.spec.ts:151:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/mfa-lost-factor-recovery-p-33311-y-a-separate-verified-admin/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/mfa-lost-factor-recovery-p-33311-y-a-separate-verified-admin/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #3: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/mfa-lost-factor-recovery-p-33311-y-a-separate-verified-admin/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/mfa-lost-factor-recovery-p-33311-y-a-separate-verified-admin/error-context.md
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/mfa-lost-factor-recovery-p-33311-y-a-separate-verified-admin/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/mfa-lost-factor-recovery-p-33311-y-a-separate-verified-admin/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    e2e/mfa.spec.ts:121:5 › lost-factor recovery preserves MFA, revokes sessions and requires identity attestation by a separate verified admin
+  42 passed (1.9m)

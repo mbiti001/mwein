@@ -1,3 +1,4 @@
+import { auditedOperationalJson } from "@/lib/audited-json";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { appendAudit } from "@/lib/audit";
@@ -30,7 +31,7 @@ export async function GET() {
       include: { updatedBy: { select: { displayName: true } } },
       orderBy: { gateCode: "asc" },
     });
-    return NextResponse.json(governanceReadiness(evidence));
+    return await auditedOperationalJson(user, "admin/governance", governanceReadiness(evidence));
   } catch (error) { return apiError(error); }
 }
 

@@ -29,6 +29,7 @@ const statusServicePoint: Record<string, ServicePointCode> = {
 };
 
 export function currentServicePoint(visit: FlowVisit): ServicePointCode | null {
+  if (["DISCHARGED", "COMPLETED", "CANCELLED"].includes(visit.status)) return null;
   const activeQueue = visit.queues?.find((queue) => ["WAITING", "CALLED", "IN_PROGRESS"].includes(queue.status));
   if (activeQueue && servicePoints.some((point) => point.code === activeQueue.servicePoint))
     return activeQueue.servicePoint as ServicePointCode;

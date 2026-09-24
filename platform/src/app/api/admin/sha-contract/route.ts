@@ -1,3 +1,4 @@
+import { auditedOperationalJson } from "@/lib/audited-json";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { appendAudit } from "@/lib/audit";
@@ -46,7 +47,7 @@ export async function GET() {
       where: { facilityId: user.facilityId },
       include: { updatedBy: { select: { displayName: true } } },
     });
-    return NextResponse.json({
+    return await auditedOperationalJson(user, "admin/sha-contract", {
       profile,
       readiness: shaContractProfileReadiness(profile),
       gateway: shaGatewayReadiness(profile),

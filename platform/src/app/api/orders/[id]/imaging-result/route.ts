@@ -46,7 +46,7 @@ export async function POST(
         throw Object.assign(new Error("Imaging order not found"), {
           status: 404,
         });
-      if (["COMPLETED", "CANCELLED"].includes(order.status))
+      if (order.visit.clinicallyClosedAt || ["COMPLETED", "CANCELLED"].includes(order.status))
         throw Object.assign(new Error("This imaging order is already closed"), {
           status: 409,
         });

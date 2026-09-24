@@ -1,5 +1,4 @@
 import { Prisma } from "@prisma/client";
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { appendAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth";
@@ -13,7 +12,8 @@ import {
   startOfDayInTimeZone,
 } from "@/lib/care-service-points";
 import { db } from "@/lib/db";
-import { apiError } from "@/lib/http";
+import { recordDisclosure } from "@/lib/disclosure-audit";
+import { apiError, privateJson } from "@/lib/http";
 import { applyLnmpDating, dateInTimeZone } from "@/lib/pregnancy-dating";
 
 const serviceCode = z.enum([
@@ -80,7 +80,8 @@ export async function GET(request: Request) {
         },
         orderBy: { createdAt: "asc" },
       });
-      return NextResponse.json({
+      await recordDisclosure(user, "SERVICE_POINTS", [visit.id, ...relationships.map(item => item.id)]);
+      return privateJson({
         record: visit.encounters[0]?.servicePointRecord || null,
         encounterStatus: visit.encounters[0]?.status || null,
         relationships,
@@ -156,7 +157,8 @@ export async function GET(request: Request) {
         }];
       }),
     );
-    return NextResponse.json({ metrics });
+    await recordDisclosure(user, "SERVICE_POINTS", [], metrics);
+    return privateJson({ metrics });
   } catch (error) {
     return apiError(error);
   }
@@ -292,7 +294,7 @@ export async function POST(request: Request) {
       });
       return { record, warnings: validation.warnings.map((issue) => issue.message) };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    return NextResponse.json(result);
+    return privateJson(result);
   } catch (error) {
     return apiError(error);
   }

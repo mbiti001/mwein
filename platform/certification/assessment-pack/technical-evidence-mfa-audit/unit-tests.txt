@@ -1,0 +1,12 @@
+
+> mwein-hmis-platform@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/useruser/Downloads/mwein-dha-controls/platform
+
+
+ Test Files  78 passed (78)
+      Tests  356 passed (356)
+   Start at  21:27:48
+   Duration  6.78s (transform 2.99s, setup 0ms, import 10.98s, tests 10.23s, environment 17ms)

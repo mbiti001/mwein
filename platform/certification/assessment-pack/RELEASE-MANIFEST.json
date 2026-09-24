@@ -1,0 +1,78 @@
+{
+  "documentStatus": "draft; not certification or sign-off",
+  "generatedFrom": "committed deployed source, not working tree",
+  "sourceCommit": "a5e19d3ee6edc08a21f7c8e836962c8be66dfcb7",
+  "deploymentId": "dpl_7FW4ub563CBkcojpxEc8biEEvhci",
+  "applicationUrl": "https://mwein-hmis-platform.vercel.app/",
+  "migrationCount": 43,
+  "latestMigration": "20260923140000_clinical_closure_identity_history",
+  "migrations": [
+    "platform/prisma/migrations/20260829201000_phase1_core/migration.sql",
+    "platform/prisma/migrations/20260831070000_patient_addresses/migration.sql",
+    "platform/prisma/migrations/20260902150000_staged_clinical_workflow/migration.sql",
+    "platform/prisma/migrations/20260902153000_catalogue_management/migration.sql",
+    "platform/prisma/migrations/20260902160000_csv_and_lab_ranges/migration.sql",
+    "platform/prisma/migrations/20260902163000_specimen_workflow/migration.sql",
+    "platform/prisma/migrations/20260902180000_pharmacy_dispensing/migration.sql",
+    "platform/prisma/migrations/20260903130000_imaging_and_inventory/migration.sql",
+    "platform/prisma/migrations/20260903143000_claims_and_reversals/migration.sql",
+    "platform/prisma/migrations/20260903153000_lab_interoperability/migration.sql",
+    "platform/prisma/migrations/20260903170000_appointments/migration.sql",
+    "platform/prisma/migrations/20260904110000_pharmacy_counselling_traceability/migration.sql",
+    "platform/prisma/migrations/20260904130000_prescription_safety/migration.sql",
+    "platform/prisma/migrations/20260904170000_immutable_dispensations/migration.sql",
+    "platform/prisma/migrations/20260904190000_same_visit_medication_uniqueness/migration.sql",
+    "platform/prisma/migrations/20260905010000_connected_workflow_context/migration.sql",
+    "platform/prisma/migrations/20260905090000_procurement_controls/migration.sql",
+    "platform/prisma/migrations/20260905120000_catalogue_cost_price/migration.sql",
+    "platform/prisma/migrations/20260905170000_catalogue_pack_size/migration.sql",
+    "platform/prisma/migrations/20260906040000_structured_patient_names/migration.sql",
+    "platform/prisma/migrations/20260906090000_claim_line_allocation/migration.sql",
+    "platform/prisma/migrations/20260906130000_service_points_and_referrals/migration.sql",
+    "platform/prisma/migrations/20260907193000_pharmacy_stock_ledger/migration.sql",
+    "platform/prisma/migrations/20260907203000_dispensing_overrides/migration.sql",
+    "platform/prisma/migrations/20260907214500_pharmacy_reconciliation_accounting/migration.sql",
+    "platform/prisma/migrations/20260908090000_referral_result_links_and_acknowledgements/migration.sql",
+    "platform/prisma/migrations/20260911120000_security_audit_governance_problems/migration.sql",
+    "platform/prisma/migrations/20260914110000_operational_controls_and_safety/migration.sql",
+    "platform/prisma/migrations/20260914160000_gpt6_astra_visit_summaries/migration.sql",
+    "platform/prisma/migrations/20260915100000_operational_workbenches/migration.sql",
+    "platform/prisma/migrations/20260915130000_anc_admission_safety/migration.sql",
+    "platform/prisma/migrations/20260915150000_lnmp_pregnancy_dating/migration.sql",
+    "platform/prisma/migrations/20260916113000_sha_draft_contract_preparation/migration.sql",
+    "platform/prisma/migrations/20260916150000_effective_catalog_pricing/migration.sql",
+    "platform/prisma/migrations/20260919110000_visit_cancellation/migration.sql",
+    "platform/prisma/migrations/20260920130000_clinic_consultation_tariffs/migration.sql",
+    "platform/prisma/migrations/20260921120000_immutable_dispensation_invoice_lines/migration.sql",
+    "platform/prisma/migrations/20260921150000_icd11_release_traceability/migration.sql",
+    "platform/prisma/migrations/20260922120000_safe_registration_and_consent_lifecycle/migration.sql",
+    "platform/prisma/migrations/20260922133000_privacy_rights_workflows/migration.sql",
+    "platform/prisma/migrations/20260923100000_certification_workflows/migration.sql",
+    "platform/prisma/migrations/20260923120000_core_visit_disposition/migration.sql",
+    "platform/prisma/migrations/20260923140000_clinical_closure_identity_history/migration.sql"
+  ],
+  "sourceFiles": [
+    {
+      "path": "platform/package.json",
+      "sha256": "82fd606762163c8ad4e5068f7f373f7d2c625158378b7f5934db11e93e962d54"
+    },
+    {
+      "path": "platform/package-lock.json",
+      "sha256": "b40db4ba911f265f5a54ed968e04821333d2c413505099d05bfce880bdbdb033"
+    },
+    {
+      "path": "platform/prisma/schema.prisma",
+      "sha256": "33002cf6656909db9d4f55a97dae404c0b5b8eb556a22f1517abf044cbfad730"
+    },
+    {
+      "path": "platform/src/lib/governance.ts",
+      "sha256": "43ab5aca4b57ea746a6a480f06d182dcbd45268343c272a2a6419315ca1d4aeb"
+    },
+    {
+      "path": "platform/scripts/bootstrap.mjs",
+      "sha256": "f3ba17faa01c7c8ca3b262db347c41fe54b62ac6770c5af9502e139996f41f5f"
+    }
+  ],
+  "evidenceLimit": "Release test results are referenced from developer-authored release records; no new application test or live probe was executed for this pack.",
+  "excludedLocalWork": "Paused, uncommitted MFA changes and migration; no implementation or deployment performed."
+}

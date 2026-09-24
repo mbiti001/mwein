@@ -1,3 +1,4 @@
+import { auditedOperationalJson } from "@/lib/audited-json";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { appendAudit } from "@/lib/audit";
@@ -10,7 +11,7 @@ const verifySchema = z.object({ action: z.literal("VERIFY"), id: z.uuid(), note:
 const schema = z.union([createSchema, verifySchema]);
 
 export async function GET() {
-  try { const user = await requirePermission("admin.operations"); const records = await db.operationsEvidence.findMany({ where: { facilityId: user.facilityId }, include: { recordedBy: { select: { displayName: true } }, verifiedBy: { select: { displayName: true } } }, orderBy: { occurredAt: "desc" }, take: 100 }); return NextResponse.json({ records }); }
+  try { const user = await requirePermission("admin.operations"); const records = await db.operationsEvidence.findMany({ where: { facilityId: user.facilityId }, include: { recordedBy: { select: { displayName: true } }, verifiedBy: { select: { displayName: true } } }, orderBy: { occurredAt: "desc" }, take: 100 }); return await auditedOperationalJson(user, "admin/operations-evidence", { records }); }
   catch (error) { return apiError(error); }
 }
 

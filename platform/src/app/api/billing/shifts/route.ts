@@ -1,3 +1,4 @@
+import { auditedOperationalJson } from "@/lib/audited-json";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -19,7 +20,7 @@ export async function GET() {
   try {
     const user = await requirePermission("billing.write");
     const shifts = await db.cashierShift.findMany({ where: { facilityId: user.facilityId, ...(user.permissions.includes("billing.approve_shift") ? {} : { cashierId: user.id }) }, include, orderBy: { openedAt: "desc" }, take: 40 });
-    return NextResponse.json({ shifts: shifts.map(shift => ({ ...shift, isMine: shift.cashierId === user.id, totals: cashierShiftTotals(shift.openingFloat, shift.payments) })) });
+    return await auditedOperationalJson(user, "billing/shifts", { shifts: shifts.map(shift => ({ ...shift, isMine: shift.cashierId === user.id, totals: cashierShiftTotals(shift.openingFloat, shift.payments) })) });
   } catch (error) { return apiError(error); }
 }
 

@@ -1,0 +1,37 @@
+{
+  "sourceCommit": "a5e19d3ee6edc08a21f7c8e836962c8be66dfcb7",
+  "recordedAt": "2026-09-22T16:27:38.193195+00:00",
+  "source": "git archive of deployed commit; npm ci; no production secrets copied",
+  "environment": "local synthetic PGlite PostgreSQL fixture and Chrome; production read-only health/ready and deployment metadata checks separately identified",
+  "sanitization": "ANSI color removed; isolated temporary path normalized. No credentials or patient records included. Trailing whitespace and terminal blank lines normalized for Git.",
+  "files": [
+    {
+      "file": "browser-tests.txt",
+      "sha256": "d7797b1c695cce5596eb9f792218773ca35c5dd65fe44d93dec8bb2f93022997"
+    },
+    {
+      "file": "browser-visual-check.txt",
+      "sha256": "c5c0362435ae26a74c48317b7e0968fdaa6ffffc4fcf9b68213289c5a2a8bfe9"
+    },
+    {
+      "file": "deployment-inspection.txt",
+      "sha256": "2527c870f69e1d9e6d472940785fcc208f9ecacb044782846c4650a03ecdb746"
+    },
+    {
+      "file": "live-probes.json",
+      "sha256": "cfd4c5e9c2e883f85c85d6cc86848cea1b35513f9b4af473f385d4a9366a1075"
+    },
+    {
+      "file": "migrations.txt",
+      "sha256": "49174994516b9f1c10c67f83b4fee91ed69561f48bfa80084b6e2f1feaf9ec18"
+    },
+    {
+      "file": "typecheck.txt",
+      "sha256": "24965fa21f20ecff260982e0ae358c029d25d6ded2ef1b138457122978444614"
+    },
+    {
+      "file": "unit-tests.txt",
+      "sha256": "e6d6d66c3d09a25af3f366d218726b8e65050e1d9c725d1d0dfd399004f1cf3f"
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { auditedOperationalJson } from "@/lib/audited-json";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -97,7 +98,7 @@ export async function GET(request: Request) {
       orderBy: [{ category: "asc" }, { name: "asc" }],
     });
     const now = new Date();
-    return NextResponse.json({
+    return await auditedOperationalJson(user, "catalog", {
       items: items.map((item) => {
         const current = effectiveCatalogPrice(item, now);
         const upcoming = nextCatalogPrice(item, now);

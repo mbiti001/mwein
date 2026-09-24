@@ -1,3 +1,4 @@
+import { clinicianCoverRole } from "./clinician-cover-role.mjs";
 import { PrismaClient } from "@prisma/client";
 import { randomBytes, scryptSync } from "node:crypto";
 
@@ -5,8 +6,13 @@ const db = new PrismaClient();
 const password = (process.env.BOOTSTRAP_ADMIN_PASSWORD || "").trim();
 
 const permissionDefinitions = [
+  ["vitals.write", "Record measured vitals without completing clinical triage"],
+  ["surveillance.read", "View local surveillance records"],
+  ["surveillance.record", "Capture local surveillance and manual notification history"],
+  ["surveillance.review", "Review and close local surveillance concerns"],
   ["patient.read", "View patient records"],
   ["patient.create", "Register patients"],
+  ["privacy.manage", "Manage patient consent and data-subject requests"],
   ["visit.read", "View visits and queues"],
   ["visit.create", "Create visits"],
   ["visit.cancel", "Cancel visits with a documented reason"],
@@ -32,6 +38,10 @@ const permissionDefinitions = [
   ["procurement.manage_suppliers", "Create and manage suppliers"],
   ["procurement.create", "Draft and submit purchase orders"],
   ["procurement.approve", "Approve or cancel purchase orders"],
+  ["reports.prepare", "Prepare local aggregate report revisions"],
+  ["reports.review", "Review local aggregate report revisions"],
+  ["reports.clinical", "View facility clinical source reports"],
+  ["reports.operations", "View facility operational reports"],
   ["billing.read", "View invoices"],
   ["billing.write", "Receive payments and close settled visits"],
   ["billing.reverse", "Reverse payments with a documented reason"],
@@ -59,19 +69,21 @@ const role = await db.role.upsert({
 });
 const permissions = await db.permission.findMany();
 const operationalRoles = {
-  RECEPTION: { name: "Reception", grants: ["patient.read", "patient.create", "visit.read", "visit.create", "visit.cancel"] },
-  NURSE: { name: "Nurse", grants: ["patient.read", "visit.read", "triage.write"] },
-  CLINICIAN: { name: "Clinician", grants: ["patient.read", "visit.read", "encounter.write", "clinical.history.read", "clinical.results.read", "clinical.summary.read", "referral.read", "order.write"] },
+  [clinicianCoverRole.code]: clinicianCoverRole,
+  RECEPTION: { name: "Reception", grants: ["vitals.write", "patient.read", "patient.create", "visit.read", "visit.create", "visit.cancel"] },
+  NURSE: { name: "Nurse", grants: ["vitals.write", "surveillance.read", "surveillance.record", "patient.read", "visit.read", "triage.write"] },
+  CLINICIAN: { name: "Clinician", grants: ["vitals.write", "surveillance.read", "surveillance.record", "patient.read", "visit.read", "encounter.write", "clinical.history.read", "clinical.results.read", "clinical.summary.read", "referral.read", "order.write"] },
   LABORATORY: { name: "Laboratory", grants: ["patient.read", "visit.read", "laboratory.write"] },
   IMAGING: { name: "Imaging", grants: ["patient.read", "visit.read", "imaging.write"] },
   PHARMACY: { name: "Pharmacy & inventory officer", grants: ["patient.read", "visit.read", "pharmacy.dispense", "inventory.view", "inventory.receive", "inventory.count", "inventory.correct_metadata", "inventory.transfer", "procurement.manage_suppliers", "procurement.create"] },
   PHARMACY_MANAGER: { name: "Pharmacy & inventory manager", grants: ["patient.read", "visit.read", "pharmacy.dispense", "inventory.view", "inventory.receive", "inventory.count", "inventory.correct_metadata", "inventory.adjust", "inventory.reconcile", "inventory.transfer", "inventory.manage_stores", "procurement.manage_suppliers", "procurement.create", "procurement.approve", "accounting.view", "admin.dashboard", "audit.view"] },
-  FACILITY_ADMIN: { name: "Facility administrator", grants: ["patient.read", "visit.read", "visit.cancel", "billing.read", "accounting.view", "admin.dashboard", "admin.users", "admin.assign_governance", "admin.catalog", "admin.operations", "audit.view", "inventory.view"] },
-  MEDICAL_DIRECTOR: { name: "Medical director", grants: ["patient.read", "visit.read", "encounter.write", "clinical.history.read", "clinical.results.read", "clinical.summary.read", "referral.read", "order.write", "admin.dashboard", "admin.clinical_safety", "audit.view"] },
-  FINANCE_MANAGER: { name: "Finance manager", grants: ["patient.read", "visit.read", "visit.cancel", "billing.read", "billing.write", "billing.reverse", "billing.approve_shift", "claims.write", "inventory.view", "accounting.view", "admin.dashboard", "audit.view"] },
+  FACILITY_ADMIN: { name: "Facility administrator", grants: ["reports.prepare", "reports.clinical", "reports.operations", "patient.read", "visit.read", "visit.cancel", "billing.read", "accounting.view", "admin.dashboard", "admin.users", "admin.assign_governance", "admin.catalog", "admin.operations", "audit.view", "inventory.view"] },
+  MEDICAL_DIRECTOR: { name: "Medical director", grants: ["vitals.write", "surveillance.read", "surveillance.record", "surveillance.review", "reports.prepare", "reports.review", "reports.clinical", "patient.read", "visit.read", "encounter.write", "clinical.history.read", "clinical.results.read", "clinical.summary.read", "referral.read", "order.write", "admin.dashboard", "admin.clinical_safety", "audit.view"] },
+  FINANCE_MANAGER: { name: "Finance manager", grants: ["reports.operations", "patient.read", "visit.read", "visit.cancel", "billing.read", "billing.write", "billing.reverse", "billing.approve_shift", "claims.write", "inventory.view", "accounting.view", "admin.dashboard", "audit.view"] },
   HR_ADMIN: { name: "HR administrator", grants: ["admin.dashboard", "admin.users", "audit.view"] },
-  AUDITOR: { name: "Auditor", grants: ["admin.dashboard", "audit.view", "billing.read", "inventory.view", "accounting.view"] },
+  AUDITOR: { name: "Auditor", grants: ["reports.operations", "admin.dashboard", "audit.view", "billing.read", "inventory.view", "accounting.view"] },
   BILLING: { name: "Billing", grants: ["patient.read", "visit.read", "visit.cancel", "billing.read", "billing.write", "billing.reverse", "claims.write"] },
+  DATA_PROTECTION_OFFICER: { name: "Data protection officer", grants: ["patient.read", "privacy.manage", "admin.dashboard", "audit.view"] },
 };
 await db.rolePermission.deleteMany({ where: { roleId: role.id, permissionId: { notIn: permissions.map(item => item.id) } } });
 for (const permission of permissions)

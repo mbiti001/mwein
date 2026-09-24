@@ -18,6 +18,7 @@ export async function POST(request: Request) {
   try {
     const actor = await currentUser();
     if (!actor) throw Object.assign(new Error("Authentication required"), { status: 401 });
+    if (actor.mfaEnrolled && actor.mfaRequired) throw Object.assign(new Error("Complete multi-factor authentication first"), { status: 403 });
     const input = inputSchema.parse(await request.json());
     const user = await db.user.findUnique({ where: { id: actor.id }, select: { passwordHash: true } });
     if (!user || !verifyPassword(input.currentPassword, user.passwordHash))

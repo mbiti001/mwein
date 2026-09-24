@@ -1,4 +1,4 @@
-const governanceRoles = new Set(["FACILITY_ADMIN", "MEDICAL_DIRECTOR", "FINANCE_MANAGER", "HR_ADMIN", "AUDITOR"]);
+const governanceRoles = new Set(["FACILITY_ADMIN", "MEDICAL_DIRECTOR", "FINANCE_MANAGER", "HR_ADMIN", "AUDITOR", "DATA_PROTECTION_OFFICER"]);
 
 export function canAssignRole(input: { actorRoles: string[]; canAssignGovernance: boolean; roleCode: string }) {
   if (input.roleCode === "SYSTEM_ADMIN") return input.actorRoles.includes("SYSTEM_ADMIN");

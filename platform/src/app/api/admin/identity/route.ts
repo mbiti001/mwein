@@ -1,3 +1,4 @@
+import { auditedOperationalJson } from "@/lib/audited-json";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { appendAudit } from "@/lib/audit";
@@ -20,7 +21,7 @@ export async function GET() {
       db.role.findMany({ where: { code: { not: "SYSTEM_ADMIN" } }, select: { code: true, name: true }, orderBy: { name: "asc" } }),
       db.externalIdentity.count({ where: { facilityId: user.facilityId } }),
     ]);
-    return NextResponse.json({ configuration: externalIdentityConfiguration(), mappings, roles, linkedIdentities });
+    return await auditedOperationalJson(user, "admin/identity", { configuration: externalIdentityConfiguration(), mappings, roles, linkedIdentities });
   } catch (error) { return apiError(error); }
 }
 

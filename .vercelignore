@@ -1,0 +1,13 @@
+# Deploy the application, never local data, private branding source, or test artifacts.
+data/
+facility-branding/
+dist/
+secrets/
+**/node_modules/
+**/.next/
+**/.env*
+**/test-results/
+**/playwright-report/
+**/*.log
+**/*.tsbuildinfo
+**/.DS_Store

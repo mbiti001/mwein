@@ -60,7 +60,7 @@ export default function IdentityProviderPanel() {
     {error && <div className="alert">{error}</div>}
     {data && <>
       <section className="card">
-        <div className="cardHead"><div><h2>Workforce identity boundary</h2><p>Prepare a standards-based OIDC connection while keeping local emergency access separate.</p></div><span className={`statusPill ${data.configuration.configured ? "done" : "waiting"}`}>{data.configuration.configured ? "Configured" : "Not configured"}</span></div>
+        <div className="cardHead"><div><h2>Workforce identity boundary</h2><p>Prepare an optional standards-based OIDC connection. Local staff accounts retain their MFA requirements.</p></div><span className={`statusPill ${data.configuration.configured ? "done" : "waiting"}`}>{data.configuration.configured ? "Configured" : "Not configured"}</span></div>
         <div className="summaryGrid">
           {data.configuration.checks.map(check => <div className="summaryLine" key={check.code}><strong>{check.code.replaceAll("_", " ")}</strong><span>{check.ready ? "Ready" : "Pending"}</span></div>)}
           <div className="summaryLine"><strong>Linked workforce identities</strong><span>{data.linkedIdentities}</span></div>

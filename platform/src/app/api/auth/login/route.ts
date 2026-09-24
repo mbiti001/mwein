@@ -12,8 +12,8 @@ import {
   requestIpHash,
 } from "@/lib/login-security";
 import { hashPassword, hashToken, newSessionToken, verifyPassword } from "@/lib/security";
-import { SESSION_COOKIE } from "@/lib/auth";
-import { roleScopedPermissions } from "@/lib/role-permissions";
+import { currentUser, SESSION_COOKIE } from "@/lib/auth";
+import { workforceMfaRequired, MFA_CHALLENGE_MS } from "@/lib/mfa";
 
 const inputSchema = z.object({
   facilityCode: z.string().trim().min(2).max(30).transform((value) => value.toUpperCase()),
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     const facility = await db.facility.findUnique({ where: { code: input.facilityCode } });
     const user = facility ? await db.user.findUnique({
       where: { facilityId_email: { facilityId: facility.id, email: input.email } },
-      include: { facility: true, roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } },
+      include: { mfaCredential: { select: { enabledAt: true, recoveryRequired: true } }, facility: true, roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } },
     }) : null;
     const passwordMatches = verifyPassword(input.password, user?.passwordHash || DUMMY_PASSWORD_HASH);
     if (!user || user.status !== "ACTIVE" || !passwordMatches) {
@@ -92,8 +92,9 @@ export async function POST(request: Request) {
     }
 
     const token = newSessionToken();
-    const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000);
-    const session = await db.$transaction(async (tx) => {
+    const mfaRequired = workforceMfaRequired() || Boolean(user.mfaCredential?.enabledAt || user.mfaCredential?.recoveryRequired);
+    const expiresAt = new Date(Date.now() + (mfaRequired ? MFA_CHALLENGE_MS : 8 * 60 * 60 * 1000));
+    await db.$transaction(async (tx) => {
       const created = await tx.session.create({
         data: { userId: user.id, tokenHash: hashToken(token), expiresAt, ipHash, userAgent: request.headers.get("user-agent")?.slice(0, 300) },
       });
@@ -102,7 +103,7 @@ export async function POST(request: Request) {
         facilityId: user.facilityId,
         userId: user.id,
         sessionId: created.id,
-        action: "LOGIN_SUCCEEDED",
+        action: mfaRequired ? "LOGIN_PASSWORD_VERIFIED" : "LOGIN_SUCCEEDED",
         entityType: "Session",
         entityId: created.id,
       });
@@ -110,21 +111,6 @@ export async function POST(request: Request) {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     await db.loginThrottle.deleteMany({ where: { key: identity.key } });
     (await cookies()).set(SESSION_COOKIE, token, { httpOnly: true, secure: true, sameSite: "strict", path: "/", expires: expiresAt });
-    const permissions = roleScopedPermissions(user.roles.map((item) => ({
-      code: item.role.code,
-      permissions: item.role.permissions.map((value) => value.permission.code),
-    })));
-    return NextResponse.json({
-      user: {
-        email: user.email,
-        displayName: user.displayName,
-        mustChangePassword: user.mustChangePassword,
-        sessionId: session.id,
-        facility: { id: user.facility.id, code: user.facility.code, name: user.facility.name },
-        roles: user.roles.map((item) => item.role.code),
-        permissions,
-      },
-      expiresAt,
-    });
+    return NextResponse.json({ user: await currentUser(), expiresAt }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { return apiError(error); }
 }

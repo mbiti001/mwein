@@ -22,7 +22,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         patient: {
           include: {
             contacts: { where: { primary: true }, take: 1 },
-            consents: { where: { type: "MESSAGING", granted: true, withdrawnAt: null }, take: 1 },
+            consents: { where: { type: "MESSAGING", granted: true, withdrawnAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, take: 1 },
           },
         },
       },

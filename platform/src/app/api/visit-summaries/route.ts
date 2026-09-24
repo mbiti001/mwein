@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
+import { recordClinicalAccess } from "@/lib/clinical-access";
 
 function parsed(value: string | null | undefined) {
   try { return value ? JSON.parse(value) : {}; } catch { return {}; }
@@ -24,6 +25,7 @@ export async function GET(request: Request) {
         ] } : {}),
       },
       include: {
+        dispositionRecord: { include: { recordedBy: { select: { displayName: true } } } },
         facility: { select: { name: true, code: true, timezone: true } },
         patient: { select: { fullName: true, patientNumber: true, dateOfBirth: true, estimatedAgeYears: true, sexAtBirth: true, allergies: { where: { active: true } } } },
         triage: { include: { observations: true } },
@@ -57,6 +59,7 @@ export async function GET(request: Request) {
       delete plan.confidentialNote;
       return { ...visit, encounter: encounter ? { id: encounter.id, status: encounter.status, signedAt: encounter.signedAt, clinician: encounter.clinician, diagnoses: encounter.diagnoses, addenda: encounter.addenda, servicePointRecord: encounter.servicePointRecord, subjective, objective, plan } : null, encounters: undefined };
     });
-    return NextResponse.json({ summaries });
+    await recordClinicalAccess(user, "VISIT_SUMMARIES", visits.map(({ id }) => ({ type: "Visit", id })));
+    return NextResponse.json({ summaries }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) { return apiError(error); }
 }

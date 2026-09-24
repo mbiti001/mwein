@@ -1,3 +1,4 @@
+import { workforceMfaRequired } from "./mfa-policy";
 export type IntegrationState = "AVAILABLE" | "PREPARED_ON_HOLD" | "NOT_CONFIGURED";
 
 export type IntegrationReadiness = {
@@ -10,15 +11,24 @@ export type IntegrationReadiness = {
 };
 
 export function integrationReadiness(): IntegrationReadiness[] {
-  const icdConfigured = Boolean(process.env.ICD11_CLIENT_ID && process.env.ICD11_CLIENT_SECRET);
+  const icdConfigured = Boolean(process.env.ICD11_CLIENT_ID?.trim() && process.env.ICD11_CLIENT_SECRET?.trim());
   const identity = externalIdentityConfiguration();
+  const kenyaFhir = kenyaFhirConfiguration();
   return [
     {
+      key: "workforce-mfa",
+      name: "Staff authenticator MFA",
+      state: workforceMfaRequired() && (process.env.AUTH_SECRET?.length || 0) >= 32 ? "AVAILABLE" : "NOT_CONFIGURED",
+      purpose: "Password plus authenticator or single-use recovery code",
+      reason: workforceMfaRequired() ? "Staff must complete authenticator verification or enrollment before opening protected work areas. Formal workforce enrollment and recovery acceptance evidence remains a release gate." : "Mandatory enrollment is disabled in this environment. Enrolled accounts still require MFA at sign-in.",
+      requirements: ["Individual staff enrollment", "Securely saved recovery codes", "Identity-verified lost-factor recovery rehearsal", "MFA acceptance evidence"],
+    },
+    {
       key: "workforce-identity",
-      name: "Workforce identity and MFA",
+      name: "Organisation single sign-on (OIDC)",
       state: identity.configured ? "PREPARED_ON_HOLD" : "NOT_CONFIGURED",
-      purpose: "OIDC sign-in, provider-group mapping and workforce MFA",
-      reason: identity.configured ? "OIDC settings and governed role mappings are prepared; production sign-in remains held until provider discovery, callback and MFA acceptance tests are completed." : "Local staff sign-in remains active while the OIDC provider settings and formal acceptance evidence are incomplete.",
+      purpose: "Optional OIDC sign-in and provider-group mapping",
+      reason: identity.configured ? "OIDC settings and governed role mappings are prepared; production sign-in remains held until provider discovery, callback and MFA acceptance tests are completed." : "Local staff sign-in remains available under the configured authenticator MFA policy; optional OIDC provider settings and acceptance evidence are incomplete.",
       requirements: identity.configured ? ["Provider discovery validation", "Callback and logout acceptance testing", "MFA enforcement evidence", "Break-glass access rehearsal"] : ["OIDC issuer", "Client ID and secret", "HTTPS redirect URI", "Provider group names", "MFA enforcement evidence"],
     },
     {
@@ -34,8 +44,16 @@ export function integrationReadiness(): IntegrationReadiness[] {
       name: "WHO ICD-11",
       state: icdConfigured ? "AVAILABLE" : "NOT_CONFIGURED",
       purpose: "Search and record standard diagnosis codes",
-      reason: icdConfigured ? "WHO API credentials are configured; the local curated fallback remains available." : "The curated local diagnosis list is active while WHO API credentials are pending.",
-      requirements: icdConfigured ? [] : ["WHO ICD API client ID", "WHO ICD API client secret"],
+      reason: icdConfigured ? "WHO API credentials are configured; previously validated facility diagnoses remain available during a temporary upstream outage." : "Only diagnoses previously recorded at this facility can be searched until WHO API credentials are configured.",
+      requirements: icdConfigured ? [] : ["WHO ICD API client ID", "WHO ICD API client secret", "Confirm the approved ICD-11 MMS release"],
+    },
+    {
+      key: "kenya-core-fhir",
+      name: "Kenya Core FHIR exchange",
+      state: kenyaFhir ? "PREPARED_ON_HOLD" : "NOT_CONFIGURED",
+      purpose: "Profiled national patient and clinical-data exchange",
+      reason: kenyaFhir ? "Approved canonical URLs are configured and the patient mapper is available; transmission stays held until DHA sandbox validation, authentication, provenance, retries and acknowledgements pass." : "No national profile is assumed. Configure the exact DHA-approved version and canonical identifier systems before conformance testing.",
+      requirements: kenyaFhir ? ["DHA validator results", "OAuth acceptance", "Provenance mapping", "Retry/idempotency tests", "Acknowledgement and rejection evidence"] : ["Approved Kenya Core version", "Patient profile canonical URL", "Patient identifier system", "Facility identifier system", "DHA sandbox access"],
     },
     {
       key: "khis",
@@ -64,3 +82,4 @@ export function integrationReadiness(): IntegrationReadiness[] {
   ];
 }
 import { externalIdentityConfiguration } from "./external-identity";
+import { kenyaFhirConfiguration } from "./kenya-fhir";

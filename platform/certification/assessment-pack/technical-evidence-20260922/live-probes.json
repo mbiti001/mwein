@@ -1,0 +1,28 @@
+{
+  "observedAt": "2026-09-22T16:26:33.061Z",
+  "endpoints": [
+    {
+      "path": "/api/health",
+      "httpStatus": 200,
+      "body": {
+        "status": "ok",
+        "database": "connected",
+        "migration": "20260923140000_clinical_closure_identity_history",
+        "release": {
+          "commit": "a5e19d3ee6edc08a21f7c8e836962c8be66dfcb7",
+          "shortCommit": "a5e19d3ee6ed",
+          "environment": "production",
+          "application": "mwein-hmis-platform"
+        },
+        "time": "2026-09-22T16:26:36.175Z"
+      }
+    },
+    {
+      "path": "/api/ready",
+      "httpStatus": 503,
+      "body": {
+        "status": "blocked"
+      }
+    }
+  ]
+}

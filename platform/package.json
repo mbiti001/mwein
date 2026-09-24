@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "vercel-build": "prisma generate && next build",
     "start": "next start",
     "lint": "tsc --noEmit",
     "test": "vitest run",
@@ -17,15 +17,23 @@
     "ops:backup": "node scripts/backup-postgres.mjs",
     "ops:restore-drill": "node scripts/restore-drill.mjs",
     "ops:audit-verify": "node scripts/verify-audit-export.mjs",
+    "ops:release-verify": "node scripts/verify-release.mjs",
+    "ops:release-preflight": "node scripts/release-preflight.mjs",
+    "ops:audit-coverage": "node scripts/audit-coverage.mjs",
+    "ops:oidc-verify": "node scripts/verify-oidc-provider.mjs",
+    "certification:evidence": "node scripts/certification-evidence.mjs",
     "db:generate": "prisma generate",
     "db:validate": "prisma validate",
-    "db:migrate": "prisma migrate dev"
+    "db:migrate": "prisma migrate dev",
+    "ops:icd11-verify": "node scripts/verify-icd11.mjs"
   },
   "dependencies": {
     "@prisma/client": "6.12.0",
     "exceljs": "^4.4.0",
     "next": "16.3.3",
     "openai": "^7.15.0",
+    "otpauth": "^9.5.2",
+    "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "zod": "4.5.4"
@@ -35,6 +43,7 @@
     "@electric-sql/pglite-socket": "^0.2.11",
     "@playwright/test": "^1.63.0",
     "@types/node": "^24.0.0",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "prisma": "6.12.0",

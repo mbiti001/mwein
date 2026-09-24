@@ -1,3 +1,5 @@
+import { verifyMandatoryMfa } from "./e2e-mfa-enforcement.mjs";
+import { verifyPrivacy } from "./e2e-privacy.mjs";
 import { createHmac, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { readdir } from "node:fs/promises";
@@ -29,17 +31,25 @@ function availablePort() {
 }
 
 function run(command, args, env) {
+  console.log(`E2E setup: ${path.basename(command)} ${args.join(" ")}`);
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: root,
       env: { ...process.env, ...env },
       stdio: ["ignore", "pipe", "pipe"],
     });
+    childProcesses.add(child);
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      reject(new Error(`E2E setup timed out after 90 seconds: ${path.basename(command)} ${args.join(" ")}\n${output}`));
+    }, 90_000);
     let output = "";
     child.stdout.on("data", (chunk) => (output += chunk));
     child.stderr.on("data", (chunk) => (output += chunk));
-    child.once("error", reject);
+    child.once("error", (error) => { clearTimeout(timer); childProcesses.delete(child); reject(error); });
     child.once("exit", (code) => {
+      clearTimeout(timer);
+      childProcesses.delete(child);
       if (code === 0) resolve(output);
       else reject(new Error(`${command} ${args.join(" ")} failed (${code})\n${output}`));
     });
@@ -53,7 +63,7 @@ async function waitForServer(origin, child) {
     if (child.exitCode !== null)
       throw new Error(`Next.js exited before becoming ready (${child.exitCode})`);
     try {
-      const response = await fetch(`${origin}/api/health`);
+      const response = await fetch(`${origin}/api/health`, { signal: AbortSignal.timeout(5_000) });
       if (response.ok) return;
       lastError = new Error(`Health check returned ${response.status}`);
     } catch (error) {
@@ -85,12 +95,17 @@ function diagnosisSelectionToken(selection) {
 }
 
 const steps = [];
+steps.push = function (...items) {
+  items.forEach((item) => console.log(`E2E: ${item}`));
+  return Array.prototype.push.apply(this, items);
+};
 let sessionCookie = "";
 let origin = "";
 
 async function api(label, pathname, options = {}) {
   const response = await fetch(`${origin}${pathname}`, {
     ...options,
+    signal: AbortSignal.timeout(30_000),
     headers: {
       ...(options.body ? { "content-type": "application/json" } : {}),
       ...(sessionCookie ? { cookie: sessionCookie } : {}),
@@ -108,6 +123,7 @@ async function api(label, pathname, options = {}) {
 async function requestWithCookie(pathname, cookie, options = {}) {
   const response = await fetch(`${origin}${pathname}`, {
     ...options,
+    signal: AbortSignal.timeout(30_000),
     headers: {
       ...(options.body ? { "content-type": "application/json" } : {}),
       ...(cookie ? { cookie } : {}),
@@ -194,8 +210,16 @@ try {
     [systemOnlyUserId],
   );
   for (const [email, displayName, roleCode] of [
+    ["privacy@example.test", "MMS privacy officer", "DATA_PROTECTION_OFFICER"],
+    ["hr.admin@example.test", "MMS HR administrator", "HR_ADMIN"],
     ["nurse@example.test", "MMS nurse", "NURSE"],
     ["clinician@example.test", "MMS clinician", "CLINICIAN"],
+    ["clinician.cover@example.test", "MMS clinician cover", "CLINICIAN_COVER"],
+    ["mfa.staff@example.test", "MFA test clinician", "CLINICIAN"],
+    ["mfa.lock@example.test", "MFA lock test clinician", "CLINICIAN"],
+    ["mfa.recover@example.test", "MFA recovery test clinician", "CLINICIAN"],
+    ["mfa.admin@example.test", "MFA recovery administrator", "FACILITY_ADMIN"],
+    ["mfa.enforcement@example.test", "Mandatory MFA test clinician", "CLINICIAN"],
     ["imaging@example.test", "MMS imaging", "IMAGING"],
     ["pharmacy@example.test", "MMS pharmacy manager", "PHARMACY_MANAGER"],
     ["billing@example.test", "MMS billing", "BILLING"],
@@ -210,7 +234,7 @@ try {
   await pg.query(
     `INSERT INTO "UserRole" ("userId", "roleId")
      SELECT $1, "id" FROM "Role"
-     WHERE "code" IN ('RECEPTION', 'NURSE', 'CLINICIAN', 'LABORATORY', 'IMAGING', 'PHARMACY_MANAGER', 'BILLING', 'MEDICAL_DIRECTOR')
+     WHERE "code" IN ('RECEPTION', 'NURSE', 'CLINICIAN', 'LABORATORY', 'IMAGING', 'PHARMACY_MANAGER', 'BILLING', 'FINANCE_MANAGER', 'MEDICAL_DIRECTOR', 'DATA_PROTECTION_OFFICER')
      ON CONFLICT DO NOTHING`,
     [admin.id],
   );
@@ -245,18 +269,20 @@ try {
 
   origin = `http://127.0.0.1:${appPort}`;
   const productionServer = process.env.E2E_PRODUCTION === "1";
-  nextProcess = spawn("./node_modules/.bin/next", [productionServer ? "start" : "dev", ...(productionServer ? [] : ["--webpack"]), "-p", String(appPort)], {
+  nextProcess = spawn("./node_modules/.bin/next", [productionServer ? "start" : "dev", ...(productionServer ? [] : ["--webpack"]), "--hostname", "127.0.0.1", "-p", String(appPort)], {
     cwd: root,
     env: {
       ...process.env,
       DATABASE_URL: applicationDatabaseUrl,
       AUTH_SECRET: authSecret,
       APP_ORIGIN: origin,
+      MFA_REQUIRED: "false",
       NODE_ENV: productionServer ? "production" : "development",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
   childProcesses.add(nextProcess);
+  console.log("E2E: waiting for application health (60-second deadline)");
   let nextOutput = "";
   nextProcess.stdout.on("data", (chunk) => (nextOutput += chunk));
   nextProcess.stderr.on("data", (chunk) => (nextOutput += chunk));
@@ -266,6 +292,7 @@ try {
   steps.push("start application and verify database health");
 
   const missingOrigin = await fetch(`${origin}/api/auth/login`, {
+    signal: AbortSignal.timeout(30_000),
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ facilityCode: "MMS", email: "admin@mwein.local", password: adminPassword }),
@@ -353,6 +380,40 @@ try {
   });
   const patient = patientResult.body.patient;
   assert(patient.patientNumber?.startsWith("MMS-"), "Patient number was not assigned");
+  const dependantResult = await api("register dependant sharing guardian phone", "/api/patients", {
+    method: "POST",
+    body: JSON.stringify({
+      registrationMode: "GUARDIAN_ASSISTED", givenName: "Child", familyName: "E2E Patient", estimatedAgeYears: 4,
+      sexAtBirth: "MALE", phone: "+254700000001", county: "Nairobi", subcounty: "Westlands",
+      treatmentConsent: true, electronicRecordConsent: true, messagingConsent: false,
+      representativeName: "Amina E2E Patient", representativeRelationship: "Parent",
+    }),
+  });
+  assert(dependantResult.response.status === 201 && dependantResult.body.patient.identityStatus === "REPRESENTATIVE_ASSERTED", "Shared guardian phone was treated as a unique identity");
+  const unidentifiedResult = await api("register unidentified emergency patient", "/api/patients", {
+    method: "POST",
+    body: JSON.stringify({ registrationMode: "EMERGENCY_UNKNOWN", lawfulBasis: "VITAL_INTERESTS", emergencyReason: "Patient arrived unconscious without identification" }),
+  });
+  assert(unidentifiedResult.response.status === 201 && unidentifiedResult.body.patient.identityStatus === "UNIDENTIFIED" && unidentifiedResult.body.patient.restricted === true, "Emergency registration invented identity or failed to restrict the record");
+  steps.push("verify shared guardian contact and unidentified emergency registration");
+  const unknownId = unidentifiedResult.body.patient.id;
+  const identityCorrection = { givenName: "Identified", familyName: "Emergency Test", estimatedAgeYears: 40, sexAtBirth: "UNKNOWN", identifierType: "OTHER", identifierValue: "E2E-RECONCILE-001", evidenceType: "REPRESENTATIVE_DOCUMENT", evidenceReference: "E2E-IDENTITY-EVIDENCE", reason: "Representative presented identity evidence for review" };
+  const corrected = await api("document emergency identity without national verification", `/api/patients/${unknownId}/identity-reconciliation`, { method: "POST", body: JSON.stringify(identityCorrection) });
+  assert(corrected.body.patient.identityStatus === "DOCUMENTED" && corrected.body.patient.restricted === true, "Reconciliation invented national verification or cleared restrictions");
+  const conflict = await requestWithCookie(`/api/patients/${patient.id}/identity-reconciliation`, sessionCookie, { method: "POST", body: JSON.stringify(identityCorrection) });
+  assert(conflict.response.status === 409, "Duplicate identifier assignment was permitted");
+  const reversedIdentity = await api("reverse latest identity correction with retained provenance", `/api/patients/${unknownId}/identity-reconciliation`, { method: "POST", body: JSON.stringify({ action: "REVERSE", recordId: corrected.body.reconciliation.id, reason: "Evidence attributed to wrong person; reviewed reversal" }) });
+  assert(reversedIdentity.body.patient.identityStatus === "UNIDENTIFIED" && reversedIdentity.body.patient.restricted, "Reversal did not restore the emergency identity safely");
+  const historyIdentity = await api("read identity correction history", `/api/patients/${unknownId}/identity-reconciliation`);
+  assert(historyIdentity.body.history[0].reversedAt && !historyIdentity.body.history[0].reversible, "Reversal history was not retained");
+
+  await verifyPrivacy({ api, requestWithCookie, authenticate, patient, assert, steps, origin });
+  const retiredRights = await requestWithCookie("/api/admin/patient-rights", sessionCookie);
+  const deniedRights = await requestWithCookie("/api/admin/patient-rights", systemOnlyLogin.cookie);
+  const disabledExchange = await requestWithCookie("/api/admin/exchange", sessionCookie, { method: "POST", body: JSON.stringify({ action: "SEND", id: randomUUID() }) });
+  assert(retiredRights.response.status === 410 && deniedRights.response.status === 403, "Duplicate rights workflow exposed records or bypassed privacy permission");
+  assert(disabledExchange.response.status === 503, "Unvalidated exchange transport was enabled");
+  steps.push("verify duplicate rights workflow is retired and draft exchange cannot send");
 
   await pg.query(`UPDATE "CatalogPriceVersion" SET "unitPrice" = 650 WHERE "catalogItemId" IN (SELECT "id" FROM "CatalogItem" WHERE "facilityId" = $1 AND "code" = 'CONSULT-OUTPATIENT')`, [facility.id]);
   const shaCancellationVisit = await api("open visit for SHA eligibility outcome", "/api/visits", {
@@ -522,6 +583,15 @@ try {
   const appointmentId = appointmentResult.body.appointment.id;
   const reminder = await api("prepare consented appointment reminder", `/api/appointments/${appointmentId}/reminder`, { method: "POST" });
   assert(reminder.body.contact === "+254700000001" && reminder.body.message, "Appointment reminder was not prepared for the consented contact");
+  await pg.query(`UPDATE "Consent" SET "expiresAt" = CURRENT_TIMESTAMP - INTERVAL '1 day' WHERE "patientId" = $1 AND type = 'MESSAGING' AND "withdrawnAt" IS NULL`, [patient.id]);
+  const expiredReminder = await requestWithCookie(`/api/appointments/${appointmentId}/reminder`, sessionCookie, { method: "POST" });
+  assert(expiredReminder.response.status === 422, "Expired consent still allowed reminder preparation");
+  await pg.query(`UPDATE "Consent" SET "expiresAt" = NULL WHERE "patientId" = $1 AND type = 'MESSAGING'`, [patient.id]);
+  steps.push("verify expired consent blocks appointment reminders");
+  await api("withdraw appointment messaging consent", `/api/patients/${patient.id}/consents`, { method: "POST", body: JSON.stringify({ action: "WITHDRAW", type: "MESSAGING", noticeVersion: "MWEIN-PRIVACY-2026-01", lawfulBasis: "CONSENT", reason: "Patient opted out during the E2E consent lifecycle test" }) });
+  const reminderAfterWithdrawal = await requestWithCookie(`/api/appointments/${appointmentId}/reminder`, sessionCookie, { method: "POST" });
+  assert(reminderAfterWithdrawal.response.status === 422, "Reminder preparation ignored withdrawn messaging consent");
+  steps.push("verify consent withdrawal immediately blocks reminders");
   const rescheduledTime = new Date(appointmentTime.getTime() + 86400000);
   await api("reschedule follow-up appointment", `/api/appointments/${appointmentId}/status`, { method: "PATCH", body: JSON.stringify({ action: "RESCHEDULE", scheduledAt: rescheduledTime.toISOString(), reason: "Patient requested a different clinic day" }) });
   const appointments = await api("verify appointment reminder history", "/api/appointments?scope=all");
@@ -750,8 +820,18 @@ try {
     method: "POST",
     body: JSON.stringify({ method: "CASH", amount: 550 }),
   });
-  assert(payment.body.visitCompleted === true, "Settled visit did not close automatically");
+  assert(payment.body.visitCompleted === false, "Payment bypassed clinician discharge");
   assert(payment.body.balance === 0, "Invoice retained a balance after full payment");
+  const dischargeDenied = await requestWithCookie(`/api/visits/${visit.id}/discharge`, mmsReception.cookie, { method: "POST", body: JSON.stringify({ outcome: "OUTPATIENT", details: "Test discharge attempted by reception" }) });
+  assert(dischargeDenied.response.status === 403, "Reception could perform clinical discharge");
+  const foreignDischarge = await requestWithCookie(`/api/visits/${visit.id}/discharge`, otherReception.cookie, { method: "POST", body: JSON.stringify({ outcome: "OUTPATIENT", details: "Test cross-facility closure attempt" }) });
+  assert([403, 404].includes(foreignDischarge.response.status), "Cross-facility closure was allowed");
+  await api("clinician closes visit separately from payment", `/api/visits/${visit.id}/discharge`, { method: "POST", body: JSON.stringify({ outcome: "OUTPATIENT", details: "Stable for outpatient follow-up; counselling and review plan documented" }) });
+  const repeatClosure = await requestWithCookie(`/api/visits/${visit.id}/discharge`, sessionCookie, { method: "POST", body: JSON.stringify({ outcome: "RECOVERED", details: "Attempt to overwrite final outcome" }) });
+  assert(repeatClosure.response.status === 409, "Final clinical outcome could be overwritten");
+  await api("financial completion after clinical closure", `/api/visits/${visit.id}/complete`, { method: "POST" });
+  const closureState = (await pg.query('SELECT v."clinicallyClosedAt", d."outcome" FROM "Visit" v JOIN "VisitDisposition" d ON d."visitId"=v."id" WHERE v."id"=$1', [visit.id])).rows[0];
+  assert(closureState.clinicallyClosedAt && closureState.outcome === "OUTPATIENT", "Outpatient discharge was incorrectly recorded as recovery");
   const submittedShift = await api("submit cashier shift reconciliation", "/api/billing/shifts", { method: "POST", body: JSON.stringify({ action: "SUBMIT", id: cashierShift.body.shift.id, countedCash: 1550 }) });
   assert(Number(submittedShift.body.shift.variance) === 0, "Cashier shift did not reconcile expected cash");
   const financeManager = await authenticate("MMS", "finance.manager@example.test");
@@ -794,11 +874,52 @@ try {
   assert(state.safetyAssessments === 1, "Approved medication safety assessment was not persisted");
   assert(state.inventoryJournals === 1, "Dispensing accounting journal was not posted");
   steps.push("verify final clinical, referral, stock, accounting, billing and closure state");
+  for (const outcome of ["RECOVERED", "OUTPATIENT", "DECEASED", "REFERRED", "AGAINST_MEDICAL_ADVICE", "OTHER"]) {
+    const closureId = randomUUID(); const encounterId = randomUUID();
+    await pg.query(`INSERT INTO "Visit" ("id", "facilityId", "patientId", "visitNumber", "clinic", "visitType", "status", "reason", "updatedAt") VALUES ($1,$2,$3,$4,'Outpatient','WALK_IN','ADMITTED','Isolated closure regression',now())`, [closureId, facility.id, patient.id, `E2E-CLOSE-${outcome}`]);
+    await pg.query(`INSERT INTO "Encounter" ("id", "visitId", "clinicianId", "status", "signedAt", "updatedAt") VALUES ($1,$2,$3,'SIGNED',now(),now())`, [encounterId, closureId, admin.id]);
+    if (outcome === "REFERRED") {
+      const referralMissing = await requestWithCookie(`/api/visits/${closureId}/discharge`, sessionCookie, { method: "POST", body: JSON.stringify({ outcome, details: "Referral closure without a receiving handover" }) });
+      assert(referralMissing.response.status === 409, "Referral closure accepted missing handover");
+      const referral = await api("prepare closure referral", "/api/referrals", { method: "POST", body: JSON.stringify({ visitId: closureId, idempotencyKey: randomUUID(), type: "EXTERNAL", referringDepartment: "General OPD", reason: "Isolated referral closure test", clinicalSummary: "Synthetic clinical handover for integration test", diagnosisSummary: "Synthetic test diagnosis", urgency: "ROUTINE", attachments: [], receivingFacility: "E2E Referral Hospital", receivingDepartment: "Medical outpatient clinic" }) });
+      await api("send closure referral", `/api/referrals/${referral.body.referral.id}`, { method: "PATCH", body: JSON.stringify({ status: "SENT" }) });
+    }
+    const closed = await api(`close signed visit with ${outcome} independently of an invoice`, `/api/visits/${closureId}/discharge`, { method: "POST", body: JSON.stringify({ outcome, details: "Isolated test: clinical circumstances, counselling and handover documented" }) });
+    assert(closed.body.visit.status === "DISCHARGED" && closed.body.disposition.outcome === outcome && closed.body.visit.clinicallyClosedAt, `Closure did not preserve ${outcome}`);
+    const staleWrite = await requestWithCookie(`/api/visits/${closureId}/consultation`, sessionCookie, { method: "POST", body: JSON.stringify({ action: "SAVE_NOTES", data: { chiefComplaint: "Stale edit", historyPresentingIllness: "Closed record", generalExamination: "Not examined", disposition: "OUTPATIENT" } }) });
+    assert(staleWrite.response.status === 409, "Discharged encounter accepted new clinical notes");
+  }
+
+  const overdueId = randomUUID(); const overdueQueue = randomUUID();
+  await pg.query(`INSERT INTO "Visit" ("id", "facilityId", "patientId", "visitNumber", "clinic", "visitType", "status", "reason", "updatedAt") VALUES ($1,$2,$3,'E2E-OVERDUE','Outpatient','WALK_IN','AWAITING_TRIAGE','Isolated overdue regression',now())`, [overdueId, facility.id, patient.id]);
+  await pg.query(`INSERT INTO "QueueEntry" ("id", "visitId", "servicePoint", "priority", "enteredAt") VALUES ($1,$2,'TRIAGE','ROUTINE',now())`, [overdueQueue, overdueId]);
+  const earlyCancel = await requestWithCookie(`/api/visits/${overdueId}/cancel`, sessionCookie, { method: "POST", body: JSON.stringify({ reasonCode: "OVERDUE_UNPROCESSED", details: "Attendance reviewed before cancellation" }) });
+  assert(earlyCancel.response.status === 409, "Fresh visit accepted an overdue cancellation reason");
+  await pg.query(`UPDATE "QueueEntry" SET "enteredAt"=$2 WHERE "id"=$1`, [overdueQueue, new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()]);
+  await api("record overdue escalation without automatic reprioritisation", "/api/queues", { method: "POST", body: JSON.stringify({ action: "ESCALATE", queueEntryId: overdueQueue, reason: "Service lead contacted to review overdue attendance" }) });
+  await api("cancel reviewed overdue unprocessed visit", `/api/visits/${overdueId}/cancel`, { method: "POST", body: JSON.stringify({ reasonCode: "OVERDUE_UNPROCESSED", details: "Attendance reviewed: patient left before care" }) });
+
+  const deathId = randomUUID(); const deathEncounter = randomUUID(); const unstartedOrder = randomUUID();
+  await pg.query(`INSERT INTO "Visit" ("id", "facilityId", "patientId", "visitNumber", "clinic", "visitType", "status", "reason", "updatedAt") VALUES ($1,$2,$3,'E2E-DEATH-SIGN','Outpatient','WALK_IN','UNDER_CONSULTATION','Isolated exception-signing regression',now())`, [deathId, facility.id, patient.id]);
+  await pg.query(`INSERT INTO "Encounter" ("id", "visitId", "clinicianId", "status", "plan", "updatedAt") VALUES ($1,$2,$3,'DRAFT',$4,now())`, [deathEncounter, deathId, admin.id, JSON.stringify({ plan: "Synthetic test: circumstances and next steps documented" })]);
+  await pg.query(`INSERT INTO "Diagnosis" ("id", "encounterId", "type", "description", "code", "primary") VALUES ($1,$2,'FINAL','Synthetic test diagnosis','MG30.0',true)`, [randomUUID(), deathEncounter]);
+  await pg.query(`INSERT INTO "ClinicalOrder" ("id", "visitId", "orderedById", "type", "displayName") VALUES ($1,$2,$3,'MEDICATION','Synthetic unstarted medicine')`, [unstartedOrder, deathId, admin.id]);
+  const deathData = { disposition: "DECEASED", dispositionDetails: "Synthetic mortality test: circumstances and handover recorded" };
+  const unsignedDeath = await requestWithCookie(`/api/visits/${deathId}/consultation`, sessionCookie, { method: "POST", body: JSON.stringify({ action: "SIGN", data: deathData }) });
+  assert(unsignedDeath.response.status === 409, "Exceptional signing silently discarded pending orders");
+  await api("sign exceptional outcome with explicit unstarted-order cancellation", `/api/visits/${deathId}/consultation`, { method: "POST", body: JSON.stringify({ action: "SIGN", data: { ...deathData, cancelPendingOrders: true } }) });
+  const deathState = (await pg.query(`SELECT v."status", (SELECT "status" FROM "ClinicalOrder" WHERE "id"=$2) AS "orderStatus", (SELECT COUNT(*)::int FROM "QueueEntry" WHERE "visitId"=v."id" AND "status" IN ('WAITING','CALLED','IN_PROGRESS')) AS "activeQueues" FROM "Visit" v WHERE v."id"=$1`, [deathId, unstartedOrder])).rows[0];
+  assert(deathState.status === "DISCHARGED" && deathState.orderStatus === "CANCELLED" && deathState.activeQueues === 0, "Deceased patient remained in an ordinary care queue");
 
   const auditExport = await requestWithCookie("/api/admin/audit/export", sessionCookie);
   assert(auditExport.response.ok, `Audit export failed: ${JSON.stringify(auditExport.body)}`);
   assert(auditExport.body.chain.valid === true && Number(auditExport.body.chain.eventCount) > 0, "Audit export did not verify its serialized chain");
   assert(auditExport.response.headers.get("x-audit-export-sha256")?.length === 64, "Audit export omitted its SHA-256 digest");
+  const accessEvents = auditExport.body.events.filter((event) => event.action === "CLINICAL_RECORDS_ACCESSED");
+  assert(accessEvents.some((event) => JSON.parse(event.reason).context === "PATIENT_HISTORY"), "Patient history disclosure was missing from the retained audit chain");
+  assert(accessEvents.some((event) => JSON.parse(event.reason).context === "VISIT_WORKLIST"), "Visit worklist disclosure was missing from the retained audit chain");
+  assert(accessEvents.every((event) => event.userId && event.sessionId && event.facilityId === facility.id), "Read audit events omitted their actor/session/facility boundary");
+  steps.push("verify clinical access events are retained with actor, session and facility");
   steps.push("verify facility audit chain and export digest");
 
   let throttled = false;
@@ -815,20 +936,52 @@ try {
 
   const productionReadiness = await requestWithCookie("/api/ready", "");
   assert(productionReadiness.response.status === 503 && productionReadiness.body.status === "blocked", "Production readiness did not fail closed without approvals and external controls");
-  assert(productionReadiness.body.facilities.every((item) => item.missing.length === 11), "Production readiness omitted governance gates");
-  steps.push("verify production readiness fails closed until external evidence exists");
+  assert(Object.keys(productionReadiness.body).join(",") === "status", "Public readiness exposed internal control details");
+  steps.push("verify production readiness fails closed without exposing internal controls");
+
+  if (productionServer) {
+    const mfaPort = await availablePort();
+    const mfaOrigin = `http://127.0.0.1:${mfaPort}`;
+    const mfaServer = spawn("./node_modules/.bin/next", ["start", "--hostname", "127.0.0.1", "-p", String(mfaPort)], {
+      cwd: root,
+      env: { ...process.env, DATABASE_URL: applicationDatabaseUrl, AUTH_SECRET: authSecret, APP_ORIGIN: mfaOrigin, MFA_REQUIRED: "true", NODE_ENV: "production" },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    childProcesses.add(mfaServer);
+    mfaServer.stdout.on("data", () => {}); mfaServer.stderr.on("data", () => {});
+    try {
+      await waitForServer(mfaOrigin, mfaServer);
+      await verifyMandatoryMfa({ origin: mfaOrigin, pg, password: adminPassword, assert, steps });
+    } finally { await stopChild(mfaServer); childProcesses.delete(mfaServer); }
+  }
 
   console.log(`Outpatient E2E passed (${steps.length} checks)`);
   steps.forEach((step, index) => console.log(`${index + 1}. ${step}`));
   if (process.env.E2E_HOLD === "1") {
+    const browserClosureId = randomUUID();
+    await pg.query(`INSERT INTO "Visit" ("id", "facilityId", "patientId", "visitNumber", "clinic", "visitType", "status", "reason", "updatedAt") VALUES ($1,$2,$3,'E2E-BROWSER-CLOSE','Outpatient','WALK_IN','ADMITTED','Browser closure regression',now())`, [browserClosureId, facility.id, patient.id]);
+    await pg.query(`INSERT INTO "Encounter" ("id", "visitId", "clinicianId", "status", "signedAt", "updatedAt") VALUES ($1,$2,$3,'SIGNED',now(),now())`, [randomUUID(), browserClosureId, admin.id]);
     console.log(`Browser fixture ready at ${origin}`);
     await new Promise((resolve) => {
       process.once("SIGINT", resolve);
       process.once("SIGTERM", resolve);
     });
   }
+} catch (error) {
+  // Print before cleanup: a broken socket shutdown must not hide the original failure.
+  console.error(error);
+  process.exitCode = 1;
 } finally {
+  const cleanupDeadline = setTimeout(() => {
+    console.error("E2E cleanup exceeded 10 seconds; terminating the isolated fixture");
+    process.exit(1);
+  }, 10_000);
+  cleanupDeadline.unref();
   for (const child of childProcesses) await stopChild(child);
   await socketServer.stop();
+  // pglite-socket defers socket-close handling with setImmediate; let it detach
+  // while the database is still alive, before destroying the WASM instance.
+  await new Promise((resolve) => setImmediate(resolve));
   await pg.close();
+  clearTimeout(cleanupDeadline);
 }

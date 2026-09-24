@@ -6,6 +6,8 @@ export type DiagnosisSelection = {
   code: string;
   title: string;
   foundationUri?: string;
+  linearizationUri?: string;
+  codingVersion?: string;
   source: "WHO ICD-11" | "Facility history";
 };
 
@@ -52,7 +54,9 @@ export function verifyDiagnosisSelectionToken(
     selection.facilityId !== expected.facilityId ||
     selection.code !== expected.code ||
     selection.title !== expected.title ||
-    (selection.foundationUri || undefined) !== (expected.foundationUri || undefined)
+    (selection.foundationUri || undefined) !== (expected.foundationUri || undefined) ||
+    (selection.linearizationUri || undefined) !== (expected.linearizationUri || undefined) ||
+    (selection.codingVersion || undefined) !== (expected.codingVersion || undefined)
   )
     throw new Error("The diagnosis was changed after selection; search and select it again");
   return selection;

@@ -5,6 +5,7 @@ export const SHA_CANCELLATION_POLICY_VERSION = "SHA-OFFICIAL-REVIEW-2026-09-19";
 export const visitCancellationReasons = [
   { code: "PATIENT_REQUEST", label: "Patient requested cancellation" },
   { code: "PATIENT_LEFT_BEFORE_CARE", label: "Patient left before care" },
+  { code: "OVERDUE_UNPROCESSED", label: "Overdue unprocessed visit — attendance reviewed" },
   { code: "DUPLICATE_VISIT", label: "Duplicate visit" },
   { code: "WRONG_PATIENT", label: "Visit opened for the wrong patient" },
   { code: "CLINIC_UNAVAILABLE", label: "Clinic unavailable" },
@@ -77,6 +78,7 @@ export function visitCancellationBlockers(visit: CancellableVisit, reasonCode: s
   if (visit.encounters.some((encounter) => ["SIGNED", "CORRECTED"].includes(encounter.status)))
     blockers.push("The clinical consultation is already signed; use the clinical correction and completion workflow");
   const completedOrders = visit.orders.filter((order) => order.status === "COMPLETED");
+  if (visit.orders.some(order => order.status === "IN_PROGRESS")) blockers.push("Care is in progress; resolve the service before considering cancellation");
   if (completedOrders.length)
     blockers.push(`Completed care cannot be voided (${completedOrders.map((order) => order.displayName || "service").join(", ")})`);
   if (visit.invoice?.payments.some((payment) => payment.status === "CONFIRMED") || visit.invoice?.status === "PAID")

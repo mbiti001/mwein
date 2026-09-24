@@ -17,6 +17,13 @@ describe("department performance", () => {
     ]);
     expect(queue[0]).toMatchObject({ servicePoint: "TRIAGE", count: 2, completed: 2, averageMinutes: 20, p90Minutes: 30 });
   });
+  it("separates cancellations from completed queue timing", () => {
+    const queue = summarizeQueuePerformance([
+      { servicePoint: "TRIAGE", status: "COMPLETED", enteredAt: "2026-09-03T09:00:00Z", completedAt: "2026-09-03T09:10:00Z" },
+      { servicePoint: "TRIAGE", status: "CANCELLED", enteredAt: "2026-09-03T09:00:00Z", completedAt: "2026-09-03T10:00:00Z" },
+    ]);
+    expect(queue[0]).toMatchObject({ count: 2, completed: 1, cancelled: 1, averageMinutes: 10, p90Minutes: 10 });
+  });
   it("measures closed-loop referrals", () => {
     expect(summarizeReferralFlow([{ status: "SENT" }, { status: "RETURNED" }, { status: "DRAFT" }])).toEqual({ created: 3, sent: 2, attended: 1, closedLoop: 1, closureRate: 50 });
   });
@@ -33,6 +40,7 @@ describe("operational reporting", () => {
         priority: "EMERGENCY",
         status: "COMPLETED",
         invoice: {
+          status: "PAID",
           items: [{ quantity: "2", unitPrice: "500" }],
           payments: [
             { amount: "600", status: "CONFIRMED" },
@@ -59,6 +67,7 @@ describe("operational reporting", () => {
           priority: "ROUTINE",
           status: "AWAITING_PAYMENT",
           invoice: {
+            status: "OPEN",
             items: [],
             payments: [],
             claims: [
@@ -72,5 +81,21 @@ describe("operational reporting", () => {
       new Date("2026-09-03T12:00:00Z"),
     );
     expect(report.claimExceptions.map((claim) => claim.id)).toEqual(["1", "2"]);
+  });
+
+  it("excludes void and cancelled-visit charges from financial totals", () => {
+    const report = summarizeOperations([
+      {
+        priority: "ROUTINE",
+        status: "CANCELLED",
+        invoice: {
+          status: "VOID",
+          items: [{ quantity: 1, unitPrice: 500 }],
+          payments: [],
+          claims: [],
+        },
+      },
+    ]);
+    expect(report).toMatchObject({ visits: 1, cancelledVisits: 1, billed: 0, received: 0, outstanding: 0 });
   });
 });

@@ -1,0 +1,16 @@
+{
+  "application": "mwein-hmis-platform",
+  "generatedAt": "2026-09-22T18:32:35.373Z",
+  "commit": "b15ac73690c47b631d8598d42d05f2d8bd7800c2",
+  "cleanWorkingTree": true,
+  "migrationCount": 47,
+  "latestMigration": "20260924130000_workforce_mfa",
+  "migrationDigest": "2ee6d7ea8a4a513b528443488efff68c357add228f15f79991ef9f8d2b040464",
+  "requiredEvidence": [
+    "production database backup reference",
+    "migration reconciliation",
+    "release approver",
+    "rollback owner and procedure",
+    "post-deploy health and smoke results"
+  ]
+}

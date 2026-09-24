@@ -33,6 +33,22 @@ export type AuditAppendInput = {
   afterHash?: string;
 };
 
+/**
+ * Produces a stable, non-identifying fingerprint for a set of records returned
+ * by a read operation. The audit event can prove which result set was exposed
+ * without copying names, search terms, identifiers, or other patient data into
+ * the audit log.
+ */
+export function auditEntitySetFingerprint(entityIds: string[]) {
+  const normalized = [...new Set(entityIds)].sort();
+  const digest = createHash("sha256").update(normalized.join("\u001f")).digest("hex");
+  return `${normalized.length}:${digest}`;
+}
+
+export function auditValueFingerprint(value: unknown) {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
 export function auditEventHash(input: AuditHashInput) {
   const occurredAt = input.occurredAt instanceof Date ? input.occurredAt.toISOString() : new Date(input.occurredAt).toISOString();
   return createHash("sha256").update([

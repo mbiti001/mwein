@@ -17,6 +17,9 @@ const selection = {
   facilityId: "facility-1",
   code: "MG30.0",
   title: "Acute headache",
+  foundationUri: "http://id.who.int/icd/entity/123",
+  linearizationUri: "http://id.who.int/icd/release/11/2026-01/mms/123",
+  codingVersion: "2026-01",
   source: "Facility history" as const,
 };
 
@@ -28,6 +31,9 @@ describe("diagnosis selection tokens", () => {
         facilityId: selection.facilityId,
         code: selection.code,
         title: selection.title,
+        foundationUri: selection.foundationUri,
+        linearizationUri: selection.linearizationUri,
+        codingVersion: selection.codingVersion,
       }, 2_000),
     ).toMatchObject(selection);
   });

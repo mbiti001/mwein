@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
+import { recordClinicalAccess } from "@/lib/clinical-access";
 import { operationalReference } from "@/lib/domain";
 import { appointmentClinics } from "@/lib/appointments";
 import { assessAncAdmission } from "@/lib/clinic-admission";
@@ -46,6 +47,8 @@ export async function GET() {
         ...(access.clinical || access.triage ? { reason: true } : {}),
         arrivedAt: true,
         completedAt: true,
+        clinicallyClosedAt: true,
+        ...(access.clinical || access.billing ? { dispositionRecord: true } : {}),
         facility: { select: { name: true, code: true } },
         patient: {
           select: {
@@ -55,6 +58,7 @@ export async function GET() {
             dateOfBirth: true,
             estimatedAgeYears: true,
             sexAtBirth: true,
+            identityStatus: true,
             ...(access.clinical ? {
               contacts: { orderBy: [{ primary: "desc" as const }, { type: "asc" as const }] },
               identifiers: true,
@@ -139,7 +143,8 @@ export async function GET() {
         rank[a.priority] - rank[b.priority] ||
         a.arrivedAt.getTime() - b.arrivedAt.getTime(),
     );
-    return NextResponse.json({ visits });
+    await recordClinicalAccess(user, "VISIT_WORKLIST", visits.map(({ id }) => ({ type: "Visit", id })));
+    return NextResponse.json({ visits }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return apiError(error);
   }
@@ -157,7 +162,7 @@ export async function POST(request: Request) {
     const duplicate = await db.visit.findFirst({
       where: {
         patientId: patient.id,
-        status: { notIn: ["COMPLETED", "CANCELLED"] },
+        status: { notIn: ["COMPLETED", "CANCELLED", "DISCHARGED"] },
       },
       select: { id: true, visitNumber: true, status: true },
     });

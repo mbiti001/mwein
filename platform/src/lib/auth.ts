@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { db } from "./db";
 import { hashToken } from "./security";
+import { MFA_CHALLENGE_MS, sessionNeedsMfa } from "./mfa-policy";
 import { roleScopedPermissions } from "./role-permissions";
 
 export const SESSION_COOKIE = "__Host-mwein_hmis_session";
@@ -12,7 +13,7 @@ export async function currentUser() {
   if (!token) return null;
   const session = await db.session.findUnique({
     where: { tokenHash: hashToken(token) },
-    include: { user: { include: { facility: true, roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } } } }
+    include: { user: { include: { mfaCredential: { select: { enabledAt: true, recoveryRequired: true } }, facility: true, roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } } } }
   });
   const now = new Date();
   if (!session || session.expiresAt <= now || session.user.status !== "ACTIVE") return null;
@@ -29,7 +30,15 @@ export async function currentUser() {
       permissions: item.role.permissions.map((value) => value.permission.code),
     })),
   );
+  const mfaEnrolled = Boolean(session.user.mfaCredential?.enabledAt);
+  const mfaRequired = sessionNeedsMfa(mfaEnrolled || Boolean(session.user.mfaCredential?.recoveryRequired), session.mfaVerifiedAt);
+  if (mfaRequired && session.createdAt.getTime() < now.getTime() - MFA_CHALLENGE_MS) {
+    await db.session.deleteMany({ where: { id: session.id } });
+    return null;
+  }
   return {
+    mfaRequired,
+    mfaEnrolled,
     id: session.user.id,
     sessionId: session.id,
     facilityId: session.user.facilityId,
@@ -38,7 +47,7 @@ export async function currentUser() {
     mustChangePassword: session.user.mustChangePassword,
     facility: { id: session.user.facility.id, code: session.user.facility.code, name: session.user.facility.name, timezone: session.user.facility.timezone },
     roles,
-    permissions,
+    permissions: mfaRequired ? [] : permissions,
   };
 }
 
@@ -46,6 +55,7 @@ export async function requirePermission(permission: string) {
   const user = await currentUser();
   if (!user) throw Object.assign(new Error("Authentication required"), { status: 401 });
   if (user.mustChangePassword) throw Object.assign(new Error("Change your temporary password before continuing"), { status: 403, code: "PASSWORD_CHANGE_REQUIRED" });
+  if (user.mfaRequired) throw Object.assign(new Error("Complete multi-factor authentication before continuing"), { status: 403, code: "MFA_REQUIRED" });
   if (!user.permissions.includes(permission)) throw Object.assign(new Error("Permission denied"), { status: 403 });
   return user;
 }

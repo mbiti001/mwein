@@ -10,6 +10,8 @@ import { verifyDiagnosisSelectionToken } from "@/lib/diagnosis-selection";
 import { normalizeMedicationConcept, periodsOverlap, prescriptionSnapshot, sameVisitMedicationKey, treatmentStopDate } from "@/lib/medication";
 import { evaluateMedicationSafety, medicationSafetyContextHash } from "@/lib/medication-safety";
 import { effectiveCatalogPrice } from "@/lib/catalog-pricing";
+import { dispositionVisitStatus, normalizedVisitOutcome } from "@/lib/visit-disposition";
+import { closeClinicalVisit } from "@/lib/close-visit";
 import {
   consultationNotesSchema,
   diagnosisSchema,
@@ -48,14 +50,15 @@ export async function POST(
             invoice: true,
             encounters: { orderBy: { createdAt: "desc" } },
             patient: { include: { allergies: { where: { active: true } } } },
-            orders: { include: { laboratory: true, imaging: true, prescription: true, invoiceItem: true } },
+            orders: { include: { laboratory: true, imaging: true, prescription: true, invoiceItems: true } },
+            dispositionRecord: true,
           },
         });
         if (!visit)
           throw Object.assign(new Error("Visit not found"), { status: 404 });
-        if (["CANCELLED", "COMPLETED"].includes(visit.status))
+        if (visit.clinicallyClosedAt || ["CANCELLED", "COMPLETED", "DISCHARGED"].includes(visit.status))
           throw Object.assign(new Error("This visit is closed and cannot be changed"), { status: 409 });
-        if (visit.encounters.some((item) => item.status === "SIGNED"))
+        if (visit.encounters.some((item) => ["SIGNED", "CORRECTED"].includes(item.status)))
           throw Object.assign(
             new Error("This consultation is already signed"),
             { status: 409 },
@@ -94,6 +97,7 @@ export async function POST(
               confidentialNote: input.data.confidentialNote,
               followUpDate: input.data.followUpDate,
               disposition: input.data.disposition,
+              dispositionDetails: input.data.dispositionDetails,
             }),
           };
           encounter = encounter
@@ -141,6 +145,8 @@ export async function POST(
               code: input.data.code,
               title: input.data.title,
               foundationUri: input.data.foundationUri,
+              linearizationUri: input.data.linearizationUri,
+              codingVersion: input.data.codingVersion,
             });
           } catch (reason) {
             throw Object.assign(new Error((reason as Error).message), { status: 422 });
@@ -160,6 +166,8 @@ export async function POST(
               codingSystem: "ICD-11 MMS",
               code: input.data.code.toUpperCase(),
               foundationUri: input.data.foundationUri,
+              linearizationUri: input.data.linearizationUri,
+              codingVersion: input.data.codingVersion,
               primary: input.data.primary,
             },
           });
@@ -409,7 +417,7 @@ export async function POST(
                 medicationConceptId,
                 order: { visit: { patientId: visit.patientId }, status: { in: ["DRAFT", "REQUESTED", "IN_PROGRESS"] } },
               },
-              include: { order: { include: { invoiceItem: true } }, catalogItem: true },
+              include: { order: { include: { invoiceItems: true } }, catalogItem: true },
             });
             const sameVisit = activeCandidates.find(candidate => candidate.order.visitId === id);
             const exact = activeCandidates.find(candidate =>
@@ -452,12 +460,12 @@ export async function POST(
                 ...(sameVisit ? { visitMedicationKey: sameVisitMedicationKey(id, medicationConceptId) } : {}),
               } });
               await tx.clinicalOrder.update({ where: { id: duplicate.order.id }, data: { orderedById: user.id, displayName: item.name, clinicalIndication: medicine.indication, status: input.data.submit ? "REQUESTED" : "DRAFT" } });
-              if (duplicate.order.invoiceItem) {
+              if (duplicate.order.invoiceItems.length) {
                 const alreadyDispensed = Number(duplicate.dispensedQuantity || 0);
-                const price = effectiveCatalogPrice(item, now);
-                if (alreadyDispensed > 0)
-                  await tx.invoiceItem.update({ where: { id: duplicate.order.invoiceItem.id }, data: { quantity: new Prisma.Decimal(alreadyDispensed), unitPrice: new Prisma.Decimal(Number(price.unitPrice)), catalogItemId: item.id, priceVersionId: price.priceVersionId, description: item.name } });
-                else await tx.invoiceItem.delete({ where: { id: duplicate.order.invoiceItem.id } });
+                // Dispensed lines are financial history and must retain the medicine and tariff
+                // recorded at the time of supply. Only remove an unfulfilled placeholder.
+                if (alreadyDispensed === 0)
+                  await tx.invoiceItem.deleteMany({ where: { orderId: duplicate.order.id } });
               }
               await tx.medicationSafetyOverride.create({ data: { prescriptionId: updated.id, existingPrescriptionId: duplicate.id, prescriberId: user.id, warningCode: sameVisit ? "SAME_VISIT_EDIT" : input.data.duplicateAction!, justification: input.data.duplicateReason!, originalDetails: original, revisedDetails: revised } });
               if (safetyResults.length) await tx.medicationSafetyAssessment.createMany({ data: safetyResults.map(result => ({ prescriptionId: updated.id, ruleId: result.ruleId, warningCode: result.warningCode, severity: result.severity, outcome: result.outcome, message: result.message, ruleVersion: result.ruleVersion, contextHash })) });
@@ -541,7 +549,7 @@ export async function POST(
             status: { in: ["REQUESTED", "IN_PROGRESS"] },
           },
         });
-        if (outstanding)
+        if (outstanding && !["REFER", "DECEASED", "AGAINST_MEDICAL_ADVICE", "OTHER"].includes(input.data.disposition))
           throw Object.assign(
             new Error(
               "Review all requested investigation results before signing",
@@ -559,18 +567,23 @@ export async function POST(
           if (!sentReferral)
             throw Object.assign(new Error("Create and send the referral before signing a REFER disposition"), { status: 409 });
         }
-        const target =
-          input.data.disposition === "ADMIT"
-            ? "ADMITTED"
-            : input.data.disposition === "REFER"
-              ? "REFERRED"
-              : medicines
-                ? "AWAITING_PHARMACY"
-                : "AWAITING_PAYMENT";
+        const target = dispositionVisitStatus(input.data.disposition, medicines);
+        const outcome = normalizedVisitOutcome(input.data.disposition);
+        let savedPlan: Record<string, unknown> = {};
+        try { savedPlan = JSON.parse(encounter.plan || "{}"); } catch { savedPlan = { plan: encounter.plan }; }
+        if (typeof savedPlan.plan !== "string" || savedPlan.plan.trim().length < 2)
+          throw Object.assign(new Error("Save a management plan before signing"), { status: 422 });
         await tx.encounter.update({
           where: { id: encounter.id },
-          data: { status: "SIGNED", signedAt: new Date() },
+          data: { status: "SIGNED", clinicianId: user.id, signedAt: new Date(), plan: JSON.stringify({ ...savedPlan, disposition: input.data.disposition, dispositionDetails: input.data.dispositionDetails || null }) },
         });
+        if (target === "DISCHARGED") {
+          if (!input.data.dispositionDetails || input.data.dispositionDetails.trim().length < 10)
+            throw Object.assign(new Error("Document the closure circumstances and handover plan"), { status: 422 });
+          await closeClinicalVisit(tx, user, id, { outcome: outcome!, details: input.data.dispositionDetails, cancelPendingOrders: input.data.cancelPendingOrders });
+          await appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: "CONSULTATION_SIGNED", entityType: "Encounter", entityId: encounter.id, afterHash: `${visit.visitNumber}:${target}` });
+          return { stage: "SIGNED", target };
+        }
         await tx.queueEntry.updateMany({
           where: {
             visitId: id,
@@ -596,11 +609,13 @@ export async function POST(
             },
           });
         await tx.visit.update({ where: { id }, data: { status: target } });
+        // A consultation plan is not final discharge. A clinician closes the visit explicitly.
         await appendAudit(tx, {
           userId: user.id,
           action: "CONSULTATION_SIGNED",
           entityType: "Encounter",
           entityId: encounter.id,
+          reason: outcome ? JSON.stringify({ outcome, details: input.data.dispositionDetails || null }) : undefined,
           afterHash: `${visit.visitNumber}:${target}`,
         });
         return { stage: "SIGNED", target };

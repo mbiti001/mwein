@@ -1,0 +1,6 @@
+{
+  "framework": null,
+  "buildCommand": "npm run db:generate && npm run release:migrate && node scripts/release-privacy-role.mjs && mkdir -p release-result && echo 'Controlled database release completed.' > release-result/index.html",
+  "outputDirectory": "release-result",
+  "installCommand": "npm ci"
+}

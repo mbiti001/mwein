@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { auditedOperationalJson } from "@/lib/audited-json";
 import ExcelJS from "exceljs";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
@@ -35,22 +35,22 @@ function legacyRows(sheet: ExcelJS.Worksheet) {
 
 export async function POST(request: Request) {
   try {
-    await requirePermission("admin.catalog");
+    const user = await requirePermission("admin.catalog");
     const form = await request.formData();
     const file = form.get("file");
     const requestedTitle = String(form.get("sheetTitle") || "");
     if (!(file instanceof File))
-      return NextResponse.json(
+      return await auditedOperationalJson(user, "admin/import/workbook",
         { error: "Select an Excel workbook" },
         { status: 422 },
       );
     if (file.size > 10_000_000)
-      return NextResponse.json(
+      return await auditedOperationalJson(user, "admin/import/workbook",
         { error: "Workbook size is limited to 10 MB" },
         { status: 422 },
       );
     if (!file.name.toLowerCase().endsWith(".xlsx"))
-      return NextResponse.json(
+      return await auditedOperationalJson(user, "admin/import/workbook",
         {
           error:
             "Only .xlsx workbooks are supported here; use the CSV uploader for .csv files",
@@ -61,22 +61,22 @@ export async function POST(request: Request) {
     await workbook.xlsx.load((await file.arrayBuffer()) as never);
     const sheetTitles = workbook.worksheets.map((sheet) => sheet.name);
     if (!requestedTitle)
-      return NextResponse.json({ workbookTitle: file.name, sheetTitles });
+      return await auditedOperationalJson(user, "admin/import/workbook", { workbookTitle: file.name, sheetTitles });
     const sheet = workbook.getWorksheet(requestedTitle);
     if (!sheet)
-      return NextResponse.json(
+      return await auditedOperationalJson(user, "admin/import/workbook",
         { error: `Worksheet “${requestedTitle}” was not found` },
         { status: 422 },
       );
     const legacy = legacyRows(sheet);
-    if (legacy) return NextResponse.json({ workbookTitle: file.name, sheetTitle: sheet.name, sheetTitles, suggestedDataset: legacy.dataset, csv: legacy.rows.map(row => row.map(csvCell).join(",")).join("\n"), rowCount: legacy.rows.length - 1 });
+    if (legacy) return await auditedOperationalJson(user, "admin/import/workbook", { workbookTitle: file.name, sheetTitle: sheet.name, sheetTitles, suggestedDataset: legacy.dataset, csv: legacy.rows.map(row => row.map(csvCell).join(",")).join("\n"), rowCount: legacy.rows.length - 1 });
     const headerMarkers = new Set(["full_name", "code", "test_code"]);
     let headerRow = 0;
     sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
       if (!headerRow && headerMarkers.has(row.getCell(1).text.trim().toLowerCase())) headerRow = rowNumber;
     });
     if (!headerRow)
-      return NextResponse.json({ error: `Worksheet “${requestedTitle}” does not contain a supported header row` }, { status: 422 });
+      return await auditedOperationalJson(user, "admin/import/workbook", { error: `Worksheet “${requestedTitle}” does not contain a supported header row` }, { status: 422 });
     const lines: string[] = [];
     sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
       if (rowNumber < headerRow) return;
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
         values.push(csvCell(row.getCell(column).text.trim()));
       lines.push(values.join(","));
     });
-    return NextResponse.json({
+    return await auditedOperationalJson(user, "admin/import/workbook", {
       workbookTitle: file.name,
       sheetTitle: sheet.name,
       sheetTitles,

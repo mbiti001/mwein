@@ -1,0 +1,293 @@
+{
+  "status": "Engineering classification; not independent assurance",
+  "routes": {
+    "admin/audit/export": {
+      "sourceSha256": "b8ac4dd6ff3ef7780fd2fb227c14eb4abaeb00bb7a48b2a468720eb6dfc6da92",
+      "methodExceptions": {}
+    },
+    "admin/data-quality": {
+      "sourceSha256": "a129d2a048b6e3b719236b1386c6996038db185b256ecfc9ea2a88eb6593458f",
+      "methodExceptions": {}
+    },
+    "admin/exchange": {
+      "sourceSha256": "3cc58e3e8c7a6d18637e02740aa24494818187c6b1d1b102663d71ec11792f1a",
+      "methodExceptions": {
+        "GET": "Authenticated fixed 503 retirement response; no national exchange or record disclosure.",
+        "POST": "Exact-source alias of the authenticated fixed retirement GET; no disclosure or mutation."
+      }
+    },
+    "admin/governance": {
+      "sourceSha256": "243601a7dd18bedc270bd26e71a006dfd65c2a75cb9cef3a19a6c8a3cc8212c5",
+      "methodExceptions": {}
+    },
+    "admin/identity": {
+      "sourceSha256": "0fd659ce6325170b732a7b0651912cd6176191cfc40a35b555737262b3ea2126",
+      "methodExceptions": {}
+    },
+    "admin/import": {
+      "sourceSha256": "b833b1a057b40febc9485ca38b721ac91cfdf16e8c2ed2cd8d3891ebd2ea7a9e",
+      "methodExceptions": {}
+    },
+    "admin/import/workbook": {
+      "sourceSha256": "2f83c72d8127f2d78cc5f662327ba4ff9b3de7ed9bd9f898230cbf65b2a877b4",
+      "methodExceptions": {}
+    },
+    "admin/integrations": {
+      "sourceSha256": "1f83a5d756b4ebc0afa2079dc8acc771d78702cdefb1930bac8564365d7f6cf6",
+      "methodExceptions": {}
+    },
+    "admin/medication-safety": {
+      "sourceSha256": "c11f0fbb36f1db0053a38f31a93399230fbd89c2907a329ea780e092fd688f4d",
+      "methodExceptions": {}
+    },
+    "admin/operations-evidence": {
+      "sourceSha256": "42bdd5904d67828d95fcc420af6b942f08b99958761a34404bce155fee2343b6",
+      "methodExceptions": {}
+    },
+    "admin/overview": {
+      "sourceSha256": "36fce18fe48cde80d6993e8d973b39fd44c953dc74479557149413b6de322d50",
+      "methodExceptions": {}
+    },
+    "admin/patient-rights": {
+      "sourceSha256": "c68332e316c1826df49c62f39d268c2e09b3230bf8ac50a27a19e73e75a42cee",
+      "methodExceptions": {
+        "GET": "Authenticated fixed 410 retirement response; use the audited patient rights endpoints.",
+        "POST": "Exact-source alias of the authenticated fixed retirement GET; no disclosure or mutation."
+      }
+    },
+    "admin/sha-contract": {
+      "sourceSha256": "1c42cb7c654c6fda71df9c7076099f814e2787e58e7a1eb1f84d2bb82d8f2e67",
+      "methodExceptions": {}
+    },
+    "admin/users/[id]/mfa-recovery": {
+      "sourceSha256": "37aede2a5129d595353fa82be65e9634b5ac56179993da052f604f01d53aed01",
+      "methodExceptions": {}
+    },
+    "admin/users": {
+      "sourceSha256": "fd89f2f5f01f996edb37f510c23abeb59486ea5e1075ed5b2595e7492d47583d",
+      "methodExceptions": {}
+    },
+    "appointments/[id]/reminder": {
+      "sourceSha256": "f79afdfd25b1329186cf8a9efdd8a1b59f989c45a57ed76f564701db9f5e275f",
+      "methodExceptions": {}
+    },
+    "appointments/[id]/status": {
+      "sourceSha256": "3b70678d5567fd9ed87448cb4174f85e35a8afb107514b7df6b841989ecc0ee6",
+      "methodExceptions": {}
+    },
+    "appointments": {
+      "sourceSha256": "272f3a09241d24360115441a755782b4f7fb4145e05320285e1841c84c330d8f",
+      "methodExceptions": {}
+    },
+    "auth/login": {
+      "sourceSha256": "27db34ebc7943a9ea478ba1638d06e1d6caa7df0bab4f802a95251ee6e9f8322",
+      "methodExceptions": {}
+    },
+    "auth/logout": {
+      "sourceSha256": "ad82ef2e0c9e611c4c51ea78cb313206f545e0ae0e44e987f0dfca921c2169f7",
+      "methodExceptions": {}
+    },
+    "auth/me": {
+      "sourceSha256": "1c75436b78479c99f77a9abfd24a8c4d00165fcfb274dc284b1965c3d05c6ce8",
+      "methodExceptions": {
+        "GET": "Current authenticated session identity and permissions, needed to complete password/MFA stages; no patient data or factor secrets."
+      }
+    },
+    "auth/mfa": {
+      "sourceSha256": "3e42fe7abe613bc256c7348540cb526370b9895b41d4236709653b9d142f3b4c",
+      "methodExceptions": {
+        "GET": "Current user factor enrollment status and remaining recovery-code count only; no seeds, hashes or other users."
+      }
+    },
+    "auth/password": {
+      "sourceSha256": "40b762f9be97b05cb6bd189e80a02207f1d0a60f975d5fa92bd58e46d3e26a5b",
+      "methodExceptions": {}
+    },
+    "billing/shifts": {
+      "sourceSha256": "ca2f7c691844f53ead3e8ca2556f74ef5be50be621574267ca8bee1df4aa553e",
+      "methodExceptions": {}
+    },
+    "catalog": {
+      "sourceSha256": "5cf1db00784a737e52e1e69a46c4b46dbbb92980bdcc256113001be2e0bac562",
+      "methodExceptions": {}
+    },
+    "claims/[id]/status": {
+      "sourceSha256": "cce951bab6199817db29783fbfbd2db5641c868e38bedf3f461bcd01716d4b9e",
+      "methodExceptions": {}
+    },
+    "clinical-results/[kind]/[id]": {
+      "sourceSha256": "afd8476822fb0a334a1ecc103c0a4abe1cd7b2d3776ee2952b0874d52ac65240",
+      "methodExceptions": {}
+    },
+    "diagnoses/search": {
+      "sourceSha256": "4592ea5ad50c9418b8949932b3652b34c61a0b8a6daef628fcff0ee5e9cc578f",
+      "methodExceptions": {}
+    },
+    "encounters/[id]/addenda": {
+      "sourceSha256": "e8e90f8a78bcb0b1dc4b9ea1e5d998a3c160133c20f96449c8a60bc50c586bb1",
+      "methodExceptions": {}
+    },
+    "follow-ups": {
+      "sourceSha256": "70ac433f91f9ef0db70511544043a9bb36a343c50e5a6c5aadb00b7343a19188",
+      "methodExceptions": {}
+    },
+    "health": {
+      "sourceSha256": "8de373c593cd0e6123e26deba9051e9bff13b1b0da5ccafd6a216c7bd9e04dc6",
+      "methodExceptions": {
+        "GET": "Public availability and release metadata only; no patient/staff payload."
+      }
+    },
+    "integrations/sha/readiness": {
+      "sourceSha256": "3489f92d90279910b142ab4cbb2c109dc37df4922bf6e0acdda4e86683ded0bf",
+      "methodExceptions": {}
+    },
+    "inventory/forecast": {
+      "sourceSha256": "1f7b3deff1403bbb6a70daf1460d8b5ae9b8719aad903eb528b6bedb0b837b8f",
+      "methodExceptions": {}
+    },
+    "inventory": {
+      "sourceSha256": "0811e977261def6c93b122be1818c78639f5ee1a3b8fe779642b9467df384828",
+      "methodExceptions": {
+        "POST": "Fixed 405 retirement response; no stock read or mutation."
+      }
+    },
+    "invoices/[id]/claims/preflight": {
+      "sourceSha256": "52c8b05c6443da159469adb6f67a52436542b4ed819402a1f1a9dce1f2f0dd4f",
+      "methodExceptions": {}
+    },
+    "invoices/[id]/claims": {
+      "sourceSha256": "7b8a06b5ceb72ea097c544b38eb62ea90568105050a76af26b4f37e237dc852a",
+      "methodExceptions": {}
+    },
+    "invoices/[id]/payments": {
+      "sourceSha256": "1666c48de0ba536a3172e158834f4ae25e92550ca969fc98e06ab17cceafbfe3",
+      "methodExceptions": {}
+    },
+    "orders/[id]/dispense": {
+      "sourceSha256": "26055b951979b0f5bc7a38ae9691e29a70d062a24026ffeda4c439b9c3c1445e",
+      "methodExceptions": {}
+    },
+    "orders/[id]/imaging-result": {
+      "sourceSha256": "bcce947d98e58576c3bd83c00b020a9c0640acae5d30c6c1a9c816a2d3f97946",
+      "methodExceptions": {}
+    },
+    "orders/[id]/laboratory-result": {
+      "sourceSha256": "e08500f8715bdc7ee818c3532fd0efabe23a2f26a2dfdd3ec5c35e5ed9413ec9",
+      "methodExceptions": {}
+    },
+    "orders/[id]/specimen": {
+      "sourceSha256": "e996246aeb7b45e7969a7f4656f8fdaf3f40616d4730b6b1e665f66c3ef4a73d",
+      "methodExceptions": {}
+    },
+    "patients/[id]/consents": {
+      "sourceSha256": "938685a61eafab145883d25c427bce3b1b3c62eeacb4149236c6bbb9bed6b945",
+      "methodExceptions": {}
+    },
+    "patients/[id]/history": {
+      "sourceSha256": "48a610226ea1fa15cd63f956941100eb319084c214c646da7963d3b214fffd1a",
+      "methodExceptions": {}
+    },
+    "patients/[id]/identity-reconciliation": {
+      "sourceSha256": "b87de0ee8b0ff9e2c0dd45b82c7e52548c322c1b7bdc32e7bc2bec1dd14d460c",
+      "methodExceptions": {}
+    },
+    "patients/[id]/privacy/export": {
+      "sourceSha256": "122be871d2237ca81747b2a0988e9a692fbe81ef96138c42aed385de7765598d",
+      "methodExceptions": {}
+    },
+    "patients/[id]/privacy": {
+      "sourceSha256": "6b40ad1edc6db9051776b2cadf8e71f262bfeaefe46ff8c69ea631af763e55fa",
+      "methodExceptions": {}
+    },
+    "patients/[id]/problems/[problemId]": {
+      "sourceSha256": "8a1dfea2b7affe846894860119b61605d68b0b5f78c905f1d823abf3d2124428",
+      "methodExceptions": {}
+    },
+    "patients/[id]/problems": {
+      "sourceSha256": "0b300bbde2a705955890d6a670d13a06db87312e24c700d25237b84757809b98",
+      "methodExceptions": {}
+    },
+    "patients": {
+      "sourceSha256": "752948e8a7d92dd00543093f51879313299c8f1d8bbd228aa021bcf97430f15e",
+      "methodExceptions": {}
+    },
+    "payments/[id]/reverse": {
+      "sourceSha256": "2960303190f6ca1db7a3ac3cee6fb9d1c3f28eab6143c70814791149454eda84",
+      "methodExceptions": {}
+    },
+    "queues": {
+      "sourceSha256": "5f6716c4d39e8859d42436ac68bb7231c29c02464c0195f9d0b097d223d6764e",
+      "methodExceptions": {}
+    },
+    "ready": {
+      "sourceSha256": "7284718dbf04b19954b28b521be608a215bbe6253b5ea45ab161f198a83176c8",
+      "methodExceptions": {
+        "GET": "Public ready/blocked status only; internal governance evidence is not returned."
+      }
+    },
+    "referrals/[id]": {
+      "sourceSha256": "be413dd3be822fe1421a1b580e00646c078b40a2fc3e39aa8f917f243d548016",
+      "methodExceptions": {}
+    },
+    "referrals": {
+      "sourceSha256": "ba73197c4f7053bde1a269c1cfe86ac7cdcbb90a7703e7cfdf3bbc36d163601f",
+      "methodExceptions": {}
+    },
+    "reports/local": {
+      "sourceSha256": "67eaf825bbec21c3837630944f305ca82f5a2e716c8f02a2c3c0b06d9efbcf05",
+      "methodExceptions": {}
+    },
+    "reports/moh-monthly": {
+      "sourceSha256": "9387825f5ff76e975431ec8a0b38963cec778ee04b4d69aca2ac9ddd109f01c4",
+      "methodExceptions": {}
+    },
+    "reports/operations": {
+      "sourceSha256": "d6c7ee2bd1069ff680dceeea0907610a97d4c1282901ffab8d1a870f7caa1e60",
+      "methodExceptions": {}
+    },
+    "service-points": {
+      "sourceSha256": "fc2e51d2b7b5660d21c834ed3bb9c77ea18c195cf1f47376f7bfabb95e2dca7d",
+      "methodExceptions": {}
+    },
+    "supply": {
+      "sourceSha256": "7ee7fe5f181bd971bc541c4bc5bfe3e1280d3d9209db3c8d555a0faabca275a9",
+      "methodExceptions": {}
+    },
+    "surveillance": {
+      "sourceSha256": "f14d44ce1dfd2469c8ece231a13d5d4f5bca7b6c769c1f0fe3bf1c7bf3b91347",
+      "methodExceptions": {}
+    },
+    "visit-summaries": {
+      "sourceSha256": "0e6fafcf0029b88636b9c152c20c4be66626d26ec0ec54a9c338acfa4c5869d2",
+      "methodExceptions": {}
+    },
+    "visits/[id]/cancel": {
+      "sourceSha256": "c2352ac27467d44387adaf4ab46f505d685d3369df973215ba109b341e14dea5",
+      "methodExceptions": {}
+    },
+    "visits/[id]/complete": {
+      "sourceSha256": "ac1188faaa16f660dd5b7dff21c1356b021ef0bf1e36724b08a62879ed795ead",
+      "methodExceptions": {}
+    },
+    "visits/[id]/consultation": {
+      "sourceSha256": "0f8c13f247041d3756e28e5c4fa306394d13d26999d1079cf80f0366a5827c1c",
+      "methodExceptions": {}
+    },
+    "visits/[id]/discharge": {
+      "sourceSha256": "0a70ada3542b33ea6da3d8a0a42da4a5baceb7274846580cd823155ae625b6af",
+      "methodExceptions": {}
+    },
+    "visits/[id]/triage": {
+      "sourceSha256": "7dca72c1fb544e593290eb7107e64ef6bc74fbf64e0f32b6a52f14a802ce9a6a",
+      "methodExceptions": {}
+    },
+    "visits/[id]/vitals": {
+      "sourceSha256": "c1b7a44e1df921fdb6882e1d61dc2ee6902371e157b9b7328ebe820207acb1c2",
+      "methodExceptions": {}
+    },
+    "visits": {
+      "sourceSha256": "98884724ef56f2c46890acc041ed1b3a678d09d8e43278750cbd9aa3ea79ca7b",
+      "methodExceptions": {}
+    }
+  }
+}

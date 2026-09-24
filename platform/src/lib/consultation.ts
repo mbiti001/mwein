@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { consultationDispositionCodes, visitDispositionSchema } from "./visit-disposition";
 
 export const complaintDurationUnits = [
   "HOURS",
@@ -43,7 +44,8 @@ export const consultationNotesSchema = z.object({
   plan: z.string().trim().max(5000).optional(),
   confidentialNote: z.string().trim().max(3000).optional(),
   followUpDate: z.iso.date().optional(),
-  disposition: z.enum(["OUTPATIENT", "ADMIT", "REFER"]),
+  disposition: z.enum(consultationDispositionCodes),
+  dispositionDetails: z.string().trim().max(1000).optional(),
 });
 
 export const diagnosisSchema = z.object({
@@ -54,8 +56,13 @@ export const diagnosisSchema = z.object({
   primary: z.boolean().default(false),
   foundationUri: z
     .url()
-    .startsWith("https://id.who.int/icd/entity/")
+    .refine((value) => /^https?:\/\/id\.who\.int\/icd\/entity\//.test(value), "A valid WHO ICD-11 foundation URI is required")
     .optional(),
+  linearizationUri: z
+    .url()
+    .refine((value) => /^https?:\/\/id\.who\.int\/icd\/release\/11\/.+\/mms\//.test(value), "A valid WHO ICD-11 MMS URI is required")
+    .optional(),
+  codingVersion: z.string().regex(/^\d{4}-\d{2}$/).optional(),
 });
 
 export const investigationOrderSchema = z
@@ -115,6 +122,4 @@ export const prescriptionSchema = z.object({
   if (value.duplicateAction && !value.duplicateReason) context.addIssue({ code: "custom", path: ["duplicateReason"], message: "Clinical justification is required" });
 });
 
-export const signConsultationSchema = z.object({
-  disposition: z.enum(["OUTPATIENT", "ADMIT", "REFER"]),
-});
+export const signConsultationSchema = visitDispositionSchema;

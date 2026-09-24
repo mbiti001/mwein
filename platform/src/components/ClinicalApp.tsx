@@ -1,9 +1,10 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { assessTriageVitals, patientClinicalGroup } from "@/lib/domain";
 import type { StockFocus } from "@/components/InventoryWorkstation";
+import VisitVitalsPanel from "@/components/VisitVitalsPanel";
 import SaveFeedback from "@/components/SaveFeedback";
 import { currentServicePoint, isWaitingOverdue, waitingMinutes, type ServicePointCode } from "@/lib/service-points";
 import { appointmentClinics } from "@/lib/appointments";
@@ -11,6 +12,10 @@ import { careServiceForClinic } from "@/lib/care-service-points";
 import { jsonRequest } from "@/lib/client-http";
 import { dateInTimeZone, gestationalAgeLabel, pregnancyDatingFromLnmp } from "@/lib/pregnancy-dating";
 import { BrandMark } from "@/components/FacilityBrand";
+import ReadinessSnapshot from "@/components/ReadinessSnapshot";
+import MfaWorkstation from "@/components/MfaWorkstation";
+import VisitClosurePanel from "@/components/VisitClosurePanel";
+import PatientIdentityPanel from "@/components/PatientIdentityPanel";
 import { shaCancellationOutcomes, visitCancellationReasons } from "@/lib/visit-cancellation";
 
 const workspaceLoading = () => <section className="card"><p>Opening workspace…</p></section>;
@@ -20,6 +25,8 @@ const PharmacyCenter = dynamic(() => import("@/components/PharmacyCenter"), { lo
 const BillingWorkstation = dynamic(() => import("@/components/BillingWorkstation"), { loading: workspaceLoading });
 const VisitSummaryWorkstation = dynamic(() => import("@/components/VisitSummaryWorkstation"), { loading: workspaceLoading });
 const ImagingWorkstation = dynamic(() => import("@/components/ImagingWorkstation"), { loading: workspaceLoading });
+const SurveillanceWorkstation = dynamic(() => import("@/components/SurveillanceWorkstation"), { loading: workspaceLoading });
+const VitalsWorkstation = dynamic(() => import("@/components/VitalsWorkstation"), { loading: workspaceLoading });
 const ReportingWorkstation = dynamic(() => import("@/components/ReportingWorkstation"), { loading: workspaceLoading });
 const AppointmentWorkstation = dynamic(() => import("@/components/AppointmentWorkstation"), { loading: workspaceLoading });
 const AdminCenter = dynamic(() => import("@/components/AdminCenter"), { loading: workspaceLoading });
@@ -34,6 +41,8 @@ type User = {
   permissions: string[];
   roles?: string[];
   mustChangePassword: boolean;
+  mfaRequired: boolean;
+  mfaEnrolled: boolean;
 };
 type Patient = {
   id: string;
@@ -56,10 +65,12 @@ type Visit = {
   visitType?: string;
   priority: string;
   status: string;
+  clinicallyClosedAt?: string | null;
   reason?: string;
   arrivedAt: string;
   patient: Patient;
   encounters?: {
+    status?: string;
     diagnoses: { description: string; code?: string | null; primary: boolean }[];
   }[];
   facility?: { name: string; code: string };
@@ -128,6 +139,7 @@ type Screen =
   | "registration"
   | "appointments"
   | "visit"
+  | "vitals"
   | "triage"
   | "servicePoints"
   | "consultation"
@@ -137,8 +149,10 @@ type Screen =
   | "billing"
   | "summaries"
   | "followUps"
+  | "surveillance"
   | "reports"
-  | "admin";
+  | "admin"
+  | "security";
 
 async function api<T>(url: string, options?: RequestInit): Promise<T> {
   return jsonRequest<T>(url, options);
@@ -155,18 +169,37 @@ export default function ClinicalApp() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [focusedVisitId, setFocusedVisitId] = useState<string | null>(null);
   const [contextVisitId, setContextVisitId] = useState<string | null>(null);
+  const [returnToConsultation, setReturnToConsultation] = useState(false);
   const [stockFocus, setStockFocus] = useState<StockFocus | null>(null);
-  const loadVisits = useCallback(
-    async () =>
-      setVisits((await api<{ visits: Visit[] }>("/api/visits")).visits),
-    [],
-  );
+  const [visitsLastUpdatedAt, setVisitsLastUpdatedAt] = useState<Date | null>(null);
+  const [visitsRefreshFailed, setVisitsRefreshFailed] = useState(false);
+  const visitsRequest = useRef<Promise<void> | null>(null);
+  const loadVisits = useCallback(() => {
+    if (visitsRequest.current) return visitsRequest.current;
+    let request: Promise<void>;
+    request = api<{ visits: Visit[] }>("/api/visits")
+      .then((result) => {
+        setVisits(result.visits);
+        setVisitsLastUpdatedAt(new Date());
+        setVisitsRefreshFailed(false);
+      })
+      .catch((error) => {
+        setVisitsRefreshFailed(true);
+        throw error;
+      })
+      .finally(() => {
+        if (visitsRequest.current === request) visitsRequest.current = null;
+      });
+    visitsRequest.current = request;
+    return request;
+  }, []);
 
   useEffect(() => {
     api<{ user: User }>("/api/auth/me")
-      .then(async (result) => {
+      .then((result) => {
         setUser(result.user);
-        if (!result.user.mustChangePassword && result.user.permissions.includes("visit.read")) await loadVisits();
+        if (!result.user.mustChangePassword && result.user.permissions.includes("visit.read"))
+          void loadVisits().catch(() => undefined);
       })
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
@@ -193,6 +226,7 @@ export default function ClinicalApp() {
       appointments: "Appointments",
       visit: "Clinic check-in",
       triage: "Triage",
+      vitals: "Vitals",
       servicePoints: "Service points",
       consultation: "Consultation",
       diagnostics: "Laboratory",
@@ -202,7 +236,9 @@ export default function ClinicalApp() {
       summaries: "Patient records",
       followUps: "Follow-up work",
       reports: "Reports",
+      surveillance: "Local IDSR",
       admin: "Administration",
+      security: "Account security",
     };
     document.title = `${titles[screen]} · Mwein HMIS`;
   }, [screen]);
@@ -224,6 +260,12 @@ export default function ClinicalApp() {
         }}
       />
     );
+  if (user.mfaRequired && (user.mfaEnrolled || !user.mustChangePassword))
+    return <MfaWorkstation enrolled={user.mfaEnrolled} required onCompleted={async () => {
+      const result = await api<{ user: User }>("/api/auth/me");
+      setUser(result.user);
+      if (!result.user.mustChangePassword && !result.user.mfaRequired && result.user.permissions.includes("visit.read")) await loadVisits();
+    }} />;
   if (user.mustChangePassword)
     return <PasswordChange onChanged={async () => {
       const result = await api<{ user: User }>("/api/auth/me");
@@ -242,6 +284,7 @@ export default function ClinicalApp() {
     ["appointments", "Appointments", "visit.create"],
     ["followUps", "Follow-up work", "visit.read"],
     ["triage", "Triage", "triage.write"],
+    ["vitals", "Vitals", "vitals.write"],
     ["servicePoints", "Service points", "encounter.write"],
     ["consultation", "Consultation", "encounter.write"],
     ["diagnostics", "Laboratory", "laboratory.write"],
@@ -249,9 +292,10 @@ export default function ClinicalApp() {
     ["pharmacy", "Pharmacy & stock", "inventory.view"],
     ["billing", "Billing", "billing.read"],
     ["summaries", "Patient records", "clinical.summary.read"],
+    ["surveillance", "Local IDSR", "surveillance.read"],
   ];
   const nav: [Screen, string][] = allNav.filter(([, , permission]) => !permission || user.permissions.includes(permission)).map(([key, label]) => [key, label]);
-  if ((user.permissions || []).includes("billing.read"))
+  if (user.permissions.some(permission => ["reports.clinical", "reports.operations"].includes(permission)))
     nav.push(["reports", "Reports"]);
   if ((user.permissions || []).includes("admin.dashboard"))
     nav.push(["admin", "Administration"]);
@@ -272,7 +316,7 @@ export default function ClinicalApp() {
           {nav.map(([key, label]) => (
             <button
               className={screen === key ? "active" : ""}
-              onClick={() => { setScreen(key); setFocusedVisitId(null); setStockFocus(null); setMobileNavOpen(false); }}
+              onClick={() => { setReturnToConsultation(false); setScreen(key); setFocusedVisitId(null); setStockFocus(null); setMobileNavOpen(false); }}
               key={key}
             >
               {label}
@@ -294,6 +338,17 @@ export default function ClinicalApp() {
         </div>
       </aside>
       <section className="workspace">
+        {visitsRefreshFailed && user.permissions.includes("visit.read") && (
+          <div className="alert syncWarning" role="status">
+            <span>
+              <strong>Live queue updates are paused.</strong>{" "}
+              {visitsLastUpdatedAt
+                ? `Showing data last updated at ${visitsLastUpdatedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.`
+                : "Queue data is not available yet."}
+            </span>
+            <button className="secondary" onClick={() => void loadVisits().catch(() => undefined)}>Retry</button>
+          </div>
+        )}
         {user.permissions.includes("patient.read") && (
           <GlobalPatientFinder onSelect={(patient) => {
             const activeVisit = visits.find(visit => visit.patient.id === patient.id);
@@ -305,7 +360,7 @@ export default function ClinicalApp() {
           }}/>
         )}
         {screen !== "dashboard" &&
-          !["summaries", "reports", "appointments", "admin"].includes(screen) && (
+          !["summaries", "reports", "surveillance", "vitals", "security", "appointments", "admin"].includes(screen) && (
             <WorkflowSteps screen={screen} />
           )}{" "}
         {contextVisitId && (() => {
@@ -329,6 +384,7 @@ export default function ClinicalApp() {
         {screen === "dashboard" && (
           <Dashboard
             visits={visits}
+            onGovernance={() => setScreen("admin")}
             user={user}
             onStart={() => {
               setScreen("registration");
@@ -364,6 +420,7 @@ export default function ClinicalApp() {
           <StartVisit
             patient={selected}
             appointment={appointment}
+            fromConsultation={returnToConsultation}
             onCreated={async (visit) => {
               await loadVisits();
               setAppointment(null);
@@ -371,21 +428,25 @@ export default function ClinicalApp() {
               setFocusedVisitId(visit.id);
               const direct = visit.clinic === "Walk-in";
               setNotice(`${visit.visitNumber} started and sent to ${direct ? "the walk-in clinical review" : "triage"}.`);
-              setScreen(direct ? "servicePoints" : "triage");
+              setScreen(direct && user.permissions.includes("encounter.write") ? "servicePoints" : user.permissions.includes("triage.write") ? "triage" : user.permissions.includes("vitals.write") ? "vitals" : "dashboard");
             }}
           />
         )}
+        {screen === "vitals" && user.permissions.includes("vitals.write") && <VitalsWorkstation visits={visits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />}
         {screen === "triage" && (
           <TriageWorkstation
             visits={visits.filter(
               (visit) => visit.status === "AWAITING_TRIAGE",
             )}
-            onCompleted={async (patientName) => {
+            onCompleted={async (patientName, visitId) => {
               await loadVisits();
               setNotice(
                 `Triage completed for ${patientName}; the patient is now awaiting consultation.`,
               );
-              setFocusedVisitId(null); setContextVisitId(null); setScreen("triage");
+              setFocusedVisitId(returnToConsultation ? visitId : null);
+              setContextVisitId(returnToConsultation ? visitId : null);
+              setScreen(returnToConsultation ? "consultation" : "triage");
+              setReturnToConsultation(false);
             }}
             initialVisitId={focusedVisitId}
             onInitialVisitOpened={() => setFocusedVisitId(null)}
@@ -403,6 +464,17 @@ export default function ClinicalApp() {
           />
         )}
         {screen === "consultation" && (
+          <>
+          <section className="card compact" aria-label="Consultation room actions">
+            <h2>Consultation room actions</h2>
+            <p>Start a visit, record measured vitals, consult, then handle billing and clinical discharge as your assigned role permits.</p>
+            <div className="actions">
+              {user.permissions.includes("visit.create") && <button className="primary" onClick={() => { setSelected(null); setAppointment(null); setFocusedVisitId(null); setContextVisitId(null); setReturnToConsultation(true); setNotice(""); setScreen("visit"); }}>Start visit from consultation</button>}
+              {user.permissions.includes("patient.create") && <button className="secondary" onClick={() => { setSelected(null); setAppointment(null); setReturnToConsultation(true); setNotice(""); setScreen("registration"); }}>Register new patient</button>}
+              {user.permissions.includes("vitals.write") && <button className="secondary" onClick={() => { setFocusedVisitId(null); setReturnToConsultation(true); setScreen(user.permissions.includes("triage.write") ? "triage" : "vitals"); }}>Take vitals</button>}
+              {user.permissions.includes("billing.read") && <button className="secondary" onClick={() => { setFocusedVisitId(null); setScreen("billing"); }}>Open billing</button>}
+            </div>
+          </section>
           <ConsultationWorkstation
             visits={visits.filter((visit) =>
               ["AWAITING_CLINICIAN", "UNDER_CONSULTATION"].includes(
@@ -420,6 +492,8 @@ export default function ClinicalApp() {
             initialVisitId={focusedVisitId}
             onInitialVisitOpened={() => setFocusedVisitId(null)}
           />
+          <VisitClosurePanel visits={visits} onUpdated={loadVisits} />
+          </>
         )}
         {screen === "diagnostics" && (
           <LaboratoryWorkstation visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />
@@ -433,7 +507,11 @@ export default function ClinicalApp() {
         )}
         {screen === "summaries" && <VisitSummaryWorkstation canAddendum={user.permissions.includes("encounter.write")} />}
         {screen === "followUps" && <FollowUpWorkstation/>}
-        {screen === "reports" && <ReportingWorkstation />}
+        {screen === "surveillance" && <SurveillanceWorkstation permissions={user.permissions} />}
+        {screen === "reports" && <ReportingWorkstation permissions={user.permissions} />}
+        {screen === "security" && <MfaWorkstation enrolled={user.mfaEnrolled} required={false} onCompleted={async () => {
+          const result = await api<{ user: User }>("/api/auth/me"); setUser(result.user); setScreen("dashboard");
+        }} />}
         {screen === "admin" && <AdminCenter permissions={user.permissions} onOpenStock={(focus) => { setStockFocus(focus); setFocusedVisitId(null); setScreen("pharmacy"); }} />}
       </section>
     </main>
@@ -601,19 +679,23 @@ function PasswordChange({ onChanged }: { onChanged: () => Promise<void> }) {
 
 function Dashboard({
   visits,
+  onGovernance,
   user,
   onStart,
   onOpenTask,
   onUpdated,
 }: {
   visits: Visit[];
+  onGovernance: () => void;
   user: User;
   onStart: () => void;
   onOpenTask: (screen: Screen, visitId: string) => void;
   onUpdated: () => Promise<void>;
 }) {
+  const [taskSearch, setTaskSearch] = useState("");
+  const [overdueOnly, setOverdueOnly] = useState(false);
   const access: Partial<Record<ServicePointCode, { permission: string; screen: Screen; action: string }>> = {
-    TRIAGE: { permission: "triage.write", screen: "triage", action: "Start triage" },
+    TRIAGE: user.permissions.includes("triage.write") ? { permission: "triage.write", screen: "triage", action: "Start triage" } : { permission: "vitals.write", screen: "vitals", action: "Record vitals" },
     CONSULTATION: { permission: "encounter.write", screen: "consultation", action: "Open consultation" },
     LABORATORY: { permission: "laboratory.write", screen: "diagnostics", action: "Open laboratory" },
     IMAGING: { permission: "imaging.write", screen: "imaging", action: "Open imaging" },
@@ -631,11 +713,12 @@ function Dashboard({
     return { billed: totals.billed + billed, paid: totals.paid + paid, claims: totals.claims + claims };
   }, { billed: 0, paid: 0, claims: 0 });
   const serviceCounts = tasks.reduce<Record<string, number>>((counts, item) => ({ ...counts, [item.point!]: (counts[item.point!] || 0) + 1 }), {});
+  const visibleTasks = tasks.filter(({ visit, wait }) => (!overdueOnly || isWaitingOverdue(visit.priority, wait)) && `${visit.patient.fullName} ${visit.patient.patientNumber} ${visit.clinic}`.toLowerCase().includes(taskSearch.trim().toLowerCase()));
   return (
     <>
       <header>
         <div>
-          <p className="eyebrow">Clinical operations</p>
+          <p className="eyebrow">Mwein · care workspace</p>
           <h1>My work now</h1>
           <p>{user.roles?.join(" · ") || "Clinical operations"} · tasks are ordered by urgency and waiting time.</p>
         </div>
@@ -667,6 +750,7 @@ function Dashboard({
           <span>Across all service points</span>
         </article>
       </div>
+      {user.permissions.includes("admin.dashboard") && <ReadinessSnapshot onOpen={onGovernance} />}
       <section className="dashboardInsights">
         <article className="card"><div className="cardHead"><div><h2>Work by service point</h2><p>Current actionable load for your role.</p></div></div>{Object.keys(serviceCounts).length ? Object.entries(serviceCounts).map(([point, count]) => <div className="summaryLine" key={point}><strong>{point.replaceAll("_", " ")}</strong><span>{count} waiting</span></div>) : <p>No work waiting.</p>}</article>
         {user.permissions.includes("billing.read") && <article className="card"><div className="cardHead"><div><h2>Active-visit finance</h2><p>Live exposure from currently active patient visits.</p></div></div><div className="summaryLine"><strong>Billed</strong><span>KES {financial.billed.toLocaleString()}</span></div><div className="summaryLine"><strong>Collected</strong><span>KES {financial.paid.toLocaleString()}</span></div><div className="summaryLine"><strong>Patient balance</strong><span>KES {Math.max(0, financial.billed - financial.paid - financial.claims).toLocaleString()}</span></div><div className="summaryLine"><strong>Claims in process</strong><span>KES {financial.claims.toLocaleString()}</span></div></article>}
@@ -678,14 +762,19 @@ function Dashboard({
             <p>Open the patient directly—no module hunting.</p>
           </div>
         </div>
-        {tasks.length === 0 ? (
+        <div className="queueTools">
+          <label>Find a task<input type="search" value={taskSearch} onChange={event => setTaskSearch(event.target.value)} placeholder="Patient, number or clinic" /></label>
+          <label className="queueToggle"><input type="checkbox" checked={overdueOnly} onChange={event => setOverdueOnly(event.target.checked)} />Overdue only</label>
+          <span role="status">{visibleTasks.length} of {tasks.length} tasks</span>
+        </div>
+        {visibleTasks.length === 0 ? (
           <div className="empty">
-            <strong>Your queue is clear</strong>
-            <p>New tasks will appear here when a patient reaches your service point.</p>
+            <strong>{tasks.length ? "No matching tasks" : "Your queue is clear"}</strong>
+            <p>{tasks.length ? "Clear the search or overdue filter to see more patients." : "New tasks will appear here when a patient reaches your service point."}</p>
           </div>
         ) : (
           <div className="queue">
-            {tasks.map(({ visit: v, point, wait }) => { const task = access[point!]; const overdue = isWaitingOverdue(v.priority, wait); return (
+            {visibleTasks.map(({ visit: v, point, wait }) => { const task = access[point!]; const overdue = isWaitingOverdue(v.priority, wait); return (
               <button className={`row taskRow ${v.priority.toLowerCase()} ${overdue ? "overdue" : ""}`} key={v.id} onClick={() => onOpenTask(point === "CONSULTATION" && careServiceForClinic(v.clinic) ? "servicePoints" : task!.screen, v.id)}>
                 <span className="dot" />
                 <div>
@@ -700,7 +789,9 @@ function Dashboard({
           </div>
         )}
       </section>
-      <QueueOperationsPanel permissions={user.permissions} onOpenTask={onOpenTask} onUpdated={onUpdated} />
+      {user.permissions.includes("encounter.write") && <VisitClosurePanel visits={visits} onUpdated={onUpdated} />}
+      {user.permissions.includes("patient.create") && user.permissions.includes("patient.read") && <PatientIdentityPanel onUpdated={onUpdated} />}
+{user.permissions.includes("visit.read") && <QueueOperationsPanel permissions={user.permissions} onOpenTask={onOpenTask} onUpdated={onUpdated} />}
     </>
   );
 }
@@ -809,6 +900,7 @@ function PatientRegister({
 }) {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [error, setError] = useState("");
+  const [registrationMode, setRegistrationMode] = useState("STANDARD");
   async function search(value: string) {
     if (value.trim().length < 2) return setPatients([]);
     try {
@@ -888,9 +980,17 @@ function PatientRegister({
           <p>Required fields are marked with an asterisk.</p>
           {error && <div className="alert">{error}</div>}
         </div>
-        <label>First name *<input name="givenName" required autoComplete="given-name" /></label>
+        <label className="wide">Registration route
+          <select name="registrationMode" value={registrationMode} onChange={(event) => setRegistrationMode(event.target.value)}>
+            <option value="STANDARD">Patient provides identity and consent</option>
+            <option value="GUARDIAN_ASSISTED">Parent, guardian or representative</option>
+            <option value="EMERGENCY_UNKNOWN">Emergency unidentified patient</option>
+          </select>
+        </label>
+        {registrationMode === "EMERGENCY_UNKNOWN" && <div className="wide notice">Create a restricted temporary identity without inventing a name, age, phone or consent. Reconcile identity as soon as clinically safe.</div>}
+        <label>First name {registrationMode !== "EMERGENCY_UNKNOWN" ? "*" : ""}<input name="givenName" required={registrationMode !== "EMERGENCY_UNKNOWN"} autoComplete="given-name" /></label>
         <label>Middle name<input name="middleName" autoComplete="additional-name" /></label>
-        <label>Surname *<input name="familyName" required autoComplete="family-name" /></label>
+        <label>Surname {registrationMode !== "EMERGENCY_UNKNOWN" ? "*" : ""}<input name="familyName" required={registrationMode !== "EMERGENCY_UNKNOWN"} autoComplete="family-name" /></label>
         <label>
           Date of birth
           <input name="dateOfBirth" type="date" />
@@ -912,7 +1012,7 @@ function PatientRegister({
           </select>
         </label>
         <label>
-          Phone *<input name="phone" type="tel" required />
+          {registrationMode === "GUARDIAN_ASSISTED" ? "Representative phone *" : `Phone ${registrationMode === "EMERGENCY_UNKNOWN" ? "" : "*"}`}<input name="phone" type="tel" required={registrationMode !== "EMERGENCY_UNKNOWN"} />
         </label>
         <label>
           National ID
@@ -923,10 +1023,10 @@ function PatientRegister({
           <input name="shaNumber" />
         </label>
         <label>
-          County *<input name="county" defaultValue="Busia" required />
+          County {registrationMode !== "EMERGENCY_UNKNOWN" ? "*" : ""}<input name="county" defaultValue={registrationMode === "EMERGENCY_UNKNOWN" ? "" : "Busia"} required={registrationMode !== "EMERGENCY_UNKNOWN"} />
         </label>
         <label>
-          Subcounty *<input name="subcounty" required />
+          Subcounty {registrationMode !== "EMERGENCY_UNKNOWN" ? "*" : ""}<input name="subcounty" required={registrationMode !== "EMERGENCY_UNKNOWN"} />
         </label>
         <label>
           Ward
@@ -943,14 +1043,21 @@ function PatientRegister({
             <option>Kiswahili</option>
           </select>
         </label>
+        {registrationMode === "GUARDIAN_ASSISTED" && <>
+          <label>Representative name *<input name="representativeName" required /></label>
+          <label>Relationship *<input name="representativeRelationship" required placeholder="Parent, guardian, spouse…" /></label>
+        </>}
+        {registrationMode === "EMERGENCY_UNKNOWN" && <label className="wide">Emergency registration reason *<textarea name="emergencyReason" required minLength={5} placeholder="Why identity and consent cannot currently be obtained" /></label>}
+        <input type="hidden" name="noticeVersion" value="MWEIN-PRIVACY-2026-01" />
+        <input type="hidden" name="lawfulBasis" value={registrationMode === "EMERGENCY_UNKNOWN" ? "VITAL_INTERESTS" : "CONSENT"} />
         <div className="wide checks">
           <label>
-            <input name="treatmentConsent" type="checkbox" required /> Consent
-            to treatment *
+            <input name="treatmentConsent" type="checkbox" required={registrationMode !== "EMERGENCY_UNKNOWN"} /> Consent
+            to treatment {registrationMode !== "EMERGENCY_UNKNOWN" ? "*" : ""}
           </label>
           <label>
-            <input name="electronicRecordConsent" type="checkbox" required />{" "}
-            Consent to electronic record *
+            <input name="electronicRecordConsent" type="checkbox" required={registrationMode !== "EMERGENCY_UNKNOWN"} />{" "}
+            Consent to electronic record {registrationMode !== "EMERGENCY_UNKNOWN" ? "*" : ""}
           </label>
           <label>
             <input name="messagingConsent" type="checkbox" /> Consent to
@@ -966,10 +1073,12 @@ function PatientRegister({
 function StartVisit({
   patient,
   appointment,
+  fromConsultation = false,
   onCreated,
 }: {
   patient: Patient | null;
   appointment?: { id: string; clinic: string } | null;
+  fromConsultation?: boolean;
   onCreated: (visit: Visit) => void;
 }) {
   const [matches, setMatches] = useState<Patient[]>([]);
@@ -1012,7 +1121,7 @@ function StartVisit({
     <>
       <header>
         <div>
-          <p className="eyebrow">Reception</p>
+          <p className="eyebrow">{fromConsultation ? "Consultation room" : "Reception"}</p>
           <h1>Clinic check-in</h1>
           <p>
             Confirm the destination clinic and arrival type. Specialty and
@@ -1113,7 +1222,7 @@ function TriageWorkstation({
   facilityTimeZone,
 }: {
   visits: Visit[];
-  onCompleted: (patientName: string) => void;
+  onCompleted: (patientName: string, visitId: string) => void;
   initialVisitId?: string | null;
   onInitialVisitOpened?: () => void;
   facilityTimeZone: string;
@@ -1142,6 +1251,10 @@ function TriageWorkstation({
   const [error, setError] = useState("");
   const [vitals, setVitals] = useState<TriageDraft>(blankVitals);
   const [lnmp, setLnmp] = useState("");
+  const [weight, setWeight] = useState("");
+  const [height, setHeight] = useState("");
+  const [reviewedVitalsId, setReviewedVitalsId] = useState<string | undefined>();
+  useEffect(() => { setWeight(""); setHeight(""); setReviewedVitalsId(undefined); }, [active?.id]);
   const facilityToday = dateInTimeZone(new Date(), facilityTimeZone);
   const pregnancyDating = useMemo(
     () => lnmp ? pregnancyDatingFromLnmp(lnmp, facilityToday) : null,
@@ -1181,7 +1294,7 @@ function TriageWorkstation({
       await api(`/api/visits/${active.id}/triage`, {
         method: "POST",
         body: JSON.stringify({
-          ...vitals,
+          ...vitals, reviewedVitalsId,
           chiefComplaint: f.get("chiefComplaint"),
           weightKg: f.get("weightKg"),
           heightCm: f.get("heightCm") || undefined,
@@ -1191,7 +1304,7 @@ function TriageWorkstation({
           notes: f.get("notes") || undefined,
         }),
       });
-      await onCompleted(active.patient.fullName);
+      await onCompleted(active.patient.fullName, active.id);
       setVitals(blankVitals());
       setLnmp("");
       setActive(null);
@@ -1293,6 +1406,10 @@ function TriageWorkstation({
         <strong>Confidential safeguarding review required</strong>
         <span>This ANC client is under 15 with documented positive pregnancy confirmation. Provide private, respectful assessment, consider coercion or violence without judgement, and follow the facility child-protection pathway. Do not delay antenatal care.</span>
       </div>}
+      <VisitVitalsPanel key={active.id} visitId={active.id} onUse={(values, id) => {
+        setVitals({ ...blankVitals(), temperatureC: values.temperatureC?.toString() ?? "", pulseBpm: values.pulseBpm?.toString() ?? "", respiratoryRate: values.respiratoryRate?.toString() ?? "", systolicBp: values.systolicBp?.toString() ?? "", diastolicBp: values.diastolicBp?.toString() ?? "", oxygenSaturation: values.oxygenSaturation?.toString() ?? "" });
+        setWeight(values.weightKg?.toString() ?? ""); setHeight(values.heightCm?.toString() ?? ""); setReviewedVitalsId(id);
+      }} />
       <form className="card dataForm triageForm" onSubmit={submit}>
         {error && <div className="alert wide">{error}</div>}
         <div className="privacyNotice wide">
@@ -1381,6 +1498,7 @@ function TriageWorkstation({
             Weight kg
             <input
               name="weightKg"
+              value={weight} onChange={event => setWeight(event.target.value)}
               type="number"
               step="0.1"
               min="0.1"
@@ -1392,6 +1510,7 @@ function TriageWorkstation({
             Height cm
             <input
               name="heightCm"
+              value={height} onChange={event => setHeight(event.target.value)}
               type="number"
               step="0.1"
               min="20"

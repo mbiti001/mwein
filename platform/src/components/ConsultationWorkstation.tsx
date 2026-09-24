@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { patientClinicalGroup } from "@/lib/domain";
 import { jsonRequest } from "@/lib/client-http";
 import { calculateDispenseQuantity } from "@/lib/medication";
+import VisitVitalsPanel from "@/components/VisitVitalsPanel";
 import PatientTrends, { type TrendVisit } from "@/components/PatientTrends";
 import {
   SearchableMultiPicker,
@@ -98,6 +99,8 @@ type DiagnosisSearchResult = {
   code: string;
   title: string;
   foundationUri?: string;
+  linearizationUri?: string;
+  codingVersion?: string;
   source: string;
 };
 type HistoryVisit = {
@@ -1114,12 +1117,16 @@ export default function ConsultationWorkstation({
       </>
     );
   return (
+    <>
+    <VisitVitalsPanel key={`vitals-${active.id}`} visitId={active.id} />
     <ConsultationForm
+      key={active.id}
       visit={active}
       onBack={() => setActive(null)}
       onCompleted={onCompleted}
       onOpenServicePoints={onOpenServicePoints}
     />
+    </>
   );
 }
 
@@ -1151,6 +1158,8 @@ export function ConsultationForm({
   const [diagnosisQuery, setDiagnosisQuery] = useState("");
   const [diagnosisCode, setDiagnosisCode] = useState("");
   const [diagnosisUri, setDiagnosisUri] = useState("");
+  const [diagnosisLinearizationUri, setDiagnosisLinearizationUri] = useState("");
+  const [diagnosisCodingVersion, setDiagnosisCodingVersion] = useState("");
   const [diagnosisSelectionToken, setDiagnosisSelectionToken] = useState("");
   const [diagnosisResults, setDiagnosisResults] = useState<
     (DiagnosisSearchResult & { selectionToken: string })[]
@@ -1239,9 +1248,17 @@ export function ConsultationForm({
           setDiagnosisSourceWarning(
             data.configurationRequired
               ? "WHO ICD-11 live search needs API credentials. Only diagnoses previously used at this facility are currently shown."
+              : data.upstreamUnavailable
+                ? "WHO ICD-11 search is temporarily unavailable. Results are limited to diagnoses previously used at this facility."
               : "",
           );
+        } else {
+          setDiagnosisResults([]);
+          setDiagnosisSourceWarning(data.reason || data.error || "Diagnosis search could not be completed.");
         }
+      } catch (reason) {
+        if ((reason as Error).name !== "AbortError")
+          setDiagnosisSourceWarning("Diagnosis search could not be completed. Check the connection and try again.");
       } finally {
         setDiagnosisSearching(false);
       }
@@ -1363,6 +1380,7 @@ export function ConsultationForm({
       confidentialNote: f.get("confidentialNote") || undefined,
       followUpDate: f.get("followUpDate") || undefined,
       disposition: f.get("disposition"),
+      dispositionDetails: f.get("dispositionDetails") || undefined,
     };
   }
   async function act(
@@ -1387,6 +1405,8 @@ export function ConsultationForm({
           title: f.get("primaryDiagnosis"),
           selectionToken: f.get("diagnosisSelectionToken"),
           foundationUri: f.get("foundationUri") || undefined,
+          linearizationUri: f.get("linearizationUri") || undefined,
+          codingVersion: f.get("codingVersion") || undefined,
           type: f.get("diagnosisType"),
           primary: f.get("diagnosisRole") === "PRIMARY",
         },
@@ -1402,6 +1422,8 @@ export function ConsultationForm({
         setDiagnosisQuery("");
         setDiagnosisCode("");
         setDiagnosisUri("");
+        setDiagnosisLinearizationUri("");
+        setDiagnosisCodingVersion("");
         setDiagnosisSelectionToken("");
       }
       return result;
@@ -1468,7 +1490,7 @@ export function ConsultationForm({
     if (
       await run(
         action,
-        { disposition: f.get("disposition") },
+        { disposition: f.get("disposition"), dispositionDetails: f.get("dispositionDetails") || undefined, cancelPendingOrders: f.get("cancelPendingOrders") === "on" },
         "Consultation signed.",
       )
     )
@@ -1977,6 +1999,8 @@ export function ConsultationForm({
                   setDiagnosisQuery(e.target.value);
                   setDiagnosisCode("");
                   setDiagnosisUri("");
+                  setDiagnosisLinearizationUri("");
+                  setDiagnosisCodingVersion("");
                   setDiagnosisSelectionToken("");
                 }}
                 required
@@ -1985,6 +2009,7 @@ export function ConsultationForm({
                 placeholder="Type a condition, symptom or ICD-11 code"
               />
             </label>
+            <small>Live searches send the diagnosis term to WHO. Use condition names or codes; leave out patient details.</small>
             {diagnosisSearching && <small>Searching diagnoses…</small>}
             {diagnosisResults.length > 0 && (
               <div className="diagnosisResults" role="listbox">
@@ -1996,6 +2021,8 @@ export function ConsultationForm({
                       setDiagnosisQuery(result.title);
                       setDiagnosisCode(result.code);
                       setDiagnosisUri(result.foundationUri || "");
+                      setDiagnosisLinearizationUri(result.linearizationUri || "");
+                      setDiagnosisCodingVersion(result.codingVersion || "");
                       setDiagnosisSelectionToken(result.selectionToken);
                       setDiagnosisResults([]);
                     }}
@@ -2024,6 +2051,8 @@ export function ConsultationForm({
             />
           </label>
           <input type="hidden" name="foundationUri" value={diagnosisUri} />
+          <input type="hidden" name="linearizationUri" value={diagnosisLinearizationUri} />
+          <input type="hidden" name="codingVersion" value={diagnosisCodingVersion} />
           <input type="hidden" name="diagnosisSelectionToken" value={diagnosisSelectionToken} />
           <label>
             Diagnostic certainty
@@ -2045,7 +2074,7 @@ export function ConsultationForm({
             <span>
               Search by familiar clinical wording, then select the matching
               ICD-11 MMS diagnosis. Confirm the displayed title and code before
-              saving.
+              saving{diagnosisCodingVersion ? ` (${diagnosisCodingVersion} release)` : ""}.
             </span>
             {diagnosisSourceWarning && (
               <span className="dangerText">{diagnosisSourceWarning}</span>
@@ -2411,8 +2440,12 @@ export function ConsultationForm({
               defaultValue={savedPlan.disposition || "OUTPATIENT"}
             >
               <option value="OUTPATIENT">Continue outpatient care</option>
+              <option value="RECOVERED">Recovered — complete remaining services, then discharge</option>
               <option value="ADMIT">Admit</option>
               <option value="REFER">Refer</option>
+              <option value="DECEASED">Deceased</option>
+              <option value="AGAINST_MEDICAL_ADVICE">Discharged against medical advice</option>
+              <option value="OTHER">Other documented outcome</option>
             </select>
           </label>
           <label>
@@ -2423,6 +2456,11 @@ export function ConsultationForm({
               defaultValue={savedPlan.followUpDate || ""}
             />
           </label>
+          <label className="span2">
+            Disposition details
+            <textarea name="dispositionDetails" rows={3} defaultValue={savedPlan.dispositionDetails || ""} placeholder="Required for deceased, against-medical-advice and other outcomes; record counselling, handover and next steps" />
+          </label>
+          <label className="span2"><span><input type="checkbox" name="cancelPendingOrders" /> For exceptional closure, cancel unstarted orders and document their disposition above. In-progress services must first be resolved; charges remain for billing review.</span></label>
           <label className="span2 confidential">
             Confidential clinician note
             <textarea
