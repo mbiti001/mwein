@@ -1,0 +1,16 @@
+/* Action controls should fit their labels even inside stretching grids and flex columns. */
+body button[class]:is(.primary, .secondary, .danger, .new, .heroPrimary),
+body :is(.actions, .submitBar, .claimSubmitBar, .cardHead, .reportFilters, .visitClosure, .documentSign) > button,
+body form > button {
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
+  justify-self: start;
+  align-self: start;
+  min-height: 44px;
+  padding: 9px 15px;
+  white-space: normal;
+}
+/* Register entries are selectable records, rather than action controls. */
+body .documentRegister > button.secondary { width: 100%; }

@@ -11,6 +11,7 @@ import { appointmentClinics } from "@/lib/appointments";
 import { careServiceForClinic } from "@/lib/care-service-points";
 import { jsonRequest } from "@/lib/client-http";
 import { dateInTimeZone, gestationalAgeLabel, pregnancyDatingFromLnmp } from "@/lib/pregnancy-dating";
+import { documentDefinitions, documentKinds } from "@/lib/clinic-documents";
 import { BrandWordmark } from "@/components/FacilityBrand";
 import ReadinessSnapshot from "@/components/ReadinessSnapshot";
 import MfaWorkstation from "@/components/MfaWorkstation";
@@ -303,7 +304,7 @@ export default function ClinicalApp() {
     nav.push(["reports", "Reports"]);
   if ((user.permissions || []).includes("admin.dashboard"))
     nav.push(["admin", "Administration"]);
-  if (user.permissions.includes("visit.read")) nav.push(["forms", "Clinic forms"]);
+  if (documentKinds.some(kind => user.permissions.includes(documentDefinitions[kind].permission))) nav.push(["forms", "Clinic forms"]);
   return (
     <main className="shell">
       <SaveFeedback />
@@ -400,7 +401,7 @@ export default function ClinicalApp() {
             onUpdated={loadVisits}
           />
         )}
-        {screen === "forms" && user.permissions.includes("visit.read") && <ClinicForms facilityName={user.facility.name} />}
+        {screen === "forms" && <ClinicForms permissions={user.permissions} />}
         {screen === "registration" && (
           <PatientRegister
             onRegistered={(patient) => {

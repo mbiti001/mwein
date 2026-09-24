@@ -1,43 +1,68 @@
-import { test, expect } from "@playwright/test";
-
-test("website wordmark is prominent and blank clinic forms print with isolated letterheads", async ({ page }) => {
-  await page.route("**/api/auth/me", route => route.fulfill({ json: { user: { displayName: "Brand reviewer", email: "test@example.test", facility: { name: "Mwein Medical Services", timezone: "Africa/Nairobi" }, permissions: ["visit.read"], roles: ["TEST"], mustChangePassword: false, mfaRequired: false, mfaEnrolled: false } } }));
-  await page.route("**/api/visits", route => route.fulfill({ json: { visits: [] } }));
+import { test, expect, type Page } from "@playwright/test";
+async function signIn(page: Page, email = "admin@mwein.local") {
   await page.goto("/");
-  const logo = page.locator(".sidebar .brandWordmark");
-  await expect(logo).toHaveAttribute("src", "/brand/mwein-wordmark.png");
-  expect(await logo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+  await page.getByLabel("Facility code").fill("MMS");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill("Mwein-E2E-Password-2026!");
+  await page.getByRole("button", { name: "Sign in securely" }).click();
+  await expect(page.getByRole("heading", { name: "My work now" })).toBeVisible();
+}
+test("authorized staff save, sign and correct branded electronic delivery notes", async ({ page }) => {
+  await signIn(page);
+  await expect(page.locator(".sidebar .brandWordmark")).toHaveAttribute("src", "/brand/mwein-wordmark.png");
   await page.getByRole("button", { name: "Clinic forms", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Clinic forms", exact: true })).toBeVisible();
-  for (const title of ["Sick sheet", "Maternity delivery record", "Delivery note", "Gate pass"]) {
-    await page.getByLabel("Document type").selectOption({ label: title });
-    await expect(page.locator(".clinicFormPaper h1")).toHaveText(title);
-    await expect(page.locator(".clinicFormPaper .facilityLetterheadWordmark")).toBeVisible();
-    await page.evaluate(() => { window.print = () => { (window as any).printed = document.getElementById("clinic-form-print")?.outerHTML; }; });
-    await page.getByRole("button", { name: "Print blank form / Save PDF" }).click();
-    await expect.poll(() => page.evaluate(() => (window as any).printed || "")).toContain(title);
-    const printed = await page.evaluate(() => (window as any).printed as string);
-    expect(printed).toContain("/brand/mwein-wordmark.png");
-    expect(printed).toContain("Blank form");
-    expect(printed).not.toContain("Brand reviewer");
-  }
-  await page.screenshot({ path: "/tmp/mwein-branded-hmis.png", fullPage: true, animations: "disabled" });
+  await page.getByLabel("Document type").selectOption("DELIVERY");
+  for (const [label, value] of Object.entries({ "Delivery date": "2026-09-25", "Supplier / dispatching department": "Synthetic supplier", "Receiving department": "Test store", "Purchase order / requisition reference": "TEST-PO", "Items, quantities and condition": "2 demonstration boxes, intact", "Delivered by": "Synthetic courier" })) await page.getByLabel(label).fill(value);
+  const save = page.getByRole("button", { name: "Save draft", exact: true });
+  expect((await save.boundingBox())!.width).toBeLessThan(200);
+  await save.click();
+  await expect(page.locator(".clinicFormPaper")).toContainText("DRAFT — NOT ISSUED");
+  await expect(page.getByRole("button", { name: "Sign and issue document" })).toBeDisabled();
+  await page.getByLabel("I reviewed this saved document").check();
+  const response = page.waitForResponse(r => r.url().includes("/api/clinic-documents") && r.request().method() === "PATCH");
+  await page.getByRole("button", { name: "Sign and issue document" }).click();
+  const signed = (await (await response).json()).document;
+  expect(signed.status).toBe("SIGNED");
+  expect(signed.signerSessionId).toBeUndefined();
+  expect(signed.contentHash).toMatch(/^[a-f0-9]{64}$/);
+  await expect(page.locator(".documentSignature")).toContainText("Electronically signed by");
+  await expect(save).toHaveCount(0);
+  expect(await page.evaluate(async doc => (await fetch("/api/clinic-documents", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: doc.id, kind: "DELIVERY", version: doc.version, action: "SAVE", payload: {} }) })).status, signed)).toBe(409);
+  await page.reload();
+  await page.getByRole("button", { name: "Clinic forms", exact: true }).click();
+  await page.getByLabel("Document type").selectOption("DELIVERY");
+  await page.locator(".documentRegister button").filter({ hasText: signed.reference }).click();
+  await expect(page.locator(".clinicFormPaper")).toContainText("2 demonstration boxes, intact");
+  await page.evaluate(() => { window.print = () => { (window as any).printed = document.getElementById("clinic-form-print")?.outerHTML; }; });
+  await page.getByRole("button", { name: "Print / Save PDF" }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).printed || "")).toContain(signed.contentHash);
+  expect(await page.evaluate(() => (window as any).printed)).toContain("/brand/mwein-wordmark.png");
+  await page.getByLabel("Reason for correction").fill("Correct demonstration quantity after review");
+  await page.getByRole("button", { name: "Create correction draft" }).click();
+  await expect(page.locator(".clinicFormPaper")).toContainText("Revision 2");
+  await expect(page.locator(".clinicFormPaper")).toContainText("DRAFT — NOT ISSUED");
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator(".mobileWordmark")).toBeVisible();
-  await expect.poll(() => page.locator("#main-navigation").evaluate(el => el.getBoundingClientRect().right)).toBeLessThanOrEqual(0);
+  expect((await save.boundingBox())!.width).toBeLessThan(200);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: "/tmp/mwein-paperless-mobile.png", fullPage: true });
   await page.setViewportSize({ width: 794, height: 1123 });
   await page.evaluate(() => { document.body.insertAdjacentHTML("beforeend", (window as any).printed); document.body.classList.add("printingClinicForm"); });
   await page.emulateMedia({ media: "print" });
   await expect(page.locator(".shell")).toBeHidden();
   await expect(page.locator("#clinic-form-print .facilityLetterheadWordmark")).toBeVisible();
-  await page.screenshot({ path: "/tmp/mwein-gate-pass-print.png", fullPage: true, animations: "disabled" });
+  await page.screenshot({ path: "/tmp/mwein-signed-delivery-print.png", fullPage: true });
 });
-
-test("sign-in uses the website wordmark", async ({ page }) => {
-  await page.route("**/api/auth/me", route => route.fulfill({ status: 401, json: { error: "Sign in" } }));
+test("reception cannot author clinical certificates", async ({ page }) => {
+  await signIn(page, "reception@example.test");
+  expect(await page.evaluate(async () => (await fetch("/api/clinic-documents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "SICK", visitId: null, payload: {} }) })).status)).toBe(403);
+});
+test("sign-in uses the website wordmark and compact action buttons", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".publicNav .brandWordmark")).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
+  const button = await page.getByRole("button", { name: "Sign in securely" }).boundingBox();
+  expect(button!.width).toBeLessThan(220);
+  expect(button!.height).toBeGreaterThanOrEqual(44);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

@@ -288,6 +288,10 @@
     "visits": {
       "sourceSha256": "de5e2b398263d89eec828718c25298da5ddee62e154d8ec812540abc368a705a",
       "methodExceptions": {}
+    },
+    "clinic-documents": {
+      "sourceSha256": "6f3bba5fba7162aaff4a9e4490a7b0a706d02997dce698e34852aa79942b29ee",
+      "methodExceptions": {}
     }
   }
 }

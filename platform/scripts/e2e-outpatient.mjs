@@ -214,6 +214,7 @@ try {
     ["hr.admin@example.test", "MMS HR administrator", "HR_ADMIN"],
     ["nurse@example.test", "MMS nurse", "NURSE"],
     ["clinician@example.test", "MMS clinician", "CLINICIAN"],
+    ["reception@example.test", "MMS reception", "RECEPTION"],
     ["clinician.cover@example.test", "MMS clinician cover", "CLINICIAN_COVER"],
     ["mfa.staff@example.test", "MFA test clinician", "CLINICIAN"],
     ["mfa.lock@example.test", "MFA lock test clinician", "CLINICIAN"],
