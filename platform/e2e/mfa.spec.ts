@@ -81,6 +81,7 @@ test("MFA enrollment, replay protection, recovery and protected replacement", as
   await verify(page, first.codes[0]);
   await expect(page.getByRole("alert").filter({ hasText: "Verification failed" })).toContainText("Verification failed");
   await verify(page, first.codes[1]);
+  await expect(page.getByRole("heading", { name: "My work now" })).toBeVisible();
   const regeneratedResponse = await request(page, "/api/auth/mfa", { action: "RECOVERY_CODES", password, code: first.codes[2] });
   expect(regeneratedResponse.status).toBe(200);
   const regenerated = regeneratedResponse.body.recoveryCodes as string[];
@@ -90,6 +91,7 @@ test("MFA enrollment, replay protection, recovery and protected replacement", as
   await verify(page, first.codes[3]);
   await expect(page.getByRole("alert").filter({ hasText: "Verification failed" })).toContainText("Verification failed");
   await verify(page, regenerated[0]);
+  await expect(page.getByRole("heading", { name: "My work now" })).toBeVisible();
   const replacementResponse = await request(page, "/api/auth/mfa", { action: "REPLACE", password, code: regenerated[1] });
   expect(replacementResponse.status).toBe(200);
   const replacement = await confirmViaApi(page, replacementResponse.body.secret);

@@ -8,7 +8,7 @@ The [official DHA certification portal](https://certification.dha.go.ke/) lists 
 
 | Requirement | Evidence reviewed | What remains / accountable owner |
 |---|---|---|
-| ODPC registration | The existing register retains review metadata for the Mwein Medical Services controller certificate, valid to 22 September 2028 | DPO: retain original and confirm any separately applicable processor registration; no new online registry verification performed |
+| ODPC registration | Owner confirmed on 25 September 2026 that both controller and processor certificates are held. The existing register also retains review metadata for the controller certificate, valid to 22 September 2028 | DPO: retain both originals and verify the processor certificate’s entity, number, scope and validity for the submission pack; processor document and online registry have not been inspected in this task |
 | System DPIA and privacy arrangements | Draft DPIA/procedures, consent and rights workflows | DPO/leadership: completed approved Mwein-specific DPIA, processor agreements, retention and incident procedures, actual hosting/AI processing scope |
 | Encryption at rest and key management | Hosting evidence workbook; database/backup tools exist | Operations/security: provider/database/backup encryption standard, key/access custody, regions, retention, and supporting records |
 | Encryption in transit | Live HTTPS application; source requires secure configuration | Operations/security: retained edge, database and integration TLS evidence, certificate lifecycle and all supported connection paths |
