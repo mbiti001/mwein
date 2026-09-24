@@ -15,6 +15,8 @@ import "./mobile.css";
 import "./visit-summary.css";
 import "./modern.css";
 import "./mfa.css";
+import "./branding.css";
+import "./actions.css";
 
 export const metadata: Metadata = {
   title: "Mwein HMIS · Connected outpatient care",

@@ -6,17 +6,20 @@ import { assessTriageVitals, patientClinicalGroup } from "@/lib/domain";
 import type { StockFocus } from "@/components/InventoryWorkstation";
 import VisitVitalsPanel from "@/components/VisitVitalsPanel";
 import SaveFeedback from "@/components/SaveFeedback";
-import { currentServicePoint, isWaitingOverdue, waitingMinutes, type ServicePointCode } from "@/lib/service-points";
+import { activeServiceTasks, servicePoints, isWaitingOverdue, type ServicePointCode } from "@/lib/service-points";
 import { appointmentClinics } from "@/lib/appointments";
 import { careServiceForClinic } from "@/lib/care-service-points";
 import { jsonRequest } from "@/lib/client-http";
 import { dateInTimeZone, gestationalAgeLabel, pregnancyDatingFromLnmp } from "@/lib/pregnancy-dating";
-import { BrandMark } from "@/components/FacilityBrand";
+import { documentDefinitions, documentKinds } from "@/lib/clinic-documents";
+import { BrandWordmark } from "@/components/FacilityBrand";
 import ReadinessSnapshot from "@/components/ReadinessSnapshot";
 import MfaWorkstation from "@/components/MfaWorkstation";
 import VisitClosurePanel from "@/components/VisitClosurePanel";
 import PatientIdentityPanel from "@/components/PatientIdentityPanel";
 import { shaCancellationOutcomes, visitCancellationReasons } from "@/lib/visit-cancellation";
+
+const ClinicForms = dynamic(() => import("@/components/ClinicForms"));
 
 const workspaceLoading = () => <section className="card"><p>Opening workspace…</p></section>;
 const ConsultationWorkstation = dynamic(() => import("@/components/ConsultationWorkstation"), { loading: workspaceLoading });
@@ -147,6 +150,7 @@ type Screen =
   | "imaging"
   | "pharmacy"
   | "billing"
+  | "forms"
   | "summaries"
   | "followUps"
   | "surveillance"
@@ -222,6 +226,7 @@ export default function ClinicalApp() {
   useEffect(() => {
     const titles: Record<Screen, string> = {
       dashboard: "Home",
+      forms: "Clinic forms",
       registration: "Patient registration",
       appointments: "Appointments",
       visit: "Clinic check-in",
@@ -299,14 +304,15 @@ export default function ClinicalApp() {
     nav.push(["reports", "Reports"]);
   if ((user.permissions || []).includes("admin.dashboard"))
     nav.push(["admin", "Administration"]);
+  if (documentKinds.some(kind => user.permissions.includes(documentDefinitions[kind].permission))) nav.push(["forms", "Clinic forms"]);
   return (
     <main className="shell">
       <SaveFeedback />
-      <button className="mobileNavToggle" aria-expanded={mobileNavOpen} aria-controls="main-navigation" onClick={() => setMobileNavOpen(value => !value)}>{mobileNavOpen ? "Close menu" : "☰ Menu"}</button>
+      <button className="mobileNavToggle" aria-label={mobileNavOpen ? "Close menu" : "☰ Menu"} aria-expanded={mobileNavOpen} aria-controls="main-navigation" onClick={() => setMobileNavOpen(value => !value)}><span>{mobileNavOpen ? "Close menu" : "☰ Menu"}</span><span aria-hidden="true"><BrandWordmark className="mobileWordmark" /></span></button>
       {mobileNavOpen && <button className="navScrim" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
       <aside className={`sidebar ${mobileNavOpen ? "mobileOpen" : ""}`} id="main-navigation">
-        <div className="brand">
-          <BrandMark />
+        <div className="brand brandWithWordmark">
+          <BrandWordmark />
           <div>
             <strong>Mwein HMIS</strong>
             <small>Exceptional care close to you.</small>
@@ -360,13 +366,14 @@ export default function ClinicalApp() {
           }}/>
         )}
         {screen !== "dashboard" &&
-          !["summaries", "reports", "surveillance", "vitals", "security", "appointments", "admin"].includes(screen) && (
+          !["forms", "summaries", "reports", "surveillance", "vitals", "security", "appointments", "admin"].includes(screen) && (
             <WorkflowSteps screen={screen} />
           )}{" "}
         {contextVisitId && (() => {
           const visit = visits.find(item => item.id === contextVisitId);
           return visit ? <PatientContextBar
             visit={visit}
+            permissions={user.permissions}
             showBalance={user.permissions.includes("billing.read")}
             canCancel={user.permissions.includes("visit.cancel")}
             onClear={() => setContextVisitId(null)}
@@ -394,6 +401,7 @@ export default function ClinicalApp() {
             onUpdated={loadVisits}
           />
         )}
+        {screen === "forms" && <ClinicForms permissions={user.permissions} />}
         {screen === "registration" && (
           <PatientRegister
             onRegistered={(patient) => {
@@ -604,8 +612,8 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
   return (
     <main className="publicEntry">
       <nav className="publicNav" aria-label="Public navigation">
-        <div className="brand dark">
-          <BrandMark />
+        <div className="brand dark brandWithWordmark">
+          <BrandWordmark />
           <div>
             <strong>Mwein HMIS</strong>
             <small>Connected outpatient care</small>
@@ -694,6 +702,7 @@ function Dashboard({
 }) {
   const [taskSearch, setTaskSearch] = useState("");
   const [overdueOnly, setOverdueOnly] = useState(false);
+  const [department, setDepartment] = useState<ServicePointCode | "ALL">("ALL");
   const access: Partial<Record<ServicePointCode, { permission: string; screen: Screen; action: string }>> = {
     TRIAGE: user.permissions.includes("triage.write") ? { permission: "triage.write", screen: "triage", action: "Start triage" } : { permission: "vitals.write", screen: "vitals", action: "Record vitals" },
     CONSULTATION: { permission: "encounter.write", screen: "consultation", action: "Open consultation" },
@@ -703,8 +712,8 @@ function Dashboard({
     BILLING: { permission: "billing.read", screen: "billing", action: "Receive payment" },
   };
   const priorityRank: Record<string, number> = { EMERGENCY: 0, URGENT: 1, PRIORITY: 2, ROUTINE: 3 };
-  const tasks = visits.map(visit => ({ visit, point: currentServicePoint(visit), wait: waitingMinutes(visit) }))
-    .filter(item => item.point && user.permissions.includes(access[item.point]?.permission || ""))
+  const tasks = visits.flatMap(visit => activeServiceTasks(visit).map(task => ({ visit, ...task })))
+    .filter(item => user.permissions.includes(access[item.point]?.permission || ""))
     .sort((a, b) => priorityRank[a.visit.priority] - priorityRank[b.visit.priority] || b.wait - a.wait);
   const financial = visits.reduce((totals, visit) => {
     const billed = visit.invoice?.items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0) || 0;
@@ -713,7 +722,7 @@ function Dashboard({
     return { billed: totals.billed + billed, paid: totals.paid + paid, claims: totals.claims + claims };
   }, { billed: 0, paid: 0, claims: 0 });
   const serviceCounts = tasks.reduce<Record<string, number>>((counts, item) => ({ ...counts, [item.point!]: (counts[item.point!] || 0) + 1 }), {});
-  const visibleTasks = tasks.filter(({ visit, wait }) => (!overdueOnly || isWaitingOverdue(visit.priority, wait)) && `${visit.patient.fullName} ${visit.patient.patientNumber} ${visit.clinic}`.toLowerCase().includes(taskSearch.trim().toLowerCase()));
+  const visibleTasks = tasks.filter(({ visit, wait, point }) => (department === "ALL" || point === department) && (!overdueOnly || isWaitingOverdue(visit.priority, wait)) && `${visit.patient.fullName} ${visit.patient.patientNumber} ${visit.visitNumber} ${visit.clinic}`.toLowerCase().includes(taskSearch.trim().toLowerCase()));
   return (
     <>
       <header>
@@ -730,7 +739,7 @@ function Dashboard({
         <article>
           <small>My open tasks</small>
           <strong>{tasks.length}</strong>
-          <span>At your service points</span>
+          <span>{new Set(tasks.map(task => task.visit.id)).size} patient{new Set(tasks.map(task => task.visit.id)).size === 1 ? "" : "s"} at your service points</span>
         </article>
         <article>
           <small>Emergency</small>
@@ -752,18 +761,22 @@ function Dashboard({
       </div>
       {user.permissions.includes("admin.dashboard") && <ReadinessSnapshot onOpen={onGovernance} />}
       <section className="dashboardInsights">
-        <article className="card"><div className="cardHead"><div><h2>Work by service point</h2><p>Current actionable load for your role.</p></div></div>{Object.keys(serviceCounts).length ? Object.entries(serviceCounts).map(([point, count]) => <div className="summaryLine" key={point}><strong>{point.replaceAll("_", " ")}</strong><span>{count} waiting</span></div>) : <p>No work waiting.</p>}</article>
+        <article className="card"><div className="cardHead"><div><h2>Work by service point</h2><p>Current actionable load for your role.</p></div></div>{Object.keys(serviceCounts).length ? Object.entries(serviceCounts).map(([point, count]) => <div className="summaryLine" key={point}><strong>{point.replaceAll("_", " ")}</strong><span>{count} active</span></div>) : <p>No work waiting.</p>}</article>
         {user.permissions.includes("billing.read") && <article className="card"><div className="cardHead"><div><h2>Active-visit finance</h2><p>Live exposure from currently active patient visits.</p></div></div><div className="summaryLine"><strong>Billed</strong><span>KES {financial.billed.toLocaleString()}</span></div><div className="summaryLine"><strong>Collected</strong><span>KES {financial.paid.toLocaleString()}</span></div><div className="summaryLine"><strong>Patient balance</strong><span>KES {Math.max(0, financial.billed - financial.paid - financial.claims).toLocaleString()}</span></div><div className="summaryLine"><strong>Claims in process</strong><span>KES {financial.claims.toLocaleString()}</span></div></article>}
       </section>
-      <section className="card">
+      <section className="card clinicFlow" aria-label="Clinic flow">
         <div className="cardHead">
           <div>
             <h2>Next actions</h2>
-            <p>Open the patient directly—no module hunting.</p>
+            <p>One visit, all active departments. A patient can have more than one task.</p>
           </div>
         </div>
+        <div className="flowDepartments" aria-label="Filter by department">
+          <button className="flowDepartment" aria-pressed={department === "ALL"} onClick={() => setDepartment("ALL")}><span>All my departments</span><strong>{tasks.length}</strong></button>
+          {servicePoints.filter(point => user.permissions.includes(access[point.code]?.permission || "")).map(point => <button key={point.code} className="flowDepartment" aria-pressed={department === point.code} onClick={() => setDepartment(point.code)}><span>{point.label}</span><strong>{serviceCounts[point.code] || 0}</strong></button>)}
+        </div>
         <div className="queueTools">
-          <label>Find a task<input type="search" value={taskSearch} onChange={event => setTaskSearch(event.target.value)} placeholder="Patient, number or clinic" /></label>
+          <label>Find a task<input type="search" value={taskSearch} onChange={event => setTaskSearch(event.target.value)} placeholder="Patient, visit number or clinic" /></label>
           <label className="queueToggle"><input type="checkbox" checked={overdueOnly} onChange={event => setOverdueOnly(event.target.checked)} />Overdue only</label>
           <span role="status">{visibleTasks.length} of {tasks.length} tasks</span>
         </div>
@@ -774,16 +787,16 @@ function Dashboard({
           </div>
         ) : (
           <div className="queue">
-            {visibleTasks.map(({ visit: v, point, wait }) => { const task = access[point!]; const overdue = isWaitingOverdue(v.priority, wait); return (
-              <button className={`row taskRow ${v.priority.toLowerCase()} ${overdue ? "overdue" : ""}`} key={v.id} onClick={() => onOpenTask(point === "CONSULTATION" && careServiceForClinic(v.clinic) ? "servicePoints" : task!.screen, v.id)}>
+            {visibleTasks.map(({ visit: v, point, wait, status }) => { const task = access[point!]; const overdue = isWaitingOverdue(v.priority, wait); return (
+              <button className={`row taskRow ${v.priority.toLowerCase()} ${overdue ? "overdue" : ""}`} key={`${v.id}:${point}`} onClick={() => onOpenTask(point === "CONSULTATION" && careServiceForClinic(v.clinic) ? "servicePoints" : task!.screen, v.id)}>
                 <span className="dot" />
                 <div>
                   <strong>{v.patient.fullName}</strong>
                   <small>
-                    {v.patient.patientNumber} · {v.clinic} · {task!.action}
+                    {v.patient.patientNumber} · {v.visitNumber} · {v.clinic} · {task!.action}
                   </small>
                 </div>
-                <b>{v.priority}</b><time>{overdue ? "OVERDUE · " : ""}{wait} min</time>
+                <span className="flowTaskState">{status === "IN_PROGRESS" ? "In progress" : status === "CALLED" ? "Called" : "Waiting"}</span><b>{v.priority}</b><time>{overdue ? "OVERDUE · " : ""}{wait} min at {servicePoints.find(item => item.code === point)?.label}</time>
               </button>
             );})}
           </div>
@@ -796,7 +809,8 @@ function Dashboard({
   );
 }
 
-function PatientContextBar({ visit, showBalance, canCancel, onClear, onOpen, onCancelled }: {
+function PatientContextBar({ visit, permissions, showBalance, canCancel, onClear, onOpen, onCancelled }: {
+  permissions: string[];
   visit: Visit;
   showBalance: boolean;
   canCancel: boolean;
@@ -804,17 +818,18 @@ function PatientContextBar({ visit, showBalance, canCancel, onClear, onOpen, onC
   onOpen: (target: Screen) => void;
   onCancelled: () => Promise<void>;
 }) {
-  const servicePoint = currentServicePoint(visit);
-  const point = servicePoint?.replaceAll("_", " ") || visit.status.replaceAll("_", " ");
-  const targets: Partial<Record<ServicePointCode, Screen>> = { TRIAGE: "triage", CONSULTATION: careServiceForClinic(visit.clinic) ? "servicePoints" : "consultation", LABORATORY: "diagnostics", IMAGING: "imaging", PHARMACY: "pharmacy", BILLING: "billing" };
+  const active = activeServiceTasks(visit);
+  const point = active.map(task => servicePoints.find(item => item.code === task.point)?.label).join(" · ") || visit.status.replaceAll("_", " ");
+  const pointPermission: Record<ServicePointCode, string> = { TRIAGE: permissions.includes("triage.write") ? "triage.write" : "vitals.write", CONSULTATION: "encounter.write", LABORATORY: "laboratory.write", IMAGING: "imaging.write", PHARMACY: "pharmacy.dispense", BILLING: "billing.read" };
+  const targets: Partial<Record<ServicePointCode, Screen>> = { TRIAGE: permissions.includes("triage.write") ? "triage" : "vitals", CONSULTATION: careServiceForClinic(visit.clinic) ? "servicePoints" : "consultation", LABORATORY: "diagnostics", IMAGING: "imaging", PHARMACY: "pharmacy", BILLING: "billing" };
   const balance = showBalance && visit.invoice ? visit.invoice.items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0) - visit.invoice.payments.filter(item => item.status === "CONFIRMED").reduce((sum, item) => sum + Number(item.amount), 0) : 0;
   return <div className="patientContextGroup">
     <aside className="patientContext" aria-label="Current patient context">
       <div><strong>{visit.patient.fullName}</strong><span>{visit.patient.patientNumber} · {visit.visitNumber} · {visit.clinic}</span></div>
-      <div><small>Current location</small><b>{point}</b></div>
+      <div><small>Active departments</small><b>{point}</b></div>
       {visit.patient.allergies && <div><small>Allergies</small><b className={visit.patient.allergies.length ? "dangerText" : ""}>{visit.patient.allergies.length ? visit.patient.allergies.map(item => item.substance).join(", ") : "None recorded"}</b></div>}
       {visit.invoice && <div><small>Payment</small><b>{visit.invoice.status}{showBalance ? ` · KES ${Math.max(0, balance).toLocaleString()}` : ""}</b></div>}
-      {servicePoint && targets[servicePoint] && <button className="contextAction" onClick={() => onOpen(targets[servicePoint]!)}>Open current task</button>}
+      {active.filter(task => permissions.includes(pointPermission[task.point])).map(task => <button key={task.point} className="contextAction" onClick={() => onOpen(targets[task.point]!)}>{active.length === 1 ? "Open current task" : `Open ${servicePoints.find(item => item.code === task.point)?.label}`}</button>)}
       <button className="contextClose" onClick={onClear} aria-label="Clear patient context">×</button>
     </aside>
     {canCancel && <VisitCancellationControl key={visit.id} visit={visit} onCancelled={onCancelled} />}

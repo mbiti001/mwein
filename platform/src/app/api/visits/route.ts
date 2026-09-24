@@ -118,8 +118,8 @@ export async function GET() {
         } } : {}),
         queues: {
           where: { status: { in: ["WAITING", "CALLED", "IN_PROGRESS"] } },
+          select: { servicePoint: true, status: true, enteredAt: true },
           orderBy: { enteredAt: "desc" },
-          take: 1,
         },
         ...(access.billing ? {
           invoice: { include: { items: true, payments: { include: { receipt: true }, orderBy: { receivedAt: "asc" } }, claims: { include: { lines: true }, orderBy: { createdAt: "desc" } } } },

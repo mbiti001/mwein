@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentServicePoint, isWaitingOverdue, servicePointCounts, waitingMinutes } from "./service-points";
+import { activeServiceTasks, currentServicePoint, isWaitingOverdue, servicePointCounts, waitingMinutes } from "./service-points";
 
 const patient = { fullName: "Test Patient", patientNumber: "P-1" };
 
@@ -23,4 +23,34 @@ describe("service point mapping", () => {
     expect(isWaitingOverdue("URGENT", 9)).toBe(false);
     expect(isWaitingOverdue("ROUTINE", 30)).toBe(true);
   });
+});
+
+const now = new Date("2026-09-25T09:00:00Z");
+const parallel = { id: "parallel", status: "AWAITING_RESULTS", priority: "URGENT", arrivedAt: "2026-09-25T07:00:00Z", patient,
+  queues: [
+    { servicePoint: "PHARMACY", status: "WAITING", enteredAt: "2026-09-25T08:55:00Z" },
+    { servicePoint: "LABORATORY", status: "IN_PROGRESS", enteredAt: "2026-09-25T08:30:00Z" },
+    { servicePoint: "IMAGING", status: "CALLED", enteredAt: "2026-09-25T08:45:00Z" },
+  ] };
+it("preserves all parallel department tasks and their individual waiting clocks", () => {
+  expect(activeServiceTasks(parallel, now).map(t => [t.point, t.wait, t.status])).toEqual([
+    ["PHARMACY", 5, "WAITING"], ["LABORATORY", 30, "IN_PROGRESS"], ["IMAGING", 15, "CALLED"],
+  ]);
+  expect(servicePointCounts([parallel])).toMatchObject({ PHARMACY: 1, LABORATORY: 1, IMAGING: 1 });
+});
+it("ignores historical entries and deduplicates a department using its earliest active arrival", () => {
+  const tasks = activeServiceTasks({ ...parallel, queues: [...parallel.queues,
+    { servicePoint: "LABORATORY", status: "WAITING", enteredAt: "2026-09-25T08:40:00Z" },
+    { servicePoint: "TRIAGE", status: "COMPLETED", enteredAt: "2026-09-25T07:00:00Z" },
+  ] }, now);
+  expect(tasks).toHaveLength(3); expect(tasks.find(t => t.point === "LABORATORY")?.wait).toBe(30);
+});
+it("keeps an explicit billing task after clinical closure without reopening clinical care", () => {
+  const visit = { ...parallel, status: "DISCHARGED", clinicallyClosedAt: now.toISOString(), queues: [...parallel.queues, { servicePoint: "BILLING", status: "WAITING" }] };
+  expect(activeServiceTasks(visit, now).map(t => t.point)).toEqual(["BILLING"]);
+  expect(activeServiceTasks({ ...visit, status: "COMPLETED" }, now)).toEqual([]);
+  expect(activeServiceTasks({ ...visit, status: "CANCELLED" }, now)).toEqual([]);
+});
+it("does not invent clinical work for a closed visit with no active billing task", () => {
+  expect(activeServiceTasks({ ...parallel, clinicallyClosedAt: now.toISOString() }, now)).toEqual([]);
 });

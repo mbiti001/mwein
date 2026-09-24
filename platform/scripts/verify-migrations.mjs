@@ -22,6 +22,7 @@ for (const migration of migrations) {
 }
 
 const requiredTables = [
+  "ClinicDocument",
   "MeasuredVitals",
   "SurveillanceRecord",
   "SurveillanceEntry",
@@ -189,6 +190,22 @@ for (const statement of [
   let rejected = false;
   try { await db.exec(statement); } catch (error) { rejected = String(error).includes("immutable"); }
   if (!rejected) throw new Error("Measured vitals history could be changed");
+}
+
+// Document signatures are complete and signed originals remain immutable.
+await db.exec(`INSERT INTO "ClinicDocument" ("id", "facilityId", "kind", "reference", "payload", "context", "authorId", "signerRoles", "updatedAt") VALUES ('cccccccc-cccc-4ccc-8ccc-ccccccccccc1', '11111111-1111-4111-8111-111111111111', 'DELIVERY', 'DOCUMENT-SMOKE', '{}', '{}', '22222222-2222-4222-8222-222222222222', ARRAY[]::text[], CURRENT_TIMESTAMP)`);
+let incompleteRejected = false;
+try { await db.exec(`UPDATE "ClinicDocument" SET "status" = 'SIGNED' WHERE "reference" = 'DOCUMENT-SMOKE'`); } catch { incompleteRejected = true; }
+if (!incompleteRejected) throw new Error("Unsigned document could be marked signed");
+await db.exec(`UPDATE "ClinicDocument" SET "status" = 'SIGNED', "signedById" = '22222222-2222-4222-8222-222222222222', "signedAt" = CURRENT_TIMESTAMP, "signerName" = 'Synthetic signer', "signerSessionId" = 'cccccccc-cccc-4ccc-8ccc-ccccccccccc2', "contentHash" = repeat('a',64) WHERE "reference" = 'DOCUMENT-SMOKE'`);
+for (const statement of [
+  `UPDATE "ClinicDocument" SET "payload" = '{"tampered":true}' WHERE "reference" = 'DOCUMENT-SMOKE'`,
+  `UPDATE "ClinicDocument" SET "status" = 'DRAFT' WHERE "reference" = 'DOCUMENT-SMOKE'`,
+  `DELETE FROM "ClinicDocument" WHERE "reference" = 'DOCUMENT-SMOKE'`,
+]) {
+  let rejected = false;
+  try { await db.exec(statement); } catch (error) { rejected = String(error).includes("immutable"); }
+  if (!rejected) throw new Error("Signed clinic document could be changed");
 }
 
 console.log(`verified ${migrations.length} migrations, ${requiredTables.length} required tables, immutable triggers, stocktake and cashier-shift uniqueness, and balanced journal constraints`);

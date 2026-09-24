@@ -125,6 +125,7 @@ enum CatalogCategory {
 }
 
 model Facility {
+  clinicDocuments ClinicDocument[]
   surveillanceRecords SurveillanceRecord[]
   localReportRevisions LocalReportRevision[]
   id                      String                          @id @default(uuid()) @db.Uuid
@@ -276,6 +277,8 @@ model ReferenceSequence {
 }
 
 model User {
+  draftedClinicDocuments ClinicDocument[] @relation("ClinicDocumentAuthor")
+  signedClinicDocuments ClinicDocument[] @relation("ClinicDocumentSigner")
   measuredVitals MeasuredVitals[]
   surveillanceEntries SurveillanceEntry[]
   preparedLocalReports LocalReportRevision[] @relation("LocalReportPreparedBy")
@@ -593,6 +596,7 @@ model Allergy {
 }
 
 model Visit {
+  clinicDocuments ClinicDocument[]
   measuredVitals MeasuredVitals[]
   id                   String                @id @default(uuid()) @db.Uuid
   facilityId           String                @db.Uuid
@@ -1914,4 +1918,38 @@ model MeasuredVitals {
   visit Visit @relation(fields: [visitId], references: [id], onDelete: Restrict)
   recordedBy User @relation(fields: [recordedById], references: [id], onDelete: Restrict)
   @@index([visitId, recordedAt])
+}
+
+model ClinicDocument {
+  id String @id @default(uuid()) @db.Uuid
+  facilityId String @db.Uuid
+  visitId String? @db.Uuid
+  kind String
+  reference String
+  status String @default("DRAFT")
+  version Int @default(1)
+  revision Int @default(1)
+  previousId String? @unique @db.Uuid
+  correctionReason String?
+  payload Json
+  context Json
+  authorId String @db.Uuid
+  signedById String? @db.Uuid
+  signedAt DateTime?
+  signerName String?
+  signerRoles String[]
+  signerRegistration String?
+  signerSessionId String? @db.Uuid
+  contentHash String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  facility Facility @relation(fields: [facilityId], references: [id])
+  visit Visit? @relation(fields: [visitId], references: [id])
+  author User @relation("ClinicDocumentAuthor", fields: [authorId], references: [id])
+  signedBy User? @relation("ClinicDocumentSigner", fields: [signedById], references: [id])
+  previous ClinicDocument? @relation("ClinicDocumentRevisions", fields: [previousId], references: [id])
+  successor ClinicDocument? @relation("ClinicDocumentRevisions")
+
+  @@unique([facilityId, reference])
+  @@index([facilityId, kind, createdAt])
 }

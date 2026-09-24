@@ -68,3 +68,16 @@
   }
   @media(prefers-reduced-motion:reduce) { *, *::before, *::after { scroll-behavior:auto!important; transition:none!important; animation:none!important; } }
 }
+
+/* Department tasks remain distinct when one patient has parallel work. */
+.flowDepartments { display: flex; flex-wrap: wrap; gap: .65rem; margin: 1rem 0; }
+.flowDepartment { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex: 1 1 145px; border: 1px solid #cbd9d5; border-radius: 12px; background: #f5faf8; color: #23453d; padding: .85rem 1rem; text-align: left; }
+.flowDepartment[aria-pressed="true"] { background: #174e40; color: white; border-color: #174e40; }
+.flowDepartment strong { font-size: 1.4rem; }
+.flowDepartment:focus-visible { outline: 3px solid #d69a34; outline-offset: 3px; }
+.flowTaskState { font-size: .78rem; color: #45645b; white-space: nowrap; }
+.clinicFlow .taskRow time { white-space: normal; }
+@media (max-width: 600px) { .flowDepartment { flex-basis: 125px; } .clinicFlow .taskRow { flex-wrap: wrap; } .clinicFlow .taskRow > div { min-width: 0; flex: 1 1 65%; } .clinicFlow .taskRow small { overflow-wrap: anywhere; } }
+
+.clinicFlow .taskRow { grid-template-columns: 10px minmax(0, 1fr) auto auto minmax(110px, 160px); gap: 14px; text-align: left; }
+@media (max-width: 650px) { .clinicFlow .taskRow { grid-template-columns: 10px minmax(0, 1fr); gap: 8px 14px; } .clinicFlow .taskRow .flowTaskState, .clinicFlow .taskRow b, .clinicFlow .taskRow time { grid-column: 2; } }

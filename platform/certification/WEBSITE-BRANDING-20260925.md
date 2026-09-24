@@ -1,0 +1,13 @@
+# Website branding and paperless clinic documents
+
+Uses the exact mweinmedical.co.ke wordmark, verified against the live website asset hash. The wordmark appears on a white sidebar panel, the sign-in navigation, mobile header and shared document letterheads. Website pulse icon/favicon assets replace the older app mark. Other facilities retain their own name without Mwein contact details on documents.
+
+Existing referrals, visit summaries, laboratory/imaging reports, invoices and receipts inherit the shared letterhead. Medicine labels use the wordmark for Mwein visits.
+
+Clinic forms stores electronic drafts and signed versions for sick sheets, maternity delivery records, goods delivery notes and movement gate passes. Clinical documents require encounter.write; goods delivery notes require inventory.receive; gate passes require visit.create. Server checks enforce these permissions and facility scope. Patient documents are linked to a visit; goods notes do not include patient identity or automatically move stock. Gate passes do not certify clinical discharge or payment clearance. Existing referrals continue through their established clinical workflow.
+
+An authorized staff member reviews saved content and explicitly attests before signing. Identity, role, session and timestamp come from the authenticated account; a clinical professional registration number is supplied by the signer, not independently license-verified. A SHA-256 fingerprint covers content, context and signing metadata. Signed records cannot be edited or deleted through the application or ordinary database mutations; corrections create a linked revision and preserve the original. Optimistic version checks reject stale changes. Reads require successful disclosure auditing; writes and audit events share a transaction. This is an authenticated electronic attestation, not a certificate-backed digital signature or a claim of DHA certification.
+
+Printable/PDF copies include the website logo, saved values, status, reference, signer and fingerprint. Draft copies explicitly state that they are not issued. The print view isolates the document and waits for the logo to decode. Compact action buttons fit their labels, including on phones, while preserving 44px minimum tap height.
+
+Migration 20260925100000_signed_clinic_documents adds the document table and signature/immutability constraints. Normal Vercel application builds remain migration-free. Deploy the additive migration before publishing the application. Back up before migration and retain the existing application deployment for rollback; rollback should leave signed document records intact.
