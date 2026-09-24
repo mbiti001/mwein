@@ -62,6 +62,6 @@ sequenceDiagram
 
 ## Deployment and recovery
 
-Application build and database migration are separate controlled steps. The released migration inventory has 43 entries; the local paused MFA migration is not part of it. Verify the exact health commit/migration pair before associating results with a deployment. A health response demonstrates a bounded connection/version check, not readiness approval.
+Application build and database migration are separate controlled steps. The current deployed source is `1d1e5eac30296dfbeb1684361379eeff2a252c1c`; its migration inventory has 47 entries, ending in `20260924130000_workforce_mfa`. Mandatory workforce MFA is included. Verify the exact health commit/migration pair before associating results with a deployment. A health response demonstrates a bounded connection/version check, not readiness approval.
 
-The retained `pre-unified-release-20260922` Neon branch is a recovery point only. Restore drills must target a disposable database, measure approved recovery objectives, verify record integrity and preserve evidence. No restore against production is authorized by this document.
+Earlier retained Neon branches are provider recovery points only; their current availability must be checked. The owner-selected independent backup medium is an SSD held by Charles away from the computer. Encryption, separate-site custody and an actual successful backup/restore remain unverified. Restore drills must target a disposable database, measure approved recovery objectives, verify record integrity and preserve evidence. No restore against production is authorized by this document.

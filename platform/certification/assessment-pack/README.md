@@ -1,6 +1,6 @@
 # Mwein HMIS — DHA assessment preparation pack
 
-Draft 1 • 22 September 2026 • Proposed scope, awaiting accountable review
+Review pack updated 25 September 2026 • Proposed scope, awaiting accountable review
 
 This is a review pack, not an application submission, certification, signed policy or clinical go-live approval. It describes the deployed outpatient release and records the evidence still needed. Edwin Mbiti Chavulimu is the user-designated accountable owner across all workstreams. The supplied official search identifies him as proprietor of MWEIN MEDICAL SERVICES. Charles Karani remains the designated data-protection contact. Approvals and final protected evidence-store references remain pending.
 
@@ -17,9 +17,9 @@ This is a review pack, not an application submission, certification, signed poli
 
 ## Baseline and limits
 
-Application source: `a5e19d3ee6edc08a21f7c8e836962c8be66dfcb7`; deployment `dpl_7FW4ub563CBkcojpxEc8biEEvhci`; [published application](https://mwein-hmis-platform.vercel.app/). Latest migration: `20260923140000_clinical_closure_identity_history` (43 migration files). The previously recorded 22 September 15:19 UTC observation reported health 200 and readiness 503/blocked. Fresh follow-up probes are retained in EXECUTION-STATUS.md; no count of approved live gates is claimed.
+Current application source: `1d1e5eac30296dfbeb1684361379eeff2a252c1c`; deployment `dpl_nmBvuxSsjJbvGxgjDR7MG5eaEbcE`; [published application](https://mwein-hmis-platform.vercel.app/). Latest migration `20260924130000_workforce_mfa` (47 migrations). [Deployment record](../DEPLOYMENT-20260925.md) records successful exact-source verification, health 200 and readiness 503/blocked. Mandatory MFA is deployed. Local verification passed 361 unit tests and 100 outpatient checks; GitHub platform/legacy verification including browser workflows passed. These remain engineering evidence, not signed clinical UAT or independent assessment.
 
-The release record reports 239 unit tests, 28 browser scenarios, type checking and production build passing. These checks have now also been reproduced from the isolated deployed source; see EXECUTION-STATUS.md. These are engineering results, not clinician UAT, independent security testing or laboratory assessment. Source checks for this pack use the exact deployed commit. Local paused MFA files are excluded from the manifest and all implementation claims.
+The older RELEASE-MANIFEST.json and technical-evidence-20260922 directory are historical artifacts for their named source. Do not relabel them as the current release. The [privacy/operations handoff](PRIVACY-OPERATIONS-HANDOFF-20260925.md), revised DPIA and SSD workbook are the latest review drafts.
 
 ## Regulatory reference and mapping rule
 
@@ -31,7 +31,7 @@ All `REQ-`, `EV-`, `UAT-` and `DEC-` identifiers here are internal. No signed-fr
 
 1. Edwin, now accountable for all workstreams, records the final scope/AI decision and arranges the required specialist reviews.
 2. Compliance collects corporate documents; DPO completes privacy evidence; operations produces infrastructure and recovery evidence.
-3. Medical director runs and signs the synthetic UAT pack; identity owner records the unresolved MFA requirement without restarting the paused implementation.
+3. Medical director runs and signs the synthetic UAT pack; identity owner witnesses deployed MFA enrollment/recovery and records operational evidence.
 4. Reporting and interoperability owners complete any capabilities DHA requires for the chosen classification; exclusions cannot waive mandatory requirements.
 5. Freeze an isolated assessor environment, retain independent assessment results and assemble the portal-specific submission.
 
@@ -54,6 +54,6 @@ Tax evidence received: [Edwin’s KRA PIN and Tax Compliance Certificate review]
 
 ## Implementation backlog
 
-The [app audit and implementation backlog](APP-AUDIT-AND-IMPLEMENTATION-BACKLOG.md) records confirmed code gaps, five implementation-ready packages, acceptance tests and external dependencies. It distinguishes scanner false positives and excludes paused MFA work.
+The [app audit and implementation backlog](APP-AUDIT-AND-IMPLEMENTATION-BACKLOG.md) records confirmed code gaps, five implementation-ready packages, acceptance tests and external dependencies. It distinguishes scanner false positives and describes historical implementation gaps; consult the current readiness review for later closures.
 
 Reporting follow-up: [APP-08 / APP-09 requirements and acceptance plan](REPORTING-IDSR-REQUIREMENTS.md), including the facility and receiving-service inputs still needed.
