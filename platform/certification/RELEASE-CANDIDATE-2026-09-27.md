@@ -16,7 +16,8 @@ Production readiness now requires valid ICD-11 credential configuration and a va
 - Type checking passes; 49 migrations and 33 required tables pass the isolated database checks, including `PaymentRequest`.
 - Production dependency audit reports zero known vulnerabilities. This is not a penetration test.
 - Production observed on 27 September (Nairobi): health HTTP 200, source `c0a71c77615875bf5f969bf934d3f1f42f336e09`, migration `20260925100000_signed_clinic_documents`; readiness HTTP 503, `blocked`.
-- Final build and browser outcome are recorded in the accompanying validation summary.
+- Production build and all **52 browser cases passed in one fresh run**, following 100 isolated workflow checks. The source-bound audit inventory reports 69 routes, zero detected gaps, zero unclassified routes and zero aliases requiring review. This inventory is not independent assurance. See [validation summary](main-action-fixes-20260927/release-validation.json).
+- The new patient-use verifier was run read-only against the deployed release and correctly rejected its blocked readiness status.
 
 ## Release procedure
 

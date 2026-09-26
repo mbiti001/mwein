@@ -34,9 +34,12 @@
   },
   "livePatientReadiness": {
     "status": 503,
-    "bodyStatus": "blocked"
+    "bodyStatus": "blocked",
+    "verifierRejectedAsExpected": true
   },
   "browser": {
-    "status": "running"
+    "passed": 52,
+    "failed": 0,
+    "freshFixture": true
   }
 }
