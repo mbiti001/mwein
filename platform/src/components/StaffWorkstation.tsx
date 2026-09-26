@@ -1,6 +1,7 @@
 "use client";
+import { Button } from "./ui/Button";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import StaffMfaRecovery from "./StaffMfaRecovery";
 import { jsonRequest } from "@/lib/client-http";
 
@@ -16,6 +17,7 @@ export default function StaffWorkstation() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const saving = useRef(false);
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
   const assignableRoles = roles.filter(role => role.assignable);
@@ -31,7 +33,7 @@ export default function StaffWorkstation() {
   useEffect(() => { void load().catch((reason) => setError(reason.message)); }, []);
 
   async function create(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setBusy(true); setError(""); setNotice("");
+    event.preventDefault(); if (saving.current) return; saving.current = true; setBusy(true); setError(""); setNotice("");
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
     try {
@@ -39,11 +41,11 @@ export default function StaffWorkstation() {
       setNotice("Staff account created. Share the temporary password securely.");
       formElement.reset(); await load();
     } catch (reason) { setError((reason as Error).message); }
-    finally { setBusy(false); }
+    finally { saving.current = false; setBusy(false); }
   }
 
   async function update(event: FormEvent<HTMLFormElement>, id: string) {
-    event.preventDefault(); setBusy(true); setError(""); setNotice("");
+    event.preventDefault(); if (saving.current) return; saving.current = true; setBusy(true); setError(""); setNotice("");
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
     try {
@@ -51,20 +53,20 @@ export default function StaffWorkstation() {
       setNotice("Staff access updated; existing sessions were revoked.");
       await load();
     } catch (reason) { setError((reason as Error).message); }
-    finally { setBusy(false); }
+    finally { saving.current = false; setBusy(false); }
   }
 
   return <>
     <header><div><p className="eyebrow">Administration</p><h1>Staff access</h1><p>Create facility accounts and assign one clear operational role.</p></div></header>
     <section className="card compact"><h2>Clinician shortage cover</h2><p>Assign “Clinician — shortage cover” to an authorised clinician when reception, nursing or billing staff are unavailable. It includes normal clinical access, patient registration, visit check-in, vitals and payment collection. Restore the “Clinician” role when cover ends. Payment reversals and cashier approval remain with finance staff.</p></section>
-    {error && <div className="alert">{error}</div>}{notice && <div className="alert success">{notice}</div>}
+    {error && <div className="alert">{error}</div>}{notice && <div className="alert success" role="status">{notice}</div>}
     <details className="card managementPanel"><summary><span><strong>Add staff member</strong><small>Create a new individual facility account</small></span><b>Open</b></summary><form className="dataForm managementBody" onSubmit={create}>
       <div className="wide"><h2>Add staff member</h2><p>Use an individual account for every person. Passwords must contain at least 16 characters.</p></div>
       <label>Full name *<input name="displayName" minLength={2} required /></label>
       <label>Work email *<input name="email" type="email" autoComplete="off" required /></label>
       <label>Role *<select name="roleCode">{assignableRoles.map((role) => <option value={role.code} key={role.id}>{role.name}</option>)}</select></label>
       <label>Temporary password *<input name="temporaryPassword" type="password" minLength={16} autoComplete="new-password" required /></label>
-      <button className="primary wide" disabled={busy}>{busy ? "Creating…" : "Create staff account"}</button>
+      <Button type="submit" className="wide" pending={busy} pendingLabel="Creating…">Create staff account</Button>
     </form></details>
     <section className="card compact"><div className="cardHead"><div><h2>Facility staff</h2><p>Role or status changes sign the staff member out immediately.</p></div><strong>{staff.length} accounts</strong></div>
       <label className="listSearch">Search staff<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, email, role or status" /></label>
@@ -74,7 +76,7 @@ export default function StaffWorkstation() {
         <label>Role<select name="roleCode" defaultValue={person.roles[0]?.role.code}>{assignableRoles.map((role) => <option value={role.code} key={role.id}>{role.name}</option>)}</select></label>
         <label>Status<select name="status" defaultValue={person.status === "ACTIVE" ? "ACTIVE" : "DISABLED"}><option value="ACTIVE">Active</option><option value="DISABLED">Disabled</option></select></label>
         <label>New temporary password<input name="temporaryPassword" type="password" minLength={16} autoComplete="new-password" placeholder="Leave blank to keep current" /></label>
-        <button className="secondary" disabled={busy}>Save access</button>
+        <Button type="submit" variant="secondary" pending={busy} pendingLabel="Saving…">Save access</Button>
       </form> : <div className="managementBody"><p>This governance account can only be changed by an authorized facility or system administrator.</p></div>}{person.canRecoverMfa && <StaffMfaRecovery userId={person.id} onRecovered={async () => { setNotice("Lost factors and sessions revoked. Share the temporary password securely; new enrollment is required."); await load(); }} />}</details>)}</div>
     </section>
     <details className="card managementPanel"><summary><span><strong>Role autonomy guide</strong><small>See exactly what each role can do before assigning it</small></span><b>{assignableRoles.length} roles</b></summary><div className="roleGuide managementBody">{assignableRoles.map(role => <article key={role.id}><strong>{role.name}</strong><small>{role.permissions.map(item => item.permission.description).join(" · ") || "No operational permissions"}</small></article>)}</div></details>

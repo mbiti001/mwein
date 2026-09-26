@@ -26,6 +26,7 @@ export async function GET(request: Request) {
     if (through.getTime() - from.getTime() > 31 * 24 * 60 * 60 * 1000)
       throw Object.assign(new Error("Reports are limited to 31 days"), { status: 422 });
 
+    const now = new Date();
     const [visits, queueEntries, referrals, dispensations, payments, inventory] = await Promise.all([db.visit.findMany({
       where: {
         facilityId: user.facilityId,
@@ -65,10 +66,10 @@ export async function GET(request: Request) {
       select: { amount: true, status: true, method: true, receivedBy: { select: { displayName: true } } },
     }), db.catalogItem.findMany({
       where: { facilityId: user.facilityId, category: "PHARMACEUTICAL", active: true },
-      select: { id: true, code: true, name: true, reorderLevel: true, inventoryBatches: { where: { active: true }, select: { quantityAvailable: true, expiryDate: true } } },
+      select: { id: true, code: true, name: true, reorderLevel: true, inventoryBatches: { where: { active: true, expiryDate: { gt: now }, quantityAvailable: { gt: 0 } }, select: { quantityAvailable: true, expiryDate: true } } },
     })]);
-    const inThirtyDays = new Date(Date.now() + 30 * 86400000);
-    const inNinetyDays = new Date(Date.now() + 90 * 86400000);
+    const inThirtyDays = new Date(now.getTime() + 30 * 86400000);
+    const inNinetyDays = new Date(now.getTime() + 90 * 86400000);
     const stock = {
       lowStock: inventory.filter(item => item.reorderLevel != null && item.inventoryBatches.reduce((sum, batch) => sum + Number(batch.quantityAvailable), 0) <= Number(item.reorderLevel)).map(item => ({ code: item.code, name: item.name })),
       expiring30Days: inventory.filter(item => item.inventoryBatches.some(batch => batch.expiryDate <= inThirtyDays && Number(batch.quantityAvailable) > 0)).length,

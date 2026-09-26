@@ -268,7 +268,7 @@ export default function LaboratoryWorkstation({
           </div>
         </header>
         {error && <div className="alert">{error}</div>}
-        {notice && <div className="alert success">{notice}</div>}
+        {notice && <div className="alert success" role="status">{notice}</div>}
         <section className="card">
           <label className="listSearch">Find a laboratory request<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Patient, visit, test or accession number" /></label>
           <p className="listCount">Showing {visibleOrders.length} of {orders.length} pending tests</p>
@@ -334,7 +334,7 @@ export default function LaboratoryWorkstation({
           onSubmit={(event) => event.preventDefault()}
         >
           {error && <div className="alert wide">{error}</div>}
-          {notice && <div className="alert success wide">{notice}</div>}
+          {notice && <div className="alert success wide" role="status">{notice}</div>}
           <div className="patientBanner wide">
             <div>
               <strong>{active.order.laboratory?.specimenType} specimen</strong>
@@ -477,7 +477,7 @@ export default function LaboratoryWorkstation({
         }}
       >
         {error && <div className="alert wide">{error}</div>}
-        {notice && <div className="alert success wide">{notice}</div>}
+        {notice && <div className="alert success wide" role="status">{notice}</div>}
         <div className="patientBanner wide">
           <div>
             <strong>{laboratoryDisplayName(active.order.laboratory?.testCode || "", active.order.displayName)}</strong>

@@ -1,3 +1,4 @@
+import { icd11ConfigurationReady } from "./icd11";
 import { workforceMfaRequired } from "./mfa-policy";
 export const governanceGateDefinitions = [
   { code: "CLINICAL_UAT", name: "Clinical user acceptance", ownerRole: "Medical director", description: "Clinician-led scenario testing, safety sign-off and issue closure." },
@@ -63,6 +64,7 @@ export function aiGovernanceReadiness(evidence: GovernanceEvidenceRecord[], now 
 export function productionConfigurationReadiness(environment: Record<string, string | undefined> = process.env) {
 
   const checks = [
+    { code: "ICD11_CONFIGURATION", ready: icd11ConfigurationReady(environment) },
     { code: "AUTH_SECRET", ready: Boolean(environment.AUTH_SECRET && environment.AUTH_SECRET.length >= 32) },
     { code: "APP_ORIGIN", ready: Boolean(environment.APP_ORIGIN && /^https:\/\//.test(environment.APP_ORIGIN)) },
     { code: "WORKFORCE_MFA", ready: workforceMfaRequired(environment) && Boolean(environment.AUTH_SECRET && environment.AUTH_SECRET.length >= 32) },

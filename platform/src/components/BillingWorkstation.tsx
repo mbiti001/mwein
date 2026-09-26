@@ -1,10 +1,11 @@
 "use client";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   allowedClaimStatuses,
   type ClaimStatus,
 } from "@/lib/billing";
 import { jsonRequest } from "@/lib/client-http";
+import { Button } from "./ui/Button";
 import CashierShiftPanel from "@/components/CashierShiftPanel";
 import { FacilityLetterhead } from "@/components/FacilityBrand";
 type Visit = {
@@ -126,6 +127,8 @@ export default function BillingWorkstation({
   const [active, setActive] = useState<Visit | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const paymentInFlight = useRef(false);
+  const paymentAttempt = useRef<{ fingerprint: string; key: string } | null>(null);
   const [lastReceipt, setLastReceipt] = useState("");
   const [claimPayer, setClaimPayer] = useState("SHA");
   const [shaFund, setShaFund] = useState("PHF");
@@ -179,27 +182,25 @@ export default function BillingWorkstation({
   const balance = Math.max(0, total - paid - claimed);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!invoice) return;
-    setError("");
-    setBusy(true);
+    if (!invoice || !active || busy || paymentInFlight.current) return;
+    paymentInFlight.current = true;
+    setError(""); setBusy(true);
     const form = new FormData(event.currentTarget);
+    const input = { method: form.get("method"), amount: Number(form.get("amount")), externalReference: String(form.get("externalReference") || "").trim() || undefined };
+    const fingerprint = JSON.stringify([invoice.id, input]);
+    if (paymentAttempt.current?.fingerprint !== fingerprint)
+      paymentAttempt.current = { fingerprint, key: crypto.randomUUID() };
     try {
       const data = await jsonRequest<any>(`/api/invoices/${invoice.id}/payments`, {
-        method: "POST",
-        body: JSON.stringify({
-          method: form.get("method"),
-          amount: form.get("amount"),
-          externalReference: form.get("externalReference") || undefined,
-        }),
+        method: "POST", body: JSON.stringify({ ...input, idempotencyKey: paymentAttempt.current.key }),
       }, "Payment could not be recorded");
       setLastReceipt(data.payment.receipt?.receiptNumber || "");
       setReceiptView({ visit: active, payment: data.payment });
-      await onUpdated();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+      paymentAttempt.current = null;
+      try { await onUpdated(); }
+      catch { setError("Payment was recorded and the receipt is shown. The queue could not refresh; reload it before recording another payment."); }
+    } catch (e) { setError((e as Error).message); }
+    finally { paymentInFlight.current = false; setBusy(false); }
   }
   async function claim(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -252,6 +253,7 @@ export default function BillingWorkstation({
     }
   }
   async function reverse(paymentId: string, reason: string) {
+    if (busy) return;
     if (reason.trim().length < 5)
       return setError("Enter a clear reversal reason");
     setBusy(true);
@@ -316,20 +318,21 @@ export default function BillingWorkstation({
             <h1>{p.receipt.receiptNumber}</h1>
           </div>
           <div>
-            <button
-              className="secondary"
+            <Button
+              variant="secondary"
               onClick={() => {
                 setReceiptView(null);
                 setActive(null);
               }}
             >
               ← Billing
-            </button>{" "}
-            <button className="primary" onClick={() => window.print()}>
+            </Button>{" "}
+            <Button variant="primary" onClick={() => window.print()}>
               Print receipt
-            </button>
+            </Button>
           </div>
         </header>
+        {error && <div className="alert noPrint" role="alert">{error}</div>}
         <article className="visitSummaryPaper receiptPaper">
           <FacilityLetterhead
             facilityName={v.facility?.name}
@@ -383,7 +386,7 @@ export default function BillingWorkstation({
           </div>
         </header>
         {lastReceipt && (
-          <div className="alert success">
+          <div className="alert success" role="status">
             Payment recorded · Receipt {lastReceipt}
           </div>
         )}
@@ -440,11 +443,11 @@ export default function BillingWorkstation({
             {active.patient.patientNumber} · {active.visitNumber}
           </p>
         </div>
-        <button className="secondary" onClick={() => setActive(null)}>
+        <Button variant="secondary" disabled={busy} onClick={() => setActive(null)}>
           ← Back to invoices
-        </button>
+        </Button>
       </header>
-      {error && <div className="alert">{error}</div>}
+      {error && <div className="alert" role="alert">{error}</div>}
       <section className="card billingDocument">
         <FacilityLetterhead
           facilityName={active.facility?.name}
@@ -457,9 +460,9 @@ export default function BillingWorkstation({
             <h2>Patient invoice</h2>
             <p>{active.patient.fullName} · {active.patient.patientNumber} · {active.visitNumber}</p>
           </div>
-          <button className="secondary" onClick={() => window.print()}>
+          <Button variant="secondary" onClick={() => window.print()}>
             Print invoice
-          </button>
+          </Button>
         </div>
         <table className="reportResults">
           <thead>
@@ -521,9 +524,10 @@ export default function BillingWorkstation({
                       aria-label={`Reversal reason ${p.receipt?.receiptNumber}`}
                       placeholder="Reason to reverse"
                     />
-                    <button
+                    <Button
                       type="button"
-                      className="secondary"
+                      variant="danger"
+                      disabled={busy}
                       onClick={(e) =>
                         reverse(
                           p.id,
@@ -535,7 +539,7 @@ export default function BillingWorkstation({
                       }
                     >
                       Reverse
-                    </button>
+                    </Button>
                   </span>
                 )}
               </div>
@@ -543,7 +547,7 @@ export default function BillingWorkstation({
           </div>
         )}
       </section>
-      {permissions.includes("billing.write") && balance <= 0.001 && <section className="card noPrint visitClosure"><div><h2>Finish this visit</h2><p>Completion removes the patient from active queues. The system will stop and explain what remains if consultation, orders or financial cover are incomplete.</p></div><button className="primary" type="button" disabled={busy} onClick={() => void completeVisit()}>{busy ? "Checking…" : "Complete visit"}</button></section>}
+      {permissions.includes("billing.write") && balance <= 0.001 && <section className="card noPrint visitClosure"><div><h2>Finish this visit</h2><p>Completion removes the patient from active queues. The system will stop and explain what remains if consultation, orders or financial cover are incomplete.</p></div><Button variant="primary" type="button" disabled={busy} onClick={() => void completeVisit()}>{busy ? "Checking…" : "Complete visit"}</Button></section>}
       {permissions.includes("billing.write") && <form className="card dataForm noPrint" onSubmit={submit}>
         <div className="wide">
           <h2>Receive payment</h2>
@@ -582,9 +586,9 @@ export default function BillingWorkstation({
             A fully paid visit closes only after consultation is signed and all
             orders are resolved.
           </span>
-          <button className="primary" disabled={busy}>
-            {busy ? "Recording…" : "Record payment & issue receipt"}
-          </button>
+          <Button type="submit" pending={busy} pendingLabel="Recording…" disabled={balance <= 0}>
+            Record payment & issue receipt
+          </Button>
         </div>
       </form>}
       {permissions.includes("claims.write") && <form className="card dataForm noPrint" onSubmit={claim} onChange={() => setShaPreflight(null)}>
@@ -680,13 +684,13 @@ export default function BillingWorkstation({
           </details>
         </section>}
         <div className="wide claimSubmitBar">
-          {claimPayer === "SHA" && <button className="secondary" type="button" disabled={busy} onClick={event => {
+          {claimPayer === "SHA" && <Button variant="secondary" type="button" disabled={busy} onClick={event => {
             const form = event.currentTarget.form;
             if (form) void reviewShaClaim(form);
-          }}>{busy ? "Checking…" : "Review SHA readiness"}</button>}
-          <button className="primary" disabled={busy}>
+          }}>{busy ? "Checking…" : "Review SHA readiness"}</Button>}
+          <Button type="submit" pending={busy} pendingLabel="Saving claim…">
             {claimPayer === "SHA" && !shaReady ? "Save SHA claim draft" : "Submit claim"}
-          </button>
+          </Button>
         </div>
       </form>}
       {invoice.claims?.length > 0 && (
@@ -720,7 +724,7 @@ export default function BillingWorkstation({
                       {preparation.preauthorisationRequired && <div className="summaryLine"><strong>Pre-authorisation</strong><span>{preparation.preauthorisationReference || "Pending"}</span></div>}
                       {preparation.fund === "POMSF" && <><div className="summaryLine"><strong>POMSF employer ID</strong><span>{preparation.pomsfEmployerId || "Pending"}</span></div><div className="summaryLine"><strong>Public-service grade</strong><span>{preparation.publicServiceGrade || "Pending"}</span></div></>}
                       {issues.map(issue => <div className="alert" key={issue.code}>{issue.message}</div>)}
-                      {!issues.length && <div className="alert success">All preparation evidence currently required by the draft workflow is recorded. Live submission remains disabled.</div>}
+                      {!issues.length && <div className="alert success" role="status">All preparation evidence currently required by the draft workflow is recorded. Live submission remains disabled.</div>}
                     </div></details>
                   </>}
                 </div>
@@ -737,7 +741,7 @@ export default function BillingWorkstation({
                       ))}
                     </select>
                     <input name="notes" placeholder="Required note" minLength={2} required />
-                    <button className="secondary" disabled={busy}>Update</button>
+                    <Button type="submit" variant="secondary" pending={busy} pendingLabel="Updating…">Update</Button>
                   </div>
                 )}
               </form>;

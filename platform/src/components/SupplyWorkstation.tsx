@@ -155,7 +155,7 @@ export default function SupplyWorkstation({
   ) : null;
   if (view === "receive") return <>
     <header><div><p className="eyebrow">Pharmacy inventory</p><h1>Receive stock</h1><p>Record the batch, expiry, quantity and destination store at the moment goods arrive.</p></div></header>
-    {error && <div className="alert">{error}</div>}{notice && <div className="alert success">{notice}</div>}
+    {error && <div className="alert">{error}</div>}{notice && <div className="alert success" role="status">{notice}</div>}
     {receiptForm || <section className="card"><p>Your role cannot receive stock.</p></section>}
   </>;
   if (view === "history") {
@@ -183,7 +183,7 @@ export default function SupplyWorkstation({
         </div>
       </header>
       {error && <div className="alert">{error}</div>}
-      {notice && <div className="alert success">{notice}</div>}
+      {notice && <div className="alert success" role="status">{notice}</div>}
       <section className="card">
         <div className="cardHead">
           <div>

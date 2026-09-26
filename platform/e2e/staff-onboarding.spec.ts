@@ -20,6 +20,9 @@ test("governance administrator can onboard a DPO through staff access", async ({
   await page.getByRole("button", { name: "Create staff account", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Staff account created. Share the temporary password securely." })).toBeVisible();
   await expect(page.getByLabel("Full name *", { exact: true })).toHaveValue("");
+  // Success must not hide the action or make the next onboarding impossible.
+  await expect(page.getByRole("button", { name: "Create staff account", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create staff account", exact: true })).toBeEnabled();
   await page.getByLabel("Search staff", { exact: true }).fill("browser.dpo");
   await expect(page.locator(".staffDisclosure")).toContainText("Data protection officer");
 });

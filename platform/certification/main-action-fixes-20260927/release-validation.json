@@ -1,0 +1,42 @@
+{
+  "checkedAt": "2026-09-26T22:59:53.713Z",
+  "scope": "Local synthetic release-candidate verification; not patient-use approval",
+  "unit": {
+    "files": 86,
+    "tests": 403,
+    "passed": true
+  },
+  "types": true,
+  "productionBuild": true,
+  "migrations": {
+    "count": 49,
+    "requiredTables": 33,
+    "passed": true
+  },
+  "workflow": {
+    "checks": 100,
+    "passed": true
+  },
+  "auditInventory": {
+    "routes": 69,
+    "gaps": 0,
+    "unclassified": 0,
+    "aliases": 0,
+    "limitation": "This is a source-bound engineering inventory, not proof of complete branch coverage, independent security assessment or external audit retention. Exceptions require exact source hashes. Behavioral tests remain necessary."
+  },
+  "productionDependencyAudit": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "livePatientReadiness": {
+    "status": 503,
+    "bodyStatus": "blocked"
+  },
+  "browser": {
+    "status": "running"
+  }
+}

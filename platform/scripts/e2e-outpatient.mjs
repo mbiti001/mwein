@@ -817,10 +817,20 @@ try {
 
   const cashierShift = await api("open cashier shift", "/api/billing/shifts", { method: "POST", body: JSON.stringify({ action: "OPEN", openingFloat: 1000 }) });
 
+  const paymentKey = randomUUID();
   const payment = await api("receive payment and close visit", `/api/invoices/${invoice.id}/payments`, {
     method: "POST",
-    body: JSON.stringify({ method: "CASH", amount: 550 }),
+    body: JSON.stringify({ method: "CASH", amount: 550, idempotencyKey: paymentKey }),
   });
+  const paymentReplay = await requestWithCookie(`/api/invoices/${invoice.id}/payments`, sessionCookie, {
+    method: "POST", body: JSON.stringify({ method: "CASH", amount: 550, idempotencyKey: paymentKey }),
+  });
+  assert(paymentReplay.response.status === 200 && paymentReplay.body.payment.id === payment.body.payment.id, "Cash retry created a second receipt or failed to replay");
+  const paymentConflict = await requestWithCookie(`/api/invoices/${invoice.id}/payments`, sessionCookie, {
+    method: "POST", body: JSON.stringify({ method: "CASH", amount: 549, idempotencyKey: paymentKey }),
+  });
+  assert(paymentConflict.response.status === 409, "Payment replay key accepted changed details");
+  steps.push("verify payment replay and reject changed payment details");
   assert(payment.body.visitCompleted === false, "Payment bypassed clinician discharge");
   assert(payment.body.balance === 0, "Invoice retained a balance after full payment");
   const dischargeDenied = await requestWithCookie(`/api/visits/${visit.id}/discharge`, mmsReception.cookie, { method: "POST", body: JSON.stringify({ outcome: "OUTPATIENT", details: "Test discharge attempted by reception" }) });

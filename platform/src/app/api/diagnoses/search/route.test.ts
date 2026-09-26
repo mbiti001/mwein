@@ -60,3 +60,14 @@ it("does not treat an audit failure as a WHO outage or disclose unaudited histor
   expect((await search()).status).toBe(500);
   expect(mocks.history).not.toHaveBeenCalled();
 });
+
+it("labels missing or redacted configuration without sending placeholders to WHO", async () => {
+  const fetcher = vi.fn(); vi.stubGlobal("fetch", fetcher);
+  for (const credential of ["", "[Sensitive]", "[REDACTED]"]) {
+    vi.stubEnv("ICD11_CLIENT_ID", credential);
+    const response = await search();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ source: "Facility history", configurationRequired: true });
+  }
+  expect(fetcher).not.toHaveBeenCalled();
+});
