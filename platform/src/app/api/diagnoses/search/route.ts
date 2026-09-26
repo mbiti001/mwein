@@ -4,7 +4,7 @@ import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
 import { db } from "@/lib/db";
 import { createDiagnosisSelectionToken } from "@/lib/diagnosis-selection";
-import { cleanWhoTitle, icd11Release, normalizeWhoIcdUri } from "@/lib/icd11";
+import { cleanWhoTitle, icd11ConfigurationReady, icd11Release, normalizeWhoIcdUri } from "@/lib/icd11";
 
 type Result = {
   code: string;
@@ -107,7 +107,7 @@ export async function GET(request: Request) {
     const query = z.string().trim().min(2).max(120).parse(new URL(request.url).searchParams.get("q"));
     const clientId = process.env.ICD11_CLIENT_ID?.trim();
     const clientSecret = process.env.ICD11_CLIENT_SECRET?.trim();
-    if (clientId && clientSecret) {
+    if (clientId && clientSecret && icd11ConfigurationReady()) {
       let results: Result[];
       try {
         results = await whoSearch(query, clientId, clientSecret);

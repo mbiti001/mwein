@@ -142,7 +142,7 @@ export default function CatalogManager() {
         ))}
       </div>
       {error && <div className="alert">{error}</div>}
-      {notice && <div className="alert success">{notice}</div>}
+      {notice && <div className="alert success" role="status">{notice}</div>}
       <section className="catalogLayout">
         <details className="card managementPanel" open={Boolean(editing)}><summary><span><strong>{editing ? "Edit catalogue item" : "Add catalogue item"}</strong><small>Open only when you need to maintain services or pricing</small></span><b>Open</b></summary><form
           className="dataForm catalogForm managementBody"

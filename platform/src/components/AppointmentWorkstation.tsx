@@ -114,7 +114,7 @@ export default function AppointmentWorkstation({
     <>
       <header><div><p className="eyebrow">Reception</p><h1>Appointments</h1><p>Book and manage upcoming clinic visits from one practical queue.</p></div></header>
       {error && <div className="alert">{error}</div>}
-      {notice && <div className="alert success">{notice}</div>}
+      {notice && <div className="alert success" role="status">{notice}</div>}
       {reminder && <section className="card reminderPreview"><div className="cardHead"><div><h2>Reminder ready</h2><p>Send to {reminder.contact} using the facility&apos;s approved messaging channel.</p></div><button className="secondary" type="button" onClick={() => setReminder(null)}>Close</button></div><textarea value={reminder.message} rows={4} readOnly aria-label="Prepared appointment reminder" /><button className="primary" type="button" onClick={async () => { try { await navigator.clipboard.writeText(reminder.message); setNotice("Reminder copied."); } catch { setError("Copy failed; select the reminder text manually."); } }}>Copy reminder</button></section>}
       <details className="card managementPanel"><summary><span><strong>Book appointment</strong><small>Open the booking form when needed</small></span><b>Open</b></summary><form className="dataForm managementBody" onSubmit={submit}>
         <div className="wide"><h2>Book appointment</h2><p>Search the existing patient register before selecting a clinic and time.</p></div>

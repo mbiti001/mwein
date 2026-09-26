@@ -130,7 +130,7 @@ export default function ImportCenter() {
         <div className="actions"><a className="primary buttonLink" href="/templates/mwein-data-migration-template.xlsx" download>Download migration workbook</a><button className="secondary" onClick={template}>CSV template</button></div>
       </header>
       {error && <div className="alert">{error}</div>}
-      {notice && <div className="alert success">{notice}</div>}
+      {notice && <div className="alert success" role="status">{notice}</div>}
       <section className="card dataForm">
         <label>
           Dataset destination

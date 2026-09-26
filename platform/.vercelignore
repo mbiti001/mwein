@@ -1,0 +1,15 @@
+# Deploy from platform/; server secrets are supplied by the hosting environment.
+.env*
+!.env.example
+node_modules/
+.next/
+.vercel/
+e2e/
+certification/
+test-results/
+playwright-report/
+**/*.test.ts
+**/*.test.tsx
+**/*.log
+**/*.tsbuildinfo
+.DS_Store

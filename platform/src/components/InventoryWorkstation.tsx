@@ -102,7 +102,7 @@ export default function InventoryWorkstation({
   return <>
     <header><div><p className="eyebrow">Pharmacy inventory</p><h1>Manage inventory</h1><p>Open any medicine to inspect its batches, store balances and expiry dates.</p></div></header>
     {error && <div className="alert">{error}</div>}
-    {notice && <div className="alert success">{notice}</div>}
+    {notice && <div className="alert success" role="status">{notice}</div>}
     {editingBatch && <section className="card stockEditPanel">
       <div className="cardHead"><div><h2>Correct batch expiry</h2><p>{editingBatch.batchNumber} · current expiry {new Date(editingBatch.expiryDate).toLocaleDateString()}</p></div><button className="secondary" type="button" onClick={() => setEditingBatch(null)}>Cancel</button></div>
       <form className="dataForm" onSubmit={correctExpiry}>

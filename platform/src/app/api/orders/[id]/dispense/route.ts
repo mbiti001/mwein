@@ -162,7 +162,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const input = inputSchema.parse(await request.json());
     const result = await db.$transaction(async (tx) => {
       const replay = await tx.dispensation.findFirst({
-        where: { idempotencyKey: input.idempotencyKey, prescription: { orderId: id } },
+        where: { idempotencyKey: input.idempotencyKey, prescription: { orderId: id, order: { visit: { facilityId: user.facilityId } } } },
         include: { prescription: true, catalogItem: true, items: { include: { batch: true } } },
       });
       if (replay) return {

@@ -124,7 +124,7 @@ export default function PrivacyRightsPanel() {
   }
 
   return <div className="embeddedWorkspace">
-    {error && <div className="alert">{error}</div>}{notice && <div className="alert success">{notice}</div>}
+    {error && <div className="alert">{error}</div>}{notice && <div className="alert success" role="status">{notice}</div>}
     <section className="card"><div className="cardHead"><div><h2>Patient privacy and rights</h2><p>Record versioned consent decisions and manage access, correction, export and disclosure requests.</p></div></div>
       <label>Find patient<input disabled={busy} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name or patient number" /></label>
       {!!patients.length && <div className="queue">{patients.map((patient) => <button type="button" className="row stockAction" disabled={busy} key={patient.id} onClick={() => void select(patient)}><span className="dot"/><div><strong>{patient.fullName}</strong><small>{patient.patientNumber}</small></div><b>Open</b></button>)}</div>}

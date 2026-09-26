@@ -98,7 +98,7 @@ export default function ShaContractReadinessPanel({ canEdit }: { canEdit: boolea
   const contractChecks = data ? Object.entries(data.readiness.checks) : [];
   const gatewayChecks = data ? Object.entries(data.gateway.checks) : [];
   return <>
-    {error && <div className="alert">{error}</div>}{notice && <div className="alert success">{notice}</div>}
+    {error && <div className="alert">{error}</div>}{notice && <div className="alert success" role="status">{notice}</div>}
     {data && <section className="card">
       <div className="cardHead"><div><h2>SHA contract readiness</h2><p>{data.draftSpecification.notice}</p></div><span className={`statusPill ${data.readiness.activationReady ? "done" : "waiting"}`}>{data.readiness.phase.replaceAll("_", " ")}</span></div>
       <div className="summaryGrid">

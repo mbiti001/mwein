@@ -61,7 +61,7 @@ export default function GovernancePanel({ canEdit }: { canEdit: boolean }) {
   if (!readiness && !error) return <section className="card"><p>Loading governance gates…</p></section>;
   return <section className="card">
     <div className="cardHead"><div><h2>Production release gates</h2><p>Production remains blocked until every accountable owner records current evidence.</p></div><strong>{readiness?.approved || 0}/{readiness?.total || 0}</strong></div>
-    {error && <div className="alert">{error}</div>}{notice && <div className="alert success">{notice}</div>}
+    {error && <div className="alert">{error}</div>}{notice && <div className="alert success" role="status">{notice}</div>}
     <div className="queue">{readiness?.gates.map((gate) => <details className="managementPanel" key={gate.code}>
       <summary><span><strong>{gate.name}</strong><small>{gate.description}</small></span><b>{gate.ready ? "APPROVED" : gate.expired ? "EXPIRED" : gate.evidence?.status || "PENDING"}</b></summary>
       <form className="managementBody formGrid" onSubmit={(event) => save(event, gate)}>

@@ -11,3 +11,9 @@ secrets/
 **/*.log
 **/*.tsbuildinfo
 **/.DS_Store
+
+# Synthetic fixtures and assessment evidence are not application runtime assets.
+**/e2e/
+**/certification/
+**/*.test.ts
+**/*.test.tsx

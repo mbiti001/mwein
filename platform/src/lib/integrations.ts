@@ -1,3 +1,4 @@
+import { icd11ConfigurationReady } from "./icd11";
 import { workforceMfaRequired } from "./mfa-policy";
 export type IntegrationState = "AVAILABLE" | "PREPARED_ON_HOLD" | "NOT_CONFIGURED";
 
@@ -11,7 +12,7 @@ export type IntegrationReadiness = {
 };
 
 export function integrationReadiness(): IntegrationReadiness[] {
-  const icdConfigured = Boolean(process.env.ICD11_CLIENT_ID?.trim() && process.env.ICD11_CLIENT_SECRET?.trim());
+  const icdConfigured = icd11ConfigurationReady();
   const identity = externalIdentityConfiguration();
   const kenyaFhir = kenyaFhirConfiguration();
   return [

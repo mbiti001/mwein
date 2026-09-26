@@ -21,3 +21,10 @@ describe("release governance", () => {
     expect(productionConfigurationReadiness({ AUTH_SECRET: "short" })).toMatchObject({ ready: false });
   });
 });
+
+it("blocks patient readiness when WHO credentials are missing or redacted", () => {
+  for (const credentials of [{}, { ICD11_CLIENT_ID: "[Sensitive]", ICD11_CLIENT_SECRET: "[Sensitive]" }, { ICD11_CLIENT_ID: "client", ICD11_CLIENT_SECRET: "secret", ICD11_RELEASE: "2026-99" }]) {
+    expect(productionConfigurationReadiness(credentials).checks).toContainEqual({ code: "ICD11_CONFIGURATION", ready: false });
+  }
+  expect(productionConfigurationReadiness({ ICD11_CLIENT_ID: "client", ICD11_CLIENT_SECRET: "secret", ICD11_RELEASE: "2026-01" }).checks).toContainEqual({ code: "ICD11_CONFIGURATION", ready: true });
+});

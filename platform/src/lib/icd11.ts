@@ -1,8 +1,16 @@
 export const DEFAULT_ICD11_RELEASE = "2026-01";
 
+// Vercel secret exports can contain redacted values rather than credentials.
+export function icd11ConfigurationReady(environment: Record<string, string | undefined> = process.env) {
+  const usable = (value: string | undefined) => Boolean(value?.trim() && !/^\[?(?:sensitive|redacted)\]?$/i.test(value.trim()));
+  const release = environment.ICD11_RELEASE?.trim() || DEFAULT_ICD11_RELEASE;
+  return usable(environment.ICD11_CLIENT_ID) && usable(environment.ICD11_CLIENT_SECRET)
+    && /^\d{4}-(0[1-9]|1[0-2])$/.test(release);
+}
+
 export function icd11Release(value = process.env.ICD11_RELEASE) {
   const release = value?.trim() || DEFAULT_ICD11_RELEASE;
-  if (!/^\d{4}-\d{2}$/.test(release))
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(release))
     throw new Error("ICD11_RELEASE must use the YYYY-MM format");
   return release;
 }

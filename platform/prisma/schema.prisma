@@ -125,6 +125,7 @@ enum CatalogCategory {
 }
 
 model Facility {
+  paymentRequests PaymentRequest[]
   clinicDocuments ClinicDocument[]
   surveillanceRecords SurveillanceRecord[]
   localReportRevisions LocalReportRevision[]
@@ -1460,6 +1461,7 @@ model DispensationItem {
 }
 
 model Invoice {
+  paymentRequests PaymentRequest[]
   id            String        @id @default(uuid()) @db.Uuid
   patientId     String        @db.Uuid
   visitId       String        @unique @db.Uuid
@@ -1952,4 +1954,22 @@ model ClinicDocument {
 
   @@unique([facilityId, reference])
   @@index([facilityId, kind, createdAt])
+}
+
+// Durable replay receipts; committed in the same transaction as the payment.
+model PaymentRequest {
+  id String @id @default(uuid()) @db.Uuid
+  facilityId String @db.Uuid
+  invoiceId String @db.Uuid
+  key String @db.Uuid
+  fingerprint String
+  externalKey String?
+  response Json
+  createdAt DateTime @default(now())
+  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  @@unique([facilityId, key])
+  @@unique([facilityId, externalKey])
+  @@index([invoiceId])
 }

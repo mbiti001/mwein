@@ -1658,7 +1658,7 @@ export function ConsultationForm({
         onSubmit={(event) => event.preventDefault()}
       >
         {error && <div className="alert">{error}</div>}
-        {notice && <div className="alert success">{notice}</div>}
+        {notice && <div className="alert success" role="status">{notice}</div>}
         <nav id="consultation-work" className="consultNavigator" aria-label="Consultation sections">
           {[
             [1, "History"],

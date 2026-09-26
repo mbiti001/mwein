@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { assessTriageVitals, patientClinicalGroup } from "@/lib/domain";
 import type { StockFocus } from "@/components/InventoryWorkstation";
 import VisitVitalsPanel from "@/components/VisitVitalsPanel";
-import SaveFeedback from "@/components/SaveFeedback";
+import { Button } from "@/components/ui/Button";
 import { activeServiceTasks, servicePoints, isWaitingOverdue, type ServicePointCode } from "@/lib/service-points";
 import { appointmentClinics } from "@/lib/appointments";
 import { careServiceForClinic } from "@/lib/care-service-points";
@@ -307,7 +307,6 @@ export default function ClinicalApp() {
   if (documentKinds.some(kind => user.permissions.includes(documentDefinitions[kind].permission))) nav.push(["forms", "Clinic forms"]);
   return (
     <main className="shell">
-      <SaveFeedback />
       <button className="mobileNavToggle" aria-label={mobileNavOpen ? "Close menu" : "☰ Menu"} aria-expanded={mobileNavOpen} aria-controls="main-navigation" onClick={() => setMobileNavOpen(value => !value)}><span>{mobileNavOpen ? "Close menu" : "☰ Menu"}</span><span aria-hidden="true"><BrandWordmark className="mobileWordmark" /></span></button>
       {mobileNavOpen && <button className="navScrim" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
       <aside className={`sidebar ${mobileNavOpen ? "mobileOpen" : ""}`} id="main-navigation">
@@ -387,7 +386,7 @@ export default function ClinicalApp() {
             }}
           /> : null;
         })()}
-        {notice && <div className="alert success">{notice}</div>}
+        {notice && <div className="alert success" role="status">{notice}</div>}
         {screen === "dashboard" && (
           <Dashboard
             visits={visits}
@@ -644,7 +643,7 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
             <label>Facility code<input name="facilityCode" defaultValue="MMS" autoComplete="organization" required maxLength={30} /></label>
             <label>Email<input name="email" type="email" autoComplete="username" required /></label>
             <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
-            <button className="primary" disabled={submitting}>{submitting ? "Signing in…" : "Sign in securely"}</button>
+            <Button type="submit" pending={submitting} pendingLabel="Signing in…">Sign in securely</Button>
             <small className="privacyLine">Authorised facility staff only. All access is recorded.</small>
           </form>
         </aside>
