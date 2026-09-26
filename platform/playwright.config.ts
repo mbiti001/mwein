@@ -20,6 +20,8 @@ export default defineConfig({
   webServer: {
     command: "npm run build && E2E_PRODUCTION=1 E2E_HOLD=1 E2E_KEEP_TEMPORARY_PASSWORD=1 E2E_APP_PORT=3210 E2E_DB_PORT=3211 npm run test:e2e",
     url: "http://127.0.0.1:3210/api/health",
+    // Health becomes available before fixture assertions and account resets finish.
+    wait: { stdout: /Browser fixture ready at http:\/\/127\.0\.0\.1:3210/ },
     reuseExistingServer: false,
     timeout: 120_000,
   },
