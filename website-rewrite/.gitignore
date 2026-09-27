@@ -1,0 +1,11 @@
+# Local-only deployment material and runtime data
+*.zip
+*.log
+*.sqlite*
+.env*
+config.php
+checkpoints/
+private-assets/
+email/
+__pycache__/
+.DS_Store

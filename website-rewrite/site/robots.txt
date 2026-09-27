@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /manage/
+Disallow: /api/
+Disallow: /message-received.php
+Sitemap: https://mweinmedical.co.ke/sitemap.php

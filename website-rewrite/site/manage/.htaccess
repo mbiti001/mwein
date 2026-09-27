@@ -1,0 +1,5 @@
+# Private admin URLs and password-reset links must not appear in Referer headers.
+# Apache's root-level "always" header overrides PHP, so enforce this here too.
+<IfModule mod_headers.c>
+  Header always set Referrer-Policy "no-referrer"
+</IfModule>

@@ -1,0 +1,3 @@
+<?php
+require __DIR__.'/api/content.php';header('X-Robots-Tag: noindex, nofollow');
+public_content('Feedback submission','<section class="wrap page-head"><p class="eyebrow">THANK YOU FOR SHARING</p><h1>Submitted for review.</h1><p class="lead">After a successful submission, feedback waits for moderation before appearing publicly. It is not an appointment or a request for clinical care.</p><p>We welcome positive and critical feedback. We check submissions for private information, spam and abuse.</p><div class="actions"><a class="button" href="/reviews.php">View visitor reviews</a><a href="/blog.php">Back to the blog</a></div></section>',config()['origin'].'/feedback-received.php');

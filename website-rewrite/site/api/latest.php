@@ -1,0 +1,3 @@
+<?php
+require __DIR__.'/content.php';content_tables();header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store');
+$out=[];foreach(rows(run("SELECT id,published FROM posts WHERE published IS NOT NULL AND published!='' ORDER BY published_at DESC,id DESC LIMIT 3")) as $r){$p=json_decode($r['published'],true);$mid=post_images($p)[0]??0;$m=$mid?(rows(run('SELECT alt FROM media WHERE id=?',[$mid]))[0]??null):null;$out[]=['title'=>$p['title'],'summary'=>$p['summary'],'url'=>'/blog.php?id='.(int)$r['id'],'image'=>$m?'/media.php?id='.(int)$mid:null,'alt'=>$m['alt']??''];}echo json_encode($out);
