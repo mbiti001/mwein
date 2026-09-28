@@ -34,7 +34,7 @@
   panel.setAttribute('aria-labelledby', 'cookie-title');
   const heading = document.createElement('h2'); heading.id = 'cookie-title'; heading.textContent = 'Your cookie choices';
   const description = document.createElement('p');
-  description.textContent = 'Necessary storage supports security and remembers your choice. Optional analytics cookies help us understand website use. Accept all to allow analytics, or choose Reject optional or Necessary only to keep it off.';
+  description.textContent = 'Necessary storage keeps the site secure and remembers your choice. Optional analytics runs only if you accept all.';
   const status = document.createElement('p'); status.className = 'cookie-status'; status.setAttribute('role', 'status');
   const actions = document.createElement('div'); actions.className = 'cookie-actions';
   const settings = document.createElement('button'); settings.type = 'button'; settings.className = 'cookie-settings';
