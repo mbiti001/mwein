@@ -1,0 +1,27 @@
+Collected UTC: 2026-09-24T21:52:54.665594+00:00
+Exit: 0
+
+Vercel CLI 59.11.7 (Node.js 24.14.0)
+> Found Project mbitis-projects/mwein-hmis-platform [461ms]
+
+  General
+
+    ID				prj_dhuD47K8aNRoAteqQnSK3mu9j4DS
+    Name			mwein-hmis-platform
+    Owner			mbiti's projects
+    Created At			29 August 2026 22:56:41 [26d ago]
+    Root Directory		platform
+    Node.js Version		24.x
+
+  Framework Settings
+
+    Framework Preset		Next.js
+    Build Command		`npm run build` or `next build`
+    Output Directory		Next.js default
+    Install Command		`yarn install`, `pnpm install`, `npm install`, or `bun install`
+
+  Sandbox
+
+    Region			iad1
+    Failover Regions		None
+

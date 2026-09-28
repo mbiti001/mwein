@@ -1,0 +1,36 @@
+{
+  "collectedAt": "2026-09-24T21:52:59.422897+00:00",
+  "scope": "Read-only provider metadata, public TLS/probes and attached external physical disk inventory. No database content or secrets collected.",
+  "files": [
+    {
+      "file": "README.md",
+      "sha256": "7c68e2651c788cfe6a40ea738ca8e13ba9fd7a66a89353bf7d9e06f244ceb167"
+    },
+    {
+      "file": "external-disks.txt",
+      "sha256": "162e4878c58f470e022104aedb7f92506dfe254913075bd046a016fc022e57ac"
+    },
+    {
+      "file": "public-probes.json",
+      "sha256": "5850e6af2726adfd6a8a94512bcab0592ec766301d879c7ace090b01a00e6276"
+    },
+    {
+      "file": "vercel-live-deployment.txt",
+      "sha256": "1aad610328da8a082bf18843e495033dc451cc1e18470d19f82815b509975791"
+    },
+    {
+      "file": "vercel-project.txt",
+      "sha256": "4dda56fb24a7d1e0dad895fbe4573b9ce4c6fbdb103a7b836ba833f55154d0a8"
+    }
+  ],
+  "testedSourceFiles": [
+    {
+      "file": "platform/scripts/backup-postgres.mjs",
+      "sha256": "18f9aebf9099991aba915c743a931cb08618d15bf1729795dce175c5e132f481"
+    },
+    {
+      "file": "platform/scripts/backup-postgres.test.mjs",
+      "sha256": "637703b34b6c498c5019e65386b986f3b9fbff5f15afa1d42643bf10cb61a5cd"
+    }
+  ]
+}

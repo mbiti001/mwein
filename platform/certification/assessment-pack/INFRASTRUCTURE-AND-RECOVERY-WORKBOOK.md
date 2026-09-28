@@ -1,36 +1,74 @@
-# Infrastructure, recovery and incident evidence workbook
+# Infrastructure, SSD recovery and incident evidence workbook
 
-Accountable operations owner: Edwin Mbiti Chavulimu. Technical operator/independent reviewer to be named for each exercise. No production backup, restore, configuration change or incident rehearsal was performed by preparing this workbook.
+Version 2, 25 September 2026. Accountable owner: Edwin Mbiti Chavulimu. Owner identifies Charles as the backup SSD custodian and says it is kept away from the computer. Exact private location, separate-site status, drive identity/capacity, encryption, key recovery and current backup contents are unverified. This is an execution-ready review workbook; no production backup, restore, device formatting or incident rehearsal was performed by preparing it.
 
-## Project-specific collection sheet
+## Evidence collection and acceptance
 
-| Control | Known baseline | Required evidence / collection |
-|---|---|---|
-| Application deployment | Vercel project mwein-hmis-platform; deployment in release manifest | Authorized project export showing runtime region, deployment access and approved domains |
-| Database | Neon PostgreSQL; 43 deployed migrations | Authorized project/branch region, TLS enforcement, encryption and role/access evidence |
-| Recovery point | pre-unified-release-20260922 provider branch recorded | Current retention/expiry check; independent backup and restore evidence still required |
-| Key/secret custody | Server-side secrets used; no values included here | Named custodians, rotation/access procedure, least privilege and access review evidence |
-| Audit retention | Export and verification tools exist | Immutable target policy, custody receipt, integrity output, approved retention |
-| Monitoring | Health/readiness endpoints exist | Configured checks, alert routing, test alert and acknowledgement; status probe alone is not monitoring |
-| Residency/processing | Providers known, actual regions not evidenced in pack | Region configuration + contractual processing/subprocessor/transfer evidence |
+Use internal OP identifiers below; these are not official DHA clause IDs. Each artifact must include collection date, source/release, operator, reviewer, protected location, SHA-256, limitations and decision. Redact secrets and patient content before adding metadata to Git. Keep originals, contracts, access exports and drill outputs in the approved private store; its location is not yet supplied.
 
-## Recovery drill run card
+| ID / control | Verified or owner-reported baseline | Required artifact and pass condition | Owner / status |
+|---|---|---|---|
+| OP01 Release | Public source 1d1e5ea; migration 20260924130000_workforce_mfa, 47 migrations; health 200 and ready 503 at last verification | [Deployment record](../DEPLOYMENT-20260925.md); match current health to approved source/migration before each drill | Release / engineering evidence available |
+| OP02 Hosting and transfers | Vercel application, Neon database; prior function inspection iad1 | Project-specific regions, provider terms/subprocessors, access/MFA exports and DPO transfer assessment; identify all processing locations | Operations + DPO / incomplete |
+| OP03 Encryption and TLS | Public HTTPS connection observed; no cloud encryption/key record in pack | Provider/database/backup encryption standard, configured TLS validation, key responsibility, authorized custodians and recovery test; never attach keys | Operations / incomplete |
+| OP04 SSD backup custody | SSD chosen; Charles; away from computer (owner report) | Drive asset ID, encryption status without password, restricted location record, separate-site disposition, handover log and controlled key-recovery evidence | Charles / partial owner statement |
+| OP05 Independent backup | Dump/checksum tooling exists; prior provider branch is within provider boundary | Successful protected backup, checksum, encrypted SSD transfer/read-back verification, independent second-location copy and custody receipt | Operations / not evidenced |
+| OP06 Restore | Guarded disposable restore tooling implemented | Independently approved distinct target, measured restore, integrity/reconciliation checks and cleanup; meet approved RPO/RTO | Operator + separate reviewer / not run |
+| OP07 Audit | 68-route source-bound inventory with zero gaps at release; export verifier exists | Authenticated export, independently verified digest/chain, enforced immutable target and receipt/access policy | Compliance / external evidence absent |
+| OP08 Monitoring | Public health/readiness probes exist | External monitor configuration, recipients, test failure/alert, acknowledgement and response times; readiness blocked is an existing baseline | Operations / not evidenced |
+| OP09 Workforce security | MFA implemented and required in release | Individual enrollment, joiner/mover/leaver and lost-factor recovery records; separate recovery administrators; access review | Identity owner / witnessed evidence pending |
+| OP10 Incident/downtime | Procedures and operations evidence register exist | Named contacts, synthetic rehearsal, notification assessment and clinical/finance reconciliation; independent verification | Facility lead + DPO / not run |
 
-Before execution, name controller, operator, observer and incident lead; approve recovery point objective (RPO) and recovery time objective (RTO). Record dataset scope, backup timestamp/size/hash, encrypted off-provider location, restricted key custody and a disposable restore target demonstrably distinct from production. Secret URLs must not enter this workbook or terminal artifacts.
+## SSD operating procedure proposed for adoption
 
-Use the reviewed backup tooling with authorized access; transfer the resulting backup into the approved protected store. Restore into the approved disposable database using OPERATIONS.md. Verify migration head, facility boundaries, record counts, signed clinical content, sample order/result/prescription/payment relationships and audit integrity. Record restore start/end, recovered point, comparison results, limitations and measured RPO/RTO. Run a synthetic read/write smoke check. Record cleanup and access revocation after preserving evidence.
+1. Charles records the device asset ID, capacity and private custody location. Confirm encryption with the device disconnected/reconnected and require authorized unlock. Keep evidence of the encryption configuration; do not record its password in this pack. Formatting or encryption conversion needs a device-specific plan that preserves existing contents.
+2. Store keys/recovery material separately with approved restricted access and an authorized deputy. Demonstrate recovery of access without exposing the key. A password-protected folder is not evidence of full backup encryption.
+3. Use an approved protected operator workstation and the existing `ops:backup` process. A PostgreSQL dump is not itself encrypted. Place `BACKUP_DIR` on an approved encrypted volume so plaintext staging does not land in Downloads or a synced folder. Record release/migration, backup timestamp, size and SHA-256; no connection strings in logs.
+4. Copy the dump and checksum into the approved encrypted SSD location, read back and compare the digest, then record the custody receipt. Verification of a copied file does not prove that it can be restored.
+5. Safely unmount and disconnect after use. Charles stores it away from the computer as instructed. Confirm whether that location also protects against the same fire/theft/flood event; 'away from computer' is not evidence of a separate site. Arrange a second protected copy/location and rotation to avoid a single lost/failed SSD eliminating recovery.
+6. Follow the record-class retention/hold schedule based on applicable MOH guidance and Kenyan law. Backup rotation must preserve approved recovery points and must not become indefinite patient-data retention. Log sanitization/retirement and verify the supported SSD secure-erasure method before disposal.
+7. Review daily backup completion/failure evidence and escalate missing runs. Existing operations guidance proposes at least daily backups; this cadence does not establish an approved recovery objective. Test restore quarterly and after material provider changes as specified in OPERATIONS.md; retain actual outcomes.
 
-The existing restore script compares connection strings for equality; differently formatted URLs can still refer to the same database. The operator must independently verify target host/project/branch/database identity before any destructive restore. No restore should start until this concrete target evidence exists.
+No drive or path has been selected for commands in this task. No production database was dumped and no data was moved onto a device.
 
-Results: not run. Backup location: pending. Target: pending. RPO/RTO: not approved. Independent observer: pending.
+## Recovery objectives and approval record
 
-## Downtime and incident rehearsal script
+RPO is maximum acceptable data loss measured in time; RTO is maximum acceptable time to restore the service to the agreed usable state. Edwin and the clinical/operations reviewers must agree both, including whether the scenario is database loss, application outage or site loss. Record outage start, backup recovered-point timestamp, restoration start, integrity-check finish and clinical release time. Calculate observed data-loss interval from outage/reference time to recovered point, and recovery duration from the agreed incident start to verified service availability. Clock source/timezone: UTC plus local display.
 
-Simulate application unavailability using a synthetic scenario. Facility lead declares downtime and notifies named responders. Staff use approved controlled paper/temporary records and preserve identity/visit linkage. On recovery, authorized staff reconcile each record once, verify results/medicines/payments and record unresolved discrepancies. Finance checks for duplicate collections. Clinical lead confirms outstanding care and follow-up. Retain declaration/recovery times and reconciliation evidence.
+| Field | Current value |
+|---|---|
+| Approved RPO / RTO and scenario | Pending; no target inferred from backup frequency |
+| Operator / independent observer | Pending; Charles is identified as SSD custodian only |
+| Backup ID, time, digest, encrypted custody | Pending actual backup |
+| Disposable target identity / expiry / authorization | Pending; must be independently distinct from production |
+| Exercise date / patient-data authorization | Pending; synthetic dataset preferred for rehearsal |
+| Restore result / observed RPO / observed RTO | Not run |
+| Clinical/finance acceptance / cleanup receipt | Not recorded |
 
-For a suspected confidentiality/integrity incident, preserve evidence, restrict affected access through authorized operators, identify records/people affected and escalate to the DPO and incident lead. The DPO determines applicable notification obligations/timelines from current law and approved policy. Do not send patient data in ordinary support channels. Contacts, notification decision and rehearsal outcomes remain pending.
+## Witnessed restore run card
 
+Use [the verified disposable restore plan](../../OPERATIONS.md#verified-disposable-restore-plan). It requires a private approval file with reviewer/reference/expiry, source and target identity hashes, distinct verified PostgreSQL system identifiers and approved backup hash. The runner rejects equivalent/pooler identities, unsupported overrides, expired/mismatched approvals, checksum mismatch and identical system identifiers. A cloned provider branch may share a system identifier and be rejected; arrange a genuinely separate disposable system instead of weakening the guard.
 
-## Read-only evidence collected
+Before running, the operator and reviewer inspect target provider/project/database identity, network access, isolation, storage and lifecycle. Do not put production credentials in a preview app. Record the backup chain/custody, verify checksum after retrieving from the SSD, and confirm `psql`/`pg_restore` prerequisites. Populate secrets only in the protected operator environment; execute the existing `npm run ops:restore-drill` with the reviewed plan. This document does not manufacture an approval file or authorize destructive restoration to an unknown target.
 
-On 22 September 2026, Vercel CLI deployment inspection reported Ready and `iad1` on listed functions. The public health response matched the exact documented commit/migration at 16:26 UTC; readiness remained blocked. Outputs are retained under [technical evidence](technical-evidence-20260922/manifest.json). These observations do not establish database region, all processing locations, encryption/key controls or independent recovery. The Vercel connector had incompatible argument schemas; the existing authenticated CLI provided the deployment metadata instead.
+Acceptance checks: migration head; facility boundaries; expected table/record counts; signed record integrity; representative orders/results/dispensing/payment links; audit chain; expected user restrictions; synthetic application read/write. Reapply restriction/deletion/hold decisions as required before any operational use. Record every discrepancy, disposition and observer signature. A command exit code alone is not acceptance. Destroy the disposable target and revoke temporary access after preserving protected evidence. If a check fails, preserve diagnostics safely and keep the exercise failed until a separately recorded successful rerun.
+
+## Downtime and incident rehearsal
+
+Use synthetic events: application outage during an unsigned clinical save; lost SSD; suspected staff-account compromise; failed backup/audit export. Record detection time, person reporting, incident lead and DPO notification time. Preserve evidence and contain affected access through an authorized operator. Do not send patient data or secrets through ordinary support channels.
+
+For downtime, the clinical lead declares the approved temporary workflow. Assign unique temporary patient/visit references; record medicine/results/payment actions and responsible staff. On recovery, reconcile each entry once against existing domain/audit records; confirm identity, outstanding orders, medicine quantities and payments. Finance checks duplicate collections; clinical lead resolves outstanding care/follow-up. Record discrepancies and restoration acceptance before closing the incident.
+
+The DPO determines controller/processor role, affected people/data, harm, applicable Kenyan reporting duties and timing, and records the decision and communication evidence. Contacts, legal notification assessment and duty-specific deadlines belong in the controlled incident plan. An SSD-loss exercise must assess encryption and key compromise, not assume encryption eliminates every reporting duty. This task sends no incident notification.
+
+## Blank evidence receipt
+
+Artifact ID / title / version: pending. Source and release: pending. Operator / collected-at UTC: pending. Protected URI / SHA-256: pending. Redaction/limitations: pending. Reviewer / review date / decision: pending. Follow-up owner/date: pending. For SSD handover add drive asset ID, encrypted container/backup ID, from/to custodians, timestamp and receipt; omit keys and patient identifiers.
+
+## Completion order
+
+First obtain SSD encryption and key-custody evidence, exact private location and separate-site decision; agree RPO/RTO and the operator/observer. In parallel collect provider, TLS/encryption and executed contract records. Then make and verify the approved encrypted backup and run the witnessed isolated restore. Complete monitoring and incident/downtime rehearsals. Retain evidence and approvals against the actual governance gates; do not mark them approved because this workbook exists.
+
+## Follow-up operations evidence
+
+[25 September hosting/TLS evidence and backup preparation](technical-evidence-20260925-operations/README.md) records the newer public release `83fdd61` (documentation-only difference), provider inspection, verified public TLS, unavailable external SSD/toolchain and tested backup credential protection. Physical backup/restore and DPO approval remain pending.
