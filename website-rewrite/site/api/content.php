@@ -78,6 +78,7 @@ function public_content(string $title,string $body,string $url,string $descripti
     }
     $shell=str_replace('aria-current="page" ','',$shell);
     if(str_contains($url,'/blog.php'))$shell=str_replace('href="blog.php">Blog','aria-current="page" href="blog.php">Blog',$shell);
+    $shell=preg_replace('~(href|src)="(?![a-z]+:|/|#|\?)([^"]+)"~i','$1="/$2"',$shell);
     echo $shell;
 }
 function serve_image(array $m): never {

@@ -33,7 +33,10 @@
         const dateLabel = document.querySelector('.care-impact time');
         dateLabel.dateTime = data.recorded_on;
         dateLabel.textContent = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(date);
-      } catch {} // Keep the explicitly dated snapshot; never invent a newer total.
+      } catch {
+        const note=document.querySelector('.impact-note');
+        if(note)note.textContent='The latest totals could not be loaded. Showing the confirmed snapshot dated above. Please try again later.';
+      }
     }
     if ('IntersectionObserver' in window && !reduce.matches) {
       const observer = new IntersectionObserver(entries => {
@@ -50,11 +53,4 @@
       ? `${data.average.toFixed(1)} / 5 from ${data.count} published ${data.count === 1 ? 'review' : 'reviews'}`
       : 'No ratings yet. Share your experience of visiting Mwein.';
   }).catch(() => {});
-  for (const form of document.querySelectorAll('.feedback-form')) {
-    const button = form.querySelector('button[type="submit"]');
-    const status = form.querySelector('.feedback-submit-status');
-    if (!button || !status) continue;
-    form.addEventListener('submit', () => { button.disabled = true; status.textContent = 'Sending your feedback…'; });
-    window.addEventListener('pageshow', () => { button.disabled = false; status.textContent = ''; });
-  }
 })();

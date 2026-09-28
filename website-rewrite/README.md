@@ -26,6 +26,7 @@ From the repository root:
 PHP_BIN=/path/to/php python3 website-rewrite/tests/backend_test.py
 php website-rewrite/tests/jpeg_metadata_test.php
 node website-rewrite/tests/cookie_choices_test.cjs
+node website-rewrite/tests/interaction_states_test.cjs
 ```
 
 Backend tests create temporary data, credentials and a local HTTP server; they do not submit production feedback. The release passed 26 backend test groups, 185 internal-link/anchor checks and live mobile navigation, ratings and comment-form checks. The seven final HTML pages were verified byte-for-byte after publication on 27 September 2026.
@@ -43,3 +44,5 @@ Cookie controls offer Accept all, Reject optional and Necessary only. Analytics 
 Sign in at `/manage/` and choose **Confirmed care totals**. Enter patients registered, encounters recorded, the date covered by those records, and a private source/correction note. Confirm that the figures were checked, then publish. Corrections can increase or decrease totals. The private append-only history keeps the previous figures, reporting dates, save times, notes and admin account; a version check rejects stale saves.
 
 The homepage reads only totals and the reporting date from `/api/care-summary.php`. No scheduled increments or estimates are used. If JavaScript or the endpoint is unavailable, it retains the explicitly dated 27 September 2026 snapshot in the HTML. Private history is included in existing SQLite backups. The initial production figures stay at 6,255 and 13,557 until an administrator publishes newly confirmed records.
+
+See `UX-REVIEW-20260928.md` for the interaction audit, verified workflows and performance measurements. Shared interaction styles live in `assets/experience.css`; directional SVG icons are original Mwein assets in `assets/icons.svg`.

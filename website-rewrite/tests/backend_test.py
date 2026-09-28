@@ -44,7 +44,7 @@ class WebsiteTests(unittest.TestCase):
         code, text, headers=self.req('/manage/login.php', {'csrf':csrf,'email':'admin@example.test','password':self.password})
         self.assertEqual(code,303,text)
         return self.req('/manage/')[1]
-    def payload(self): return {'name':'Test visitor','contact':'visitor@example.test','category':'General enquiry','message':'Please explain your opening hours.','consent':'yes','website':''}
+    def payload(self): return {'request_key':__import__('uuid').uuid4().hex,'name':'Test visitor','contact':'visitor@example.test','category':'General enquiry','message':'Please explain your opening hours.','consent':'yes','website':''}
     def test_unique_sessions_consent_and_privacy(self):
         self.assertEqual(self.req('/api/visit.php',{'path':'/'})[0],204)
         self.assertNotIn('mwein_visitor',str(self.req('/api/visit.php',{'path':'/'})[2]))
@@ -484,5 +484,22 @@ class WebsiteTests(unittest.TestCase):
         self.assertEqual(self.store.execute('SELECT COUNT(*) FROM care_totals_history').fetchone()[0],3)
         public=json.loads(self.req('/api/care-summary.php')[1]);self.assertNotIn('note',public);self.assertNotIn('actor',public)
         self.assertEqual(self.req('/api/care-summary.php',{})[0],405)
+
+    def test_enquiry_retries_and_preserved_errors(self):
+        payload=self.payload()
+        before=self.store.execute('SELECT COUNT(*) FROM messages').fetchone()[0]
+        first=self.req('/api/message.php',payload)
+        replay=self.req('/api/message.php',payload)
+        self.assertEqual(first[0],303); self.assertEqual(replay[2]['Location'],first[2]['Location'])
+        self.assertEqual(self.store.execute('SELECT COUNT(*) FROM messages').fetchone()[0],before+1)
+        self.assertEqual(self.req('/api/message.php',payload|{'message':'Changed message on same request key'})[0],409)
+        bad=self.payload()|{'contact':'not-an-email','message':'A <script>private</script> message'}
+        code,body,_=self.req('/api/message.php',bad)
+        self.assertEqual(code,422);self.assertIn('value="not-an-email"',body);self.assertIn('aria-invalid="true"',body)
+        self.assertIn('A &lt;script&gt;private&lt;/script&gt; message',body);self.assertNotIn('<script>private</script>',body)
+        self.assertIn('action="/api/message.php"',body);self.assertIn('href="/assets/experience.css',body)
+        nojs=self.payload();nojs.pop('request_key');nojs['message']='No JavaScript fallback retry test.'
+        first=self.req('/api/message.php',nojs);second=self.req('/api/message.php',nojs)
+        self.assertEqual(first[0],303);self.assertEqual(second[2]['Location'],first[2]['Location'])
 
 if __name__=='__main__': unittest.main(verbosity=2)
