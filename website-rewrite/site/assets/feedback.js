@@ -14,13 +14,35 @@
     }
     requestAnimationFrame(tick);
   }
-  // Exact values are present in HTML for no-JS, reduced-motion and screen-reader use.
-  if ('IntersectionObserver' in window && !reduce.matches) {
-    const observer = new IntersectionObserver(entries => {
-      for (const entry of entries) if (entry.isIntersecting) { observer.unobserve(entry.target); animate(entry.target); }
-    }, { threshold: .5 });
-    counters.forEach(node => observer.observe(node));
+  async function initialiseCounters() {
+    // A dated static snapshot remains usable when JavaScript or the API is unavailable.
+    if (counters.length) {
+      try {
+        const response = await fetch('/api/care-summary.php', { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+        if (!response.ok) throw new Error();
+        const data = await response.json();
+        if (!['patients', 'encounters'].every(key => Number.isInteger(data[key]) && data[key] >= 0 && data[key] <= 1000000000) || !/^\d{4}-\d{2}-\d{2}$/.test(data.recorded_on)) throw new Error();
+        const date = new Date(data.recorded_on + 'T12:00:00Z');
+        if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== data.recorded_on) throw new Error();
+        for (const node of counters) {
+          const total = data[node.dataset.careKind];
+          node.dataset.careCount = String(total);
+          node.textContent = total.toLocaleString('en-KE');
+          node.parentElement.querySelector('.impact-exact').textContent = node.textContent;
+        }
+        const dateLabel = document.querySelector('.care-impact time');
+        dateLabel.dateTime = data.recorded_on;
+        dateLabel.textContent = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(date);
+      } catch {} // Keep the explicitly dated snapshot; never invent a newer total.
+    }
+    if ('IntersectionObserver' in window && !reduce.matches) {
+      const observer = new IntersectionObserver(entries => {
+        for (const entry of entries) if (entry.isIntersecting) { observer.unobserve(entry.target); animate(entry.target); }
+      }, { threshold: .5 });
+      counters.forEach(node => observer.observe(node));
+    }
   }
+  initialiseCounters();
   const summary = document.querySelector('[data-review-summary]');
   if (summary) fetch('/api/review-summary.php').then(r => { if (!r.ok) throw new Error(); return r.json(); }).then(data => {
     if (!Number.isInteger(data.count) || data.count < 0) return;

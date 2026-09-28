@@ -37,3 +37,9 @@ Back up the public root and private data before replacing files. Publish the con
 This Git snapshot contains website source and approved public assets. Local release archives, private assets, correspondence and database backups are intentionally excluded. Blog content, uploaded media, messages and ratings are runtime data and require separate protected backups. Git does not replace those backups.
 
 Cookie controls offer Accept all, Reject optional and Necessary only. Analytics starts only after consent. Choices last 90 days and can be changed through Cookie settings in the footer; browser privacy signals override analytics consent. The consent checks cover defaults, persistence, expiry, withdrawal and request ordering.
+
+## Confirmed totals editor
+
+Sign in at `/manage/` and choose **Confirmed care totals**. Enter patients registered, encounters recorded, the date covered by those records, and a private source/correction note. Confirm that the figures were checked, then publish. Corrections can increase or decrease totals. The private append-only history keeps the previous figures, reporting dates, save times, notes and admin account; a version check rejects stale saves.
+
+The homepage reads only totals and the reporting date from `/api/care-summary.php`. No scheduled increments or estimates are used. If JavaScript or the endpoint is unavailable, it retains the explicitly dated 27 September 2026 snapshot in the HTML. Private history is included in existing SQLite backups. The initial production figures stay at 6,255 and 13,557 until an administrator publishes newly confirmed records.

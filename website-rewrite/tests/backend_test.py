@@ -460,4 +460,29 @@ class WebsiteTests(unittest.TestCase):
         self.assertEqual(self.req('/feedback-submit.php',self.feedback_payload())[0],429)
         self.store.execute('DELETE FROM posts WHERE id=?',(pid,));self.store.commit()
 
+    def test_confirmed_care_totals(self):
+        import json
+        code,body,_=self.req('/api/care-summary.php')
+        self.assertEqual(code,200)
+        self.assertEqual(json.loads(body),{'patients':6255,'encounters':13557,'recorded_on':'2026-09-27'})
+        self.assertEqual(self.req('/manage/care-totals.php')[0],303)
+        self.login()
+        code,html,_=self.req('/manage/care-totals.php'); self.assertEqual(code,200)
+        csrf=re.search('name="csrf" value="([a-f0-9]+)"',html)[1]
+        payload={'csrf':csrf,'version':'1','patients':'6300','encounters':'13600','recorded_on':'2026-09-27','note':'Checked synthetic records <script>alert(1)</script>','confirmed':'yes'}
+        self.assertEqual(self.req('/manage/care-totals.php',{**payload,'csrf':'bad'})[0],403)
+        for extra in [{'patients':'-1'},{'patients':'1.5'},{'encounters':'1000000001'},{'recorded_on':'2099-01-01'},{'recorded_on':'2026-02-30'},{'confirmed':''},{'note':'no'}]:
+            self.assertEqual(self.req('/manage/care-totals.php',{**payload,**extra})[0],422,extra)
+        self.assertEqual(self.req('/manage/care-totals.php',payload)[0],303)
+        self.assertEqual(json.loads(self.req('/api/care-summary.php')[1]),{'patients':6300,'encounters':13600,'recorded_on':'2026-09-27'})
+        self.assertEqual(self.req('/manage/care-totals.php',payload)[0],409)
+        html=self.req('/manage/care-totals.php')[1]
+        self.assertNotIn('<script>alert(1)</script>',html);self.assertIn('&lt;script&gt;',html)
+        self.assertIn('6,255',html);self.assertIn('6,300',html)
+        # Legitimate downward corrections remain possible; the previous entry is retained.
+        self.assertEqual(self.req('/manage/care-totals.php',{**payload,'version':'2','patients':'6255','encounters':'13557','note':'Corrected synthetic double-count'})[0],303)
+        self.assertEqual(self.store.execute('SELECT COUNT(*) FROM care_totals_history').fetchone()[0],3)
+        public=json.loads(self.req('/api/care-summary.php')[1]);self.assertNotIn('note',public);self.assertNotIn('actor',public)
+        self.assertEqual(self.req('/api/care-summary.php',{})[0],405)
+
 if __name__=='__main__': unittest.main(verbosity=2)
