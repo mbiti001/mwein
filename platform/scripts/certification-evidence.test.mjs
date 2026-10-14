@@ -23,7 +23,8 @@ function fixture() {
   return { repo, git, write, commit: git("rev-parse", "HEAD") };
 }
 describe("committed release evidence", () => {
-  it("hashes exact committed bytes and inventories committed SQL", () => {
+  // This integration check launches Git repeatedly; Windows process startup can exceed 5 seconds.
+  it("hashes exact committed bytes and inventories committed SQL", { timeout: 15_000 }, () => {
     const { repo, git, commit } = fixture(); const result = collectEvidence({ repo });
     expect(result.commit).toBe(commit); expect(result.migrationCount).toBe(2); expect(result.latestMigration).toBe("002_next");
     expect(result.source.selection).toBe("CLEAN_HEAD"); expect(result.runtimeVerification.status).toBe("NOT_PERFORMED");

@@ -66,7 +66,15 @@ export default function SupplyDocuments() {
         await Promise.all(Array.from(document.querySelectorAll<HTMLImageElement>("#supply-document-print img")).map(img => img.decode()));
         if (ticket !== generation.current) return;
         document.body.classList.add("printingSupplyDocument");
-        window.print();
+        const previousTitle = document.title;
+        const printTitle = `${result.document.reference} - ${result.document.kind === "GOODS_RECEIPT" ? "Goods receipt note" : "Purchase order"}`;
+        try {
+          // Browsers use the page title for the PDF filename and printed header.
+          document.title = printTitle;
+          window.print();
+        } finally {
+          if (document.title === printTitle) document.title = previousTitle;
+        }
       }
     } catch (e) { if (ticket === generation.current) setError((e as Error).message || "Document could not be prepared. Please retry."); }
     finally { preparing.current = false; document.body.classList.remove("printingSupplyDocument"); if (ticket === generation.current) { setPrinting(null); setBusy(false); } }

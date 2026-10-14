@@ -36,7 +36,7 @@ Acceptance:
 
 ## Next delivery candidates
 
-1. Complete staff UAT of printed supplier receipt and order evidence, including native printer/PDF output.
+1. Complete staff UAT of printed supplier receipt and order evidence on the facility's physical printers and with representative large orders.
 2. Validate cashier reconciliation and refund journeys with finance staff.
 3. Specify inpatient ward/bed state transitions and permissions before extending admission.
 4. Agree programme templates and reporting definitions with clinical owners.
@@ -66,4 +66,13 @@ Verification for this delivery:
 - All 419 unit/API tests passed across 89 files, including audited document access, facility scoping, current cancellation evidence, list bounds and decimal valuation.
 - Production build and TypeScript passed; all 50 migrations passed in an isolated database.
 - The production-mode outpatient runner passed 122 checks. New coverage includes partial/multi-line receipts, independent approval, replay conflicts, failed-retention transaction rollback, original receipt preservation after metadata correction, database immutability, stock/accounting reconciliation and cross-facility print denial.
-- Interactive browser verification covers the document register, type/status/reference filters, empty results, previews, branding, cancellation warnings, completed order quantities and approval details. Refresh clears the preview; a simulated connection failure removes stale results and shows an error. The print action was exercised, but the embedded browser's native print dialog could not be inspected; saved PDF and physical printer output remain a staff UAT check. No production database was used or migrated.
+- Interactive browser verification covers the document register, type/status/reference filters, empty results, previews, branding, cancellation warnings, completed order quantities and approval details. Refresh clears the preview; a simulated connection failure removes stale results and shows an error. No production database was used or migrated.
+
+Normal-browser PDF verification (15 October 2026):
+
+- Chrome 155 on Windows saved both documents through its native **Print / Save PDF** dialog. The two-line received purchase order and original one-line goods receipt each produced one clean Letter portrait page, with the browser's existing headers/footers enabled. Both saved PDFs were rendered and visually inspected: logo, references, quantities, currency values, approval/receipt actors and footer text were legible, with no clipping or application navigation in the output.
+- The received order total was KES 10.10, including the rounded fractional line. The original receipt retained Synthetic Medical Supplies, batch DOC-DELIVERY-1, expiry 2028-10-13, Main pharmacy, quantity 1 and total KES 3.35 after later metadata corrections.
+- Fixed the generic suggested PDF filename and metadata title: each now includes the document reference and type. Chrome's native save dialogs and saved metadata confirmed both titles. The original app title and enabled controls return after saving or cancelling printing.
+- The cancelled purchase order's native print preview showed **CANCELLED — DO NOT SUPPLY**, the cancellation reason and actor without clipping. No browser console errors or warnings were recorded during these checks.
+- The production build and all 122 isolated workflow checks passed again. All 419 tests passed after giving the Git-process-heavy committed-evidence hash test a 15-second timeout; its assertions are unchanged. It had exceeded the default five seconds twice on Windows.
+- Physical printers, other browsers, other paper settings and large multi-page orders remain staff UAT coverage.
