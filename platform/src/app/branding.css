@@ -16,7 +16,25 @@
 .clinicFormFields h2 { font-size: 13px; font-weight: 600; margin: 0 0 15px; }
 .writingLine { min-height: 24px; border-bottom: 1px solid #7c9396; }
 .clinicFormSignatures { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; margin-top: 38px; font-size: 13px; }
-#clinic-form-print { display: none; }
+#clinic-form-print, #supply-document-print { display: none; }
+.supplyDocumentTableWrap { overflow-x: auto; }
+.supplyDocumentList { max-height: 340px; overflow-y: auto; }
+.supplyDocumentList button[aria-pressed="true"] { border-color: #187c6d; background: #e8f4f0; }
+.supplyDocumentMeta { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 20px 0; }
+.supplyDocumentMeta h2 { margin-top: 0; font-size: 16px; }
+.supplyDocumentMeta p { margin: 8px 0; overflow-wrap: anywhere; }
+@media screen and (max-width: 650px) { .supplyDocumentMeta { grid-template-columns: 1fr; gap: 16px; } }
+.supplyDocumentTotal { text-align: right; }
+.supplyDocumentPaper .documentSignature { display: grid; gap: 8px; }
+.supplyDocumentPaper td { overflow-wrap: anywhere; }
+@media print {
+  body.printingSupplyDocument > :not(#supply-document-print) { display: none !important; }
+  body.printingSupplyDocument #supply-document-print { display: block !important; }
+  #supply-document-print .supplyDocumentPaper { display: block; width: 100%; margin: 0; padding: 0; border: 0; }
+  #supply-document-print .supplyDocumentTableWrap { overflow: visible; }
+  #supply-document-print thead { display: table-header-group; }
+  #supply-document-print tr, #supply-document-print footer { break-inside: avoid; }
+}
 @media (max-width: 650px) { .publicNav .brandWordmark { width: 190px; } .publicNav .brandWithWordmark > div { display: none; } .clinicFormPaper { padding: 16px; } .clinicFormFields { grid-template-columns: 1fr; } }
 @media print {
   .facilityLetterheadIdentity { flex-direction: column; align-items: flex-start; }

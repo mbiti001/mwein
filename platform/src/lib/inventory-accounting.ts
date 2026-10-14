@@ -42,7 +42,8 @@ export function inventoryPosting(
   if (!Number.isFinite(signedQuantity)) throw new Error("Stock movement quantity must be valid");
   if (unitCost == null) return null;
   if (!Number.isFinite(unitCost) || unitCost < 0) throw new Error("Inventory unit cost must be valid");
-  const amount = Math.round(Math.abs(signedQuantity) * unitCost * 100) / 100;
+  // Match retained receipt values without binary floating-point rounding drift.
+  const amount = new Prisma.Decimal(signedQuantity).abs().mul(unitCost).toDecimalPlaces(2).toNumber();
   if (amount === 0) return null;
 
   if (movementType === "RECEIPT")

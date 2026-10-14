@@ -143,6 +143,7 @@ model Facility {
   suppliers               Supplier[]
   stores                  Store[]
   purchaseOrders          PurchaseOrder[]
+  goodsReceipts           GoodsReceipt[]
   stocktakes              Stocktake[]
   accountingJournals      AccountingJournal[]
   referrals               Referral[]
@@ -1266,6 +1267,7 @@ model PurchaseOrder {
   facility           Facility            @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   supplier           Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   lines              PurchaseOrderLine[]
+  goodsReceipts      GoodsReceipt[]
 
   @@unique([facilityId, orderNumber])
 }
@@ -1395,6 +1397,23 @@ model SupplyOperation {
   @@index([facilityId, action, createdAt])
 }
 
+model GoodsReceipt {
+  id              String        @id @default(uuid()) @db.Uuid
+  facilityId      String        @db.Uuid
+  purchaseOrderId String        @db.Uuid
+  movementId      String        @unique @db.Uuid
+  receiptNumber   String
+  requestHash     String        @db.Char(64)
+  receivedAt      DateTime      @default(now())
+  snapshot        Json
+  facility        Facility      @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  movement        StockMovement @relation(fields: [movementId], references: [id], onDelete: Restrict)
+
+  @@unique([facilityId, receiptNumber])
+  @@index([facilityId, receivedAt])
+}
+
 model StockMovement {
   id                      String         @id @default(uuid()) @db.Uuid
   batchId                 String         @db.Uuid
@@ -1416,6 +1435,7 @@ model StockMovement {
   dispensation            Dispensation?  @relation(fields: [dispensationId], references: [id])
   sourceStore             Store?         @relation("StockMovementSourceStore", fields: [sourceStoreId], references: [id], onDelete: SetNull)
   destinationStore        Store?         @relation("StockMovementDestinationStore", fields: [destinationStoreId], references: [id], onDelete: SetNull)
+  goodsReceipt            GoodsReceipt?
 
   @@index([batchId, occurredAt])
   @@index([sourceStoreId, occurredAt])

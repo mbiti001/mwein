@@ -22,6 +22,7 @@ for (const migration of migrations) {
 }
 
 const requiredTables = [
+  "GoodsReceipt",
   "PaymentRequest",
   "ClinicDocument",
   "MeasuredVitals",
@@ -69,11 +70,12 @@ const triggerResult = await db.query(
     'ReferralAcknowledgement_immutable',
     'AuditEvent_immutable',
     'MedicationSafetyAssessment_immutable',
-    'AncAdmissionEvidence_immutable'
+    'AncAdmissionEvidence_immutable',
+    'GoodsReceipt_immutable'
   ) ORDER BY tgname`,
 );
-if (triggerResult.rows.length !== 5)
-  throw new Error(`Expected 5 immutable clinical/audit-record triggers, found ${triggerResult.rows.length}`);
+if (triggerResult.rows.length !== 6)
+  throw new Error(`Expected 6 immutable record triggers, found ${triggerResult.rows.length}`);
 
 await db.exec(`
   INSERT INTO "Facility" ("id", "code", "name", "updatedAt")

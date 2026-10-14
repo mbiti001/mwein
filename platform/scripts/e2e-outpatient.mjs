@@ -1,5 +1,6 @@
 import { verifyMandatoryMfa } from "./e2e-mfa-enforcement.mjs";
 import { verifyPrivacy } from "./e2e-privacy.mjs";
+import { verifySupplyDocuments } from "./e2e-supply-documents.mjs";
 import { createHmac, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { readdir } from "node:fs/promises";
@@ -924,6 +925,8 @@ try {
   const deathState = (await pg.query(`SELECT v."status", (SELECT "status" FROM "ClinicalOrder" WHERE "id"=$2) AS "orderStatus", (SELECT COUNT(*)::int FROM "QueueEntry" WHERE "visitId"=v."id" AND "status" IN ('WAITING','CALLED','IN_PROGRESS')) AS "activeQueues" FROM "Visit" v WHERE v."id"=$1`, [deathId, unstartedOrder])).rows[0];
   assert(deathState.status === "DISCHARGED" && deathState.orderStatus === "CANCELLED" && deathState.activeQueues === 0, "Deceased patient remained in an ordinary care queue");
 
+  await verifySupplyDocuments({ pg, api, requestWithCookie, authenticate, sessionCookie, facility, medicine, storeId, otherFacilityId, assert, steps });
+
   const auditExport = await requestWithCookie("/api/admin/audit/export", sessionCookie);
   assert(auditExport.response.ok, `Audit export failed: ${JSON.stringify(auditExport.body)}`);
   assert(auditExport.body.chain.valid === true && Number(auditExport.body.chain.eventCount) > 0, "Audit export did not verify its serialized chain");
@@ -931,6 +934,8 @@ try {
   const accessEvents = auditExport.body.events.filter((event) => event.action === "CLINICAL_RECORDS_ACCESSED");
   assert(accessEvents.some((event) => JSON.parse(event.reason).context === "PATIENT_HISTORY"), "Patient history disclosure was missing from the retained audit chain");
   assert(accessEvents.some((event) => JSON.parse(event.reason).context === "VISIT_WORKLIST"), "Visit worklist disclosure was missing from the retained audit chain");
+  assert(auditExport.body.events.some(event => event.action === "SENSITIVE_DATA_ACCESSED" && event.reason === "OPERATIONS_READ:supply-document-print"), "Supply print requests were missing from the retained audit chain");
+  assert(auditExport.body.events.filter(event => event.action === "GOODS_RECEIPT_POSTED").length === 3, "Goods receipt posting evidence was missing or duplicated in the audit chain");
   assert(accessEvents.every((event) => event.userId && event.sessionId && event.facilityId === facility.id), "Read audit events omitted their actor/session/facility boundary");
   steps.push("verify clinical access events are retained with actor, session and facility");
   steps.push("verify facility audit chain and export digest");

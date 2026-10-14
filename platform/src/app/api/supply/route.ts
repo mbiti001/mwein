@@ -1,11 +1,13 @@
 import { auditedOperationalJson } from "@/lib/audited-json";
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
-import { appendAudit } from "@/lib/audit";
+import { appendAudit, auditValueFingerprint } from "@/lib/audit";
+import { supplyDocumentSchema } from "@/lib/supply-documents";
 import { canTransitionPurchaseOrder, countDisposition, isIndependentChecker } from "@/lib/supply-controls";
 import {
   assertStoresNotFrozen,
@@ -22,7 +24,7 @@ const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("SUBMIT_PURCHASE_ORDER"), purchaseOrderId: z.uuid() }),
   z.object({ action: z.literal("APPROVE_PURCHASE_ORDER"), purchaseOrderId: z.uuid() }),
   z.object({ action: z.literal("CANCEL_PURCHASE_ORDER"), purchaseOrderId: z.uuid(), reason: z.string().trim().min(5).max(240) }),
-  z.object({ action: z.literal("RECEIVE"), idempotencyKey: key, lineId: z.uuid(), storeId: z.uuid(), batchNumber: z.string().trim().min(1).max(80), expiryDate: z.coerce.date(), quantity: z.coerce.number().positive() }),
+  z.object({ action: z.literal("RECEIVE"), idempotencyKey: key, lineId: z.uuid(), storeId: z.uuid(), batchNumber: z.string().trim().min(1).max(80), expiryDate: z.coerce.date(), quantity: z.coerce.number().positive().multipleOf(0.001) }),
   z.object({ action: z.literal("CORRECT_BATCH_EXPIRY"), idempotencyKey: key, batchId: z.uuid(), expiryDate: z.coerce.date(), reason: z.string().trim().min(5).max(240) }),
   z.object({ action: z.literal("COUNT"), idempotencyKey: key, storeId: z.uuid(), batchId: z.uuid(), countedQuantity: z.coerce.number().nonnegative(), reason: z.string().trim().min(5).max(240) }),
   z.object({ action: z.literal("APPROVE_COUNT"), eventId: z.uuid() }),
@@ -115,7 +117,17 @@ export async function POST(request: Request) {
     const user = await requirePermission(permissions[input.action]);
     if ("idempotencyKey" in input) {
       const replay = await db.supplyOperation.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
-      if (replay) return NextResponse.json({ result: replay, replayed: true });
+      if (replay) {
+        if (replay.facilityId !== user.facilityId || replay.createdById !== user.id || replay.action !== input.action)
+          fail("This transaction key is already in use. Refresh before retrying.", 409);
+        if (input.action === "RECEIVE") {
+          const receipt = replay.entityType === "GoodsReceipt" ? await db.goodsReceipt.findFirst({ where: { id: replay.entityId, facilityId: user.facilityId }, select: { id: true, receiptNumber: true, requestHash: true } }) : null;
+          if (!receipt || receipt.requestHash !== auditValueFingerprint(input))
+            fail("Receipt details differ from the saved transaction. Refresh and review the original receipt before retrying.", 409);
+          return NextResponse.json({ result: { ...replay, goodsReceiptId: receipt.id, receiptNumber: receipt.receiptNumber }, replayed: true });
+        }
+        return NextResponse.json({ result: replay, replayed: true });
+      }
     }
     const result = await db.$transaction(async tx => {
       if (input.action === "SUPPLIER") {
@@ -185,17 +197,18 @@ export async function POST(request: Request) {
 }
 
 type Tx = Prisma.TransactionClient;
-type User = { id: string; facilityId: string };
+type User = { id: string; facilityId: string; sessionId?: string };
 async function operation(tx: Tx, user: User, idempotencyKey: string, action: string, entityType: string, entityId: string) { await tx.supplyOperation.create({ data: { facilityId: user.facilityId, idempotencyKey, action, entityType, entityId, createdById: user.id } }); }
 
 async function receive(tx: Tx, user: User, input: Extract<z.infer<typeof actionSchema>, { action: "RECEIVE" }>) {
   if (input.expiryDate <= new Date()) fail("Expired stock cannot be received");
-  const line = await tx.purchaseOrderLine.findFirst({ where: { id: input.lineId, purchaseOrder: { facilityId: user.facilityId } }, include: { purchaseOrder: true } });
+  const line = await tx.purchaseOrderLine.findFirst({ where: { id: input.lineId, purchaseOrder: { facilityId: user.facilityId } }, include: { purchaseOrder: { include: { supplier: true, facility: true } } } });
   const store = await tx.store.findFirst({ where: { id: input.storeId, facilityId: user.facilityId, active: true } });
   if (!line || !store) fail("Purchase-order line or receiving store was not found", 404);
   await assertStoresNotFrozen(tx, user.facilityId, [store.id]);
   if (!["APPROVED", "PARTIALLY_RECEIVED"].includes(line.purchaseOrder.status)) fail(`Goods can only be received against an approved order; this order is ${line.purchaseOrder.status}.`);
-  const outstanding = Number(line.quantityOrdered) - Number(line.quantityReceived); if (input.quantity > outstanding) fail(`Receipt exceeds the outstanding ordered quantity of ${outstanding}`);
+  if (!line.unitCost || line.unitCost.lte(0)) fail("A positive purchase-order unit cost is required before receiving stock.");
+  const outstanding = line.quantityOrdered.sub(line.quantityReceived); if (outstanding.lt(input.quantity)) fail(`Receipt exceeds the outstanding ordered quantity of ${outstanding}`);
   const existing = await tx.inventoryBatch.findUnique({ where: { catalogItemId_batchNumber: { catalogItemId: line.catalogItemId, batchNumber: input.batchNumber } } });
   if (existing && existing.expiryDate.toISOString().slice(0, 10) !== input.expiryDate.toISOString().slice(0, 10))
     fail(`Batch ${input.batchNumber} already exists with expiry ${existing.expiryDate.toISOString().slice(0, 10)}. Correct its expiry first or use the matching date.`);
@@ -205,13 +218,31 @@ async function receive(tx: Tx, user: User, input: Extract<z.infer<typeof actionS
     : receiptUnitCost;
   const batch = existing ? await tx.inventoryBatch.update({ where: { id: existing.id }, data: { quantityReceived: { increment: input.quantity }, quantityAvailable: { increment: input.quantity }, unitCost: new Prisma.Decimal(batchUnitCost), active: true } }) : await tx.inventoryBatch.create({ data: { catalogItemId: line.catalogItemId, batchNumber: input.batchNumber, expiryDate: input.expiryDate, quantityReceived: input.quantity, quantityAvailable: input.quantity, unitCost: new Prisma.Decimal(batchUnitCost) } });
   const destinationBalance = await tx.inventoryLocationBalance.upsert({ where: { storeId_batchId: { storeId: store.id, batchId: batch.id } }, update: { quantity: { increment: input.quantity } }, create: { storeId: store.id, batchId: batch.id, quantity: input.quantity } });
-  const updated = await tx.purchaseOrderLine.update({ where: { id: line.id }, data: { quantityReceived: { increment: input.quantity } } });
-  const complete = Number(updated.quantityReceived) >= Number(updated.quantityOrdered);
+  await tx.purchaseOrderLine.update({ where: { id: line.id }, data: { quantityReceived: { increment: input.quantity } } });
+  const orderLines = await tx.purchaseOrderLine.findMany({ where: { purchaseOrderId: line.purchaseOrderId }, select: { quantityReceived: true, quantityOrdered: true } });
+  const complete = orderLines.every(item => item.quantityReceived.gte(item.quantityOrdered));
   await tx.purchaseOrder.update({ where: { id: line.purchaseOrderId }, data: complete ? { status: "RECEIVED", receivedAt: new Date() } : { status: "PARTIALLY_RECEIVED" } });
   const movement = await tx.stockMovement.create({ data: { batchId: batch.id, userId: user.id, destinationStoreId: store.id, type: "RECEIPT", quantity: input.quantity, balanceAfter: batch.quantityAvailable, destinationBalanceAfter: destinationBalance.quantity, reason: `${line.purchaseOrder.orderNumber} · GRN to ${store.name}` } });
   await postInventoryJournal(tx, { facilityId: user.facilityId, postedById: user.id, sourceType: "STOCK_MOVEMENT", sourceId: movement.id, description: `Goods receipt ${line.purchaseOrder.orderNumber} · ${input.batchNumber}`, movementType: "RECEIPT", signedQuantity: input.quantity, unitCost: receiptUnitCost, catalogItemId: line.catalogItemId, batchId: batch.id, storeId: store.id, occurredAt: movement.occurredAt });
-  await operation(tx, user, input.idempotencyKey, input.action, "InventoryBatch", batch.id);
-  await appendAudit(tx, { userId: user.id, action: "GOODS_RECEIVED", entityType: "PurchaseOrder", entityId: line.purchaseOrderId, afterHash: `${batch.id}:${input.quantity}:${store.id}` }); return batch;
+  const item = await tx.catalogItem.findFirstOrThrow({ where: { id: line.catalogItemId, facilityId: user.facilityId }, select: { code: true, name: true } });
+  const receiver = await tx.user.findFirstOrThrow({ where: { id: user.id, facilityId: user.facilityId }, select: { displayName: true } });
+  const receiptId = randomUUID();
+  const receiptNumber = `GRN-${movement.occurredAt.getTime().toString(36).toUpperCase()}-${receiptId.slice(0, 8).toUpperCase()}`;
+  const snapshot = supplyDocumentSchema.parse({
+    version: 1, kind: "GOODS_RECEIPT", reference: receiptNumber,
+    facilityName: line.purchaseOrder.facility.name, facilityCode: line.purchaseOrder.facility.code,
+    status: "POSTED", date: movement.occurredAt.toISOString(),
+    supplier: { name: line.purchaseOrder.supplier.name, code: line.purchaseOrder.supplier.code, phone: line.purchaseOrder.supplier.phone, email: line.purchaseOrder.supplier.email },
+    orderNumber: line.purchaseOrder.orderNumber, expectedAt: null, notes: null, cancellationReason: null,
+    actors: [{ label: "Received by", name: receiver.displayName, at: movement.occurredAt.toISOString() }],
+    lines: [{ ...item, quantity: String(input.quantity), unitCost: line.unitCost.toFixed(2), total: line.unitCost.mul(input.quantity).toFixed(2), batchNumber: batch.batchNumber, expiryDate: input.expiryDate.toISOString().slice(0, 10), storeName: store.name }],
+    total: line.unitCost.mul(input.quantity).toFixed(2),
+  });
+  const receipt = await tx.goodsReceipt.create({ data: { id: receiptId, facilityId: user.facilityId, purchaseOrderId: line.purchaseOrderId, movementId: movement.id, receiptNumber, receivedAt: movement.occurredAt, snapshot, requestHash: auditValueFingerprint(input) } });
+  await operation(tx, user, input.idempotencyKey, input.action, "GoodsReceipt", receipt.id);
+  await appendAudit(tx, { userId: user.id, action: "GOODS_RECEIVED", entityType: "PurchaseOrder", entityId: line.purchaseOrderId, afterHash: `${batch.id}:${input.quantity}:${store.id}` });
+  await appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: "GOODS_RECEIPT_POSTED", entityType: "GoodsReceipt", entityId: receipt.id, afterHash: auditValueFingerprint(snapshot) });
+  return { ...batch, goodsReceiptId: receipt.id, receiptNumber };
 }
 
 async function correctBatchExpiry(tx: Tx, user: User, input: Extract<z.infer<typeof actionSchema>, { action: "CORRECT_BATCH_EXPIRY" }>) {

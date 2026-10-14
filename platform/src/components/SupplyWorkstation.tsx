@@ -68,12 +68,12 @@ export default function SupplyWorkstation({
     setError("");
     setNotice("");
     try {
-      await jsonRequest(
+      const response = await jsonRequest<{ result?: { receiptNumber?: string } }>(
         "/api/supply",
         { method: "POST", body: JSON.stringify(body) },
         "Supply-chain transaction could not be saved",
       );
-      setNotice(success);
+      setNotice(response.result?.receiptNumber ? `${success} Receipt ${response.result.receiptNumber} is available in Supply documents.` : success);
       await load();
       return true;
     } catch (reason) {

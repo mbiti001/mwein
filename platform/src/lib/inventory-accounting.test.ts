@@ -19,6 +19,9 @@ describe("inventory costing", () => {
 });
 
 describe("perpetual inventory accounting", () => {
+  it("matches receipt decimal rounding for fractional quantities", () => {
+    expect(inventoryPosting("RECEIPT", 0.3, 0.15)?.amount).toBe(0.05);
+  });
   it("debits inventory for receipts and credits GRNI", () => {
     expect(inventoryPosting("RECEIPT", 4, 25)).toEqual({
       amount: 100,

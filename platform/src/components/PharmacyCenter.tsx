@@ -6,9 +6,10 @@ import InventoryWorkstation, { type StockFocus } from "@/components/InventoryWor
 import SupplyWorkstation from "@/components/SupplyWorkstation";
 import InventoryForecastPanel from "@/components/InventoryForecastPanel";
 import InventoryExpiryPanel from "@/components/InventoryExpiryPanel";
+import SupplyDocuments from "@/components/SupplyDocuments";
 
 type PharmacyProps = ComponentProps<typeof PharmacyWorkstation>;
-type Tab = "dispensing" | "inventory" | "forecast" | "expiry" | "receive" | "history" | "controls";
+type Tab = "dispensing" | "inventory" | "forecast" | "expiry" | "documents" | "receive" | "history" | "controls";
 
 export default function PharmacyCenter({
   permissions,
@@ -27,6 +28,7 @@ export default function PharmacyCenter({
       allowed.push({ key: "inventory", label: "Inventory" });
       allowed.push({ key: "forecast", label: "Forecast & reorder" });
       allowed.push({ key: "expiry", label: "Expiry report" });
+      allowed.push({ key: "documents", label: "Supply documents" });
     }
     if (permissions.includes("inventory.receive")) allowed.push({ key: "receive", label: "Receive stock" });
     if (permissions.includes("inventory.view")) allowed.push({ key: "history", label: "Movement history" });
@@ -48,6 +50,7 @@ export default function PharmacyCenter({
       {tab === "inventory" && <InventoryWorkstation permissions={permissions} focus={stockFocus} onFocusConsumed={onStockFocusConsumed}/>} 
       {tab === "forecast" && <InventoryForecastPanel/>}
       {tab === "expiry" && permissions.includes("inventory.view") && <InventoryExpiryPanel/>}
+      {tab === "documents" && permissions.includes("inventory.view") && <SupplyDocuments/>}
       {tab === "receive" && <SupplyWorkstation permissions={permissions} view="receive"/>}
       {tab === "history" && <SupplyWorkstation permissions={permissions} view="history"/>}
       {tab === "controls" && <SupplyWorkstation permissions={permissions} view="controls"/>}
