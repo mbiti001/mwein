@@ -18,7 +18,8 @@ export default defineConfig({
     ...(existsSync(localChrome) ? { launchOptions: { executablePath: localChrome } } : {}),
   },
   webServer: {
-    command: "npm run build && E2E_PRODUCTION=1 E2E_HOLD=1 E2E_KEEP_TEMPORARY_PASSWORD=1 E2E_APP_PORT=3210 E2E_DB_PORT=3211 npm run test:e2e",
+    command: "node node_modules/next/dist/bin/next build && node scripts/e2e-outpatient.mjs",
+    env: { E2E_PRODUCTION: "1", E2E_HOLD: "1", E2E_KEEP_TEMPORARY_PASSWORD: "1", E2E_APP_PORT: "3210", E2E_DB_PORT: "3211" },
     // Health becomes available before fixture assertions and account resets finish.
     wait: { stdout: /Browser fixture ready at http:\/\/127\.0\.0\.1:3210/ },
     reuseExistingServer: false,

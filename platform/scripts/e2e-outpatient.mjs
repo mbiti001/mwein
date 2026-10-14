@@ -10,6 +10,8 @@ import { PGlite } from "@electric-sql/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const nextCli = path.join(root, "node_modules/next/dist/bin/next");
+const prismaCli = path.join(root, "node_modules/prisma/build/index.js");
 const adminPassword = "Mwein-E2E-Password-2026!";
 const authSecret = "mwein-e2e-auth-secret-at-least-thirty-two-characters";
 const childProcesses = new Set();
@@ -170,7 +172,7 @@ try {
     AUTH_SECRET: authSecret,
   };
 
-  await run("./node_modules/.bin/prisma", ["migrate", "deploy"], commonEnvironment);
+  await run(process.execPath, [prismaCli, "migrate", "deploy"], commonEnvironment);
   steps.push("deploy all Prisma migrations");
   await run(process.execPath, ["scripts/bootstrap.mjs"], commonEnvironment);
   steps.push("bootstrap facility, roles, administrator and catalogue");
@@ -270,7 +272,7 @@ try {
 
   origin = `http://127.0.0.1:${appPort}`;
   const productionServer = process.env.E2E_PRODUCTION === "1";
-  nextProcess = spawn("./node_modules/.bin/next", [productionServer ? "start" : "dev", ...(productionServer ? [] : ["--webpack"]), "--hostname", "127.0.0.1", "-p", String(appPort)], {
+  nextProcess = spawn(process.execPath, [nextCli, productionServer ? "start" : "dev", ...(productionServer ? [] : ["--webpack"]), "--hostname", "127.0.0.1", "-p", String(appPort)], {
     cwd: root,
     env: {
       ...process.env,
@@ -953,7 +955,7 @@ try {
   if (productionServer) {
     const mfaPort = await availablePort();
     const mfaOrigin = `http://127.0.0.1:${mfaPort}`;
-    const mfaServer = spawn("./node_modules/.bin/next", ["start", "--hostname", "127.0.0.1", "-p", String(mfaPort)], {
+    const mfaServer = spawn(process.execPath, [nextCli, "start", "--hostname", "127.0.0.1", "-p", String(mfaPort)], {
       cwd: root,
       env: { ...process.env, DATABASE_URL: applicationDatabaseUrl, AUTH_SECRET: authSecret, APP_ORIGIN: mfaOrigin, MFA_REQUIRED: "true", NODE_ENV: "production" },
       stdio: ["ignore", "pipe", "pipe"],

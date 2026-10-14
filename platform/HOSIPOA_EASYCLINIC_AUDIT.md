@@ -1,5 +1,7 @@
 # Mwein HMIS parity audit
 
+October follow-up: see [additional module requirements](HOSIPOA_MODULE_REQUIREMENTS.md) for the 15 October 2026 module-directory comparison and batch expiry report increment. The dated observations below remain historical rather than a current completion checklist.
+
 Audited on 7 September 2026 against the public capability descriptions for [HosiPoa](https://www.hosipoa.co.ke/) and [Easy Clinic](https://www.easyclinic.io/). Marketing claims were used as a product-model baseline; this is not a certification of either system or a clinical UAT sign-off.
 
 ## Position now
