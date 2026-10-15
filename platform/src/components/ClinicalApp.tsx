@@ -1,12 +1,11 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { flushSync } from "react-dom";
 import { confirmWorkspaceNavigation } from "@/components/useUnsavedConsultation";
-import { assessTriageVitals, patientClinicalGroup } from "@/lib/domain";
+import { patientClinicalGroup } from "@/lib/domain";
 import type { StockFocus } from "@/components/InventoryWorkstation";
-import VisitVitalsPanel from "@/components/VisitVitalsPanel";
 import { Button } from "@/components/ui/Button";
 import { PatientJourney } from "./PatientJourney";
 import type { ConsultationVisit } from "./ConsultationWorkstation";
@@ -14,7 +13,6 @@ import { activeServiceTasks, servicePoints, isWaitingOverdue, type ServicePointC
 import { appointmentClinics } from "@/lib/appointments";
 import { careServiceForClinic } from "@/lib/care-service-points";
 import { ApiRequestError, jsonRequest } from "@/lib/client-http";
-import { dateInTimeZone, gestationalAgeLabel, pregnancyDatingFromLnmp } from "@/lib/pregnancy-dating";
 import { documentDefinitions, documentKinds } from "@/lib/clinic-documents";
 import { BrandWordmark } from "@/components/FacilityBrand";
 import ReadinessSnapshot from "@/components/ReadinessSnapshot";
@@ -36,7 +34,7 @@ const BillingWorkstation = dynamic(() => import("@/components/BillingWorkstation
 const VisitSummaryWorkstation = dynamic(() => import("@/components/VisitSummaryWorkstation"), { loading: workspaceLoading });
 const ImagingWorkstation = dynamic(() => import("@/components/ImagingWorkstation"), { loading: workspaceLoading });
 const SurveillanceWorkstation = dynamic(() => import("@/components/SurveillanceWorkstation"), { loading: workspaceLoading });
-const VitalsWorkstation = dynamic(() => import("@/components/VitalsWorkstation"), { loading: workspaceLoading });
+const VitalsTriageWorkstation = dynamic(() => import("@/components/VitalsTriageWorkstation"), { loading: workspaceLoading });
 const ReportingWorkstation = dynamic(() => import("@/components/ReportingWorkstation"), { loading: workspaceLoading });
 const AppointmentWorkstation = dynamic(() => import("@/components/AppointmentWorkstation"), { loading: workspaceLoading });
 const AdminCenter = dynamic(() => import("@/components/AdminCenter"), { loading: workspaceLoading });
@@ -69,7 +67,7 @@ type Patient = {
     severity?: string | null;
   }[];
 };
-type Visit = {
+export type Visit = {
   id: string;
   visitNumber: string;
   clinic: string;
@@ -151,7 +149,6 @@ type Screen =
   | "registration"
   | "appointments"
   | "visit"
-  | "vitals"
   | "triage"
   | "servicePoints"
   | "consultation"
@@ -252,8 +249,7 @@ export default function ClinicalApp() {
       registration: "Patient registration",
       appointments: "Appointments",
       visit: "Clinic check-in",
-      triage: "Triage",
-      vitals: "Vitals",
+      triage: "Vitals & triage",
       servicePoints: "Service points",
       consultation: "Consultation",
       diagnostics: "Laboratory",
@@ -313,8 +309,7 @@ export default function ClinicalApp() {
     ["registration", "Registration", "patient.create"],
     ["appointments", "Appointments", "visit.create"],
     ["followUps", "Follow-up work", "visit.read"],
-    ["triage", "Triage", "triage.write"],
-    ["vitals", "Vitals", "vitals.write"],
+    ["triage", "Vitals & triage", user.permissions.includes("triage.write") ? "triage.write" : "vitals.write"],
     ["servicePoints", "Service points", "encounter.write"],
     ["consultation", "Consultation", "encounter.write"],
     ["diagnostics", "Laboratory", "laboratory.write"],
@@ -400,7 +395,7 @@ export default function ClinicalApp() {
           }}/>
         )}
         {screen !== "dashboard" &&
-          !["forms", "summaries", "reports", "surveillance", "vitals", "security", "appointments", "admin", "followUps"].includes(screen) && (
+          !["forms", "summaries", "reports", "surveillance", "triage", "security", "appointments", "admin", "followUps"].includes(screen) && (
             <WorkflowSteps screen={screen} />
           )}{" "}
         {contextVisitId && (() => {
@@ -496,7 +491,7 @@ export default function ClinicalApp() {
               }
               const direct = visit.clinic === "Walk-in";
               setNotice(`${visit.visitNumber} started and sent to ${direct ? "the walk-in clinical review" : "triage"}.`);
-              setScreen(direct && user.permissions.includes("encounter.write") ? "servicePoints" : user.permissions.includes("triage.write") ? "triage" : user.permissions.includes("vitals.write") ? "vitals" : "dashboard");
+              setScreen(direct && user.permissions.includes("encounter.write") ? "servicePoints" : user.permissions.includes("triage.write") ? "triage" : user.permissions.includes("vitals.write") ? "triage" : "dashboard");
             }}
             onExisting={async (visit) => {
               await loadVisits().catch(() => undefined);
@@ -507,17 +502,17 @@ export default function ClinicalApp() {
             }}
           />
         )}
-        {screen === "vitals" && user.permissions.includes("vitals.write") && <VitalsWorkstation visits={visits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />}
-        {screen === "triage" && (
-          <TriageWorkstation
-            visits={visits.filter(
-              (visit) => visit.status === "AWAITING_TRIAGE",
-            )}
-            onCompleted={async (patientName, visitId) => {
-              await loadVisits();
+        {screen === "triage" && user.permissions.some(permission => ["triage.write", "vitals.write"].includes(permission)) && (
+          <VitalsTriageWorkstation
+            canAssess={user.permissions.includes("triage.write")}
+            canCapture={user.permissions.includes("vitals.write")}
+            visits={visits.filter(isOpenClinicalVisit)}
+            onCompleted={async (patientName, visitId, status) => {
+              let refreshed = true;
+              try { await loadVisits(); } catch { refreshed = false; }
               if (!stillOnThisScreen()) return;
               setNotice(
-                `Triage completed for ${patientName}; the patient is now awaiting consultation.`,
+                `Triage saved for ${patientName}. Current status: ${status.replaceAll("_", " ").toLowerCase()}.${refreshed ? "" : " The visit list could not refresh; refresh before continuing."}`,
               );
               setFocusedVisitId(returnToConsultation ? visitId : null);
               setContextVisitId(returnToConsultation ? visitId : null);
@@ -549,7 +544,7 @@ export default function ClinicalApp() {
             <div className="actions">
               {user.permissions.includes("visit.create") && <button className="primary" onClick={() => { if (!confirmWorkspaceNavigation()) return; setSelected(null); setAppointment(null); setFocusedVisitId(null); setContextVisitId(null); setReturnToConsultation(true); setNotice(""); setScreen("visit"); }}>Start visit from consultation</button>}
               {user.permissions.includes("patient.create") && <button className="secondary" onClick={() => { if (!confirmWorkspaceNavigation()) return; setSelected(null); setAppointment(null); setReturnToConsultation(true); setNotice(""); setScreen("registration"); }}>Register new patient</button>}
-              {user.permissions.includes("vitals.write") && <button className="secondary" onClick={() => { if (!confirmWorkspaceNavigation()) return; setFocusedVisitId(null); setReturnToConsultation(true); setScreen(user.permissions.includes("triage.write") ? "triage" : "vitals"); }}>Take vitals</button>}
+              {user.permissions.includes("vitals.write") && <button className="secondary" onClick={() => { if (!confirmWorkspaceNavigation()) return; setFocusedVisitId(null); setReturnToConsultation(true); setScreen("triage"); }}>Take vitals</button>}
               {user.permissions.includes("billing.read") && <button className="secondary" onClick={() => { if (!confirmWorkspaceNavigation()) return; setFocusedVisitId(null); setScreen("billing"); }}>Open billing</button>}
             </div>
           </section>
@@ -778,7 +773,7 @@ function Dashboard({
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [department, setDepartment] = useState<ServicePointCode | "ALL">("ALL");
   const access: Partial<Record<ServicePointCode, { permission: string; screen: Screen; action: string }>> = {
-    TRIAGE: user.permissions.includes("triage.write") ? { permission: "triage.write", screen: "triage", action: "Start triage" } : { permission: "vitals.write", screen: "vitals", action: "Record vitals" },
+    TRIAGE: user.permissions.includes("triage.write") ? { permission: "triage.write", screen: "triage", action: "Start triage" } : { permission: "vitals.write", screen: "triage", action: "Record vitals" },
     CONSULTATION: { permission: "encounter.write", screen: "consultation", action: "Open consultation" },
     LABORATORY: { permission: "laboratory.write", screen: "diagnostics", action: "Open laboratory" },
     IMAGING: { permission: "imaging.write", screen: "imaging", action: "Open imaging" },
@@ -895,7 +890,7 @@ function PatientContextBar({ visit, permissions, showBalance, canCancel, onClear
   const active = activeServiceTasks(visit);
   const point = active.map(task => servicePoints.find(item => item.code === task.point)?.label).join(" · ") || visit.status.replaceAll("_", " ");
   const pointPermission: Record<ServicePointCode, string> = { TRIAGE: permissions.includes("triage.write") ? "triage.write" : "vitals.write", CONSULTATION: "encounter.write", LABORATORY: "laboratory.write", IMAGING: "imaging.write", PHARMACY: "pharmacy.dispense", BILLING: "billing.read" };
-  const targets: Partial<Record<ServicePointCode, Screen>> = { TRIAGE: permissions.includes("triage.write") ? "triage" : "vitals", CONSULTATION: careServiceForClinic(visit.clinic) ? "servicePoints" : "consultation", LABORATORY: "diagnostics", IMAGING: "imaging", PHARMACY: "pharmacy", BILLING: "billing" };
+  const targets: Partial<Record<ServicePointCode, Screen>> = { TRIAGE: "triage", CONSULTATION: careServiceForClinic(visit.clinic) ? "servicePoints" : "consultation", LABORATORY: "diagnostics", IMAGING: "imaging", PHARMACY: "pharmacy", BILLING: "billing" };
   const balance = showBalance && visit.invoice ? visit.invoice.items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0) - visit.invoice.payments.filter(item => item.status === "CONFIRMED").reduce((sum, item) => sum + Number(item.amount), 0) : 0;
   return <div className="patientContextGroup">
     <aside className="patientContext" aria-label="Current patient context">
@@ -1338,404 +1333,3 @@ function StartVisit({
   );
 }
 
-function TriageWorkstation({
-  visits,
-  onCompleted,
-  initialVisitId,
-  onInitialVisitOpened,
-  facilityTimeZone,
-}: {
-  visits: Visit[];
-  onCompleted: (patientName: string, visitId: string) => void;
-  initialVisitId?: string | null;
-  onInitialVisitOpened?: () => void;
-  facilityTimeZone: string;
-}) {
-  type TriageDraft = {
-    temperatureC: string;
-    pulseBpm: string;
-    respiratoryRate: string;
-    systolicBp: string;
-    diastolicBp: string;
-    oxygenSaturation: string;
-    painScore: string;
-    consciousness: "" | "ALERT" | "VOICE" | "PAIN" | "UNRESPONSIVE";
-  };
-  const blankVitals = (): TriageDraft => ({
-    temperatureC: "",
-    pulseBpm: "",
-    respiratoryRate: "",
-    systolicBp: "",
-    diastolicBp: "",
-    oxygenSaturation: "",
-    painScore: "",
-    consciousness: "",
-  });
-  const [active, setActive] = useState<Visit | null>(null);
-  const [error, setError] = useState("");
-  const [vitals, setVitals] = useState<TriageDraft>(blankVitals);
-  const [lnmp, setLnmp] = useState("");
-  const [weight, setWeight] = useState("");
-  const [height, setHeight] = useState("");
-  const [reviewedVitalsId, setReviewedVitalsId] = useState<string | undefined>();
-  useEffect(() => { setWeight(""); setHeight(""); setReviewedVitalsId(undefined); }, [active?.id]);
-  const facilityToday = dateInTimeZone(new Date(), facilityTimeZone);
-  const pregnancyDating = useMemo(
-    () => lnmp ? pregnancyDatingFromLnmp(lnmp, facilityToday) : null,
-    [facilityToday, lnmp],
-  );
-  const assessedVitals = useMemo(() => {
-    if (!vitals.consciousness || Object.entries(vitals).some(([key, value]) => key !== "consciousness" && value === "")) return null;
-    return {
-      temperatureC: Number(vitals.temperatureC),
-      pulseBpm: Number(vitals.pulseBpm),
-      respiratoryRate: Number(vitals.respiratoryRate),
-      systolicBp: Number(vitals.systolicBp),
-      diastolicBp: Number(vitals.diastolicBp),
-      oxygenSaturation: Number(vitals.oxygenSaturation),
-      painScore: Number(vitals.painScore),
-      consciousness: vitals.consciousness,
-    };
-  }, [vitals]);
-  const alerts = useMemo(() => assessedVitals ? assessTriageVitals(assessedVitals) : [], [assessedVitals]);
-  useEffect(() => {
-    if (!initialVisitId) return;
-    const visit = visits.find(item => item.id === initialVisitId);
-    if (visit) { setVitals(blankVitals()); setLnmp(""); setActive(visit); onInitialVisitOpened?.(); }
-  }, [initialVisitId, visits, onInitialVisitOpened]);
-  function vital(name: keyof TriageDraft, value: string) {
-    setVitals((current) => ({
-      ...current,
-      [name]: value,
-    }));
-  }
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!active) return;
-    setError("");
-    const f = new FormData(event.currentTarget);
-    try {
-      await api(`/api/visits/${active.id}/triage`, {
-        method: "POST",
-        body: JSON.stringify({
-          ...vitals, reviewedVitalsId,
-          chiefComplaint: f.get("chiefComplaint"),
-          weightKg: f.get("weightKg"),
-          heightCm: f.get("heightCm") || undefined,
-          triageCategory: f.get("triageCategory"),
-          pregnancyStatus: f.get("pregnancyStatus") || undefined,
-          lastMenstrualPeriod: lnmp || undefined,
-          notes: f.get("notes") || undefined,
-        }),
-      });
-      await onCompleted(active.patient.fullName, active.id);
-      setVitals(blankVitals());
-      setLnmp("");
-      setActive(null);
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }
-  if (!active)
-    return (
-      <>
-        <header>
-          <div>
-            <p className="eyebrow">Triage workstation</p>
-            <h1>Waiting for triage</h1>
-            <p>
-              Select the next patient. Only minimum identifying information is
-              displayed.
-            </p>
-          </div>
-        </header>
-        <section className="card">
-          {visits.length === 0 ? (
-            <div className="empty">
-              <strong>No patients awaiting triage</strong>
-              <p>Newly registered visits will appear here automatically.</p>
-            </div>
-          ) : (
-            <div className="queue">
-              {visits.map((v) => (
-                <button
-                  className={`row ${v.priority.toLowerCase()}`}
-                  onClick={() => { setVitals(blankVitals()); setLnmp(""); setActive(v); }}
-                  key={v.id}
-                >
-                  <span className="dot" />
-                  <div>
-                    <strong>{v.patient.fullName}</strong>
-                    <small>
-                      {v.patient.patientNumber} ·{" "}
-                      {patientClinicalGroup(v.patient).label} · {v.clinic}
-                    </small>
-                  </div>
-                  <b>{v.priority}</b>
-                  <time>
-                    {new Date(v.arrivedAt).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </time>
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-      </>
-    );
-  return (
-    <>
-      <header>
-        <div>
-          <p className="eyebrow">Triage assessment</p>
-          <h1>{active.patient.fullName}</h1>
-          <p>
-            {active.patient.patientNumber} · {active.visitNumber} ·{" "}
-            {active.clinic}
-          </p>
-        </div>
-        <button className="secondary" onClick={() => setActive(null)}>
-          ← Back to queue
-        </button>
-      </header>
-      <div className={`patientBanner ${active.priority.toLowerCase()}`}>
-        <div>
-          <strong>Arrival priority: {active.priority}</strong>
-          <span>
-            {patientClinicalGroup(active.patient).label} · {active.clinic}
-          </span>
-        </div>
-        <time>
-          Arrived{" "}
-          {new Date(active.arrivedAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </time>
-      </div>
-      {active.patient.allergies?.length ? (
-        <div className="allergyAlert">
-          <strong>Allergy alert</strong>
-          {active.patient.allergies.map((a) => (
-            <span key={a.substance}>
-              {a.substance}
-              {a.reaction ? ` — ${a.reaction}` : ""}
-            </span>
-          ))}
-        </div>
-      ) : null}
-      {active.ancAdmissionEvidence?.safeguardingReviewRequired && <div className="dangerPanel">
-        <strong>Confidential safeguarding review required</strong>
-        <span>This ANC client is under 15 with documented positive pregnancy confirmation. Provide private, respectful assessment, consider coercion or violence without judgement, and follow the facility child-protection pathway. Do not delay antenatal care.</span>
-      </div>}
-      <VisitVitalsPanel key={active.id} visitId={active.id} onUse={(values, id) => {
-        setVitals({ ...blankVitals(), temperatureC: values.temperatureC?.toString() ?? "", pulseBpm: values.pulseBpm?.toString() ?? "", respiratoryRate: values.respiratoryRate?.toString() ?? "", systolicBp: values.systolicBp?.toString() ?? "", diastolicBp: values.diastolicBp?.toString() ?? "", oxygenSaturation: values.oxygenSaturation?.toString() ?? "" });
-        setWeight(values.weightKg?.toString() ?? ""); setHeight(values.heightCm?.toString() ?? ""); setReviewedVitalsId(id);
-      }} />
-      <form className="card dataForm triageForm" onSubmit={submit}>
-        {error && <div className="alert wide">{error}</div>}
-        <div className="privacyNotice wide">
-          <strong>Minimum necessary triage detail</strong>
-          <span>
-            Ask enough to identify immediate danger and route safely. Record a
-            brief presenting concern or red flag here; the clinician will take
-            the detailed history in private.
-          </span>
-        </div>
-        <label className="wide">
-          Presenting concern / immediate red flag *
-          <textarea name="chiefComplaint" minLength={2} maxLength={500} rows={2} required placeholder="Brief reason for triage; avoid a detailed history" />
-        </label>
-        <fieldset className="wide vitalGrid">
-          <legend>Vital signs</legend>
-          <p className="wide listHint">Enter the values you measured. No “normal” observations are prefilled.</p>
-          <label>
-            Temperature °C
-            <input
-              type="number"
-              step="0.1"
-              min="25"
-              max="45"
-              value={vitals.temperatureC}
-              onChange={(e) => vital("temperatureC", e.target.value)}
-              required
-            />
-          </label>
-          <label>
-            Pulse /min
-            <input
-              type="number"
-              min="20"
-              max="300"
-              value={vitals.pulseBpm}
-              onChange={(e) => vital("pulseBpm", e.target.value)}
-              required
-            />
-          </label>
-          <label>
-            Respirations /min
-            <input
-              type="number"
-              min="4"
-              max="100"
-              value={vitals.respiratoryRate}
-              onChange={(e) => vital("respiratoryRate", e.target.value)}
-              required
-            />
-          </label>
-          <label>
-            BP systolic
-            <input
-              type="number"
-              min="40"
-              max="300"
-              value={vitals.systolicBp}
-              onChange={(e) => vital("systolicBp", e.target.value)}
-              required
-            />
-          </label>
-          <label>
-            BP diastolic
-            <input
-              type="number"
-              min="20"
-              max="200"
-              value={vitals.diastolicBp}
-              onChange={(e) => vital("diastolicBp", e.target.value)}
-              required
-            />
-          </label>
-          <label>
-            SpO₂ %
-            <input
-              type="number"
-              min="40"
-              max="100"
-              value={vitals.oxygenSaturation}
-              onChange={(e) => vital("oxygenSaturation", e.target.value)}
-              required
-            />
-          </label>
-          <label>
-            Weight kg
-            <input
-              name="weightKg"
-              value={weight} onChange={event => setWeight(event.target.value)}
-              type="number"
-              step="0.1"
-              min="0.1"
-              max="500"
-              required
-            />
-          </label>
-          <label>
-            Height cm
-            <input
-              name="heightCm"
-              value={height} onChange={event => setHeight(event.target.value)}
-              type="number"
-              step="0.1"
-              min="20"
-              max="260"
-            />
-          </label>
-          <label>
-            Pain /10
-            <input
-              type="number"
-              min="0"
-              max="10"
-              value={vitals.painScore}
-              onChange={(e) => vital("painScore", e.target.value)}
-              required
-            />
-          </label>
-          <label>
-            Consciousness
-            <select
-              value={vitals.consciousness}
-              onChange={(e) => vital("consciousness", e.target.value)}
-              required
-            >
-              <option value="">Select observed response</option>
-              <option value="ALERT">Alert</option>
-              <option value="VOICE">Responds to voice</option>
-              <option value="PAIN">Responds to pain</option>
-              <option value="UNRESPONSIVE">Unresponsive</option>
-            </select>
-          </label>
-        </fieldset>
-        {alerts.length > 0 && (
-          <div className="dangerPanel wide">
-            <strong>Rule-based clinical alerts — assess immediately</strong>
-            {alerts.map((alert) => (
-              <span
-                className={alert.severity.toLowerCase()}
-                key={alert.message}
-              >
-                {alert.severity}: {alert.message}
-              </span>
-            ))}
-            <small>
-              These alerts support, but do not replace, clinical judgement or
-              local emergency protocols.
-            </small>
-          </div>
-        )}
-        {patientClinicalGroup(active.patient).pregnancyQuestionsApply && (
-          <>
-            <label>
-              Pregnancy status
-              <select name="pregnancyStatus" defaultValue={active.ancAdmissionEvidence ? "PREGNANT" : "UNKNOWN"}>
-                <option value="UNKNOWN">Ask privately</option>
-                <option value="NOT_PREGNANT">Not pregnant</option>
-                <option value="PREGNANT">Pregnant</option>
-                <option value="POSSIBLY_PREGNANT">Possibly pregnant</option>
-              </select>
-            </label>
-            <label>
-              LNMP — first day of last normal menstrual period
-              <input name="lastMenstrualPeriod" type="date" max={facilityToday} value={lnmp} onChange={(event) => setLnmp(event.target.value)} />
-            </label>
-            {pregnancyDating && <>
-              <label>Estimated delivery date<input type="date" value={pregnancyDating.estimatedDeliveryDate} readOnly aria-readonly="true" /></label>
-              <label>Gestational age today<input value={gestationalAgeLabel(pregnancyDating)} readOnly aria-readonly="true" /></label>
-              <p className="wide listHint">Calculated automatically from LNMP using the 280-day rule. Confirm dating with ultrasound when indicated; the server stores the same facility-date calculation.</p>
-            </>}
-          </>
-        )}
-        {patientClinicalGroup(active.patient).ageGroup === "CHILD" && (
-          <div className="childNotice">
-            <strong>Paediatric patient</strong>
-            <span>
-              Use age-appropriate equipment and local paediatric observation
-              ranges. Confirm the accompanying caregiver.
-            </span>
-          </div>
-        )}
-        <label>
-          Triage category *
-          <select name="triageCategory" defaultValue="" required>
-            <option value="">Select after assessment</option>
-            <option value="ROUTINE">Green · Routine</option>
-            <option value="PRIORITY">Yellow · Priority</option>
-            <option value="URGENT">Orange · Urgent</option>
-            <option value="EMERGENCY">Red · Emergency</option>
-          </select>
-        </label>
-        <label className="wide">
-          Triage notes
-          <textarea name="notes" rows={3} />
-        </label>
-        <div className="wide submitBar">
-          <span>
-            Completing triage will route this patient to consultation.
-          </span>
-          <button className="primary">Complete triage</button>
-        </div>
-      </form>
-    </>
-  );
-}

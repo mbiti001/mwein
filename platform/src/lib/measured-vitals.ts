@@ -20,6 +20,7 @@ export const measuredValuesSchema = z.object({
   if ((value.systolicBp === undefined) !== (value.diastolicBp === undefined)) ctx.addIssue({ code: "custom", message: "Record both blood pressure values, or leave both blank" });
 });
 export const measuredVitalsSchema = z.object({
+  requestKey: z.uuid().optional(),
   measuredAt: z.iso.datetime().refine(value => new Date(value).getTime() <= Date.now(), "Measurement time cannot be in the future"),
   values: measuredValuesSchema,
   note: z.string().trim().max(500).optional(),

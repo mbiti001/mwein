@@ -75,6 +75,8 @@ export const patientRegistrationSchema = z.object({
 });
 
 export const triageSchema = z.object({
+  requestKey: z.uuid().optional(),
+  measuredAt: z.iso.datetime().refine(value => new Date(value).getTime() <= Date.now(), "Measurement time cannot be in the future").optional(),
   reviewedVitalsId: z.uuid().optional(),
   chiefComplaint: z.string().trim().min(2).max(500),
   temperatureC: z.coerce.number().min(25).max(45),

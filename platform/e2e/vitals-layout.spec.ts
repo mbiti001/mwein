@@ -11,7 +11,7 @@ test("recorded vitals align across the page and keep missing values and attribut
   await page.route("**/api/visits/layout-visit/vitals", route => route.fulfill({ json: { measurements, truncated: false } }));
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
-  await page.getByRole("button", { name: "Vitals", exact: true }).click();
+  await page.getByRole("button", { name: "Vitals & triage", exact: true }).click();
   await page.getByRole("button", { name: /Synthetic Layout Patient/ }).click();
   const panel = page.getByRole("region", { name: "Recorded vital measurements" });
   const sets = panel.locator(".measurementSet");

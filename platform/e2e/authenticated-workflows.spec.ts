@@ -61,7 +61,7 @@ test("starts triage with blank measured observations and an explicit concern", a
   await expect(page.getByLabel("Consciousness")).toHaveValue("");
   await expect(page.getByLabel("Triage category *")).toHaveValue("");
   await expect(page.getByLabel("Presenting concern / immediate red flag *")).toBeVisible();
-  await expect(page.getByText("No “normal” observations are prefilled.")).toBeVisible();
+  await expect(page.getByText("No normal observations are prefilled.")).toBeVisible();
   await page.getByLabel("Pregnancy status").selectOption("PREGNANT");
   await page.getByLabel("LNMP — first day of last normal menstrual period").fill("2026-01-01");
   await expect(page.getByLabel("Estimated delivery date")).toHaveValue("2026-10-08");
@@ -144,9 +144,9 @@ test("blocks senseless ANC counts and alerts on abnormal clinical ranges", async
 });
 
 for (const role of [
-  { email: "clinician.cover@example.test", visible: ["Consultation", "Registration", "Triage", "Billing"], hidden: ["Pharmacy & stock", "Administration"] },
-  { email: "shared.user@example.test", visible: ["Registration", "Appointments"], hidden: ["Triage", "Consultation", "Billing"] },
-  { email: "nurse@example.test", visible: ["Triage"], hidden: ["Registration", "Consultation", "Billing"] },
+  { email: "clinician.cover@example.test", visible: ["Consultation", "Registration", "Vitals & triage", "Billing"], hidden: ["Pharmacy & stock", "Administration"] },
+  { email: "shared.user@example.test", visible: ["Registration", "Appointments", "Vitals & triage"], hidden: ["Triage", "Consultation", "Billing"] },
+  { email: "nurse@example.test", visible: ["Vitals & triage"], hidden: ["Registration", "Consultation", "Billing"] },
   { email: "clinician@example.test", visible: ["Consultation", "Service points", "Patient records"], hidden: ["Registration", "Billing", "Administration"] },
   { email: "laboratory@example.test", visible: ["Laboratory"], hidden: ["Consultation", "Pharmacy & stock", "Billing"] },
   { email: "imaging@example.test", visible: ["Imaging"], hidden: ["Laboratory", "Pharmacy & stock", "Billing"] },
@@ -181,7 +181,7 @@ test("shows the new administration workbenches to an authorised administrator", 
   await expect(page.getByRole("heading", { name: "Potential duplicate patients" })).toBeVisible();
 });
 
-test("a delayed triage response updates consultation without undoing later navigation", async ({ page }) => {
+test("a pending triage save prevents navigation until its result is confirmed", async ({ page }) => {
   await login(page, "admin@mwein.local");
   await page.getByRole("button", { name: "Registration" }).click();
   await page.getByLabel("First name *").fill("Browser");
