@@ -56,5 +56,5 @@ describe("restore process boundary with simulated PostgreSQL tools", () => {
     expect(r.calls.map(call => call.binary)).toEqual(["psql", "psql"]);
     expect(r.stderr).toContain("distinct approved database systems");
   });
-  it("does not start a process for absent source or same target", () => { for (const change of [{ DATABASE_URL: "" }, { RESTORE_DATABASE_URL: "postgresql://other@source.example/main" }]) { const r = fixture(change); expect(r.status).toBe(1); expect(r.calls).toEqual([]); expect(r.stderr).not.toContain("secret"); } });
+  it("does not start a process for absent source, same target or database-string redirection", () => { for (const change of [{ DATABASE_URL: "" }, { RESTORE_DATABASE_URL: "postgresql://other@source.example/main" }, { RESTORE_DATABASE_URL: "postgresql://other@disposable.example/host%3Dsource.example%20dbname%3Dmain" }]) { const r = fixture(change); expect(r.status).toBe(1); expect(r.calls).toEqual([]); expect(r.stderr).not.toContain("secret"); } });
 });

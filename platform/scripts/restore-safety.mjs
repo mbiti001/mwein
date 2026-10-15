@@ -6,12 +6,22 @@ export function databaseIdentity(connection) {
   try { url = new URL(connection); } catch { throw new Error("Invalid database connection"); }
   if (!["postgres:", "postgresql:"].includes(url.protocol) || !url.hostname || !url.pathname.slice(1))
     throw new Error("Expected an explicit PostgreSQL host and database");
+  let database;
+  try {
+    database = decodeURIComponent(url.pathname.slice(1));
+    if ([database, decodeURIComponent(url.username), decodeURIComponent(url.password)].some(value => value.includes("\0")))
+      throw new Error("Invalid connection value");
+  } catch { throw new Error("Invalid database connection encoding"); }
+  // libpq may expand a dbname containing '=' or a URI prefix as another
+  // connection string. Reject it before any identity approval or child process.
+  if (database.includes("=") || /^postgres(?:ql)?:\/\//i.test(database))
+    throw new Error("Database connection expansion is not allowed");
   // Reject libpq connection overrides which could redirect a validated connection.
   for (const key of url.searchParams.keys())
     if (!["sslmode", "channel_binding", "connect_timeout"].includes(key))
       throw new Error("Unsupported database connection option");
   const host = url.hostname.toLowerCase().replace(/\.$/, "").replace(/-pooler(?=\.)/, "");
-  return `${host}:${url.port || "5432"}/${decodeURIComponent(url.pathname.slice(1))}`;
+  return `${host}:${url.port || "5432"}/${database}`;
 }
 export function identityHash(connection) {
   return createHash("sha256").update(databaseIdentity(connection)).digest("hex");
@@ -37,8 +47,8 @@ export function connectionEnvironment(connection, inherited = process.env) {
   databaseIdentity(connection); // validate supported scheme and options before parsing
   const url = new URL(connection);
   // Do not let inherited libpq hostaddr/service/options redirect a checked URL.
-  const env = Object.fromEntries(Object.entries(inherited).filter(([key]) => !key.startsWith("PG")));
-  env.PGHOST = url.hostname;
+  const env = Object.fromEntries(Object.entries(inherited).filter(([key]) => !/^(PG|DATABASE_URL$|DIRECT_URL$|RESTORE_DATABASE_URL$)/i.test(key)));
+  env.PGHOST = url.hostname.replace(/^\[|\]$/g, "");
   env.PGPORT = url.port || "5432";
   env.PGDATABASE = decodeURIComponent(url.pathname.slice(1));
   if (url.username) env.PGUSER = decodeURIComponent(url.username);

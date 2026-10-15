@@ -23,3 +23,15 @@ it("does not inherit libpq redirection or leak credentials into database argumen
   expect(env).toMatchObject({ PGHOST: "disposable.example", PGDATABASE: "drill", PGUSER: "operator", PGPASSWORD: "encoded@password", PGSSLMODE: "require" });
   expect(env).not.toHaveProperty("PGHOSTADDR"); expect(env).not.toHaveProperty("PGSERVICE"); expect(env).not.toHaveProperty("PGOPTIONS");
 });
+
+it.each(["host%3Dsource.example%20dbname%3Dmain", "postgresql%3A%2F%2Fsource.example%2Fmain", "postgres%3A%2F%2Fsource.example%2Fmain", "invalid%00name", "invalid%ZZ"])("refuses encoded database expansion or malformed values: %s", database => {
+  expect(() => databaseIdentity(`postgresql://operator@disposable.example/${database}`)).toThrow();
+  expect(() => connectionEnvironment(`postgresql://operator@disposable.example/${database}`)).toThrow();
+});
+
+it("removes Windows case variants and unrelated database credentials, and maps IPv6 for libpq", () => {
+  const env = connectionEnvironment("postgresql://operator:synthetic@[::1]/drill", {
+    Path: "system-tools", pgHostAddr: "other", PgService: "other", DATABASE_URL: "source-secret", RESTORE_DATABASE_URL: "target-secret", DIRECT_URL: "direct-secret",
+  });
+  expect(env).toEqual({ Path: "system-tools", PGHOST: "::1", PGPORT: "5432", PGUSER: "operator", PGPASSWORD: "synthetic", PGDATABASE: "drill", PGCONNECT_TIMEOUT: "10" });
+});
