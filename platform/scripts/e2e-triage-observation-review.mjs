@@ -23,6 +23,15 @@ export async function verifyTriageObservationReview({ pg, requestWithCookie, ses
     await pg.query(`INSERT INTO "Visit" (id,"facilityId","patientId","visitNumber",clinic,"visitType",status,reason,"updatedAt") VALUES ($1,$2,$3,$4,'Outpatient','WALK_IN','AWAITING_TRIAGE','Synthetic observation flags review',now())`, [visitId, facility.id, patientId, `E2E-OBS-${scenario.name}`]);
     await pg.query(`INSERT INTO "QueueEntry" (id,"visitId","servicePoint",priority,status) VALUES ($1,$2,'TRIAGE','ROUTINE','WAITING')`, [randomUUID(), visitId]);
     const input = { ...baseline, ...scenario.changes, requestKey: randomUUID(), chiefComplaint: "Synthetic observation flag regression", triageCategory: "ROUTINE" };
+    if (scenario.name === "normal") {
+      for (const invalid of [{ painScore: "" }, { painScore: " " }, { painScore: null }, { painScore: false }, { painScore: true }, { painScore: [] }, { painScore: {} }, { painScore: [0] }, { painScore: undefined }, { weightKg: [70] }, { weightKg: true }, { heightCm: null }]) {
+        const rejected = await requestWithCookie(`/api/visits/${visitId}/triage`, sessionCookie, { method: "POST", body: JSON.stringify({ ...input, ...invalid }) });
+        assert(rejected.response.status === 422, "Non-observation input was accepted by triage");
+      }
+      const untouched = (await pg.query(`SELECT v.status,(SELECT count(*)::int FROM "TriageRecord" t WHERE t."visitId"=v.id) AS assessments,(SELECT count(*)::int FROM "MeasuredVitals" m WHERE m."visitId"=v.id) AS measurements,(SELECT count(*)::int FROM "QueueEntry" q WHERE q."visitId"=v.id AND q."servicePoint"='CONSULTATION') AS handoffs,(SELECT count(*)::int FROM "QueueEntry" q WHERE q."visitId"=v.id AND q."servicePoint"='TRIAGE' AND q.status='WAITING') AS waiting FROM "Visit" v WHERE v.id=$1`, [visitId])).rows[0];
+      assert(untouched.status === "AWAITING_TRIAGE" && untouched.assessments === 0 && untouched.measurements === 0 && untouched.handoffs === 0 && untouched.waiting === 1, "Invalid observation changed clinical records or routing");
+      steps.push("reject missing/boolean/non-numeric triage observations without assuming normal pain or writing records");
+    }
     const result = await requestWithCookie(`/api/visits/${visitId}/triage`, sessionCookie, { method: "POST", body: JSON.stringify(input) });
     assert(result.response.ok, `Observation ${scenario.name} assessment failed: ${JSON.stringify(result.body)}`);
     const rows = (await pg.query(`SELECT o.code,o."valueDecimal",o."valueText",o.abnormal,o.critical,t."visitId" FROM "Observation" o JOIN "TriageRecord" t ON t.id=o."triageId" WHERE t."visitId"=$1`, [visitId])).rows;

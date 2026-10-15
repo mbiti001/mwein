@@ -82,3 +82,9 @@ it("persists only each observation's own abnormal and critical flags", async () 
   expect(observations.find((item: any) => item.code === "WEIGHT")).toMatchObject({ abnormal: false, critical: false });
   expect((await response.json()).alerts).toHaveLength(2);
 });
+
+it.each(["", null, false])("rejects unobserved pain %j before clinical writes", async painScore => {
+  expect((await send({ ...input, painScore })).status).toBe(422);
+  expect(workflowTransaction).not.toHaveBeenCalled();
+  expect(tx.triageRecord.create).not.toHaveBeenCalled();
+});

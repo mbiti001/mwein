@@ -78,7 +78,7 @@
       "displayName": "1.6.1",
       "status": "candidate",
       "branch": "codex/mwein-platform",
-      "note": "Correct field-specific stored triage abnormal/critical flags without changing existing thresholds. No migration; preserves deployed1.6.0 source. Await exact-source verification and coordinated release."
+      "note": "Correct field-specific stored triage flags and reject missing/non-numeric measurement inputs before conversion, preserving valid-input thresholds. No migration or historical record rewrite. Final-source all-agent retests and coordinated release required."
     }
   ]
 }

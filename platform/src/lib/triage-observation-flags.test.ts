@@ -32,3 +32,17 @@ it("keeps one existing high blood pressure alert while flagging both affected co
   const flags = triageObservationFlags(values);
   expect(flags.BP_SYS.critical && flags.BP_DIA.critical).toBe(true);
 });
+
+import { triageSchema } from "./domain";
+const validAssessment = { ...baseline, chiefComplaint: "Synthetic explicit observation", weightKg: 70, heightCm: 172, triageCategory: "ROUTINE" };
+it.each(["", "  ", null, false, true, [], [0], {}, undefined])("rejects non-observation pain input %j instead of assuming zero", value => {
+  expect(triageSchema.safeParse({ ...validAssessment, painScore: value }).success).toBe(false);
+});
+it.each(["weightKg", "heightCm"])("rejects boolean %s instead of converting it to one", key => {
+  expect(triageSchema.safeParse({ ...validAssessment, [key]: true }).success).toBe(false);
+});
+it("accepts explicit zero pain as a number or numeric form string", () => {
+  for (const painScore of [0, "0"]) expect(triageSchema.safeParse({ ...validAssessment, painScore }).success).toBe(true);
+  const numericForm = Object.fromEntries(Object.entries(validAssessment).map(([key, value]) => [key, typeof value === "number" ? String(value) : value]));
+  expect(triageSchema.safeParse(numericForm).success).toBe(true);
+});

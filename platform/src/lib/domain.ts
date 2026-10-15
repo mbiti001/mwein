@@ -74,20 +74,23 @@ export const patientRegistrationSchema = z.object({
   }
 });
 
+// Browser number inputs arrive as strings; blanks, null and booleans are not observations.
+const triageNumber = (bounds: z.ZodNumber) => z.union([z.number(), z.string().trim().min(1)]).pipe(z.coerce.number()).pipe(bounds);
+
 export const triageSchema = z.object({
   requestKey: z.uuid().optional(),
   measuredAt: z.iso.datetime().refine(value => new Date(value).getTime() <= Date.now(), "Measurement time cannot be in the future").optional(),
   reviewedVitalsId: z.uuid().optional(),
   chiefComplaint: z.string().trim().min(2).max(500),
-  temperatureC: z.coerce.number().min(25).max(45),
-  pulseBpm: z.coerce.number().int().min(20).max(300),
-  respiratoryRate: z.coerce.number().int().min(4).max(100),
-  systolicBp: z.coerce.number().int().min(40).max(300),
-  diastolicBp: z.coerce.number().int().min(20).max(200),
-  oxygenSaturation: z.coerce.number().min(40).max(100),
-  weightKg: z.coerce.number().positive().max(500),
-  heightCm: z.coerce.number().positive().max(260).optional(),
-  painScore: z.coerce.number().int().min(0).max(10),
+  temperatureC: triageNumber(z.number().min(25).max(45)),
+  pulseBpm: triageNumber(z.number().int().min(20).max(300)),
+  respiratoryRate: triageNumber(z.number().int().min(4).max(100)),
+  systolicBp: triageNumber(z.number().int().min(40).max(300)),
+  diastolicBp: triageNumber(z.number().int().min(20).max(200)),
+  oxygenSaturation: triageNumber(z.number().min(40).max(100)),
+  weightKg: triageNumber(z.number().positive().max(500)),
+  heightCm: triageNumber(z.number().positive().max(260)).optional(),
+  painScore: triageNumber(z.number().int().min(0).max(10)),
   consciousness: z.enum(["ALERT", "VOICE", "PAIN", "UNRESPONSIVE"]),
   triageCategory: z.enum(["ROUTINE", "PRIORITY", "URGENT", "EMERGENCY"]),
   notes: z.string().trim().max(2000).optional(),
