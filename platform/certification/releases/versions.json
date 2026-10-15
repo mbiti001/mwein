@@ -56,9 +56,12 @@
     {
       "version": "1.5.0",
       "displayName": "1.5.0",
-      "status": "candidate",
+      "status": "deployed",
       "branch": "codex/mwein-platform",
-      "note": "Multi-medicine prescription lists, draft revision and retry safety, source-backed inactive Kenya medicine references, and stricter dispensing-unit matching. No new migration. Separate from the release coordinator's frozen 1.4.0 diagnostic source e213844; not deployed."
+      "note": "Multi-medicine prescribing, safe revisions and retries, governed inactive Kenya medicine references, patient-summary exclusions. Exact-source CI and live browser/Vercel checks passed. Application-only release; clinical readiness remains blocked.",
+      "source": "fe310daf67b2f4ab8caf4aa297cac70906ac1ed2",
+      "deploymentId": "dpl_5nckHZrUB5ev2HjXH8tPs5juNTTL",
+      "evidence": "2026-10-16-1.5.0.json"
     },
     {
       "version": "1.6.0",

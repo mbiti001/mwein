@@ -1,0 +1,209 @@
+{
+  "version": "1.5.0",
+  "status": "deployed-and-verified",
+  "source": "fe310daf67b2f4ab8caf4aa297cac70906ac1ed2",
+  "branch": "codex/mwein-platform",
+  "tag": "mwein-v1.5.0",
+  "recordedAt": "2026-10-15T23:07:49.959Z",
+  "authorization": "Owner explicitly authorized coordinated implementation, verification and Vercel deployment in the collaborating chats",
+  "scope": "Multi-medicine prescribing, safe revisions and retries, governed inactive Kenya medicine references, patient-summary exclusions",
+  "sourceArchiveSha256": "d387ec586d2a10392f89957ae33db24bfafc565b9c054e43cd8e25ba2d437c2b",
+  "deploymentArchiveSha256": "43b2a5bf7a82debb09dbeb407266319d29fcd2aa5fcfda4fea2449f9ad6d8496",
+  "ci": {
+    "runId": 38820111957,
+    "url": "https://github.com/mbiti001/mwein/actions/runs/38820111957",
+    "platformJobId": 116714357992,
+    "legacyJobId": 116714358213,
+    "status": "completed",
+    "conclusion": "success",
+    "platform": "success",
+    "legacy": "success",
+    "unitTests": 668,
+    "unitFiles": 109,
+    "migrationChecks": 55,
+    "syntheticWorkflowChecks": 143,
+    "browserScenarios": 111,
+    "productionDependencyVulnerabilities": 0
+  },
+  "candidateEvidence": "2026-10-16-1.5.0-candidate.json",
+  "database": {
+    "changed": false,
+    "migrationsRun": 0,
+    "latestMigration": "20261016010000_rights_identity_evidence",
+    "newBackupTaken": false,
+    "existingBackupEvidence": "2026-10-16-1.3.0.json",
+    "note": "No schema or migration change from prior live release. Historical backup retained; no new database-release backup or October 15 exception claimed."
+  },
+  "deployment": {
+    "id": "dpl_5nckHZrUB5ev2HjXH8tPs5juNTTL",
+    "url": "https://mwein-hmis-platform-o8qyz0rth-mbitis-projects.vercel.app",
+    "origin": "https://mwein-hmis-platform.vercel.app",
+    "readyState": "READY",
+    "builds": [
+      {
+        "id": "bld_q956ebiwd",
+        "readyState": "READY",
+        "use": "@vercel/vc-build"
+      }
+    ],
+    "promoted": true,
+    "buildMigrationFree": true
+  },
+  "prePromotionBaseline": {
+    "status": "ok",
+    "database": "connected",
+    "migration": "20261016010000_rights_identity_evidence",
+    "release": {
+      "version": "1.4.0",
+      "commit": "e21384455f78449a1fb4437a9836797baf52615b",
+      "shortCommit": "e21384455f78",
+      "environment": "production",
+      "branch": "codex/mwein-platform",
+      "deployment": "dpl_FouhRPioAV9Ak9YqdzdCGdkzTTwa",
+      "application": "mwein-hmis-platform"
+    },
+    "time": "2026-10-15T23:06:23.429Z"
+  },
+  "stagedHealth": {
+    "status": "ok",
+    "database": "connected",
+    "migration": "20261016010000_rights_identity_evidence",
+    "release": {
+      "version": "1.5.0",
+      "commit": "fe310daf67b2f4ab8caf4aa297cac70906ac1ed2",
+      "shortCommit": "fe310daf67b2",
+      "environment": "production",
+      "branch": "codex/mwein-platform",
+      "deployment": "dpl_5nckHZrUB5ev2HjXH8tPs5juNTTL",
+      "application": "mwein-hmis-platform"
+    },
+    "time": "2026-10-15T23:05:17.630Z"
+  },
+  "liveVerification": {
+    "verifiedAt": "2026-10-15T23:07:02.933Z",
+    "origin": "https://mwein-hmis-platform.vercel.app",
+    "health": {
+      "status": "ok",
+      "database": "connected",
+      "migration": "20261016010000_rights_identity_evidence",
+      "release": {
+        "version": "1.5.0",
+        "commit": "fe310daf67b2f4ab8caf4aa297cac70906ac1ed2",
+        "shortCommit": "fe310daf67b2",
+        "environment": "production",
+        "branch": "codex/mwein-platform",
+        "deployment": "dpl_5nckHZrUB5ev2HjXH8tPs5juNTTL",
+        "application": "mwein-hmis-platform"
+      },
+      "time": "2026-10-15T23:06:54.500Z"
+    },
+    "readiness": {
+      "http": 503,
+      "status": "blocked"
+    },
+    "unauthenticatedReadChecks": 4,
+    "browser": "155.0.8059.40",
+    "widths": [
+      1440,
+      768,
+      390,
+      320
+    ],
+    "buildKeyboardExpansion": true,
+    "buildExcludedFromPrint": true,
+    "pageErrors": [],
+    "failedRequests": [],
+    "serverErrors": [],
+    "protectedReads": [
+      {
+        "route": "/api/auth/me",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/patients",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/visits",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/diagnostic-reviews?limit=25",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      }
+    ],
+    "productionPatientDataUsed": false
+  },
+  "vercelAudit": {
+    "runtime": {
+      "type": "summary",
+      "recordsReturned": 0,
+      "timeRange": {
+        "start": "2026-10-15T22:36:53.343Z",
+        "end": "2026-10-15T23:06:53.343Z"
+      },
+      "pagination": {
+        "hasMore": false,
+        "next": null
+      },
+      "excludedIntervals": []
+    },
+    "serverRequests": {
+      "summary": {
+        "type": "summary",
+        "recordsReturned": 2,
+        "timeRange": {
+          "start": "2026-10-15T22:37:39.000Z",
+          "end": "2026-10-15T23:07:39.000Z"
+        },
+        "pagination": {
+          "hasMore": false,
+          "next": null
+        },
+        "excludedIntervals": []
+      },
+      "records": [
+        {
+          "time": "2026-10-15T23:07:33.349Z",
+          "path": "/api/ready",
+          "status": 503
+        },
+        {
+          "time": "2026-10-15T23:06:54.765Z",
+          "path": "/api/ready",
+          "status": 503
+        }
+      ],
+      "interpretation": "Only expected readiness 503; no unexpected server failure found"
+    },
+    "limitation": "Recent 30-minute logs and signed-out public checks; authenticated workflows exercised only against synthetic local/CI data."
+  },
+  "safeguards": {
+    "productionSeeded": false,
+    "credentialsChanged": false,
+    "realPatientWorkflowsUsed": false,
+    "userSignInRequired": false,
+    "clinicalReadiness": "blocked",
+    "nationalTransportEnabled": false,
+    "gitDeploymentGuardPreserved": true
+  },
+  "recovery": {
+    "previousDeployment": "dpl_FouhRPioAV9Ak9YqdzdCGdkzTTwa",
+    "previousSource": "e21384455f78449a1fb4437a9836797baf52615b",
+    "procedure": "Reconcile any later live release before an application rollback. Keep all database records; do not restore an old database over subsequent writes."
+  },
+  "coordination": {
+    "releaseOwner": "01a14169-4f35-7311-bc6c-50c958c1f476",
+    "otherAgents": "01a13c99 prescribing; 01a141a2 unified triage; all contributor work retained through normal integration"
+  },
+  "limitations": [
+    "Fourteen selected KEML formulations only; inactive until facility review.",
+    "No therapeutic substitution, dose conversion or invented clinical rules.",
+    "Dedicated prescription serial/export, professional registration/signature, approved clinical coverage and pharmacy clarification remain acceptance gaps.",
+    "No clinical, legal, regulatory or DHA certification is claimed."
+  ]
+}
