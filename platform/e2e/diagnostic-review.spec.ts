@@ -110,11 +110,13 @@ test("review recovery preserves the exact action, confirms saved work and render
   await page.emulateMedia({ media: "screen" });
   for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 });
+    if (width <= 390) await expect.poll(() => page.locator("#main-navigation").evaluate(element => element.getBoundingClientRect().right)).toBeLessThanOrEqual(0);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
+    await page.evaluate(() => window.scrollTo(0, 0));
     if ([1440, 390].includes(width)) await page.screenshot({ path: testInfo.outputPath(`diagnostic-review-${width}.png`), fullPage: true });
   }
   for (const fontFamily of ["Arial, sans-serif", "monospace"]) {
-    await page.addStyleTag({ content: `* { font-family: ${fontFamily} !important; } body { font-size: 17px !important; }` });
+    await page.evaluate(font => { document.body.style.fontFamily = font; document.body.style.fontSize = "17px"; }, fontFamily);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
   }
   page.once("dialog", dialog => dialog.dismiss()); await detail.getByRole("button", { name: "Reload saved review" }).click();

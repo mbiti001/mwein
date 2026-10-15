@@ -88,8 +88,9 @@ function ReviewDetail({ id, onDirty, onSaved }: { id: string; onDirty: (value: b
   async function reload() {
     if (busy.current) return;
     if ((note || attested || unconfirmed) && !window.confirm("Reload the saved review and discard this entered text or unconfirmed request? This only reads the saved record; it does not submit another action.")) return;
-    setNote(""); setAttested(false); setUnconfirmed(null); setError("");
-    await saved.refresh();
+    setNote(""); setAttested(false); setUnconfirmed(null); setError(""); setNotice("");
+    const refreshed = await saved.refresh();
+    if (refreshed && mounted.current) setNotice("Saved review loaded. No action was submitted.");
   }
   return <section className="diagnosticReviewDetail" aria-label="Selected diagnostic review">
     <div className="diagnosticReviewToolbar"><h3>Saved review and responsibility</h3><button type="button" className="secondary noPrint" disabled={pending || saved.loading} onClick={() => void reload()}>Reload saved review</button></div>
@@ -115,7 +116,7 @@ function ReviewDetail({ id, onDirty, onSaved }: { id: string; onDirty: (value: b
         {mine && !released && <p>Responsibility is recorded. A verified report is required before acknowledgement.</p>}
       </form>}
       {!data?.canReview && <p>Read-only access. A clinician with consultation permission must accept and acknowledge the review.</p>}
-      {!!order.diagnosticReviews.length && <section aria-label="Diagnostic review history"><h4>Saved review history</h4>{data?.historyTruncated && <p>Showing the latest 50 events. Earlier responsibility history is retained.</p>}{order.diagnosticReviews.map(event => <article className="diagnosticReviewHistory" key={event.id}><div className="diagnosticReviewGrid"><p><strong>{event.action === "CLAIM" ? "Responsibility accepted" : "Report acknowledged"}</strong><span>{event.actor.displayName} · {time(event.recordedAt)}</span></p><p><strong>{event.action === "CLAIM" ? "Responsibility or handover reason" : "Review findings and next steps"}</strong><span>{event.note}</span></p></div></article>)}</section>}
+      {!!order.diagnosticReviews.length && <section aria-label="Diagnostic review history"><h4>Saved review history</h4>{data?.historyTruncated && <p>Showing the latest 50 events. Earlier responsibility history is retained.</p>}{order.diagnosticReviews.map(event => <article className="diagnosticReviewHistory" key={event.id}><div className="diagnosticReviewGrid"><p><strong>{event.action === "CLAIM" ? "Responsibility or handover reason" : "Review findings and next steps"}</strong><span>{event.note}</span></p><p><strong>{event.action === "CLAIM" ? "Responsibility accepted" : "Report acknowledged"}</strong><span>{event.actor.displayName} · {time(event.recordedAt)}</span></p></div></article>)}</section>}
     </>}
     {unconfirmed && <button type="button" className="primary noPrint" disabled={pending || !data} onClick={() => void submit(unconfirmed.action as "CLAIM" | "ACKNOWLEDGE")}>{pending ? "Saving review…" : "Retry same review action"}</button>}
   </section>;
