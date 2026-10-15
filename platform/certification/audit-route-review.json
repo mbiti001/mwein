@@ -142,7 +142,7 @@
       "methodExceptions": {}
     },
     "inventory/forecast": {
-      "sourceSha256": "e3a09b710c0f0be3005ce816563f1b1a877e1a0e7b02bebc15e2b50e414acbce",
+      "sourceSha256": "eb9dfa93ec15de648adfd780985a959cd75710704b95e8934a5ee94f59cbe0ee",
       "methodExceptions": {}
     },
     "inventory": {
@@ -164,7 +164,7 @@
       "methodExceptions": {}
     },
     "orders/[id]/dispense": {
-      "sourceSha256": "ac1e339c8a8be9e811635fe68a9f60cbe4cde5e5f1d6eda9ee9216c756534dc8",
+      "sourceSha256": "62fb36cda72e88c3414677c24ad8cc2b3d33761a43209c3043429afdd04cdef7",
       "methodExceptions": {}
     },
     "orders/[id]/imaging-result": {

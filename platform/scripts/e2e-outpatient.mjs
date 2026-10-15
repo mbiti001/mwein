@@ -794,12 +794,35 @@ try {
   assert(dispensingPlan.body.available === 100, "Seeded stock was not available to dispense");
   assert(dispensingPlan.body.allocation?.[0]?.batchNumber === "E2E-PARA-001", "FEFO did not select the expected batch");
 
-  const dispensation = await api("dispense prescribed medicine", `/api/orders/${medicationOrder.id}/dispense`, {
+  const dispensingPath = `/api/orders/${medicationOrder.id}/dispense`;
+  const partialRequest = { action: "DISPENSE", idempotencyKey: randomUUID(), quantity: 4, counsellingCompleted: true, notes: "Synthetic partial supply counselling recorded." };
+  const concurrentSupply = await Promise.all([1, 2].map(() => requestWithCookie(dispensingPath, sessionCookie, { method: "POST", body: JSON.stringify(partialRequest) })));
+  assert(concurrentSupply.every(item => item.response.status === 200), "Concurrent dispensing retries did not both confirm");
+  assert(concurrentSupply.filter(item => item.body.replayed).length === 1, "Concurrent supply was not replayed exactly once");
+  assert(concurrentSupply.every(item => item.body.remainingQuantity === 6), "Partial supply balance is incorrect");
+  const partialRows = (await pg.query(`SELECT "id" FROM "Dispensation" WHERE "idempotencyKey" = $1`, [partialRequest.idempotencyKey])).rows;
+  assert(partialRows.length === 1, "Concurrent retry created duplicate supply records");
+  const movementCount = (await pg.query(`SELECT COUNT(*)::int AS count FROM "StockMovement" WHERE "dispensationId" = $1`, [partialRows[0].id])).rows[0].count;
+  assert(movementCount === 1, "Concurrent retry deducted stock more than once");
+  const partialBilling = (await pg.query(`SELECT COUNT(*)::int AS count, SUM("quantity")::float AS quantity FROM "InvoiceItem" WHERE "orderId" = $1`, [medicationOrder.id])).rows[0];
+  assert(partialBilling.count === 1 && partialBilling.quantity === 4, "Concurrent partial supply billed more than once");
+  const changedSupply = await requestWithCookie(dispensingPath, sessionCookie, { method: "POST", body: JSON.stringify({ ...partialRequest, quantity: 3 }) });
+  assert(changedSupply.response.status === 409, "Changed dispensing payload reused an existing key");
+  const pharmacyStaff = await authenticate("MMS", "pharmacy@example.test");
+  const actorMismatch = await requestWithCookie(dispensingPath, pharmacyStaff.cookie, { method: "POST", body: JSON.stringify(partialRequest) });
+  assert(actorMismatch.response.status === 409, "Another staff member confirmed the original supply key");
+  const deniedSupply = await requestWithCookie(dispensingPath, mmsReception.cookie, { method: "POST", body: JSON.stringify(partialRequest) });
+  assert(deniedSupply.response.status === 403, "Reception replayed a dispensing request");
+  const replayEvents = (await pg.query(`SELECT "action" FROM "AuditEvent" WHERE "entityType" = 'Dispensation' AND "entityId" = $1`, [partialRows[0].id])).rows;
+  assert(replayEvents.some(item => item.action === "DISPENSING_REQUEST_RECORDED") && replayEvents.some(item => item.action === "DISPENSING_REPLAY_CONFIRMED"), "Supply and replay receipts were not retained");
+  steps.push("verify concurrent partial-supply retries, actor-bound payloads and audit receipts");
+
+  const dispensation = await api("dispense remaining prescribed medicine", dispensingPath, {
     method: "POST",
     body: JSON.stringify({
       action: "DISPENSE",
       idempotencyKey: randomUUID(),
-      quantity: 10,
+      quantity: 6,
       counsellingCompleted: true,
       notes: "Dose, route, duration and return precautions explained.",
     }),
@@ -874,7 +897,7 @@ try {
               b."quantityAvailable"::text AS "batchQuantity",
               lb."quantity"::text AS "storeQuantity",
               (SELECT COUNT(*)::int FROM "Referral" r WHERE r."visitId" = v."id" AND r."status" = 'SENT') AS "sentReferrals",
-              (SELECT COUNT(*)::int FROM "Dispensation" d JOIN "Prescription" p ON p."id" = d."prescriptionId" JOIN "ClinicalOrder" o ON o."id" = p."orderId" WHERE o."visitId" = v."id" AND d."status" = 'DISPENSED') AS "dispensations",
+              (SELECT COUNT(*)::int FROM "Dispensation" d JOIN "Prescription" p ON p."id" = d."prescriptionId" JOIN "ClinicalOrder" o ON o."id" = p."orderId" WHERE o."visitId" = v."id" AND d."status" IN ('DISPENSED', 'PARTIALLY_DISPENSED')) AS "dispensations",
               (SELECT COUNT(*)::int FROM "MedicationSafetyAssessment" msa JOIN "Prescription" p ON p."id" = msa."prescriptionId" JOIN "ClinicalOrder" o ON o."id" = p."orderId" WHERE o."visitId" = v."id" AND msa."outcome" = 'PASS') AS "safetyAssessments",
               (SELECT COUNT(*)::int FROM "InvoiceItem" line WHERE line."invoiceId" = i."id" AND line."catalogItemId" IS NOT NULL AND line."priceVersionId" IS NOT NULL) AS "versionedCharges",
               (SELECT COUNT(*)::int FROM "AccountingJournal" j WHERE j."sourceType" = 'STOCK_MOVEMENT') AS "inventoryJournals"
@@ -891,9 +914,9 @@ try {
   assert(state.versionedCharges >= 1, "Catalogue charges were not linked to their effective price version");
   assert(Number(state.batchQuantity) === 90 && Number(state.storeQuantity) === 90, "Dispensing did not decrement both stock balances");
   assert(state.sentReferrals === 1, "Sent referral was not persisted");
-  assert(state.dispensations === 1, "Dispensation trace was not persisted");
+  assert(state.dispensations === 2, "Partial and final dispensation traces were not persisted exactly once");
   assert(state.safetyAssessments === 1, "Approved medication safety assessment was not persisted");
-  assert(state.inventoryJournals === 1, "Dispensing accounting journal was not posted");
+  assert(state.inventoryJournals === 2, "Partial and final dispensing accounting journals were not posted exactly once");
   steps.push("verify final clinical, referral, stock, accounting, billing and closure state");
   for (const outcome of ["RECOVERED", "OUTPATIENT", "DECEASED", "REFERRED", "AGAINST_MEDICAL_ADVICE", "OTHER"]) {
     const closureId = randomUUID(); const encounterId = randomUUID();

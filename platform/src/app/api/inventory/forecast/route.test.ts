@@ -14,11 +14,12 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 it("forecasts usable stock and preserves audited private disclosure", async () => {
   vi.mocked(db.catalogItem.findMany).mockResolvedValue([{ code: "TEST", name: "Synthetic", reorderLevel: 5,
-    inventoryBatches: [{ quantityAvailable: 100, expiryDate: new Date("2026-09-26") }, { quantityAvailable: 2, expiryDate: new Date("2026-10-01") }], dispensations: [],
+    inventoryBatches: [{ quantityAvailable: 100, expiryDate: new Date("2026-09-26") }, { quantityAvailable: 2, expiryDate: new Date("2026-10-01") }], dispensations: [{ quantity: 4 }, { quantity: 6 }],
   }] as never);
   const response = await GET(new Request("https://test/api/inventory/forecast"));
   expect(response.status).toBe(200);
-  expect((await response.json()).forecasts[0]).toMatchObject({ available: 2, expiringWithin30: 2 });
+  expect((await response.json()).forecasts[0]).toMatchObject({ available: 2, expiringWithin30: 2, consumed: 10 });
+  expect(db.catalogItem.findMany).toHaveBeenCalledWith(expect.objectContaining({ select: expect.objectContaining({ dispensations: { where: { status: { in: ["DISPENSED", "PARTIALLY_DISPENSED"] }, dispensedAt: { gte: new Date(now.getTime() - 90 * 86400000) } }, select: { quantity: true } } }) }));
   expect(response.headers.get("cache-control")).toBe("private, no-store");
   expect(recordDisclosure).toHaveBeenCalledOnce();
   expect(db.catalogItem.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ facilityId: "facility-a" }), select: expect.objectContaining({ inventoryBatches: { where: { active: true, expiryDate: { gt: now }, quantityAvailable: { gt: 0 } }, select: { quantityAvailable: true, expiryDate: true } } }) }));
@@ -27,4 +28,9 @@ it("denies unauthorized forecast access before querying stock", async () => {
   vi.mocked(requirePermission).mockRejectedValue(Object.assign(new Error("Denied"), { status: 403 }));
   expect((await GET(new Request("https://test/api/inventory/forecast"))).status).toBe(403);
   expect(db.catalogItem.findMany).not.toHaveBeenCalled();
+});
+it("blocks forecast disclosure when its audit fails", async () => {
+  vi.mocked(db.catalogItem.findMany).mockResolvedValue([]);
+  vi.mocked(recordDisclosure).mockRejectedValue(new Error("Audit unavailable"));
+  expect((await GET(new Request("https://test/api/inventory/forecast"))).status).toBe(500);
 });

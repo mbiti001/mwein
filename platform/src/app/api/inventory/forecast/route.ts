@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     const items = await db.catalogItem.findMany({ where: { facilityId: user.facilityId, category: "PHARMACEUTICAL", active: true }, select: {
       id: true, code: true, name: true, reorderLevel: true,
       inventoryBatches: { where: { active: true, expiryDate: { gt: now }, quantityAvailable: { gt: 0 } }, select: { quantityAvailable: true, expiryDate: true } },
-      dispensations: { where: { status: "DISPENSED", dispensedAt: { gte: since } }, select: { quantity: true } },
+      dispensations: { where: { status: { in: ["DISPENSED", "PARTIALLY_DISPENSED"] }, dispensedAt: { gte: since } }, select: { quantity: true } },
     } });
     const forecasts = items.map(item => {
       const stock = usableBatchStock(item.inventoryBatches, now);
