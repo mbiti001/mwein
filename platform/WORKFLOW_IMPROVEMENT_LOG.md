@@ -353,6 +353,8 @@ Validation: TypeScript passed; **589 unit tests in 104 files**, **54 migration s
 
 Reviewed changed clinic-document and supply routes for permission checks, facility isolation, transactional audit and response privacy before refreshing only their source review hashes. Readiness and remaining classification gaps are not waived. Vercel settings inspection found production and preview targets on both database environment variables; a scoped Git deployment guard now prevents automatic deployments of the renamed branch. A separately provisioned preview database remains a dependency. Controlled exact-source CLI releases remain available.
 
+Integration: retained contributor backup hardening f1cab01 through merge 0e581fa; all **620 unit tests across 105 files** passed on the combined source. Visual review then caught a shared button-style override compressing phone register entries; increased the scoped selector priority and added explicit four-column desktop/two-column phone assertions. The earlier candidate is not promoted.
+
 Release status: version **1.2.0 candidate**, not yet deployed. Both diagnostic-review and numbering migrations require a new verified backup and exact-source CI before release. Current live release remains verified 1.1.0. Preserve compliance, diagnostic handover, pharmacy, cashier, follow-up and backup-utility work in the pipeline.
 
 ## Completed batch: backup process and archive verification — 16 October 2026

@@ -53,13 +53,13 @@
 @media screen and (max-width: 900px) { .mobileNavToggle { display: flex; justify-content: space-between; align-items: center; gap: 16px; } .mobileWordmark { display: block; width: 135px; height: auto; padding: 3px; background: white; border-radius: 5px; } }
 
 .documentRegister { display: grid; gap: 8px; width: 100%; max-height: 320px; overflow: auto; }
-.documentRegister button { text-align: left; overflow-wrap: anywhere; }
-.documentRegister button { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.5fr) minmax(0, .7fr) minmax(0, .4fr); gap: 12px; align-items: start; }
-.documentRegister button > span { min-width: 0; display: grid; gap: 4px; }
-.documentRegister button small { font-weight: 400; color: #526784; }
-.documentRegister button[aria-pressed="true"] { background: #eff6ff; border-color: #2563eb; }
+body .documentRegister > button.secondary { text-align: left; overflow-wrap: anywhere; }
+body .documentRegister > button.secondary { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.5fr) minmax(0, .7fr) minmax(0, .4fr); gap: 12px; align-items: start; }
+body .documentRegister > button.secondary > span { min-width: 0; display: grid; gap: 4px; }
+body .documentRegister > button.secondary small { font-weight: 400; color: #526784; }
+body .documentRegister > button.secondary[aria-pressed="true"] { background: #eff6ff; border-color: #2563eb; }
 .clinicDraftFields { min-width: 0; border: 0; padding: 0; margin: 0; }
-@media (max-width: 650px) { .documentRegister button { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+@media (max-width: 650px) { body .documentRegister > button.secondary { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 .documentValue { white-space: pre-wrap; overflow-wrap: anywhere; border-bottom: 1px solid #ccd8d4; padding-bottom: 12px; }
 .documentSignature { display: grid; gap: 6px; border-top: 2px solid #187c6d; padding-top: 18px; overflow-wrap: anywhere; }
 .documentSign { margin-top: 24px; padding: 18px; border: 1px solid #b8cdc5; border-radius: 10px; display: grid; gap: 12px; }

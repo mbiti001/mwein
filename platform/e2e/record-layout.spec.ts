@@ -14,6 +14,15 @@ async function responsive(page: Page, paper: Locator, info: TestInfo) {
     const fields = paper.locator(".recordFields > div");
     const positions = await fields.evaluateAll(items => items.slice(0, 2).map(el => el.getBoundingClientRect().y));
     if (width === 1440 && positions.length === 2) expect(positions[0]).toBe(positions[1]);
+    const register = page.locator('.documentRegister > button').first();
+    if (await register.count()) {
+      expect(await register.evaluate(el => getComputedStyle(el).display)).toBe('grid');
+      const cells = await register.locator(':scope > span').evaluateAll(items => items.map(el => el.getBoundingClientRect().y));
+      expect(cells).toHaveLength(4);
+      expect(cells[0]).toBe(cells[1]);
+      if (width <= 650) { expect(cells[2]).toBeGreaterThan(cells[0]); expect(cells[2]).toBe(cells[3]); }
+      else expect(cells.every(y => y === cells[0])).toBe(true);
+    }
     await page.screenshot({ path: info.outputPath(`document-${width}.png`), fullPage: true });
   }
 }
