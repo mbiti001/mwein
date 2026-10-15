@@ -22,6 +22,7 @@ for (const migration of migrations) {
 }
 
 const requiredTables = [
+  "DiagnosticReview",
   "GoodsReceipt",
   "PaymentRequest",
   "ClinicDocument",
@@ -224,5 +225,25 @@ for (const [set, constraint] of [
   if (!rejected) throw new Error(`Missing rights evidence constraint: ${constraint}`);
 }
 await db.exec(`UPDATE "DataSubjectRequest" SET "status" = 'COMPLETED', "completedAt" = CURRENT_TIMESTAMP WHERE id = 'dddddddd-dddd-4ddd-8ddd-ddddddddddd1'`);
-console.log(`verified ${migrations.length} migrations, ${requiredTables.length} required tables, immutable triggers, stocktake and cashier-shift uniqueness, rights evidence constraints, and balanced journal constraints`);
+await db.exec(`
+  INSERT INTO "ClinicalOrder" ("id", "visitId", "orderedById", "type", "displayName")
+  VALUES ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2', '22222222-2222-4222-8222-222222222222', 'LABORATORY', 'Synthetic review');
+  INSERT INTO "DiagnosticReview" ("id", "orderId", "actorId", "sequence", "action", "note", "requestKey", "requestHash")
+  VALUES ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1', '22222222-2222-4222-8222-222222222222', 1, 'CLAIM', 'Synthetic ownership', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3', 'hash');
+`);
+for (const statement of [
+  `UPDATE "DiagnosticReview" SET "note" = 'tampered'`,
+  `DELETE FROM "DiagnosticReview"`,
+  `INSERT INTO "DiagnosticReview" ("id", "orderId", "actorId", "sequence", "action", "note", "requestKey", "requestHash") VALUES ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee4', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1', '22222222-2222-4222-8222-222222222222', 2, 'ACKNOWLEDGE', 'Missing report evidence', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee5', 'hash')`,
+]) {
+  let rejected = false;
+  try { await db.exec(statement); } catch { rejected = true; }
+  if (!rejected) throw new Error("Diagnostic review evidence constraint failed");
+}
+const acknowledgementInsert = sequence => `INSERT INTO "DiagnosticReview" ("id", "orderId", "actorId", "sequence", "action", "note", "resultId", "verifiedAt", "requestKey", "requestHash") VALUES (gen_random_uuid(), 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1', '22222222-2222-4222-8222-222222222222', ${sequence}, 'ACKNOWLEDGE', 'Synthetic review and next steps', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee6', CURRENT_TIMESTAMP, gen_random_uuid(), 'hash')`;
+await db.exec(acknowledgementInsert(2));
+let repeatedAcknowledgementRejected = false;
+try { await db.exec(acknowledgementInsert(3)); } catch { repeatedAcknowledgementRejected = true; }
+if (!repeatedAcknowledgementRejected) throw new Error("Duplicate diagnostic acknowledgement was accepted");
+console.log(`verified ${migrations.length} migrations, ${requiredTables.length} required tables, immutable triggers, stocktake and cashier-shift uniqueness, rights and diagnostic-review evidence constraints, and balanced journal constraints`);
 await db.close();

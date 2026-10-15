@@ -192,7 +192,7 @@
       "methodExceptions": {}
     },
     "patients/[id]/privacy/export": {
-      "sourceSha256": "36478d00a493a52e2a56877c8ea6d706f5b1d6caa450f56d2b70f384fe8cf4ee",
+      "sourceSha256": "f9bdf6b9a6db3a5d1ec9090a1dd209ae91f8593e3e94608997ef46c683483df1",
       "methodExceptions": {}
     },
     "patients/[id]/privacy": {
@@ -291,6 +291,14 @@
     },
     "clinic-documents": {
       "sourceSha256": "6f3bba5fba7162aaff4a9e4490a7b0a706d02997dce698e34852aa79942b29ee",
+      "methodExceptions": {}
+    },
+    "diagnostic-reviews": {
+      "sourceSha256": "9e512df451e8f39f4183fcfec6dd7d84f825a79280eb76871f109ad690eba975",
+      "methodExceptions": {}
+    },
+    "orders/[id]/diagnostic-review": {
+      "sourceSha256": "b65c9a717cc3c5b633a8b9cfe3f3afff64bbb8e96195086f72584526cf1277b0",
       "methodExceptions": {}
     }
   }

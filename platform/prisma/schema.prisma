@@ -300,6 +300,7 @@ model User {
   sessions                      Session[]
   encounters                    Encounter[]
   clinicalOrders                ClinicalOrder[]
+  diagnosticReviews             DiagnosticReview[]
   recordedLabResults            LaboratoryResult[]              @relation("LabResultRecordedBy")
   verifiedLabResults            LaboratoryResult[]              @relation("LabResultVerifiedBy")
   dispensedPrescriptions        Prescription[]                  @relation("PrescriptionDispensedBy")
@@ -984,8 +985,27 @@ model ClinicalOrder {
   imaging            ImagingOrder?
   prescription       Prescription?
   invoiceItems       InvoiceItem[]
+  diagnosticReviews  DiagnosticReview[]
 
   @@index([visitId, type, status])
+}
+
+model DiagnosticReview {
+  id           String        @id @default(uuid()) @db.Uuid
+  orderId      String        @db.Uuid
+  actorId      String        @db.Uuid
+  sequence     Int
+  action       String
+  note         String
+  resultId     String?       @db.Uuid
+  verifiedAt   DateTime?
+  requestKey   String        @unique @db.Uuid
+  requestHash  String
+  recordedAt   DateTime      @default(now())
+  order        ClinicalOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  actor        User          @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, sequence])
 }
 
 model LaboratoryOrder {

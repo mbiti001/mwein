@@ -41,6 +41,7 @@ const AdminCenter = dynamic(() => import("@/components/AdminCenter"), { loading:
 const ServicePointsWorkstation = dynamic(() => import("@/components/ServicePointsWorkstation"), { loading: workspaceLoading });
 const QueueOperationsPanel = dynamic(() => import("@/components/QueueOperationsPanel"), { loading: workspaceLoading });
 const FollowUpWorkstation = dynamic(() => import("@/components/FollowUpWorkstation"), { loading: workspaceLoading });
+const DiagnosticReviewWorkstation = dynamic(() => import("@/components/DiagnosticReviewWorkstation"), { loading: workspaceLoading });
 
 type User = {
   displayName: string;
@@ -152,6 +153,7 @@ type Screen =
   | "servicePoints"
   | "consultation"
   | "diagnostics"
+  | "diagnosticReviews"
   | "imaging"
   | "pharmacy"
   | "billing"
@@ -252,6 +254,7 @@ export default function ClinicalApp() {
       servicePoints: "Service points",
       consultation: "Consultation",
       diagnostics: "Laboratory",
+      diagnosticReviews: "Diagnostic review work",
       imaging: "Imaging",
       pharmacy: "Pharmacy & stock",
       billing: "Billing",
@@ -312,6 +315,7 @@ export default function ClinicalApp() {
     ["servicePoints", "Service points", "encounter.write"],
     ["consultation", "Consultation", "encounter.write"],
     ["diagnostics", "Laboratory", "laboratory.write"],
+    ["diagnosticReviews", "Diagnostic review work", "clinical.results.read"],
     ["imaging", "Imaging", "imaging.write"],
     ["pharmacy", "Pharmacy & stock", "inventory.view"],
     ["billing", "Billing", "billing.read"],
@@ -567,6 +571,7 @@ export default function ClinicalApp() {
           <VisitClosurePanel visits={visits} onUpdated={loadVisits} />
           </>
         )}
+        {screen === "diagnosticReviews" && <DiagnosticReviewWorkstation />}
         {screen === "diagnostics" && (
           <LaboratoryWorkstation visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />
         )}{" "}

@@ -3,6 +3,7 @@ import { appendAudit, auditValueFingerprint } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiError } from "@/lib/http";
+import { diagnosticEventSelect } from "@/lib/diagnostic-review";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -22,7 +23,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         include: {
           identifiers: true, contacts: true, addresses: true, consents: { orderBy: { recordedAt: "asc" } }, allergies: true,
           problems: { orderBy: { createdAt: "asc" } }, appointments: { orderBy: { scheduledAt: "asc" } }, referrals: { orderBy: { createdAt: "asc" } },
-          visits: { orderBy: { arrivedAt: "asc" }, include: { triage: { include: { observations: true } }, encounters: { include: { diagnoses: true, addenda: true }, orderBy: { createdAt: "asc" } }, orders: { include: { laboratory: { include: { result: { include: { items: true } } } }, imaging: { include: { result: true } }, prescription: { include: { dispensations: { include: { items: true } } } } }, orderBy: { requestedAt: "asc" } } } },
+          visits: { orderBy: { arrivedAt: "asc" }, include: { triage: { include: { observations: true } }, encounters: { include: { diagnoses: true, addenda: true }, orderBy: { createdAt: "asc" } }, orders: { include: { diagnosticReviews: { orderBy: { sequence: "asc" }, select: diagnosticEventSelect }, laboratory: { include: { result: { include: { items: true } } } }, imaging: { include: { result: true } }, prescription: { include: { dispensations: { include: { items: true } } } } }, orderBy: { requestedAt: "asc" } } } },
         },
       });
       if (!patient) throw Object.assign(new Error("Patient not found"), { status: 404 });
