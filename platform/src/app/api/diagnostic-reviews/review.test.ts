@@ -17,7 +17,7 @@ const context = { params: Promise.resolve({ id }) }, verifiedAt = "2026-10-15T10
 const claim = { action: "CLAIM", expectedEventId: null, requestKey, note: "Synthetic review responsibility" };
 const ack = { action: "ACKNOWLEDGE", expectedEventId: eventId, requestKey, note: "Synthetic review and next step", resultId, verifiedAt, attested: true };
 const owner = { id: eventId, sequence: 1, action: "CLAIM", actor: { id: actorId, displayName: "Synthetic clinician" } };
-function order(events: unknown[] = []) { return { id, status: "COMPLETED", visit: { id: "visit", status: "DISCHARGED", clinicallyClosedAt: new Date() }, diagnosticReviews: events, laboratory: { result: { id: resultId, verifiedAt: new Date(verifiedAt) } }, imaging: null }; }
+function order(events: unknown[] = []) { return { id, requestedAt: new Date(verifiedAt), status: "COMPLETED", visit: { id: "visit", status: "DISCHARGED", clinicallyClosedAt: new Date() }, diagnosticReviews: events, laboratory: { result: { id: resultId, verifiedAt: new Date(verifiedAt) } }, imaging: null }; }
 const request = (body: unknown) => new Request("http://localhost/api/orders/test/diagnostic-review", { method: "POST", body: JSON.stringify(body) });
 beforeEach(() => {
   vi.resetAllMocks();
@@ -109,5 +109,33 @@ describe("diagnostic review authorization, ownership and evidence", () => {
     expect((await list(new Request("http://localhost/api/diagnostic-reviews?state=ACKNOWLEDGED"))).status).toBe(200);
     expect(vi.mocked(db.clinicalOrder.findMany).mock.calls[0][0]?.where?.diagnosticReviews).toEqual({ some: { action: "ACKNOWLEDGE" } });
     expect((await list(new Request("http://localhost/api/diagnostic-reviews?state=INVALID"))).status).toBe(422);
+  });
+  it("pages past an immutable timestamp/id boundary while retaining every access filter", async () => {
+    vi.mocked(db.clinicalOrder.findMany).mockResolvedValue([order(), { ...order(), id: resultId }] as never);
+    const response = await list(new Request(`http://localhost/api/diagnostic-reviews?state=PENDING&limit=1&q=Synthetic&cursor=${verifiedAt}_${eventId}`));
+    expect(await response.json()).toMatchObject({ orders: [{ id }], nextCursor: `${verifiedAt}_${id}`, limit: 1, truncated: true });
+    const query = vi.mocked(db.clinicalOrder.findMany).mock.calls[0][0] as any;
+    expect(query.where.visit).toEqual({ facilityId: actor.facilityId });
+    expect(query.where.diagnosticReviews).toEqual({ none: { action: "ACKNOWLEDGE" } });
+    expect(query.where.NOT.OR).toHaveLength(2);
+    expect(query.where.AND[0]).toEqual({ OR: [{ requestedAt: { gt: new Date(verifiedAt) } }, { requestedAt: new Date(verifiedAt), id: { gt: eventId } }] });
+    expect(query.where.AND[1].OR).toHaveLength(4);
+    expect(query.take).toBe(2);
+    expect(recordClinicalAccess).toHaveBeenCalledWith(actor, "DIAGNOSTIC_REVIEW", [{ type: "Visit", id: "visit" }, { type: "ClinicalOrder", id }]);
+    expect(db.clinicalOrder.findFirst).not.toHaveBeenCalled();
+  });
+  it.each(["limit=0", "limit=101", "limit=1.5", "limit=NaN", "cursor=bad", `cursor=${verifiedAt}_not-a-uuid`, `q=${"x".repeat(101)}`])("rejects invalid paging input before disclosure: %s", async query => {
+    expect((await list(new Request(`http://localhost/api/diagnostic-reviews?${query}`))).status).toBe(422);
+    expect(db.clinicalOrder.findMany).not.toHaveBeenCalled(); expect(recordClinicalAccess).not.toHaveBeenCalled();
+  });
+  it("ends empty or complete pages without inventing a further cursor", async () => {
+    expect(await (await list(new Request("http://localhost/api/diagnostic-reviews"))).json()).toMatchObject({ orders: [], nextCursor: null, truncated: false });
+    vi.mocked(db.clinicalOrder.findMany).mockResolvedValue([order()] as never);
+    expect(await (await list(new Request("http://localhost/api/diagnostic-reviews?limit=1"))).json()).toMatchObject({ nextCursor: null, truncated: false });
+  });
+  it("authorizes each continuation before reading or parsing its query", async () => {
+    vi.mocked(requirePermission).mockRejectedValue(Object.assign(new Error("denied"), { status: 403 }));
+    expect((await list(new Request("http://localhost/api/diagnostic-reviews?cursor=invalid"))).status).toBe(403);
+    expect(db.clinicalOrder.findMany).not.toHaveBeenCalled();
   });
 });

@@ -19,8 +19,11 @@ const report = (order: Order) => order.laboratory?.result || order.imaging?.resu
 
 export default function DiagnosticReviewWorkstation() {
   const [state, setState] = useState("ALL");
+  const [query, setQuery] = useState("");
+  const [pages, setPages] = useState<string[]>([""]);
   const [selected, setSelected] = useState<string | null>(null);
-  const list = useWorklist<{ orders: Order[]; truncated: boolean; limit: number }>(`/api/diagnostic-reviews?state=${state}`);
+  const list = useWorklist<{ orders: Order[]; truncated: boolean; limit: number; nextCursor: string | null }>(
+    `/api/diagnostic-reviews?state=${state}&q=${encodeURIComponent(query.trim())}&limit=25&cursor=${encodeURIComponent(pages.at(-1) || "")}`, 0, 250);
   const dirty = useRef(false);
   function leave() { return !dirty.current || window.confirm("Leave this review? Unsaved text or an unconfirmed action will need checking when you return."); }
   useEffect(() => {
@@ -34,13 +37,22 @@ export default function DiagnosticReviewWorkstation() {
     <div className="diagnosticReviewToolbar noPrint"><div><h2>Diagnostic review work</h2><p>Pending requests and released reports remain here until a clinician explicitly acknowledges review. Closed visits are included.</p></div>
       <button type="button" className="secondary" disabled={list.loading} onClick={() => void list.refresh()}>Refresh worklist</button></div>
     <div className="noPrint">
-      <label>Report availability<select value={state} onChange={event => setState(event.target.value)}><option value="ALL">All outstanding investigations</option><option value="RELEASED">Released reports awaiting review</option><option value="PENDING">Awaiting verified reports</option><option value="ACKNOWLEDGED">Acknowledged reports (history)</option></select></label>
-      <p>Oldest requests first, up to 100. These are review tasks, not proof of patient contact or completed care.</p>
+      <div className="diagnosticReviewGrid">
+        <label>Report availability<select value={state} onChange={event => { setState(event.target.value); setPages([""]); }}><option value="ALL">All outstanding investigations</option><option value="RELEASED">Released reports awaiting review</option><option value="PENDING">Awaiting verified reports</option><option value="ACKNOWLEDGED">Acknowledged reports (history)</option></select></label>
+        <label>Find diagnostic work<input type="search" maxLength={100} value={query} placeholder="Patient, patient number, visit or test" onChange={event => { setQuery(event.target.value); setPages([""]); }} /></label>
+      </div>
+      <p>Oldest requests first, 25 per page. These are review tasks, not proof of patient contact or completed care. The selected review stays open when browsing.</p>
       {list.loading && <p role="status">Loading diagnostic work…</p>}
       {list.error && <p role="alert">Worklist unavailable. {list.error} Use Refresh worklist to try again.</p>}
-      {list.data?.truncated && <p role="status">Showing the oldest {list.data.limit} matching requests; more work remains. Filter by report availability. This is not a complete count.</p>}
+      <nav className="diagnosticReviewToolbar" aria-label="Diagnostic work pages">
+        <button type="button" className="secondary" disabled={pages.length === 1} onClick={() => setPages([""])}>First page</button>
+        <button type="button" className="secondary" disabled={pages.length === 1} onClick={() => setPages(current => current.slice(0, -1))}>Previous page</button>
+        <span role="status">Page {pages.length}{list.data ? ` · ${list.data.orders.length} requests${list.data.truncated ? " · More available" : " · End of current results"}` : ""}</span>
+        <button type="button" className="secondary" disabled={list.loading || !list.data?.nextCursor} onClick={() => { if (list.data?.nextCursor) setPages(current => [...current, list.data!.nextCursor!]); }}>Next page</button>
+      </nav>
+      <p>Results can change as staff work. Use First page to check earlier requests again; page numbers are browsing positions, not a total count.</p>
       {list.data && !list.data.orders.length && <p>No {state === "ACKNOWLEDGED" ? "acknowledged reports" : "outstanding investigations"} in this view.</p>}
-      <div className="diagnosticReviewList">{list.data?.orders.map(order => <button type="button" className={order.id === selected ? "active" : "secondary"} key={order.id} onClick={() => { if (order.id !== selected && leave()) { dirty.current = false; setSelected(order.id); } }}>
+      <div className="diagnosticReviewList">{list.data?.orders.map(order => <button type="button" aria-pressed={order.id === selected} className={order.id === selected ? "active" : "secondary"} key={order.id} onClick={() => { if (order.id !== selected && leave()) { dirty.current = false; setSelected(order.id); } }}>
         <strong>{order.visit.patient.fullName} · {order.visit.patient.patientNumber}</strong><span>{order.displayName} · {order.visit.visitNumber}</span>
         <span>{order.diagnosticReviews[0]?.action === "ACKNOWLEDGE" ? "Acknowledged" : report(order) ? "Released — awaiting acknowledgement" : "Awaiting verified report"} · {order.priority}</span>
         <span>Owner: {order.diagnosticReviews[0]?.actor.displayName || "Not accepted"} · Requested {time(order.requestedAt)}</span>

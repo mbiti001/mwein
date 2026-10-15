@@ -23,6 +23,13 @@ test("diagnostic ownership, handover and acknowledgement serialize and survive c
   await post(`/api/visits/${visit.id}/consultation`, { action: "SUBMIT_INVESTIGATIONS", data: { labs: ["FBC"], imaging: ["XRAY_CHEST"], priority: "ROUTINE", indication: "Synthetic review ownership check" } });
   const orders = (await get(`/api/visits/${visit.id}/investigations`)).visit.orders;
   const laboratory = orders.find((o: any) => o.type === "LABORATORY"), image = orders.find((o: any) => o.type === "IMAGING");
+  const search = encodeURIComponent(patient.patientNumber);
+  const firstPage = await get(`/api/diagnostic-reviews?q=${search}&limit=1`);
+  expect(firstPage.orders).toHaveLength(1); expect(firstPage.nextCursor).toBeTruthy();
+  const secondPage = await get(`/api/diagnostic-reviews?q=${search}&limit=1&cursor=${encodeURIComponent(firstPage.nextCursor)}`);
+  expect(secondPage.nextCursor).toBeNull();
+  expect(new Set([...firstPage.orders, ...secondPage.orders].map((o: any) => o.id))).toEqual(new Set([laboratory.id, image.id]));
+  expect((await get(`/api/diagnostic-reviews?q=${search}&limit=1&cursor=${encodeURIComponent(firstPage.nextCursor)}`, otherClinician)).orders).toEqual([]);
   const path = `/api/orders/${laboratory.id}/diagnostic-review`;
   expect((await request.get(path, { headers: reception })).status()).toBe(403);
   expect((await request.post(path, { headers: lab, data: {} })).status()).toBe(403);
@@ -60,6 +67,9 @@ test("diagnostic ownership, handover and acknowledgement serialize and survive c
   expect(saved.visit.clinicallyClosedAt).toBe(outstanding.visit.clinicallyClosedAt);
   expect((await get("/api/diagnostic-reviews?state=RELEASED")).orders.some((o: any) => o.id === laboratory.id)).toBe(false);
   expect((await get("/api/diagnostic-reviews?state=ACKNOWLEDGED")).orders.some((o: any) => o.id === laboratory.id)).toBe(true);
+  // A continuation must still work when the boundary leaves the outstanding set.
+  const afterAcknowledgement = await get(`/api/diagnostic-reviews?q=${search}&limit=1&cursor=${encodeURIComponent(firstPage.nextCursor)}`);
+  expect(afterAcknowledgement.orders.map((o: any) => o.id)).toEqual(secondPage.orders.filter((o: any) => o.id !== laboratory.id).map((o: any) => o.id));
 });
 
 const orderId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", otherId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", actorId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
@@ -72,6 +82,95 @@ async function fixture(page: Page, readOnly = false) {
   await page.route("**/api/visits/*/investigations", route => route.fulfill({ json: { visit: { ...synthetic().visit, orders: [{ ...synthetic(), laboratory: { specimenType: "Blood", specimenStatus: "ACCEPTED", collectedAt: now, receivedAt: now, result: { ...synthetic().laboratory.result, status: "VERIFIED", verifiedBy: { displayName: "Synthetic verifier" }, reportText: "Synthetic result narrative", criticalResult: false, items: [{ id: "value", analyte: "Synthetic analyte", value: "42", unit: null, referenceRange: null, flag: null }] } } }] }, truncated: false, limit: 200 } }));
   await page.goto("/"); await page.getByRole("button", { name: "Diagnostic review work", exact: true }).click();
 }
+
+test("diagnostic paging reaches work beyond 100 and retains the selected review across search and failures", async ({ page }, testInfo) => {
+  const rows = Array.from({ length: 101 }, (_, index) => ({ ...synthetic(), id: `synthetic-${index}`,
+    displayName: `Synthetic test ${index + 1}`, visit: { ...synthetic().visit, patient: { fullName: `Synthetic Patient ${index + 1}`, patientNumber: `P-${index + 1}` } } }));
+  let fail = false;
+  const queries: string[] = [];
+  await page.route("**/api/diagnostic-reviews?*", route => {
+    const params = new URL(route.request().url()).searchParams;
+    const query = params.get("q") || ""; queries.push(query);
+    if (fail) return route.fulfill({ status: 503, json: { error: "Synthetic page outage" } });
+    const matching = query ? rows.filter(row => row.visit.patient.patientNumber === query) : rows;
+    const start = Number(params.get("cursor") || 0), orders = matching.slice(start, start + 25);
+    return route.fulfill({ json: { orders, limit: 25, truncated: start + 25 < matching.length, nextCursor: start + 25 < matching.length ? String(start + 25) : null } });
+  });
+  await page.route("**/api/orders/*/diagnostic-review", route => route.fulfill({ json: { order: rows[0], actorId, canReview: true, historyTruncated: false } }));
+  await fixture(page);
+  const workspace = page.getByRole("region", { name: "Diagnostic review work", exact: true });
+  const paging = page.getByRole("navigation", { name: "Diagnostic work pages" });
+  await expect(paging).toContainText("Page 1 · 25 requests");
+  await page.getByRole("button", { name: /Synthetic Patient 1 · P-1\s/ }).click();
+  const note = page.getByLabel("Responsibility or handover reason");
+  await note.fill("Synthetic unfinished review retained while browsing");
+  for (let current = 2; current <= 5; current++) {
+    await paging.getByRole("button", { name: "Next page" }).click();
+    await expect(paging).toContainText(`Page ${current} · ${current === 5 ? 1 : 25} requests`);
+  }
+  await expect(page.getByRole("button", { name: /Synthetic Patient 101/ })).toBeVisible();
+  await expect(paging.getByRole("button", { name: "Next page" })).toBeDisabled();
+  await expect(note).toHaveValue("Synthetic unfinished review retained while browsing");
+  fail = true;
+  await paging.getByRole("button", { name: "Previous page" }).click();
+  await expect(workspace.getByRole("alert")).toContainText("Synthetic page outage");
+  await expect(page.getByRole("button", { name: /Synthetic Patient 101/ })).toHaveCount(0);
+  await expect(paging.getByRole("button", { name: "Next page" })).toBeDisabled();
+  fail = false;
+  await workspace.getByRole("button", { name: "Refresh worklist" }).click();
+  await expect(paging).toContainText("Page 4 · 25 requests");
+  await paging.getByRole("button", { name: "Previous page" }).click();
+  await expect(paging).toContainText("Page 3 · 25 requests");
+  const search = page.getByRole("searchbox", { name: "Find diagnostic work" });
+  await search.fill("P-101");
+  await expect(paging).toContainText("Page 1 · 1 requests");
+  await expect(page.getByRole("button", { name: /Synthetic Patient 101/ })).toBeVisible();
+  await search.fill("missing");
+  await expect(workspace).toContainText("No outstanding investigations in this view.");
+  await search.fill("");
+  await expect(paging).toContainText("Page 1 · 25 requests");
+  await paging.getByRole("button", { name: "Next page" }).click();
+  await expect(paging).toContainText("Page 2 · 25 requests");
+  await page.getByLabel("Report availability").selectOption("ACKNOWLEDGED");
+  await expect(paging).toContainText("Page 1 · 25 requests");
+  await expect(note).toHaveValue("Synthetic unfinished review retained while browsing");
+  for (const width of [1440, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await expect(search).toBeVisible();
+    // Overflow alone misses shared action CSS squeezing record fields side by side.
+    const fields = await page.locator('.diagnosticReviewList > button[aria-pressed="false"]').first().evaluate(element => {
+      const bounds = element.getBoundingClientRect();
+      return [...element.children].map(child => child.getBoundingClientRect().width / bounds.width);
+    });
+    expect(fields.every(ratio => ratio > 0.7)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`diagnostic-paging-${width}.png`), fullPage: true });
+  }
+  await page.emulateMedia({ media: "print" });
+  await expect(paging).toBeHidden(); await expect(search).toBeHidden(); await expect(note).toBeHidden();
+  expect(queries).toContain("P-101");
+});
+
+test("diagnostic search debounces input and rejects a late superseded page", async ({ page }) => {
+  let releaseOld!: () => void;
+  const old = new Promise<void>(resolve => { releaseOld = resolve; });
+  const queries: string[] = [];
+  await page.route("**/api/diagnostic-reviews?*", async route => {
+    const q = new URL(route.request().url()).searchParams.get("q") || ""; queries.push(q);
+    if (q === "old") await old;
+    return route.fulfill({ json: { orders: [{ ...synthetic(), displayName: q === "old" ? "Stale test" : "Current test" }], limit: 25, nextCursor: null, truncated: false } });
+  });
+  await fixture(page);
+  const search = page.getByRole("searchbox", { name: "Find diagnostic work" });
+  await expect(page.getByRole("button", { name: /Current test/ })).toBeVisible();
+  await search.fill("old");
+  await expect.poll(() => queries.includes("old")).toBe(true);
+  await search.fill("n"); await search.fill("ne"); await search.fill("new");
+  await expect(page.getByRole("button", { name: /Current test/ })).toBeVisible();
+  releaseOld();
+  await expect(page.getByRole("button", { name: /Stale test/ })).toHaveCount(0);
+  expect(queries.filter(Boolean)).toEqual(["old", "new"]);
+});
 
 test("review recovery preserves the exact action, confirms saved work and renders compact layouts", async ({ page }, testInfo) => {
   const order = synthetic(); let posts = 0, failDetail = false, failList = false; const bodies: unknown[] = [];
@@ -143,7 +242,7 @@ test("diagnostic navigation rejects stale reads and respects read-only access", 
     return route.fulfill({ json: { order: synthetic(id), actorId, canReview: false, historyTruncated: false } });
   });
   await fixture(page, true);
-  await expect(page.getByText(/more work remains/)).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Diagnostic work pages" })).toContainText("More available");
   await page.getByRole("button", { name: /Synthetic Review Patient.*Synthetic blood test/ }).click();
   await expect(page.getByText("Loading saved review…")).toBeVisible();
   await page.getByRole("button", { name: /Synthetic Other Patient.*Synthetic other test/ }).click();
