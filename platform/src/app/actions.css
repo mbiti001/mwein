@@ -25,15 +25,15 @@ body .documentRegister > button.secondary { width: 100%; }
     box-shadow: 0 1px 2px rgb(15 45 37 / 8%);
     transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
   }
-  body button:is(.primary, .new, .heroPrimary) { background: #185b4a; color: #fff; border-color: #185b4a; }
-  body button.secondary { background: #fff; color: #234e43; border-color: #b5ccc3; }
+  body button:is(.primary, .new, .heroPrimary) { background: var(--blue); color: #fff; border-color: var(--blue); }
+  body button.secondary { background: #fff; color: var(--blue-dark); border-color: var(--accent-border, var(--line)); }
   body button.danger { background: #fff4f3; color: #9e2921; border-color: #dc9b94; }
-  body button.ghost { background: transparent; color: #234e43; box-shadow: none; }
-  body button:is(.primary, .new, .heroPrimary):hover:not(:disabled) { background: #104737; border-color: #104737; }
-  body button.secondary:hover:not(:disabled) { background: #eef6f2; border-color: #709f8d; }
+  body button.ghost { background: transparent; color: var(--blue-dark); box-shadow: none; }
+  body button:is(.primary, .new, .heroPrimary):hover:not(:disabled) { background: var(--blue-dark); border-color: var(--blue-dark); }
+  body button.secondary:hover:not(:disabled) { background: var(--accent-soft, var(--teal-soft)); border-color: var(--blue); }
   body button.danger:hover:not(:disabled) { background: #fee7e4; border-color: #b33b31; }
   body button:is(.primary, .secondary, .danger, .new, .heroPrimary, .actionButton):focus-visible {
-    outline: 3px solid #2576a4; outline-offset: 3px; box-shadow: 0 0 0 2px white;
+    outline: 3px solid var(--blue); outline-offset: 3px; box-shadow: 0 0 0 2px white;
   }
   body button:disabled { cursor: not-allowed; opacity: .62; }
   body button[aria-busy="true"] { cursor: wait; }

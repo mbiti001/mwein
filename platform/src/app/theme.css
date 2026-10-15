@@ -1,0 +1,104 @@
+/* Shared screen palette. Printed clinical and supply documents keep their own styles. */
+@media screen {
+  :root {
+    color-scheme: light;
+    --blue: #1d4ed8;
+    --blue-dark: #173da6;
+    --accent-soft: #edf4ff;
+    --accent-border: #b8cef3;
+    /* Compatibility for older components that use teal as an interface accent. */
+    --teal: var(--blue);
+    --teal-soft: var(--accent-soft);
+    --ink: #172d4a;
+    --muted: #52647c;
+    --line: #d7e2f0;
+    --bg: #f3f7fc;
+    --surface: #fff;
+    --shadow: 0 4px 18px rgb(30 64 120 / 5%);
+  }
+
+  ::selection { background: #c9ddff; color: #132c56; }
+  body { background: var(--bg); }
+  .workspace h1, .heroCopy h1 { color: var(--ink); }
+  .workspace h2 { color: #203c62; }
+  .card, .formCard, .readinessStrip { box-shadow: var(--shadow); }
+
+  /* White navigation keeps the patient workspace bright; blue marks the current area. */
+  .sidebar {
+    background: var(--surface);
+    color: var(--ink);
+    border-right: 1px solid var(--line);
+    gap: 24px;
+  }
+  .sidebar .brandWordmark { padding: 8px 2px; border-radius: 0; }
+  .sidebar .brand small { color: var(--muted); opacity: 1; }
+  .sidebar nav { gap: 5px; }
+  .sidebar nav button { color: #465d7a; border-radius: 9px; }
+  .sidebar nav button:hover:not(.active) { color: var(--blue-dark); background: var(--accent-soft); }
+  .sidebar nav button.active { background: var(--blue); color: #fff; box-shadow: 0 3px 8px rgb(29 78 216 / 15%); }
+  .facility { background: #f6f9ff; border-color: var(--line); border-radius: 10px; }
+  .facility small, .facility span { opacity: 1; color: var(--muted); }
+  .facility button { background: white; color: var(--blue-dark); border-color: var(--accent-border); }
+  .facility button:hover { background: var(--accent-soft); }
+  .mobileNavToggle { background: var(--blue-dark); color: white; border-color: var(--blue-dark); }
+  .navScrim { background: rgb(19 42 78 / 45%); }
+
+  /* Use the same selected state across reception, care queues and record registers. */
+  .flowDepartment { border-color: var(--line); background: #f8faff; color: var(--ink); }
+  .flowDepartment:hover:not([aria-pressed="true"]) { border-color: var(--accent-border); background: var(--accent-soft); }
+  .flowDepartment[aria-pressed="true"] { background: var(--blue); color: white; border-color: var(--blue); }
+  .flowTaskState { color: var(--muted); }
+  .followUpCategories button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--blue); box-shadow: inset 0 3px var(--blue); }
+  .workspaceTabs button.active { color: var(--blue-dark); border-bottom-color: var(--blue); background: var(--accent-soft); }
+  .pharmacyTabs button.active, .consultNavigator button.active { color: var(--blue-dark); background: var(--accent-soft); border-color: var(--accent-border); }
+  .supplyDocumentList button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--blue); }
+  .workflowSteps .current { background: var(--accent-soft); }
+  .workflowSteps .current strong { color: var(--blue-dark); }
+  .workflowSteps .current b { background: var(--blue); }
+  .taskRow { border-left-color: var(--accent-border); }
+  .row:hover:not(.overdue):not(.emergency), .taskRow:hover:not(.overdue):not(.emergency) { background: #f4f8ff; border-color: var(--accent-border); }
+
+  .patientContext, .patientBanner, .clinicalBoundary, .receiverAcknowledgement {
+    background: var(--accent-soft);
+    border-color: var(--accent-border);
+  }
+  .contextAction { color: var(--blue-dark); border-color: var(--accent-border); }
+  .contextAction:hover { background: #dfeaff; }
+  .privacyNotice:not(.warning), .stepAction { background: #f1f6ff; border-color: var(--accent-border); }
+  .privacyNotice:not(.warning) strong { color: var(--blue-dark); }
+  .readinessGrid article { background: #f5f8fe; }
+
+  input, select, textarea { border-color: #a5b8d1; }
+  input:focus, select:focus, textarea:focus { border-color: var(--blue); outline: 3px solid rgb(29 78 216 / 18%); }
+  input[type="checkbox"], input[type="radio"], .queueToggle input { accent-color: var(--blue); }
+  :is(button, input, select, textarea, summary, a):focus-visible,
+  .flowDepartment:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+  .dataForm.worklistFieldset { margin-block: 16px; }
+
+  /* Public entry uses the same surfaces and actions as the staff workspace. */
+  .publicEntry, .login { background: linear-gradient(135deg, #fff 12%, #eef5ff 68%, #e5efff); }
+  .publicNav > a { color: var(--blue-dark); background: white; border-color: var(--accent-border); }
+  .publicNav > a:hover { background: var(--accent-soft); }
+  .heroPrimary { background: var(--blue); color: white; }
+  .heroPrimary:hover { background: var(--blue-dark); }
+  .publicFeatures article { background: white; border-color: var(--line); border-top: 3px solid var(--accent-border); }
+  .publicFeatures b { color: var(--blue); }
+  .landingLogin { border-color: var(--line); box-shadow: 0 16px 44px rgb(30 64 120 / 14%); }
+  .publicFooter { border-color: var(--line); }
+
+  /* Green remains a success/completion signal, separate from blue navigation. */
+  .readinessStatus.ready { background: #ecf9f1; color: #17613d; }
+  .workflowSteps .complete b { background: #18704a; color: white; }
+
+  @media (prefers-contrast: more) {
+    :root { --muted: #344b69; --line: #869bb6; --accent-border: #6687b8; }
+    input, select, textarea { border-color: #66809f; }
+  }
+  @media (forced-colors: active) {
+    .sidebar nav button.active, .flowDepartment[aria-pressed="true"],
+    .followUpCategories button[aria-pressed="true"], .workspaceTabs button.active {
+      outline: 2px solid Highlight;
+      outline-offset: -2px;
+    }
+  }
+}

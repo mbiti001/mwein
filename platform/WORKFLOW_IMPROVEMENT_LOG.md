@@ -52,6 +52,18 @@ Limits and release dependency: the browser retains an unconfirmed request while 
 
 ## Research basis
 
+## Completed batch: blue-and-white screen theme — 15 October 2026
+
+The user requested a cleaner blue-and-white CSS design. Added a shared screen theme for the public entry, white navigation, blue selected areas and primary actions, pale blue patient/context panels, forms and departmental worklists. Shared action controls now consume theme variables instead of fixed green values. Status colors for errors, warnings and success remain distinct. The theme is scoped to screen media so printed clinical/supply document styles retain their existing presentation.
+
+Validation: lint and production build passed; all **66 existing Chrome browser scenarios passed**, covering responsive layouts, keyboard focus, pending/failure states, permissions, workflows and print media. Visually inspected desktop and 390 px screenshots for follow-up and check-in screens. Primary blue/white contrast is 6.70:1 and muted text/white is 6.05:1; high-contrast/forced-color rules retain selected-state outlines. No backend, migration, dependency or clinical-rule change.
+
+Evidence: `outputs/mwein-blue-white-desktop.png`, `outputs/mwein-blue-white-mobile.png`, `outputs/mwein-blue-white-check-in.png` in the chat workspace. Interactive Chrome review was stopped by Computer Use because it could not determine the current browser URL confidently enough to enforce policy; no further Computer Use inputs were attempted. Verification used the already-running automated Chrome suite and its screenshots. Temporary review services were stopped. `git diff --check` passed.
+
+New user direction: also evaluate [opensource-emr/hospital-management-emr](https://github.com/opensource-emr/hospital-management-emr) as a reference for production-readiness improvements. Reference review and the diagnostics/consultation recovery audit remain next; the source repository is not evidence that Mwein is approved for production use.
+
+## Research basis
+
 - [HosiPoa modules](https://www.hosipoa.co.ke/modules/), reviewed 15 October 2026: connected reception, appointment, queue, referral, diagnostic, pharmacy and cashier capabilities inform the backlog. Public scope descriptions are not implementation specifications.
 - [WHO SMART business processes](https://smart.who.int/hiv/business-processes.html), reviewed 15 October 2026: explicit actors, activities, referral and follow-up processes inform the handoff design. This does not claim implementation of the HIV clinical programme.
 - [WHO Interagency Integrated Triage Tool](https://www.who.int/tools/triage), reviewed 15 October 2026: urgency-based prioritisation informs queue ordering. Existing local priority categories remain unchanged; this batch does not implement or claim certification against IITT algorithms.
