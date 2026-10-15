@@ -604,6 +604,8 @@ model Visit {
   facilityId           String                @db.Uuid
   patientId            String                @db.Uuid
   appointmentId        String?               @unique @db.Uuid
+  checkInKey           String?               @db.Uuid
+  checkInFingerprint   String?
   visitNumber          String
   clinic               String
   visitType            String
@@ -630,6 +632,8 @@ model Visit {
   updatedAt            DateTime              @updatedAt
 
   @@unique([facilityId, visitNumber])
+  @@unique([facilityId, checkInKey])
+  // Visit_open_patient_key is a partial unique index maintained in SQL migrations.
   @@index([facilityId, status, priority, arrivedAt])
 }
 

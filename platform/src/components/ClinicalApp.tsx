@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { activeServiceTasks, servicePoints, isWaitingOverdue, type ServicePointCode } from "@/lib/service-points";
 import { appointmentClinics } from "@/lib/appointments";
 import { careServiceForClinic } from "@/lib/care-service-points";
-import { jsonRequest } from "@/lib/client-http";
+import { ApiRequestError, jsonRequest } from "@/lib/client-http";
 import { dateInTimeZone, gestationalAgeLabel, pregnancyDatingFromLnmp } from "@/lib/pregnancy-dating";
 import { documentDefinitions, documentKinds } from "@/lib/clinic-documents";
 import { BrandWordmark } from "@/components/FacilityBrand";
@@ -20,6 +20,7 @@ import PatientIdentityPanel from "@/components/PatientIdentityPanel";
 import { shaCancellationOutcomes, visitCancellationReasons } from "@/lib/visit-cancellation";
 import { useWorklist } from "@/lib/use-worklist";
 import type { FollowUpPatient } from "@/lib/follow-ups";
+import { isOpenClinicalVisit } from "@/lib/visit-check-in";
 
 const ClinicForms = dynamic(() => import("@/components/ClinicForms"));
 
@@ -371,7 +372,7 @@ export default function ClinicalApp() {
         )}
         {user.permissions.includes("patient.read") && (
           <GlobalPatientFinder onSelect={(patient) => {
-            const activeVisit = visits.find(visit => visit.patient.id === patient.id);
+            const activeVisit = visits.find(visit => visit.patient.id === patient.id && isOpenClinicalVisit(visit));
             if (activeVisit) {
               setContextVisitId(activeVisit.id);
               setNotice(`${patient.fullName} is open in visit ${activeVisit.visitNumber}. Use “Open current task” to continue.`);
@@ -453,14 +454,37 @@ export default function ClinicalApp() {
             appointment={appointment}
             fromConsultation={returnToConsultation}
             onCreated={async (visit) => {
-              await loadVisits();
+              const refreshed = await loadVisits().then(() => true, () => false);
               if (!stillOnThisScreen()) return;
               setAppointment(null);
               setContextVisitId(visit.id);
               setFocusedVisitId(visit.id);
+              if (!isOpenClinicalVisit(visit)) {
+                setNotice(`Check-in was already saved as ${visit.visitNumber}. This visit is now closed; no new visit was created.`);
+                setFocusedVisitId(null); setContextVisitId(null); setScreen("dashboard");
+                return;
+              }
+              if (!refreshed) {
+                setNotice(`Check-in saved as ${visit.visitNumber}. Refresh the queue to open the saved visit.`);
+                setFocusedVisitId(null); setScreen("dashboard");
+                return;
+              }
+              const initialStatus = visit.clinic === "Walk-in" ? "AWAITING_CLINICIAN" : "AWAITING_TRIAGE";
+              if (visit.status && visit.status !== initialStatus) {
+                setNotice(`Check-in saved as ${visit.visitNumber}. This visit has progressed to ${visit.status.replaceAll("_", " ").toLowerCase()}; continue its current task.`);
+                setFocusedVisitId(null); setScreen("dashboard");
+                return;
+              }
               const direct = visit.clinic === "Walk-in";
               setNotice(`${visit.visitNumber} started and sent to ${direct ? "the walk-in clinical review" : "triage"}.`);
               setScreen(direct && user.permissions.includes("encounter.write") ? "servicePoints" : user.permissions.includes("triage.write") ? "triage" : user.permissions.includes("vitals.write") ? "vitals" : "dashboard");
+            }}
+            onExisting={async (visit) => {
+              await loadVisits().catch(() => undefined);
+              if (!stillOnThisScreen()) return;
+              setAppointment(null); setFocusedVisitId(null); setContextVisitId(visit.id);
+              setNotice(`${visit.visitNumber} is already open. Continue its current task; no additional visit or invoice was created.`);
+              setScreen("dashboard");
             }}
           />
         )}
@@ -1111,16 +1135,20 @@ function PatientRegister({
   );
 }
 
+type ExistingVisit = Pick<Visit, "id" | "visitNumber" | "clinic" | "status">;
+
 function StartVisit({
   patient,
   appointment,
   fromConsultation = false,
   onCreated,
+  onExisting,
 }: {
   patient: Patient | null;
   appointment?: { id: string; clinic: string } | null;
   fromConsultation?: boolean;
   onCreated: (visit: Visit) => void | Promise<void>;
+  onExisting: (visit: ExistingVisit) => void | Promise<void>;
 }) {
   const [query, setQuery] = useState("");
   const [chosen, setChosen] = useState(patient);
@@ -1130,19 +1158,23 @@ function StartVisit({
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  const attempt = useRef<{ body: string } | null>(null);
+  const [uncertain, setUncertain] = useState(false);
+  const [confirmedVisit, setConfirmedVisit] = useState<Visit | null>(null);
+  const [existingVisit, setExistingVisit] = useState<ExistingVisit | null>(null);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!chosen) return setError("Select a patient first");
     if (savingRef.current) return;
     savingRef.current = true; setSaving(true); setError("");
-    const f = new FormData(event.currentTarget);
-    const destinationClinic = appointment?.clinic || clinic;
+    let saved = confirmedVisit;
     try {
-      await onCreated(
-        (
-          await api<{ visit: Visit }>("/api/visits", {
-            method: "POST",
-            body: JSON.stringify({
+      if (!saved) {
+        if (!attempt.current) {
+          const f = new FormData(event.currentTarget);
+          const destinationClinic = appointment?.clinic || clinic;
+          attempt.current = { body: JSON.stringify({
+              idempotencyKey: crypto.randomUUID(),
               patientId: chosen.id,
               appointmentId: appointment?.id,
               clinic: destinationClinic,
@@ -1156,12 +1188,29 @@ function StartVisit({
                 evidenceReference: f.get("ancEvidenceReference"),
                 consentConfirmed: f.get("ancConsentConfirmed") === "on",
               } : undefined,
-            }),
-          })
-        ).visit,
-      );
+          }) };
+        }
+        saved = (await api<{ visit: Visit }>("/api/visits", { method: "POST", body: attempt.current.body })).visit;
+        setConfirmedVisit(saved); setUncertain(false);
+      }
+      await onCreated(saved);
     } catch (e) {
-      setError((e as Error).message);
+      if (saved) {
+        setError(`Check-in saved as ${saved.visitNumber}. Continue to refresh the worklist; this will not create another visit.`);
+      } else if (!(e instanceof ApiRequestError) || e.status === 0 || e.status >= 500) {
+        setUncertain(true);
+        setError("Check-in confirmation is unavailable. The request may have been saved. Retry the same check-in to confirm it safely.");
+      } else {
+        const existing = (e.details as { activeVisit?: ExistingVisit } | undefined)?.activeVisit;
+        if (uncertain && !existing) {
+          // A failed retry cannot disprove that the original request committed.
+          setError(`${e.message} The earlier check-in is still unconfirmed. Retry the same check-in to confirm its outcome.`);
+          return;
+        }
+        attempt.current = null; setUncertain(false);
+        setExistingVisit(existing || null);
+        setError(e.message);
+      }
     } finally { savingRef.current = false; setSaving(false); }
   }
   return (
@@ -1176,8 +1225,10 @@ function StartVisit({
           </p>
         </div>
       </header>
-      <form className="card dataForm" onSubmit={submit}>
-        {error && <div className="alert wide">{error}</div>}
+      <form className="card" onSubmit={submit}>
+        {error && <div className="alert" role="alert">{error}</div>}
+        {existingVisit && <div className="alert" role="status"><strong>{existingVisit.visitNumber} · {existingVisit.clinic} · {existingVisit.status.replaceAll("_", " ")}</strong><p>Continue the existing visit to keep its queue and invoice together.</p><button type="button" className="secondary" disabled={saving} onClick={async () => { if (savingRef.current) return; savingRef.current = true; setSaving(true); try { await onExisting(existingVisit); } catch (reason) { setError((reason as Error).message); } finally { savingRef.current = false; setSaving(false); } }}>Open existing visit</button></div>}
+        <fieldset className="dataForm worklistFieldset" disabled={saving || uncertain || Boolean(confirmedVisit)}>
         {chosen ? (
           <div className="patientBanner wide">
             <div>
@@ -1186,7 +1237,7 @@ function StartVisit({
                 {chosen.patientNumber} · {patientClinicalGroup(chosen).label}
               </span>
             </div>
-            <button type="button" disabled={saving || Boolean(appointment)} onClick={() => { setChosen(null); setQuery(""); }}>
+            <button type="button" disabled={saving || Boolean(appointment)} onClick={() => { setChosen(null); setQuery(""); setExistingVisit(null); setError(""); }}>
               Change patient
             </button>
           </div>
@@ -1249,7 +1300,8 @@ function StartVisit({
             obtain the complaint and history in the consultation room.
           </span>
         </div>
-        <button className="primary wide" disabled={saving || !chosen}>{saving ? "Checking in…" : "Check in patient"}</button>
+        </fieldset>
+        <button className="primary" disabled={saving || !chosen || Boolean(existingVisit)}>{saving ? "Confirming check-in…" : confirmedVisit ? "Continue to worklist" : uncertain ? "Retry same check-in" : "Check in patient"}</button>
       </form>
     </>
   );

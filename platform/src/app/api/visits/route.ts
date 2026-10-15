@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
-import { apiError } from "@/lib/http";
+import { apiError, privateJson } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
 import { recordClinicalAccess } from "@/lib/clinical-access";
 import { operationalReference } from "@/lib/domain";
@@ -13,6 +14,7 @@ import { visitAccessProfile, visitOrderTypes } from "@/lib/visit-access";
 import { effectiveCatalogPrice } from "@/lib/catalog-pricing";
 
 const visitInput = z.object({
+  idempotencyKey: z.uuid().optional(),
   patientId: z.uuid(),
   appointmentId: z.uuid().optional(),
   clinic: z.union([z.enum(appointmentClinics), z.literal("DM")]),
@@ -154,25 +156,34 @@ export async function POST(request: Request) {
   try {
     const user = await requirePermission("visit.create");
     const input = visitInput.parse(await request.json());
-    const patient = await db.patient.findFirst({
-      where: { id: input.patientId, facilityId: user.facilityId, active: true },
-    });
-    if (!patient)
-      return NextResponse.json({ error: "Patient not found" }, { status: 404 });
-    const duplicate = await db.visit.findFirst({
-      where: {
-        patientId: patient.id,
-        status: { notIn: ["COMPLETED", "CANCELLED", "DISCHARGED"] },
-      },
-      select: { id: true, visitNumber: true, status: true },
-    });
-    if (duplicate)
-      return NextResponse.json(
-        { error: "Patient already has an active visit", visit: duplicate },
-        { status: 409 },
-      );
-    const result = await db.$transaction(
+    const { idempotencyKey, ...details } = input;
+    // Bind replay to the facility, staff member and validated clinical-routing input.
+    const fingerprint = createHash("sha256").update(JSON.stringify([user.facilityId, user.id, details])).digest("hex");
+    const checkIn = () => db.$transaction(
       async (tx) => {
+        if (idempotencyKey) {
+          const replay = await tx.visit.findUnique({
+            where: { facilityId_checkInKey: { facilityId: user.facilityId, checkInKey: idempotencyKey } },
+            select: { id: true, visitNumber: true, clinic: true, status: true, clinicallyClosedAt: true, checkInFingerprint: true },
+          });
+          if (replay) {
+            if (replay.checkInFingerprint !== fingerprint)
+              throw Object.assign(new Error("This check-in request was already used with different details or by another staff member. Review the existing visit."), { status: 409 });
+            await appendAudit(tx, { userId: user.id, sessionId: user.sessionId, action: "VISIT_CHECK_IN_REPLAYED", entityType: "Visit", entityId: replay.id });
+            const { checkInFingerprint: _fingerprint, ...visit } = replay;
+            return { visit, replayed: true, conflict: false };
+          }
+        }
+        const patient = await tx.patient.findFirst({ where: { id: input.patientId, facilityId: user.facilityId, active: true } });
+        if (!patient) throw Object.assign(new Error("Patient not found"), { status: 404 });
+        const duplicate = await tx.visit.findFirst({
+          where: { facilityId: user.facilityId, patientId: patient.id, clinicallyClosedAt: null, status: { notIn: ["COMPLETED", "CANCELLED", "DISCHARGED"] } },
+          select: { id: true, visitNumber: true, clinic: true, status: true },
+        });
+        if (duplicate) {
+          await appendAudit(tx, { userId: user.id, sessionId: user.sessionId, action: "ACTIVE_VISIT_IDENTIFIED", entityType: "Visit", entityId: duplicate.id });
+          return { visit: duplicate, replayed: false, conflict: true };
+        }
         const appointment = input.appointmentId
           ? await tx.appointment.findFirst({
               where: {
@@ -246,6 +257,8 @@ export async function POST(request: Request) {
             facilityId: user.facilityId,
             patientId: patient.id,
             appointmentId: appointment?.id,
+            checkInKey: idempotencyKey,
+            checkInFingerprint: idempotencyKey ? fingerprint : undefined,
             visitNumber: operationalReference(
               facility.code,
               "V",
@@ -311,6 +324,7 @@ export async function POST(request: Request) {
         });
         await appendAudit(tx, {
           userId: user.id,
+          sessionId: user.sessionId,
           action: "VISIT_CREATED",
           entityType: "Visit",
           entityId: visit.id,
@@ -335,11 +349,22 @@ export async function POST(request: Request) {
             afterHash: visit.visitNumber,
           });
         }
-        return visit;
+        const { checkInKey: _key, checkInFingerprint: _fingerprint, ...createdVisit } = visit;
+        return { visit: createdVisit, replayed: false, conflict: false };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
-    return NextResponse.json({ visit: result }, { status: 201 });
+    // Re-run the whole transaction after concurrency conflicts. Creation, invoice,
+    // queue entry, appointment update and audit all commit or roll back together.
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const result = await checkIn();
+        if (result.conflict) return privateJson({ error: "Patient already has an active visit", visit: result.visit, details: { activeVisit: result.visit } }, { status: 409 });
+        return privateJson({ visit: result.visit }, { status: result.replayed ? 200 : 201, headers: { "Idempotency-Replayed": String(result.replayed) } });
+      } catch (error) {
+        if (attempt >= 2 || !["P2034", "P2002"].includes((error as { code?: string }).code || "")) throw error;
+      }
+    }
   } catch (error) {
     return apiError(error);
   }
