@@ -12,6 +12,7 @@ test("diagnostic ownership, handover and acknowledgement serialize and survive c
   const admin = await authenticate(request, "admin@mwein.local"), clinician = await authenticate(request, "clinician@example.test"), cover = await authenticate(request, "clinician.cover@example.test");
   const lab = await authenticate(request, "laboratory@example.test"), imaging = await authenticate(request, "imaging@example.test");
   const reception = await authenticate(request, "shared.user@example.test", "OTHER");
+  const otherClinician = await authenticate(request, "diagnostic.other@example.test", "OTHER");
   async function post(path: string, data: unknown, headers = clinician) { const response = await request.post(path, { headers, data }); const body = await response.json(); expect(response.ok(), JSON.stringify(body)).toBe(true); return body; }
   async function get(path: string, headers = clinician) { const response = await request.get(path, { headers }); expect(response.status()).toBe(200); return response.json(); }
   const { patient } = await post("/api/patients", { givenName: "Review", familyName: `Synthetic-${randomUUID().slice(0, 8)}`, phone: "+254700000005", estimatedAgeYears: 30, sexAtBirth: "UNKNOWN", county: "Nairobi", subcounty: "Westlands", treatmentConsent: true, electronicRecordConsent: true, messagingConsent: false }, admin);
@@ -26,6 +27,9 @@ test("diagnostic ownership, handover and acknowledgement serialize and survive c
   expect((await request.get(path, { headers: reception })).status()).toBe(403);
   expect((await request.post(path, { headers: lab, data: {} })).status()).toBe(403);
   const claim = { action: "CLAIM", expectedEventId: null, requestKey: randomUUID(), note: "Synthetic responsibility accepted" };
+  expect((await request.get(path, { headers: otherClinician })).status()).toBe(404);
+  expect((await request.post(path, { headers: otherClinician, data: claim })).status()).toBe(404);
+  expect((await get("/api/diagnostic-reviews", otherClinician)).orders).toEqual([]);
   const concurrent = await Promise.all([request.post(path, { headers: clinician, data: claim }), request.post(path, { headers: clinician, data: claim })]);
   expect(concurrent.map(r => r.status()).sort()).toEqual([200, 201]);
   let saved = (await get(path)).order;
@@ -99,6 +103,11 @@ test("review recovery preserves the exact action, confirms saved work and render
   await expect(detail.getByLabel("Review findings and next steps")).toHaveValue("Synthetic report reviewed; plan retained for follow-up");
   await detail.getByText("Read verified report · Synthetic blood test", { exact: true }).click();
   await expect(detail).toContainText("Not supplied");
+  await page.emulateMedia({ media: "print" });
+  await expect(detail.getByLabel("Review findings and next steps")).toBeHidden();
+  await expect(detail.getByRole("region", { name: "Diagnostic review history" })).toBeVisible();
+  await expect(detail.getByText("Synthetic result narrative", { exact: true })).toBeVisible();
+  await page.emulateMedia({ media: "screen" });
   for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 });
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);

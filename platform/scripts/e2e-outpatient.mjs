@@ -187,6 +187,9 @@ try {
   const temporaryUserId = randomUUID();
   const systemOnlyUserId = randomUUID();
   await pg.query(`INSERT INTO "Facility" ("id", "code", "name", "updatedAt") VALUES ($1, 'OTHER', 'Other Test Facility', CURRENT_TIMESTAMP)`, [otherFacilityId]);
+  const otherDiagnosticReviewerId = randomUUID();
+  await pg.query(`INSERT INTO "User" ("id", "facilityId", "email", "displayName", "passwordHash", "mustChangePassword", "updatedAt") VALUES ($1, $2, 'diagnostic.other@example.test', 'Synthetic other-facility clinician', $3, false, CURRENT_TIMESTAMP)`, [otherDiagnosticReviewerId, otherFacilityId, admin.passwordHash]);
+  await pg.query(`INSERT INTO "UserRole" ("userId", "roleId") SELECT $1, "id" FROM "Role" WHERE "code" = 'CLINICIAN'`, [otherDiagnosticReviewerId]);
   await pg.query(
     `INSERT INTO "User" ("id", "facilityId", "email", "displayName", "passwordHash", "mustChangePassword", "updatedAt") VALUES
       ($1, $2, 'shared.user@example.test', 'MMS reception', $3, false, CURRENT_TIMESTAMP),

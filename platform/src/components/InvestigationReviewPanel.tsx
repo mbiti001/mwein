@@ -43,7 +43,7 @@ export default function InvestigationReviewPanel({ visitId }: { visitId: string 
   const visit = data?.visit.id === visitId ? data.visit : null;
   return <section className="investigationReview span2" aria-label="Investigation results">
     <div className="investigationReviewHeading"><div><h3>Investigations and results</h3><p>Only verified reports are released here. Refresh to check for new results; your consultation notes stay in place.</p></div>
-      <button type="button" className="secondary" disabled={loading} onClick={() => void refresh()}>{loading ? "Checking results…" : "Refresh results"}</button>
+      <button type="button" className="secondary noPrint" disabled={loading} onClick={() => void refresh()}>{loading ? "Checking results…" : "Refresh results"}</button>
     </div>
     {error && <p role="alert" className="alert">Results could not be loaded. {error} Use Refresh results to try again.</p>}
     {loading && <p role="status">Loading investigations for this visit…</p>}
