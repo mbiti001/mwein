@@ -25,9 +25,9 @@
       "version": "1.2.0",
       "displayName": "1.2.0",
       "status": "candidate",
-      "branch": "codex/hosipoa-expiry-report",
-      "requiredMigration": "20261015210000_diagnostic_review",
-      "note": "Reserved for preserved diagnostic responsibility/review work and subsequent verified improvements. Not deployed; requires a fresh backup and separate exact-source release verification. Document numbering is queued, not yet implemented."
+      "branch": "codex/mwein-platform",
+      "requiredMigration": "20261016001000_clinic_document_numbering",
+      "note": "Diagnostic responsibility/review and structured clinic, purchase-order and goods-receipt numbering implemented and locally verified. Not deployed; requires a fresh verified backup, both pending migrations and exact-source CI/release verification."
     }
   ]
 }

@@ -1,6 +1,7 @@
 import { verifyMandatoryMfa } from "./e2e-mfa-enforcement.mjs";
 import { verifyPrivacy } from "./e2e-privacy.mjs";
 import { verifySupplyDocuments } from "./e2e-supply-documents.mjs";
+import { verifyDocumentNumbering } from "./e2e-document-numbering.mjs";
 import { createHmac, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { readdir } from "node:fs/promises";
@@ -963,6 +964,7 @@ try {
 
   await verifySupplyDocuments({ pg, api, requestWithCookie, authenticate, sessionCookie, facility, medicine, storeId, otherFacilityId, assert, steps });
 
+  await verifyDocumentNumbering({ pg, requestWithCookie, sessionCookie, facility, admin, assert, steps });
   const auditExport = await requestWithCookie("/api/admin/audit/export", sessionCookie);
   assert(auditExport.response.ok, `Audit export failed: ${JSON.stringify(auditExport.body)}`);
   assert(auditExport.body.chain.valid === true && Number(auditExport.body.chain.eventCount) > 0, "Audit export did not verify its serialized chain");

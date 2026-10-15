@@ -16,7 +16,7 @@ test("authorized staff save, sign and correct branded electronic delivery notes"
   const save = page.getByRole("button", { name: "Save draft", exact: true });
   expect((await save.boundingBox())!.width).toBeLessThan(200);
   await save.click();
-  await expect(page.locator(".clinicFormPaper")).toContainText("DRAFT — NOT ISSUED");
+  await expect(page.locator(".clinicFormPaper")).toContainText("Draft — not issued");
   await expect(page.getByRole("button", { name: "Sign and issue document" })).toBeDisabled();
   await page.getByLabel("I reviewed this saved document").check();
   const response = page.waitForResponse(r => r.url().includes("/api/clinic-documents") && r.request().method() === "PATCH");
@@ -39,8 +39,8 @@ test("authorized staff save, sign and correct branded electronic delivery notes"
   expect(await page.evaluate(() => (window as any).printed)).toContain("/brand/mwein-wordmark.png");
   await page.getByLabel("Reason for correction").fill("Correct demonstration quantity after review");
   await page.getByRole("button", { name: "Create correction draft" }).click();
-  await expect(page.locator(".clinicFormPaper")).toContainText("Revision 2");
-  await expect(page.locator(".clinicFormPaper")).toContainText("DRAFT — NOT ISSUED");
+  await expect(page.locator(".clinicFormPaper .recordFields > div").filter({ has: page.locator("dt", { hasText: /^Revision$/ }) }).locator("dd")).toHaveText("2");
+  await expect(page.locator(".clinicFormPaper")).toContainText("Draft — not issued");
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator(".mobileWordmark")).toBeVisible();
   expect((await save.boundingBox())!.width).toBeLessThan(200);

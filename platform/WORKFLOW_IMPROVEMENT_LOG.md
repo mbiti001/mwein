@@ -1,8 +1,10 @@
 # Mwein workflow improvement log
 
+**Current working branch: `codex/mwein-platform`.** The owner explicitly requested the rename on 16 October 2026. GitHub renamed the branch at source `8307938` and the local checkout now tracks the new remote name. Never recreate or push the old branch; its appearances below are historical release evidence. Continue active version 1.2.0 document numbering and preserve the other pipeline work.
+
 ## Working agreement
 
-The user authorised continuous workflow auditing, corrections, online research, testing and pushes to the existing `codex/hosipoa-expiry-report` branch on 15 October 2026. They will not answer questions while asleep. Continue with routine implementation decisions and record external dependencies. Preserve production release gates and use synthetic local data. Hourly continuation is attached to this chat as `continue-mwein-workflow-improvements`.
+The user authorised continuous workflow auditing, corrections, online research, testing and pushes to the working branch on 15 October 2026. They will not answer questions while asleep. Continue with routine implementation decisions and record external dependencies. Preserve production release gates and use synthetic local data. Hourly continuation is attached to this chat as `continue-mwein-workflow-improvements`.
 
 ## Completed batch: connected outpatient worklists — 15 October 2026
 
@@ -341,13 +343,25 @@ Release-record/next-version validation: Prisma generation and TypeScript checks 
 
 Added the owner's latest [structured document numbering request](DOCUMENT_NUMBERING_PLAN.md) to the pipeline: readable facility/type/year/sequence references, separate patient/status/revision fields, concurrency-safe allocation, immutable signed references and matching saved/printed layouts. This is planned work, not yet implemented; do not replace internal UUIDs with unverified truncations. Preserve ongoing compliance and workflow work. Also queued: harden the repository's general backup utility, which still passes a connection URL in process arguments; the controlled backup used environment-only credentials instead.
 
+## 16 October 2026 — Mwein branch and structured numbering for 1.2.0
+
+Renamed the existing GitHub branch and local branch to **codex/mwein-platform**, retaining all commits and tracking the renamed remote. Historical release records remain truthful to their original branch. The automation prompt and memory now direct continued work to the Mwein branch. No force push or contributor overwrite was used.
+
+Implemented the [numbering specification](DOCUMENT_NUMBERING_PLAN.md) for all four clinic document kinds plus purchase orders and goods receipts: facility/type/year serials, atomic allocation and audit, bounded concurrent retries, actor/payload-bound replay, immutable identities and preserved historical references. Corrections keep the signed original and receive a distinct serial with linked history. New draft/save lists and shared letterheads separate patient, reference, status and revision; saved and printed related fields stay aligned. Ambiguous creation responses offer exact retry; confirmed saves survive a failed register refresh.
+
+Validation: TypeScript passed; **589 unit tests in 104 files**, **54 migration scripts**, production build, complete synthetic outpatient fixture and **101 browser scenarios** passed. Final verification after the internal receipt-metadata response filter passed TypeScript, 13 focused tests and all 8 numbering/print browser scenarios with the complete synthetic workflow fixture. Injected audit failures proved rollback of clinic/PO/GRN counters and domain records; concurrent identical requests returned the original reference. Reviewed generated sick-sheet, PO and GRN PDFs visually; browser assertions cover all four clinic PDFs, PO/GRN PDFs and 1440/768/390/320 px layouts. No real patient workflow was used.
+
+Reviewed changed clinic-document and supply routes for permission checks, facility isolation, transactional audit and response privacy before refreshing only their source review hashes. Readiness and remaining classification gaps are not waived. Vercel settings inspection found production and preview targets on both database environment variables; a scoped Git deployment guard now prevents automatic deployments of the renamed branch. A separately provisioned preview database remains a dependency. Controlled exact-source CLI releases remain available.
+
+Release status: version **1.2.0 candidate**, not yet deployed. Both diagnostic-review and numbering migrations require a new verified backup and exact-source CI before release. Current live release remains verified 1.1.0. Preserve compliance, diagnostic handover, pharmacy, cashier, follow-up and backup-utility work in the pipeline.
+
 ## Remaining audit order
 
 The user's later instructions add work to this pipeline; they do not interrupt an active batch. Saved-note recovery, concurrent revision protection and unsaved navigation protection are completed above; do not repeat them.
 
 **Assessment baseline added 15 October:** apply the user's seven supplied legal documents through [Mwein's legal control matrix](certification/assessment-pack/MWEIN-LEGAL-CONTROL-MATRIX.md) and [source hashes](certification/assessment-pack/MWEIN-LEGAL-SOURCES.json) to every subsequent batch. The 2024 e-health document is a draft; current authoritative framework, legal applicability and certification acceptance remain external evidence. New rights intake targets are implemented in the batch below. Preserve this audit order and naming/versioning work; add the remaining representative/identity, response-delivery/refusal, restriction/objection/erasure, incident-clock, retention/hold and processor/transfer work to the pipeline. Do not mistake an export generation, stored deadline, audit hash chain or green build for full legal conformity.
 
-1. Mwein **1.1.0** is deployed and verified above. Continue **1.2.0** with the preserved diagnostic work; use a fresh backup and separate exact-source release checks. Implement the queued [structured document numbering](DOCUMENT_NUMBERING_PLAN.md) and harden the general backup utility without changing historical signed documents. Preserve the shared version ledger and all remaining compliance work. The historical initial release remains **1** (canonical **1.0.0**).
+1. Mwein **1.1.0** is deployed and verified above. Continue **1.2.0** with the preserved diagnostic work; use a fresh backup and separate exact-source release checks. Structured [document numbering](DOCUMENT_NUMBERING_PLAN.md) is implemented above; complete its controlled release and harden the general backup utility without changing historical signed documents. Preserve the shared version ledger and all remaining compliance work. The historical initial release remains **1** (canonical **1.0.0**).
 2. Diagnostic responsibility, incoming handover acceptance, verified-report acknowledgement and closed-visit review are implemented above. Continue the documented two-party handover/escalation, inactive-owner, pagination and review-addendum work; opening a report still does not acknowledge it. Preserve any new user changes and the main chat's active release work.
 3. Pharmacy partial-supply/retry/refresh recovery and partial-consumption forecasting are completed above. Continue broader substitution and FEFO validation, governed recovery across work-area/reload boundaries, and explicit return-to-clinician/clarification ownership; retain independent medication governance.
 4. Review cashier reconciliation, partial payment, refund/reversal and discharge views with synthetic scenarios. Keep clinical closure independent of financial settlement.

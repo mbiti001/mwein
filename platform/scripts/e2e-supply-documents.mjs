@@ -3,7 +3,27 @@ import { randomUUID } from "node:crypto";
 export async function verifySupplyDocuments({ pg, api, requestWithCookie, authenticate, sessionCookie, facility, medicine, storeId, otherFacilityId, assert, steps }) {
   const post = body => ({ method: "POST", body: JSON.stringify(body) });
   const supplier = (await api("create supplier for document verification", "/api/supply", post({ action: "SUPPLIER", code: "DOC-TEST", name: "Synthetic Medical Supplies", email: "supplier@example.test" }))).body.result;
-  const order = (await api("draft purchase order for document verification", "/api/supply", post({ action: "PURCHASE_ORDER", idempotencyKey: randomUUID(), supplierId: supplier.id, catalogItemId: medicine.id, quantity: 3, unitCost: 3.35, notes: "Synthetic purchase order for document verification" }))).body.result;
+  const orderInput = { action: "PURCHASE_ORDER", idempotencyKey: randomUUID(), supplierId: supplier.id, catalogItemId: medicine.id, quantity: 3, unitCost: 3.35, notes: "Synthetic purchase order for document verification" };
+  const concurrentOrders = await Promise.all([0,1].map(() => requestWithCookie("/api/supply", sessionCookie, post(orderInput))));
+  assert(concurrentOrders.map(r=>r.response.status).sort().join(',') === '200,201', "Concurrent order retries did not resolve to one document");
+  const order = concurrentOrders.find(r=>r.response.status===201).body.result;
+  assert(/^.+-PO-\d{4}-\d{6,}$/.test(order.orderNumber) && concurrentOrders.every(r=>r.body.result.orderNumber===order.orderNumber), "Purchase order numbering or replay reference changed");
+  assert((await requestWithCookie("/api/supply", sessionCookie, post({ ...orderInput, quantity:4 }))).response.status===409, "Order replay accepted different contents");
+  steps.push("verify numbered purchase-order concurrent retry and changed-payload rejection");
+  const orderCounter = JSON.stringify((await pg.query(`SELECT "nextValue"::text FROM "ReferenceSequence" WHERE "facilityId"=$1 AND "kind"='PURCHASE_ORDER' ORDER BY "year"`, [facility.id])).rows);
+  const failedOrderKey = randomUUID();
+  await pg.exec(`CREATE FUNCTION reject_order_audit_test() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."action"='PURCHASE_ORDER_DRAFTED' THEN RAISE EXCEPTION 'Synthetic audit failure'; END IF; RETURN NEW; END; $$; CREATE TRIGGER order_audit_test BEFORE INSERT ON "AuditEvent" FOR EACH ROW EXECUTE FUNCTION reject_order_audit_test();`);
+  try {
+    const failure = await requestWithCookie("/api/supply", sessionCookie, post({ ...orderInput, idempotencyKey: failedOrderKey }));
+    assert(failure.response.status === 500, "Failed order audit did not reject allocation");
+    assert(JSON.stringify((await pg.query(`SELECT "nextValue"::text FROM "ReferenceSequence" WHERE "facilityId"=$1 AND "kind"='PURCHASE_ORDER' ORDER BY "year"`, [facility.id])).rows) === orderCounter, "Failed order audit consumed a serial");
+    assert(Number((await pg.query('SELECT COUNT(*) FROM "PurchaseOrder" WHERE "idempotencyKey"=$1', [failedOrderKey])).rows[0].count) === 0, "Failed order audit retained a document");
+  } finally { await pg.exec('DROP TRIGGER order_audit_test ON "AuditEvent"; DROP FUNCTION reject_order_audit_test();'); }
+  for (const statement of ['UPDATE "PurchaseOrder" SET "orderNumber"=\'renumbered\' WHERE "id"=$1', 'UPDATE "PurchaseOrder" SET "requestHash"=NULL WHERE "id"=$1']) {
+    let rejected = false; try { await pg.query(statement, [order.id]); } catch (error) { rejected = /immutable/.test(error.message); }
+    assert(rejected, "Purchase order identity could be reassigned");
+  }
+  steps.push("verify purchase-order counter rollback and immutable reference/receipt");
   // Exercise existing multi-line database orders even though the current entry form creates one line.
   const secondLineId = randomUUID();
   await pg.query('INSERT INTO "PurchaseOrderLine" ("id","purchaseOrderId","catalogItemId","quantityOrdered","unitCost") VALUES ($1,$2,$3,0.3,0.15)', [secondLineId, order.id, medicine.id]);
@@ -22,6 +42,7 @@ export async function verifySupplyDocuments({ pg, api, requestWithCookie, authen
   steps.push("verify independent purchase-order approval before receiving stock");
 
   // Fail receipt retention to prove the transaction cannot leave stock without its evidence.
+  const receiptCounter = JSON.stringify((await pg.query(`SELECT "nextValue"::text FROM "ReferenceSequence" WHERE "facilityId"=$1 AND "kind"='GOODS_RECEIPT' ORDER BY "year"`, [facility.id])).rows);
   await pg.exec(`CREATE FUNCTION e2e_reject_receipt() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'Synthetic receipt retention failure'; END; $$ LANGUAGE plpgsql;
     CREATE TRIGGER e2e_reject_receipt BEFORE INSERT ON "GoodsReceipt" FOR EACH ROW EXECUTE FUNCTION e2e_reject_receipt();`);
   try {
@@ -30,12 +51,16 @@ export async function verifySupplyDocuments({ pg, api, requestWithCookie, authen
     const rolledBack = (await pg.query('SELECT "quantityReceived"::text AS quantity FROM "PurchaseOrderLine" WHERE "id"=$1', [receiptInput.lineId])).rows[0];
     const batches = (await pg.query('SELECT COUNT(*)::int AS count FROM "InventoryBatch" WHERE "batchNumber"=$1', [receiptInput.batchNumber])).rows[0];
     assert(Number(rolledBack.quantity) === 0 && batches.count === 0, "Receipt retention failure committed partial stock changes");
+    assert(JSON.stringify((await pg.query(`SELECT "nextValue"::text FROM "ReferenceSequence" WHERE "facilityId"=$1 AND "kind"='GOODS_RECEIPT' ORDER BY "year"`, [facility.id])).rows) === receiptCounter, "Failed receipt retention consumed its serial");
   } finally {
     await pg.exec('DROP TRIGGER e2e_reject_receipt ON "GoodsReceipt"; DROP FUNCTION e2e_reject_receipt();');
   }
   steps.push("verify receipt retention failure rolls back inventory and order updates");
-  const first = (await api("post partial delivery with retained goods receipt", "/api/supply", post(receiptInput))).body.result;
-  assert(first.goodsReceiptId && first.receiptNumber.startsWith("GRN-"), "Receipt response omitted its printable reference");
+  const concurrentReceipts = await Promise.all([0,1].map(() => requestWithCookie("/api/supply", sessionCookie, post(receiptInput))));
+  assert(concurrentReceipts.map(r=>r.response.status).sort().join(',') === '200,201', "Concurrent receipt retries did not resolve to one document");
+  const first = concurrentReceipts.find(r=>r.response.status===201).body.result;
+  assert(first.goodsReceiptId && /^.+-GRN-\d{4}-\d{6,}$/.test(first.receiptNumber) && concurrentReceipts.every(r=>r.body.result.receiptNumber===first.receiptNumber), "Receipt response omitted or changed its printable serial");
+  steps.push("verify numbered goods-receipt concurrent retry without duplicate stock");
   const preview = (await api("preview retained goods receipt", "/api/supply/documents", post({ kind: "GOODS_RECEIPT", id: first.goodsReceiptId, intent: "PREVIEW" }))).body.document;
   assert(preview.lines[0].quantity === "1" && preview.lines[0].unitCost === "3.35" && preview.total === "3.35" && preview.actors[0].name === "Mwein System Administrator", "Receipt failed to retain original quantity, value or receiver");
   const replay = await requestWithCookie("/api/supply", sessionCookie, post(receiptInput));

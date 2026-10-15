@@ -1,13 +1,13 @@
 import { auditedOperationalJson } from "@/lib/audited-json";
 import { randomUUID } from "node:crypto";
-import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
-import { apiError } from "@/lib/http";
+import { apiError, privateJson } from "@/lib/http";
 import { appendAudit, auditValueFingerprint } from "@/lib/audit";
 import { supplyDocumentSchema } from "@/lib/supply-documents";
+import { allocateDocumentReference, retryDocumentTransaction } from "@/lib/document-numbering";
 import { canTransitionPurchaseOrder, countDisposition, isIndependentChecker } from "@/lib/supply-controls";
 import {
   assertStoresNotFrozen,
@@ -107,7 +107,7 @@ export async function GET() {
       ...stocktake,
       lines: stocktake.lines.map(line => ({ ...line, systemQuantity: stocktake.status === "OPEN" ? null : line.systemQuantity })),
     }));
-    return await auditedOperationalJson(user, "supply", { suppliers, stores, purchaseOrders, items, batches, pendingCounts, emergencyAdjustments, movements, stocktakes: safeStocktakes, accounting, currentUserId: user.id });
+    return await auditedOperationalJson(user, "supply", { suppliers, stores, purchaseOrders: purchaseOrders.map(({ requestHash: _hash, ...order }) => order), items, batches, pendingCounts, emergencyAdjustments, movements, stocktakes: safeStocktakes, accounting, currentUserId: user.id });
   } catch (error) { return apiError(error); }
 }
 
@@ -115,18 +115,26 @@ export async function POST(request: Request) {
   try {
     const input = actionSchema.parse(await request.json());
     const user = await requirePermission(permissions[input.action]);
+    const run = async () => {
     if ("idempotencyKey" in input) {
       const replay = await db.supplyOperation.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
       if (replay) {
         if (replay.facilityId !== user.facilityId || replay.createdById !== user.id || replay.action !== input.action)
           fail("This transaction key is already in use. Refresh before retrying.", 409);
+        if (input.action === "PURCHASE_ORDER") {
+          const order = replay.entityType === "PurchaseOrder" ? await db.purchaseOrder.findFirst({ where: { id: replay.entityId, facilityId: user.facilityId }, select: { id: true, orderNumber: true, requestHash: true } }) : null;
+          if (!order || order.requestHash !== auditValueFingerprint(input)) fail("Order details differ from the saved transaction, or this historical order has no retry evidence. Review the original order.", 409);
+          await db.$transaction(tx => appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: "PURCHASE_ORDER_REPLAYED", entityType: "PurchaseOrder", entityId: order.id }));
+          return privateJson({ result: { ...replay, id: order.id, orderNumber: order.orderNumber }, replayed: true });
+        }
         if (input.action === "RECEIVE") {
           const receipt = replay.entityType === "GoodsReceipt" ? await db.goodsReceipt.findFirst({ where: { id: replay.entityId, facilityId: user.facilityId }, select: { id: true, receiptNumber: true, requestHash: true } }) : null;
           if (!receipt || receipt.requestHash !== auditValueFingerprint(input))
             fail("Receipt details differ from the saved transaction. Refresh and review the original receipt before retrying.", 409);
-          return NextResponse.json({ result: { ...replay, goodsReceiptId: receipt.id, receiptNumber: receipt.receiptNumber }, replayed: true });
+          await db.$transaction(tx => appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: "GOODS_RECEIPT_REPLAYED", entityType: "GoodsReceipt", entityId: receipt.id }));
+          return privateJson({ result: { ...replay, goodsReceiptId: receipt.id, receiptNumber: receipt.receiptNumber }, replayed: true });
         }
-        return NextResponse.json({ result: replay, replayed: true });
+        return privateJson({ result: replay, replayed: true });
       }
     }
     const result = await db.$transaction(async tx => {
@@ -144,9 +152,12 @@ export async function POST(request: Request) {
         if (!supplier || !item) fail("Active supplier or medicine was not found", 404);
         const unitCost = input.unitCost ?? Number(item.costPrice || 0);
         if (unitCost <= 0) fail("A positive unit cost is required so every receipt can be valued and reconciled.");
-        const record = await tx.purchaseOrder.create({ data: { facilityId: user.facilityId, supplierId: supplier.id, orderNumber: `PO-${Date.now().toString(36).toUpperCase()}`, status: "DRAFT", expectedAt: input.expectedAt, notes: input.notes, createdById: user.id, idempotencyKey: input.idempotencyKey, lines: { create: { catalogItemId: item.id, quantityOrdered: new Prisma.Decimal(input.quantity), unitCost: new Prisma.Decimal(unitCost) } } }, include: { lines: true } });
+        const facility = await tx.facility.findUniqueOrThrow({ where: { id: user.facilityId } });
+        const orderNumber = await allocateDocumentReference(tx, facility, "PO");
+        const record = await tx.purchaseOrder.create({ data: { facilityId: user.facilityId, supplierId: supplier.id, orderNumber, requestHash: auditValueFingerprint(input), status: "DRAFT", expectedAt: input.expectedAt, notes: input.notes, createdById: user.id, idempotencyKey: input.idempotencyKey, lines: { create: { catalogItemId: item.id, quantityOrdered: new Prisma.Decimal(input.quantity), unitCost: new Prisma.Decimal(unitCost) } } }, include: { lines: true } });
         await tx.supplyOperation.create({ data: { facilityId: user.facilityId, idempotencyKey: input.idempotencyKey, action: input.action, entityType: "PurchaseOrder", entityId: record.id, createdById: user.id } });
-        await appendAudit(tx, { userId: user.id, action: "PURCHASE_ORDER_DRAFTED", entityType: "PurchaseOrder", entityId: record.id }); return record;
+        await appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: "PURCHASE_ORDER_DRAFTED", entityType: "PurchaseOrder", entityId: record.id });
+        const { requestHash: _hash, ...safe } = record; return safe;
       }
       if (input.action === "SUBMIT_PURCHASE_ORDER") {
         const order = await tx.purchaseOrder.findFirst({ where: { id: input.purchaseOrderId, facilityId: user.facilityId } });
@@ -189,9 +200,13 @@ export async function POST(request: Request) {
       if (input.action === "CANCEL_STOCKTAKE") return cancelStocktake(tx, user, input);
       return transfer(tx, user, input);
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    return NextResponse.json({ result }, { status: 201 });
+    const safeResult = result && typeof result === "object" && "requestHash" in result
+      ? (({ requestHash: _hash, ...safe }) => safe)(result) : result;
+    return privateJson({ result: safeResult }, { status: 201 });
+    };
+    return await (["PURCHASE_ORDER", "RECEIVE"].includes(input.action) ? retryDocumentTransaction(run) : run());
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return NextResponse.json({ error: "This transaction was already recorded. Refresh to view the saved result." }, { status: 409 });
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return privateJson({ error: "This transaction was already recorded. Refresh to view the saved result." }, { status: 409 });
     return apiError(error);
   }
 }
@@ -227,7 +242,7 @@ async function receive(tx: Tx, user: User, input: Extract<z.infer<typeof actionS
   const item = await tx.catalogItem.findFirstOrThrow({ where: { id: line.catalogItemId, facilityId: user.facilityId }, select: { code: true, name: true } });
   const receiver = await tx.user.findFirstOrThrow({ where: { id: user.id, facilityId: user.facilityId }, select: { displayName: true } });
   const receiptId = randomUUID();
-  const receiptNumber = `GRN-${movement.occurredAt.getTime().toString(36).toUpperCase()}-${receiptId.slice(0, 8).toUpperCase()}`;
+  const receiptNumber = await allocateDocumentReference(tx, line.purchaseOrder.facility, "GRN", movement.occurredAt);
   const snapshot = supplyDocumentSchema.parse({
     version: 1, kind: "GOODS_RECEIPT", reference: receiptNumber,
     facilityName: line.purchaseOrder.facility.name, facilityCode: line.purchaseOrder.facility.code,

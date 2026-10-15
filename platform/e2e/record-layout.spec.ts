@@ -32,17 +32,19 @@ async function capturePrint(page: Page, buttonName: string, portal: string, body
 
 for (const kind of documentKinds) test(`${kind} saved and printed forms share columns and omit optional blanks`, async ({ page }, info) => {
   const definition = documentDefinitions[kind];
-  const record = { id: "layout", kind, reference: `TEST-${kind}`, status: "SIGNED", revision: 2, version: 2,
+  const record = { id: "layout", kind, reference: `TEST-${kind}-2026-000023`, status: "SIGNED", revision: 2, version: 2,
     payload: Object.fromEntries(definition.fields.map(field => [field.key, field.required ? field.type === "date" ? "2026-10-15" : field.type === "datetime-local" ? "2026-10-15T12:00" : `Synthetic ${field.label}` : " "])),
     context: { facilityName: "Mwein Medical Services", facilityCode: "TEST", timezone: "Africa/Nairobi", patientName: "Synthetic Patient", patientNumber: "TEST-P", visitNumber: "TEST-V" },
-    signerName: "Synthetic signer", signerRoles: ["Clinician"], signerRegistration: "TEST-ONLY", signedAt: "2026-10-15T09:00:00Z", contentHash: "synthetic-retained-fingerprint", previousId: "original", correctionReason: "Synthetic correction history",
+    signerName: "Synthetic signer", signerRoles: ["Clinician"], signerRegistration: "TEST-ONLY", signedAt: "2026-10-15T09:00:00Z", contentHash: "synthetic-retained-fingerprint", previousId: "original", previous: { reference: `TEST-${kind}-2026-000001` }, correctionReason: "Synthetic correction history",
   };
   await staff(page, ["encounter.write", "inventory.receive", "visit.create"]);
   await page.route("**/api/clinic-documents?*", route => route.fulfill({ json: route.request().url().includes("visits=1") ? { visits: [] } : { documents: [record], truncated: false } }));
   await page.goto("/");
   await page.getByRole("button", { name: "Clinic forms", exact: true }).click();
   await page.getByRole("combobox", { name: "Document type", exact: true }).selectOption(kind);
-  await page.locator(".documentRegister button").click();
+  const registerRow = page.getByRole("button", { name: `Open ${record.reference}`, exact: true });
+  await expect(registerRow).toContainText("Revision");
+  await registerRow.click();
   const paper = page.locator(".clinicFormPaper");
   for (const field of definition.fields.filter(field => !field.required)) await expect(paper.getByText(field.label, { exact: true })).toHaveCount(0);
   await expect(paper).toContainText("Synthetic signer");
@@ -50,6 +52,8 @@ for (const kind of documentKinds) test(`${kind} saved and printed forms share co
   await responsive(page, paper, info);
   await capturePrint(page, "Print / Save PDF", "#clinic-form-print", "printingClinicForm", info);
   await expect(page.locator("#clinic-form-print")).toContainText(record.contentHash);
+  await expect(page.locator("#clinic-form-print")).toContainText(record.reference);
+  await expect(page.locator("#clinic-form-print")).toContainText(record.previous.reference);
 });
 
 for (const kind of ["PURCHASE_ORDER", "GOODS_RECEIPT"] as const) test(`${kind} keeps zero quantities, unknown costs and attribution in clean PDF`, async ({ page }, info) => {

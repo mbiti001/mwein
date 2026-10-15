@@ -25,14 +25,14 @@ describe("record presentation without invented findings", () => {
     const html = renderToStaticMarkup(<ClinicFormPaper document={{
       id: "synthetic", kind, reference: "TEST-001", status: "SIGNED", revision: 2, version: 3, payload,
       context: { facilityName: "Synthetic clinic", facilityCode: "TEST", timezone: "Africa/Nairobi" },
-      previousId: "original", correctionReason: "Documented correction", signedAt: "2026-10-15T09:00:00Z",
+      previousId: "original", previous: { reference: "TEST-SICK-2026-000001" }, correctionReason: "Documented correction", signedAt: "2026-10-15T09:00:00Z",
       signerName: "Test signer", signerRoles: ["Clinician"], contentHash: "retained-fingerprint",
     }} />);
     for (const field of definition.fields) {
       if (field.required) expect(html).toContain(`Recorded ${field.label}`);
       else expect(html).not.toContain(field.label);
     }
-    for (const text of ["SIGNED", "Revision 2", "Test signer", "Documented correction", "retained-fingerprint"]) expect(html).toContain(text);
+    for (const text of [">Signed<", "<dt>Revision</dt><dd>2</dd>", "TEST-SICK-2026-000001", "Test signer", "Documented correction", "retained-fingerprint"]) expect(html).toContain(text);
     expect(html).not.toContain("Not recorded");
   });
 });

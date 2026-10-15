@@ -69,7 +69,7 @@ export function FacilityLetterhead({
       <div className="facilityLetterheadDocument">
         <span>Facility document</span>
         <h1>{title}</h1>
-        {reference && <p>{reference}</p>}
+        {reference && <p><small>Reference</small><br /><strong>{reference}</strong></p>}
       </div>
       {badge && <div className="facilityLetterheadBadge">{badge}</div>}
       {isMwein ? (

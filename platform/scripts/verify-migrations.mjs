@@ -246,4 +246,26 @@ let repeatedAcknowledgementRejected = false;
 try { await db.exec(acknowledgementInsert(3)); } catch { repeatedAcknowledgementRejected = true; }
 if (!repeatedAcknowledgementRejected) throw new Error("Duplicate diagnostic acknowledgement was accepted");
 console.log(`verified ${migrations.length} migrations, ${requiredTables.length} required tables, immutable triggers, stocktake and cashier-shift uniqueness, rights and diagnostic-review evidence constraints, and balanced journal constraints`);
+// Draft edits must not change allocated references or durable retry receipts.
+await db.exec(`INSERT INTO "ClinicDocument" ("id", "facilityId", "kind", "reference", "payload", "context", "authorId", "signerRoles", "updatedAt", "creationKey", "creationHash") VALUES ('cccccccc-cccc-4ccc-8ccc-ccccccccccc3', '11111111-1111-4111-8111-111111111111', 'DELIVERY', 'TEST-DELIVERY-2026-000001', '{}', '{}', '22222222-2222-4222-8222-222222222222', ARRAY[]::text[], CURRENT_TIMESTAMP, 'cccccccc-cccc-4ccc-8ccc-ccccccccccc4', repeat('b',64))`);
+for (const statement of [
+  `UPDATE "ClinicDocument" SET "reference"='renumbered' WHERE "reference"='TEST-DELIVERY-2026-000001'`,
+  `UPDATE "ClinicDocument" SET "creationHash"=repeat('c',64) WHERE "reference"='TEST-DELIVERY-2026-000001'`,
+  `UPDATE "ClinicDocument" SET "creationKey"=NULL, "creationHash"=NULL WHERE "reference"='TEST-DELIVERY-2026-000001'`,
+]) {
+  let rejected = false;
+  try { await db.exec(statement); } catch (error) { rejected = String(error).includes("immutable"); }
+  if (!rejected) throw new Error("Draft reference or creation receipt could be reassigned");
+}
+for (const [key, hash, reference] of [
+  [`'cccccccc-cccc-4ccc-8ccc-ccccccccccc4'`, `repeat('b',64)`, "TEST-DELIVERY-2026-000002"],
+  ["NULL", `repeat('b',64)`, "TEST-DELIVERY-2026-000003"],
+  [`'cccccccc-cccc-4ccc-8ccc-ccccccccccc5'`, "NULL", "TEST-DELIVERY-2026-000004"],
+  [`'cccccccc-cccc-4ccc-8ccc-ccccccccccc5'`, "'invalid'", "TEST-DELIVERY-2026-000005"],
+]) {
+  let rejected = false;
+  try { await db.exec(`INSERT INTO "ClinicDocument" ("id", "facilityId", "kind", "reference", "payload", "context", "authorId", "signerRoles", "updatedAt", "creationKey", "creationHash") VALUES ('cccccccc-cccc-4ccc-8ccc-ccccccccccc6', '11111111-1111-4111-8111-111111111111', 'DELIVERY', '${reference}', '{}', '{}', '22222222-2222-4222-8222-222222222222', ARRAY[]::text[], CURRENT_TIMESTAMP, ${key}, ${hash})`); } catch { rejected = true; }
+  if (!rejected) throw new Error("Duplicate or malformed creation receipt was accepted");
+}
+console.log("verified immutable document references, receipt pairing and replay-key uniqueness");
 await db.close();

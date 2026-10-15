@@ -250,7 +250,7 @@
       "methodExceptions": {}
     },
     "supply": {
-      "sourceSha256": "7ee7fe5f181bd971bc541c4bc5bfe3e1280d3d9209db3c8d555a0faabca275a9",
+      "sourceSha256": "d127e4c73d075e89e16fa4132c6c98a148974b87edf96c7057b424e1d8fea666",
       "methodExceptions": {}
     },
     "surveillance": {
@@ -290,7 +290,7 @@
       "methodExceptions": {}
     },
     "clinic-documents": {
-      "sourceSha256": "6f3bba5fba7162aaff4a9e4490a7b0a706d02997dce698e34852aa79942b29ee",
+      "sourceSha256": "e1019b480b5393b01bb94ebe1d0a6a985a976ee9c7dc8fbb376a91337ce15383",
       "methodExceptions": {}
     },
     "diagnostic-reviews": {
