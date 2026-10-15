@@ -82,6 +82,14 @@ Limits: opening a report proves neither clinical acknowledgement nor successful 
 
 ## Research basis
 
+## Deployment follow-up: hosted mobile check — 15 October 2026
+
+The user explicitly requested pushing and deploying to Vercel. Confirmed `564ca58` was on origin, but GitHub run `38752208042` failed its 390 px clinic-flow check on Linux Chromium (68 other browser scenarios passed). Retrieved its failure evidence and reproduced the underlying overflow locally at 320 px: the Queue control header kept its title, unavailable-status badge and Refresh queue button on one line. The button extended beyond the viewport. Added wrapping and a flexible title to this specific header; retained the original overflow assertion and extended it to both 390 px and 320 px, with element diagnostics and portable test artifact paths.
+
+Validation: the rebuilt production browser fixture passed all nine clinic-flow and connected-worklist scenarios. The source preflight was clean before this correction, and all 51 migration/constraint checks passed. A fresh hosted run is required for the corrected commit before deployment.
+
+At 17:34 EAT, the existing Vercel site reported health 200, source `ffe292fb0f83205fb9943237e0f27331cc816f87`, migration `20260927090000_payment_replay`, and readiness 503/blocked. This release needs both October migrations before promotion. Vercel CLI was logged out; the user chose browser sign-in and authentication was started. No production migration, bootstrap, configuration change or deployment has yet been performed. Keep release safeguards and verify the existing project/account, retained backup, migration state and exact deployed source before promotion; do not treat authentication or build success as patient-use approval.
+
 - [HosiPoa modules](https://www.hosipoa.co.ke/modules/), reviewed 15 October 2026: connected reception, appointment, queue, referral, diagnostic, pharmacy and cashier capabilities inform the backlog. Public scope descriptions are not implementation specifications.
 - [WHO SMART business processes](https://smart.who.int/hiv/business-processes.html), reviewed 15 October 2026: explicit actors, activities, referral and follow-up processes inform the handoff design. This does not claim implementation of the HIV clinical programme.
 - [WHO Interagency Integrated Triage Tool](https://www.who.int/tools/triage), reviewed 15 October 2026: urgency-based prioritisation informs queue ordering. Existing local priority categories remain unchanged; this batch does not implement or claim certification against IITT algorithms.

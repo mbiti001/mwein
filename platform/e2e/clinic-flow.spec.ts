@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("parallel department tasks stay visible, filter independently and fit a phone", async ({ page }) => {
+test("parallel department tasks stay visible, filter independently and fit a phone", async ({ page }, testInfo) => {
   const now = Date.now();
   const visits = [{ id: "parallel-visit", visitNumber: "V-FLOW-001", clinic: "Outpatient", status: "AWAITING_RESULTS", priority: "ROUTINE", arrivedAt: new Date(now - 60 * 60000).toISOString(),
     patient: { id: "synthetic-patient", fullName: "Parallel Workflow Patient", patientNumber: "P-FLOW", sexAtBirth: "UNKNOWN" },
@@ -20,10 +20,13 @@ test("parallel department tasks stay visible, filter independently and fit a pho
   await flow.getByRole("button", { name: /^All my departments 2$/ }).click();
   await flow.getByRole("searchbox", { name: "Find a task" }).fill("V-FLOW-001");
   await expect(flow.locator(".taskRow")).toHaveCount(2);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await expect.poll(() => page.locator("#main-navigation").evaluate(el => el.getBoundingClientRect().right)).toBeLessThanOrEqual(0);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: "/tmp/mwein-clinic-flow-mobile.png", fullPage: true, animations: "disabled" });
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect.poll(() => page.locator("#main-navigation").evaluate(el => el.getBoundingClientRect().right)).toBeLessThanOrEqual(0);
+    const overflow = await page.evaluate(() => Array.from(document.querySelectorAll("body *")).filter(el => el.getBoundingClientRect().right > innerWidth + 1).map(el => ({ tag: el.tagName, class: el.className, right: el.getBoundingClientRect().right, text: el.textContent?.slice(0, 80) })));
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), JSON.stringify(overflow)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`clinic-flow-mobile-${width}.png`), fullPage: true, animations: "disabled" });
+  }
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.screenshot({ path: "/tmp/mwein-clinic-flow-desktop.png", fullPage: true, animations: "disabled" });
+  await page.screenshot({ path: testInfo.outputPath("clinic-flow-desktop.png"), fullPage: true, animations: "disabled" });
 });
