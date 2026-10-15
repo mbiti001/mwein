@@ -31,6 +31,13 @@
       "source": "601a591799461719678e082b31144ea41a918b56",
       "deploymentId": "dpl_DeoV14bAxdDBqtqbrFDtdysANWob",
       "evidence": "2026-10-16-1.2.0.json"
+    },
+    {
+      "version": "1.3.0",
+      "displayName": "1.3.0",
+      "status": "candidate",
+      "branch": "codex/mwein-platform",
+      "note": "Reserved for governed rights-request identity and representative verification; not deployed. Preserve other workflow and compliance priorities."
     }
   ]
 }
