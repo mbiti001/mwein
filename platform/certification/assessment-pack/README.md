@@ -6,6 +6,8 @@ This is a review pack, not an application submission, certification, signed poli
 
 ## Read in this order
 
+**15 October assessment addition:** the user's seven supplied legal documents are registered in the [Mwein legal control matrix](MWEIN-LEGAL-CONTROL-MATRIX.md) and [source manifest](MWEIN-LEGAL-SOURCES.json). Use that provision-to-control backlog alongside the historical pack below; the 2024 instrument is explicitly a draft. Current implementation/release evidence remains in `../../WORKFLOW_IMPROVEMENT_LOG.md`.
+
 1. [Scope and decisions](SCOPE-AND-DECISIONS.md): module claims, exclusions and accountable owner register.
 2. [System requirements](SYSTEM-REQUIREMENTS.md): internal requirement IDs and acceptance criteria.
 3. [System manual](SYSTEM-MANUAL.md): role-based operating procedures and failure handling.

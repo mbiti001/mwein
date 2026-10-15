@@ -10,6 +10,7 @@ import {
   consentTypes,
   dataSubjectRequestStatuses,
   dataSubjectRequestTypes,
+  rightsRequestDueAt,
   type DataSubjectRequestStatus,
 } from "@/lib/privacy";
 
@@ -31,9 +32,9 @@ const createRequestSchema = z.object({
   action: z.literal("CREATE_REQUEST"),
   type: z.enum(dataSubjectRequestTypes),
   details: z.string().trim().min(10).max(2000),
-  dueAt: z.iso.datetime({ offset: true }),
-}).superRefine((value, context) => {
-  if (new Date(value.dueAt) <= new Date()) context.addIssue({ code: "custom", path: ["dueAt"], message: "Due date must be in the future" });
+  receivedAt: z.iso.datetime({ offset: true }).optional(),
+}).strict().superRefine((value, context) => {
+  if (value.receivedAt && new Date(value.receivedAt) > new Date()) context.addIssue({ code: "custom", path: ["receivedAt"], message: "Receipt time cannot be in the future" });
 });
 const updateRequestSchema = z.object({
   action: z.literal("UPDATE_REQUEST"),
@@ -116,8 +117,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         return consent;
       }
       if (input.action === "CREATE_REQUEST") {
-        const dataRequest = await tx.dataSubjectRequest.create({ data: { facilityId: user.facilityId, patientId: id, type: input.type, details: input.details, dueAt: new Date(input.dueAt), createdById: user.id, updatedById: user.id } });
-        await appendAudit(tx, { userId: user.id, sessionId: user.sessionId, action: "DATA_SUBJECT_REQUEST_RECORDED", entityType: "DataSubjectRequest", entityId: dataRequest.id, afterHash: `${dataRequest.type}:${dataRequest.status}:${dataRequest.dueAt.toISOString()}` });
+        const requestedAt = input.receivedAt ? new Date(input.receivedAt) : new Date();
+        const dueAt = rightsRequestDueAt(input.type, requestedAt);
+        const dataRequest = await tx.dataSubjectRequest.create({ data: { facilityId: user.facilityId, patientId: id, type: input.type, details: input.details, requestedAt, dueAt, createdById: user.id, updatedById: user.id } });
+        await appendAudit(tx, { userId: user.id, sessionId: user.sessionId, action: "DATA_SUBJECT_REQUEST_RECORDED", entityType: "DataSubjectRequest", entityId: dataRequest.id, afterHash: `${dataRequest.type}:${dataRequest.status}:${requestedAt.toISOString()}:${dueAt.toISOString()}` });
         return dataRequest;
       }
       if (input.action === "APPLY_DEMOGRAPHIC_CORRECTION") {

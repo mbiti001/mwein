@@ -1,7 +1,8 @@
 export async function verifyPrivacy({ api, requestWithCookie, authenticate, patient, assert, steps, origin }) {
   const path = `/api/patients/${patient.id}/privacy`;
-  const created = await api("create verified-export request", path, { method: "POST", body: JSON.stringify({ action: "CREATE_REQUEST", type: "PORTABLE_EXPORT", details: "Synthetic patient requests their portable record", dueAt: new Date(Date.now() + 86400000).toISOString() }) });
+  const created = await api("create verified-export request", path, { method: "POST", body: JSON.stringify({ action: "CREATE_REQUEST", type: "PORTABLE_EXPORT", details: "Synthetic patient requests their portable record" }) });
   const requestId = created.body.record.id;
+  assert(new Date(created.body.record.dueAt) - new Date(created.body.record.requestedAt) === 30 * 86400000, "Portability deadline was not calculated from original receipt");
   const dpo = await authenticate("MMS", "privacy@example.test");
   const exportRequest = () => requestWithCookie(`${path}/export`, dpo.cookie, { method: "POST", body: JSON.stringify({ requestId }) });
   assert((await exportRequest()).response.status === 409, "Export bypassed identity verification");
@@ -9,9 +10,11 @@ export async function verifyPrivacy({ api, requestWithCookie, authenticate, pati
     await api(`move export request to ${status}`, path, { method: "POST", body: JSON.stringify({ action: "UPDATE_REQUEST", requestId, status }) });
   }
   const reception = await authenticate("MMS", "shared.user@example.test");
+  assert((await requestWithCookie(path, reception.cookie, { method: "POST", body: JSON.stringify({ action: "CREATE_REQUEST", type: "ACCESS", details: "Unauthorized intake attempt" }) })).response.status === 403, "Reception created a privacy request without permission");
   assert((await requestWithCookie(`${path}/export`, reception.cookie, { method: "POST", body: JSON.stringify({ requestId }) })).response.status === 403, "Reception exported a patient without DPO permission");
   const otherFacility = await authenticate("OTHER", "shared.user@example.test");
   assert(!(await requestWithCookie(path, otherFacility.cookie)).response.ok, "Other facility accessed privacy requests");
+  assert(!(await requestWithCookie(path, otherFacility.cookie, { method: "POST", body: JSON.stringify({ action: "CREATE_REQUEST", type: "ACCESS", details: "Foreign facility intake attempt" }) })).response.ok, "Other facility created a privacy request");
   const legacyGet = await fetch(`${origin}${path}/export?requestId=${requestId}`, { headers: { cookie: dpo.cookie } });
   assert(legacyGet.status === 405, "GET still generated a state-changing export");
   const results = await Promise.all([exportRequest(), exportRequest()]);

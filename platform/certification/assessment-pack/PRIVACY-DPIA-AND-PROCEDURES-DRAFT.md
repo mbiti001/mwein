@@ -37,7 +37,7 @@ DPO records likelihood, harm severity, affected people, treatment owner/deadline
 
 1. Receive the request through the approved facility channel; record date, request type and a safe reference.
 2. Verify requester identity and representation proportionately using the approved method; record the outcome without unnecessary document copies.
-3. DPO reviews scope, applicable grounds/exemptions, third-party information and the applicable response deadline. Record the deadline and reason from approved guidance rather than inventing one.
+3. DPO reviews scope, applicable grounds/exemptions and third-party information. The 15 October intake implementation calculates access/correction/portability targets from original receipt at 7/14/30 elapsed days, following the supplied General Regulations rr. 9–11. Earlier intake keeps the original receipt; identity checks do not restart the clock. Disclosure uses a labelled internal seven-day triage target. Review legacy requests, refusal-notice timing and other rights separately; see the [legal control matrix](MWEIN-LEGAL-CONTROL-MATRIX.md). These targets do not establish delivery or permit delaying a prompt response.
 4. Authorized staff prepare/review the response and use the controlled export where applicable. Verify the destination before release; single-use download is not identity verification.
 5. Record delivery outcome and any review/complaint route. Apply the approved retention/hold schedule to working copies and evidence.
 

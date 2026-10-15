@@ -1,1 +1,18 @@
 .privacyNotice{display:grid;gap:5px;padding:14px;border:1px solid #bae6fd;border-radius:9px;background:#f0f9ff}.privacyNotice strong{color:#075985}.privacyNotice span{color:var(--muted);font-size:13px}.privacyNotice.warning{border-color:#f5c27a;background:#fff8eb}.privacyNotice.warning strong{color:var(--warning)}.childNotice{display:grid;gap:5px;padding:13px;border:1px solid #c4b5fd;border-radius:9px;background:#f5f3ff}.childNotice span{color:#5b6470;font-size:13px}
+
+.privacyRightsWorkspace .card,
+.privacyRightsWorkspace .dataForm,
+.privacyRightsWorkspace label,
+.privacyRightsWorkspace input,
+.privacyRightsWorkspace select,
+.privacyRightsWorkspace textarea,
+.privacyRightsWorkspace .row > div { min-width: 0; max-width: 100%; }
+.privacyRightsWorkspace .row { overflow-wrap: anywhere; }
+.privacyRightsWorkspace .workstationActions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.privacyRightsWorkspace .row .alert { display: block; margin-top: .5rem; }
+@media (max-width: 760px) {
+  .privacyRightsWorkspace .row { grid-template-columns: auto minmax(0, 1fr); }
+  .privacyRightsWorkspace .row > .workstationActions,
+  .privacyRightsWorkspace .row > button,
+  .privacyRightsWorkspace .row > .statusPill { grid-column: 2; }
+}
