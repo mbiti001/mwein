@@ -1,0 +1,98 @@
+{
+  "application": "Mwein HMIS",
+  "version": "1.4.0",
+  "status": "verified-candidate-not-deployed",
+  "recordedAt": "2026-10-15T22:38:38Z",
+  "branch": "codex/mwein-platform",
+  "pushedSource": "e21384455f78449a1fb4437a9836797baf52615b",
+  "applicationSource": "f3ba35b340862c8ee5d1507d55ce2cfd464155e7",
+  "sourceArchive": {
+    "path": "work/diagnostic-e213844-source.tar",
+    "canonicalLF": true,
+    "sha256": "47473e916b679f645d8d3d5d48935b0f0b168ba7c060486b65b406f6e3e1a68c"
+  },
+  "ci": {
+    "runId": 38817903752,
+    "url": "https://github.com/mbiti001/mwein/actions/runs/38817903752",
+    "status": "completed",
+    "conclusion": "success",
+    "platformJob": 116707072233,
+    "legacyJob": 116707072005,
+    "unitTests": 661,
+    "testFiles": 108,
+    "migrations": 55,
+    "syntheticWorkflowChecks": 142,
+    "browserScenarios": 106,
+    "productionDependencyVulnerabilities": 0
+  },
+  "local": {
+    "unitTests": 661,
+    "testFiles": 108,
+    "migrations": 55,
+    "productionDependencyVulnerabilities": 0,
+    "fullBrowser": {
+      "source": "5178219a2a202e10c999c2125857fcd16e66114a",
+      "passed": 106,
+      "buildId": "lLAO0BQJcJLyhbMZo65-5"
+    },
+    "finalBrowser": {
+      "source": "f3ba35b340862c8ee5d1507d55ce2cfd464155e7",
+      "passed": 7,
+      "syntheticSetupChecks": 141,
+      "buildId": "P4jY-iGc0fXhX6afho8gD",
+      "focusedUnitTests": 35
+    },
+    "retainedFailures": [
+      "Initial diagnostic-only run: obsolete truncated-list wording assertion; corrected, subsequent runs passed.",
+      "Initial final-version setup: purchase-order-preview HTTP500 before browser tests; detailed fresh rerun passed 141 setup checks and seven tests without a code change."
+    ]
+  },
+  "auditInventory": {
+    "source": "canonical LF source",
+    "routes": 73,
+    "missingCalls": 0,
+    "unclassified": 8,
+    "unreviewedAliases": 0,
+    "assurance": "Engineering inventory only"
+  },
+  "behavior": [
+    "Semantic table with separate patient/visit, investigation, review status, responsibility and action columns",
+    "Search and keyset paging beyond the previous 100-item limit",
+    "Current permission, facility predicates, audited disclosure and private/no-store responses",
+    "Debounced and stale-safe search; failed-page recovery; retained selected review and unsaved text",
+    "Saved action refreshes current search; existing exact retry and clinical gates unchanged",
+    "1440/768/390/320 pixel checks, readable cells and labels, keyboard scroll/selection and print exclusions"
+  ],
+  "release": {
+    "deployedByThisBatch": false,
+    "newMigration": false,
+    "coordinatorThread": "01a14169-4f35-7311-bc6c-50c958c1f476",
+    "separateFrozenRelease": "1.3.0 / 65b66f8cf435b7f555c2e4e7705cddd7599e63e7",
+    "lastObservedLive": "1.3.0 / 65b66f8cf435b7f555c2e4e7705cddd7599e63e7 / dpl_Trb7SALM7hMdjL8YZrzDcpHYWudv",
+    "authenticationNeeded": false,
+    "productionMutations": false,
+    "clinicalReadiness": "Existing gates unchanged; no acceptance implied",
+    "note": "Release coordinator promoted 1.3.0 independently; the 1.4.0 diagnostic candidate remains undeployed. Existing readiness/acceptance gates remain.",
+    "liveCheckedAt": "2026-10-15T22:38:37.509Z",
+    "liveMigration": "20261016010000_rights_identity_evidence"
+  },
+  "limitations": [
+    "Detail history still limited to latest50 events",
+    "Two-party handover, inactive owners, escalation and review addenda remain open",
+    "HIE contracts, sandbox, UAT and DHA acceptance remain gates",
+    "Legal/clinical/security acceptance, independent restore and separate preview database remain dependencies"
+  ],
+  "screenshots": [
+    "mwein-diagnostic-table-desktop.png",
+    "mwein-diagnostic-table-phone.png",
+    "mwein-diagnostic-table-phone-actions.png"
+  ],
+  "logs": [
+    "work/diagnostic-integrated-unit.log",
+    "work/diagnostic-table-full-browser.log",
+    "work/diagnostic-final-browser.log",
+    "work/diagnostic-final-browser-retry.log",
+    "work/diagnostic-migrations.log",
+    "work/diagnostic-ci-38817903752.log"
+  ]
+}
