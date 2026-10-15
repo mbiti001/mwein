@@ -1,6 +1,6 @@
 # Patient journey: engineering evidence and DHA handover
 
-Reviewed 16 October 2026. Candidate work complements the other agent's rights-verification and national-integration preparation. This is local workflow engineering, not clinical approval, DHA certification or evidence of a live HIE connection. Version/source/build evidence belongs in the release ledger and workflow log.
+Reviewed 16 October 2026. Candidate work complements the other agent's rights-verification and [DHA HIE requirements register](assessment-pack/DHA-HIE-REQUIREMENTS.md). This is local workflow engineering, not clinical approval, DHA certification or evidence of a live HIE connection. Version/source/build evidence belongs in the release ledger and workflow log.
 
 ## Implemented local journey
 

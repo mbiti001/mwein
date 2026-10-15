@@ -41,10 +41,18 @@ test("discharge review preserves entries across failures and retries the same re
   expect(posts).toHaveLength(2); expect(posts[1]).toEqual(posts[0]);
   await expect(panel.getByRole("heading", { name: "Recorded discharge" })).toBeVisible();
   await expect(panel.getByText("Synthetic clinician reference", { exact: true })).toBeVisible();
+  await page.evaluate(() => { window.print = () => new Promise<void>(resolve => { (window as unknown as { finishJourneyPrint: () => void }).finishJourneyPrint = resolve; }); });
+  await panel.getByRole("button", { name: "Print recorded discharge" }).click();
+  await page.setViewportSize({ width: 1000, height: 900 });
   await page.emulateMedia({ media: "print" });
-  await expect(panel.getByText("Synthetic cancellation reason and follow-up plan", { exact: true })).toBeVisible();
+  const printed=page.locator("#discharge-print");
+  await expect(printed.getByText("Synthetic cancellation reason and follow-up plan", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "My work now" })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Reload discharge review" })).toBeHidden();
   await page.screenshot({ path: info.outputPath("recorded-discharge-print.png"), fullPage: true });
   await page.pdf({ path: info.outputPath("recorded-discharge.pdf"), format: "A4" });
+  await page.evaluate(() => (window as unknown as { finishJourneyPrint: () => void }).finishJourneyPrint());
+  await expect(printed).toHaveCount(0);
 });
 
 test("discharge does not act on a stale response for another patient", async ({ page }) => {

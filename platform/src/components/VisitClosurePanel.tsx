@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { createPortal, flushSync } from "react-dom";
 import { jsonRequest } from "@/lib/client-http";
 import { useWorklist } from "@/lib/use-worklist";
 import { visitDispositionOptions } from "@/lib/visit-disposition";
@@ -13,6 +14,7 @@ export default function VisitClosurePanel({ visits, onUpdated }: { visits: Visit
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [selected, setSelected] = useState("");
   const [saved, setSaved] = useState<{ patient: string; visit: string; result: Saved } | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -50,16 +52,24 @@ export default function VisitClosurePanel({ visits, onUpdated }: { visits: Visit
     } catch (reason) { setError(`${(reason as Error).message} Your entries are retained. Retry unchanged to confirm an uncertain save, or reload the review if the visit changed.`); }
     finally { inFlight.current = false; setBusy(false); }
   }
-  return <section className="card dischargePanel"><div className="cardHead"><div><h2>Clinical discharge</h2><p>Review outstanding services, document the outcome and hand over follow-up. Billing settlement remains separate.</p></div></div>
-    {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
-    {saved && <RecordFields title="Recorded discharge" fields={[
+  const fields = saved ? [
       { label: "Patient and visit", value: `${saved.patient} · ${saved.visit}` },
       { label: "Clinical outcome", value: visitDispositionOptions.find(option => option.code === saved.result.disposition.outcome)?.label || saved.result.disposition.outcome },
       { label: "Closure summary, follow-up and handover", value: saved.result.disposition.details, wide: true },
       { label: "Recorded by", value: saved.result.disposition.recordedBy?.displayName || saved.result.disposition.recordedById || "Not recorded" },
       { label: "Recorded at", value: saved.result.visit.clinicallyClosedAt ? new Date(saved.result.visit.clinicallyClosedAt).toLocaleString() : "Not recorded" },
       { label: "Next step", value: "Billing: review retained charges and cover, then complete the visit." },
-    ]}/>}
+    ] : [];
+  async function printSaved() {
+    flushSync(() => setPrinting(true));
+    document.body.classList.add("printingDischarge");
+    try { await Promise.resolve(window.print()); }
+    finally { document.body.classList.remove("printingDischarge"); setPrinting(false); }
+  }
+  return <section className="card dischargePanel"><div className="cardHead"><div><h2>Clinical discharge</h2><p>Review outstanding services, document the outcome and hand over follow-up. Billing settlement remains separate.</p></div></div>
+    {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
+    {saved && <><RecordFields title="Recorded discharge" fields={fields}/><Button className="noPrint" variant="secondary" type="button" disabled={printing} onClick={() => void printSaved()}>Print recorded discharge</Button></>}
+    {printing && createPortal(<article id="discharge-print"><h1>Clinical discharge · recorded handover</h1><RecordFields fields={fields}/></article>, document.body)}
     {!eligible.length ? <p>No signed visits awaiting clinical closure.</p> : <form className="dataForm noPrint" onSubmit={submit} onChange={event => { const target = event.target as HTMLElement; if (target.getAttribute("name") !== "visitId") setDirty(true); }}>
       <label>Patient and visit<select name="visitId" required disabled={busy} value={selected} onChange={event => {
         if (selected && dirty && !window.confirm("Discard this unsaved discharge and review another visit?")) return;

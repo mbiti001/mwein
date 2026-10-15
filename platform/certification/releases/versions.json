@@ -37,7 +37,7 @@
       "displayName": "1.3.0",
       "status": "candidate",
       "branch": "codex/mwein-platform",
-      "note": "Retained rights identity and representative authority, scope-bound export and delivery, immutable evidence and retry protection. Candidate pending fresh-backup controlled release; not deployed.",
+      "note": "Retained rights identity and representative authority, scope-bound export/delivery, and patient-journey handoffs with reviewed clinical discharge and separate financial completion. Candidate pending fresh-backup controlled release; not deployed.",
       "requiredMigration": "20261016010000_rights_identity_evidence"
     }
   ]

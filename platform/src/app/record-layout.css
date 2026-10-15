@@ -35,6 +35,9 @@
   :is(.clinicFormPaper, .visitSummaryPaper, .reportPaper, .referralLetter, .billingDocument) .facilityLetterheadBadge { grid-column: 1; justify-self: start; }
 }
 @media print {
+  body.printingDischarge > :not(#discharge-print) { display: none !important; }
+  #discharge-print { display: block; padding: 12mm; color: #102e50; font-family: Arial, sans-serif; }
+  #discharge-print h1 { font-size: 16pt; margin: 0 0 20px; }
   .reversalControl.noPrint { display: none !important; }
   #clinic-form-print .recordGroup { break-inside: auto; }
   .recordFields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
