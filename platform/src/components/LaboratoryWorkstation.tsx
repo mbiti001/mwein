@@ -1,4 +1,5 @@
 "use client";
+import { RecordFields } from "./RecordFields";
 
 import { FormEvent, useEffect, useState } from "react";
 import { canonicalLaboratoryCode, laboratoryDisplayName, laboratoryFlagSummary, ZYBIO_Z3_PROFILE } from "@/lib/laboratory";
@@ -692,51 +693,14 @@ function VerifiedReport({
           reference={`${laboratoryDisplayName(order.laboratory?.testCode || "", order.displayName)} · ${order.laboratory?.accessionNumber || "Accession pending"}`}
           badge={<strong className={result.criticalResult ? "reportCriticalBadge" : "reportFinalBadge"}>{result.criticalResult ? "CRITICAL RESULT" : "FINAL REPORT"}</strong>}
         />
-        <section className="reportMeta">
-          <div>
-            <small>Patient</small>
-            <b>{visit.patient.fullName}</b>
-          </div>
-          <div>
-            <small>Patient number</small>
-            <b>{visit.patient.patientNumber}</b>
-          </div>
-          <div>
-            <small>Sex</small>
-            <b>{visit.patient.sexAtBirth}</b>
-          </div>
-          <div>
-            <small>Visit</small>
-            <b>{visit.visitNumber}</b>
-          </div>
-          <div>
-            <small>Accession</small>
-            <b>{order.laboratory?.accessionNumber}</b>
-          </div>
-          <div>
-            <small>Specimen</small>
-            <b>
-              {order.laboratory?.specimenType} ·{" "}
-              {order.laboratory?.specimenCondition}
-            </b>
-          </div>
-          <div>
-            <small>Collected</small>
-            <b>
-              {order.laboratory?.collectedAt
-                ? new Date(order.laboratory.collectedAt).toLocaleString()
-                : "—"}
-            </b>
-          </div>
-          <div>
-            <small>Received</small>
-            <b>
-              {order.laboratory?.receivedAt
-                ? new Date(order.laboratory.receivedAt).toLocaleString()
-                : "—"}
-            </b>
-          </div>
-        </section>
+        <RecordFields fields={[
+          { label: "Patient", value: visit.patient.fullName }, { label: "Patient number", value: visit.patient.patientNumber },
+          { label: "Sex", value: visit.patient.sexAtBirth }, { label: "Visit", value: visit.visitNumber },
+          { label: "Accession", value: order.laboratory?.accessionNumber || "Accession pending" },
+          { label: "Specimen", value: [order.laboratory?.specimenType, order.laboratory?.specimenCondition].filter(Boolean).join(" · ") },
+          { label: "Collected", value: order.laboratory?.collectedAt ? new Date(order.laboratory.collectedAt).toLocaleString() : null },
+          { label: "Received", value: order.laboratory?.receivedAt ? new Date(order.laboratory.receivedAt).toLocaleString() : null },
+        ]} />
         <table className="reportResults">
           <thead>
             <tr>
@@ -774,12 +738,7 @@ function VerifiedReport({
           <strong>Automated reference-interval flag summary</strong>
           <p>{laboratoryFlagSummary(result.items)}</p>
         </div>
-        {result.reportText && (
-          <div className="reportComment">
-            <strong>Laboratory comment / interpretation</strong>
-            <p>{result.reportText}</p>
-          </div>
-        )}
+        <RecordFields fields={[{ label: "Laboratory comment / interpretation", value: result.reportText, wide: true }]} />
         <footer>
           <div>
             <small>Recorded by</small>

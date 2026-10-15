@@ -1,4 +1,5 @@
 "use client";
+import { RecordFields, recordValue } from "./RecordFields";
 import { useEffect, useRef, useState } from "react";
 import { jsonRequest } from "@/lib/client-http";
 import { careServiceProfile } from "@/lib/care-service-points";
@@ -7,7 +8,6 @@ import { useWorklist } from "@/lib/use-worklist";
 import { hasRecordedFindings, recordedFindings, recordedText, type RecordedFindings } from "@/lib/summary-findings";
 
 type Summary = any;
-const display = (value?: string | null) => value || "Not recorded";
 const complaintDuration = (complaint: Summary) => {
   if (complaint.durationValue && complaint.durationUnit)
     return `${complaint.durationValue} ${String(complaint.durationUnit).toLowerCase()}`;
@@ -250,15 +250,17 @@ export default function VisitSummaryWorkstation({ canAddendum = false, initialVi
           <RecordedFindingBlock title="System examination" value={systemicExamination} />
         </SummarySection>}
         {e?.servicePointRecord && serviceProfile && <SummarySection title={`${serviceProfile.label} assessment`} collapsible wide>
-          <div className="summaryLine"><strong>Risk</strong><span>{display(e.servicePointRecord.riskLevel)}</span></div>
-          {serviceFields.filter((field) => {
-            const value = e.servicePointRecord.data?.[field.key];
-            return value !== undefined && value !== "" && value !== false;
-          }).map((field) => <div className="summaryLine" key={field.key}><strong>{field.label}</strong><span>{String(e.servicePointRecord.data[field.key])}{field.unit ? ` ${field.unit}` : ""}</span></div>)}
-          {e.servicePointRecord.followUpAt && <div className="summaryLine"><strong>Specialty follow-up</strong><span>{new Date(e.servicePointRecord.followUpAt).toLocaleDateString()}</span></div>}
+          <RecordFields fields={[
+            { label: "Risk", value: e.servicePointRecord.riskLevel },
+            ...serviceFields.map(field => {
+              const value = recordValue(e.servicePointRecord.data?.[field.key], true);
+              return { label: field.label, value: value === null ? null : `${value}${field.unit ? ` ${field.unit}` : ""}`, wide: field.type === "textarea" };
+            }),
+            { label: "Specialty follow-up", value: e.servicePointRecord.followUpAt ? new Date(e.servicePointRecord.followUpAt).toLocaleDateString() : null },
+          ]} />
           <small>Template {e.servicePointRecord.templateVersion}</small>
         </SummarySection>}
-        <SummarySection title="Diagnoses">
+        {e?.diagnoses?.length > 0 && <SummarySection title="Diagnoses">
           {e?.diagnoses.length ? (
             e.diagnoses.map((d: Summary) => (
               <div className="summaryLine" key={d.id}>
@@ -271,28 +273,21 @@ export default function VisitSummaryWorkstation({ canAddendum = false, initialVi
           ) : (
             <p>No diagnosis recorded.</p>
           )}
-        </SummarySection>
-        <SummarySection title="Plan and follow-up">
-          <p>{display(e?.plan.plan)}</p>
-          <div className="summaryLine">
-            <strong>{active.clinicallyClosedAt ? "Final clinical outcome" : "Consultation plan (not final discharge)"}</strong>
-            <span>{display(active.dispositionRecord?.outcome || e?.plan.disposition)}</span>
-          </div>
-          {active.clinicallyClosedAt && <p>Clinically closed {new Date(active.clinicallyClosedAt).toLocaleString()} · {active.dispositionRecord?.recordedBy?.displayName}. {active.dispositionRecord?.details}</p>}
-          <div className="summaryLine">
-            <strong>Follow-up</strong>
-            <span>
-              {e?.plan.followUpDate
-                ? new Date(e.plan.followUpDate).toLocaleDateString()
-                : "Not scheduled"}
-            </span>
-          </div>
-        </SummarySection>
-        {e?.status === "SIGNED" && (e.addenda?.length > 0 || canAddendum) && <SummarySection title="Signed-note addenda" collapsible wide>
+        </SummarySection>}
+        {(recordedText(e?.plan?.plan) || active.dispositionRecord?.outcome || e?.plan?.disposition || active.clinicallyClosedAt || e?.plan?.followUpDate) && <SummarySection title="Plan and follow-up">
+          <RecordFields fields={[
+            { label: "Management plan", value: e?.plan?.plan, wide: true, omitUnassessed: true },
+            { label: active.clinicallyClosedAt ? "Final clinical outcome" : "Consultation plan (not final discharge)", value: active.dispositionRecord?.outcome || e?.plan?.disposition },
+            { label: "Follow-up", value: e?.plan?.followUpDate ? new Date(e.plan.followUpDate).toLocaleDateString() : null },
+            { label: "Clinically closed", value: active.clinicallyClosedAt ? `${new Date(active.clinicallyClosedAt).toLocaleString()} · ${active.dispositionRecord?.recordedBy?.displayName || "Recorder not available"}` : null },
+            { label: "Closure details", value: active.dispositionRecord?.details, wide: true },
+          ]} />
+        </SummarySection>}
+        {e?.status === "SIGNED" && (e.addenda?.length > 0 || canAddendum) && <SummarySection title="Signed-note addenda" collapsible wide screenOnly={!e.addenda?.length}>
           {e.addenda?.length ? e.addenda.map((item: Summary) => <div className="summaryLine" key={item.id}><strong>{new Date(item.createdAt).toLocaleString()} · {item.author.displayName}</strong><span>{item.reason}: {item.text}</span></div>) : <p>No addenda recorded.</p>}
           {canAddendum && <form className="dataForm noPrint" onSubmit={async event => { event.preventDefault(); setSavingAddendum(true); setError(""); const formElement = event.currentTarget; const form = new FormData(formElement); try { const result = await jsonRequest<any>(`/api/encounters/${e.id}/addenda`, { method: "POST", body: JSON.stringify({ reason: form.get("reason"), text: form.get("text") }) }, "Addendum could not be saved"); setActive({ ...active, encounter: { ...e, addenda: [...(e.addenda || []), result.addendum] } }); formElement.reset(); } catch (reason) { setError((reason as Error).message); } finally { setSavingAddendum(false); } }}><label>Reason *<input name="reason" required minLength={5} placeholder="Correction, clarification, or late information" /></label><label>Addendum *<textarea name="text" required minLength={5} rows={3} placeholder="Add new information without changing the signed note" /></label><button className="secondary" disabled={savingAddendum}>{savingAddendum ? "Adding…" : "Add signed addendum"}</button></form>}
         </SummarySection>}
-        <SummarySection title="Investigations" wide>
+        {investigations.length > 0 && <SummarySection title="Investigations" wide>
           {investigations.length ? (
             investigations.map((o: Summary) => (
               <div className="summaryLine" key={o.id}>
@@ -305,7 +300,7 @@ export default function VisitSummaryWorkstation({ canAddendum = false, initialVi
           ) : (
             <p>No investigations requested.</p>
           )}
-        </SummarySection>
+        </SummarySection>}
         {verifiedLabs.length > 0 && <SummarySection title="Laboratory findings" collapsible wide>
           {verifiedLabs.length ? verifiedLabs.map((o: Summary) => (
             <table className="reportResults" key={o.id}>
@@ -341,20 +336,21 @@ export default function VisitSummaryWorkstation({ canAddendum = false, initialVi
             <div className="reportComment" key={`report-${o.id}`}><strong>{o.displayName} conclusion</strong><p>{o.imaging.result.conclusion}</p><small>Verified by {o.imaging.result.verifiedBy?.displayName || "Imaging service"}</small></div>
           ))}
         </SummarySection>}
-        <SummarySection title="Medicines" wide>
+        {meds.length > 0 && <SummarySection title="Medicines" wide>
           {meds.length ? (
             meds.map((o: Summary) => (
-              <div className="summaryLine" key={o.id}>
-                <strong>{o.displayName}</strong>
-                <span>
-                  {o.prescription.genericName || o.displayName}{o.prescription.strength ? ` ${o.prescription.strength}` : ""} · {o.prescription.dosageForm || "medicine"} · {o.prescription.dose} · {o.prescription.route} ·{" "}
-                  {o.prescription.frequency} · {o.prescription.duration || (o.prescription.stopDate ? `until ${new Date(o.prescription.stopDate).toLocaleDateString()}` : "duration not recorded")}
-                  {o.clinicalIndication ? ` · Indication: ${o.clinicalIndication}` : ""}
-                  {o.prescription.instructions
-                    ? ` · ${o.prescription.instructions}`
-                    : ""}{" "}
-                  · {o.prescription.dispenseStatus.replaceAll("_", " ")}
-                </span>
+              <div className="summaryMedicine" key={o.id}>
+                <h3>{o.displayName}</h3>
+                <RecordFields fields={[
+                  { label: "Medicine", value: o.prescription.genericName || o.displayName },
+                  { label: "Strength", value: o.prescription.strength }, { label: "Form", value: o.prescription.dosageForm },
+                  { label: "Dose", value: o.prescription.dose }, { label: "Route", value: o.prescription.route },
+                  { label: "Frequency", value: o.prescription.frequency },
+                  { label: "Duration", value: o.prescription.duration || (o.prescription.stopDate ? `Until ${new Date(o.prescription.stopDate).toLocaleDateString()}` : "Duration not recorded") },
+                  { label: "Dispensing status", value: o.prescription.dispenseStatus.replaceAll("_", " ") },
+                  { label: "Indication", value: o.clinicalIndication },
+                  { label: "Instructions", value: o.prescription.instructions, wide: true },
+                ]} />
                 {(o.prescription.stockMovements?.length > 0 || o.prescription.dispensations?.length > 0) && <details className="summaryDisclosure summaryDispensing"><summary>Dispensing details</summary>
                 {o.prescription.stockMovements?.length ? <small>Batch trace: {o.prescription.stockMovements.map((movement: Summary) => `${movement.batch.batchNumber} (${Math.abs(Number(movement.quantity))}, exp ${new Date(movement.batch.expiryDate).toLocaleDateString()})`).join(" · ")} · Counselling {o.prescription.counsellingCompleted ? "confirmed" : "not confirmed"}</small> : null}
                 {o.prescription.dispensations?.map((dispensation: Summary) => <small key={dispensation.id}>Supplied: {dispensation.catalogItem?.name || o.prescription.genericName || o.displayName} · {Number(dispensation.quantity)} · {dispensation.items.map((item: Summary) => `${item.batch.batchNumber} (${Number(item.quantity)})`).join(" · ")}{dispensation.substitutionReason ? ` · Substitution reason: ${dispensation.substitutionReason}` : ""}{dispensation.fefoOverrideReason ? ` · FEFO override reason: ${dispensation.fefoOverrideReason}` : ""}</small>)}
@@ -364,7 +360,7 @@ export default function VisitSummaryWorkstation({ canAddendum = false, initialVi
           ) : (
             <p>No medicines prescribed.</p>
           )}
-        </SummarySection>
+        </SummarySection>}
         {active.referrals?.length > 0 && <SummarySection title="Referrals" wide>
           {active.referrals?.length ? active.referrals.map((referral: Summary) => <div className="summaryLine" key={referral.id}><strong>{referral.referralNumber} · {referral.status}</strong><span>{referral.urgency} · {referral.reason} · To {referral.receivingFacility}{referral.receivingDepartment ? ` / ${referral.receivingDepartment}` : ""}{referral.feedback ? ` · Feedback: ${referral.feedback}` : ""}</span></div>) : <p>No referrals recorded for this visit.</p>}
         </SummarySection>}
@@ -411,13 +407,15 @@ function SummarySection({
   children,
   collapsible = false,
   wide = false,
+  screenOnly = false,
 }: {
   title: string;
   children: React.ReactNode;
   collapsible?: boolean;
   wide?: boolean;
+  screenOnly?: boolean;
 }) {
-  const className = `summarySection${wide ? " summarySectionWide" : ""}`;
+  const className = `summarySection${wide ? " summarySectionWide" : ""}${screenOnly ? " noPrint" : ""}`;
   if (collapsible) return (
     <details className={`${className} summaryFold`}>
       <summary><h2>{title}</h2></summary>

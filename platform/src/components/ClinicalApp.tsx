@@ -684,14 +684,9 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
             <a className="heroPrimary" href="#sign-in">Open clinical workspace</a>
             <span>Secure · Role-based · Audit-ready</span>
           </div>
-          <div className="publicFeatures" aria-label="Platform benefits">
-            <article><b>01</b><strong>Follow the patient</strong><span>Clear queues and direct handoffs at every service point.</span></article>
-            <article><b>02</b><strong>Work safely</strong><span>Clinical checks, duplicate prevention and traceable actions.</span></article>
-            <article><b>03</b><strong>Know the facility</strong><span>Live stock, billing and monthly reporting in one system.</span></article>
-          </div>
+          <img className="loginImage" src="/images/mwein-care-hero.jpg" width={1672} height={941} alt="Clinician reviewing care information with a patient" />
         </div>
         <aside className="loginVisual" id="sign-in">
-          <div className="loginImage" role="img" aria-label="Clinician reviewing care information with a patient" />
           <form className="formCard landingLogin" onSubmit={submit}>
             <div><p className="eyebrow">Secure access</p><h2>Welcome back</h2><p>Sign in with your staff account.</p></div>
             {error && <div className="alert" role="alert">{error}</div>}
@@ -703,6 +698,11 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
           </form>
         </aside>
       </section>
+      <div className="publicFeatures" aria-label="Platform benefits">
+        <article><b>01</b><strong>Follow the patient</strong><span>Clear queues and direct handoffs at every service point.</span></article>
+        <article><b>02</b><strong>Work safely</strong><span>Clinical checks, duplicate prevention and traceable actions.</span></article>
+        <article><b>03</b><strong>Know the facility</strong><span>Live stock, billing and monthly reporting in one system.</span></article>
+      </div>
       <footer className="publicFooter"><span>© {new Date().getFullYear()} Mwein Medical Services</span><span>Built for clear, connected care.</span></footer>
     </main>
   );

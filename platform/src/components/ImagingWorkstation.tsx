@@ -1,4 +1,5 @@
 "use client";
+import { RecordFields } from "./RecordFields";
 import { useEffect, useMemo, useState } from "react";
 import { jsonRequest } from "@/lib/client-http";
 import { FacilityLetterhead } from "@/components/FacilityBrand";
@@ -157,24 +158,12 @@ export default function ImagingWorkstation({
               <span>{report.verifiedBy?.displayName}</span>
             </div>
           </section>
-          <section className="summarySection">
-            <h2>Technique</h2>
-            <p>{report.technique || "Not stated"}</p>
-          </section>
-          <section className="summarySection">
-            <h2>Findings</h2>
-            <p>{report.findings}</p>
-          </section>
-          <section className="summarySection">
-            <h2>Conclusion</h2>
-            <p>{report.conclusion}</p>
-          </section>
-          {report.recommendations && (
-            <section className="summarySection">
-              <h2>Recommendation</h2>
-              <p>{report.recommendations}</p>
-            </section>
-          )}
+          <RecordFields fields={[
+            { label: "Technique", value: report.technique },
+            { label: "Findings", value: report.findings, wide: true },
+            { label: "Conclusion", value: report.conclusion, wide: true },
+            { label: "Recommendation", value: report.recommendations, wide: true },
+          ]} />
         </article>
       ) : (
         <form

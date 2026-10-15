@@ -1,4 +1,5 @@
 "use client";
+import { RecordFields } from "./RecordFields";
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -13,17 +14,19 @@ export function SupplyDocumentPaper({ record }: { record: SupplyDocument }) {
   const receipt = record.kind === "GOODS_RECEIPT";
   return <article className="clinicFormPaper supplyDocumentPaper">
     <FacilityLetterhead facilityName={record.facilityName} title={receipt ? "Goods receipt note" : "Local purchase order"} reference={record.reference} badge={<strong>{supplyDocumentStatus(record)}</strong>} />
-    <div className="supplyDocumentMeta">
-      <section><h2>Supplier</h2><strong>{record.supplier.name}</strong><p>{record.supplier.code}<br />{record.supplier.phone}<br />{record.supplier.email}</p></section>
-      <section><h2>{receipt ? "Receipt details" : "Order details"}</h2><p>Facility: {record.facilityCode}<br />{receipt ? "Received" : "Created"}: {when(record.date)} EAT<br />Order: {record.orderNumber}</p>{record.expectedAt && <p>Expected delivery: {record.expectedAt}</p>}</section>
-    </div>
+    <RecordFields title="Supplier and document details" fields={[
+      { label: "Supplier", value: record.supplier.name }, { label: "Supplier code", value: record.supplier.code },
+      { label: "Phone", value: record.supplier.phone }, { label: "Email", value: record.supplier.email },
+      { label: "Facility", value: record.facilityCode }, { label: receipt ? "Received" : "Created", value: `${when(record.date)} EAT` },
+      { label: "Order", value: record.orderNumber }, { label: "Expected delivery", value: record.expectedAt },
+    ]} />
     {record.cancellationReason && <p className="alert">Cancellation reason: {record.cancellationReason}</p>}
     <div className="supplyDocumentTableWrap"><table className="reportResults">
       <thead><tr><th>Item / code</th>{receipt && <th>Batch / expiry / store</th>}<th>{receipt ? "Received quantity" : "Ordered quantity"}</th>{!receipt && <th>Received to date</th>}<th>Unit cost (KES)</th><th>Value (KES)</th></tr></thead>
-      <tbody>{record.lines.map((line, index) => <tr key={index}><td><strong>{line.name}</strong><small style={{ display: "block" }}>{line.code}</small></td>{receipt && <td>{line.batchNumber}<br />Expiry: {line.expiryDate}<br />{line.storeName}</td>}<td>{line.quantity}</td>{!receipt && <td>{line.receivedQuantity}</td>}<td>{money(line.unitCost)}</td><td>{money(line.total)}</td></tr>)}</tbody>
+      <tbody>{record.lines.map((line, index) => <tr key={index}><td><strong>{line.name}</strong><small>{line.code}</small></td>{receipt && <td>{line.batchNumber}<br />Expiry: {line.expiryDate}<br />{line.storeName}</td>}<td>{line.quantity}</td>{!receipt && <td>{line.receivedQuantity}</td>}<td>{money(line.unitCost)}</td><td>{money(line.total)}</td></tr>)}</tbody>
     </table></div>
     <p className="supplyDocumentTotal"><strong>Total value: KES {money(record.total)}</strong></p>
-    {record.notes && <section><h2>Notes</h2><p className="documentValue">{record.notes}</p></section>}
+    <RecordFields fields={[{ label: "Notes", value: record.notes, wide: true }]} />
     <footer className="documentSignature">{record.actors.map(actor => <span key={actor.label}><strong>{actor.label}: {actor.name}</strong> · {when(actor.at)} EAT</span>)}</footer>
     <p className="formUseNote">{receipt ? "Posted stock receipt. The details above were retained when the delivery was received. Later stock corrections are recorded separately. This is not a supplier tax invoice." : "Current order record. Only an approved order authorises supply. Received quantities reflect the current ledger; this document is not proof of delivery."}</p>
   </article>;
@@ -82,7 +85,7 @@ export default function SupplyDocuments() {
   const term = query.trim().toLowerCase();
   const shown = records.filter(record => (kind === "ALL" || record.kind === kind) && `${record.reference} ${record.supplierName} ${record.status}`.toLowerCase().includes(term));
   return <>
-    <div className="cardHead"><div><p className="eyebrow">Inventory & procurement</p><h1>Supply documents</h1><p>Review and print purchase orders and posted goods receipt notes.</p></div><button disabled={loading || busy} onClick={() => setRefresh(value => value + 1)}>Refresh documents</button></div>
+    <div className="cardHead documentToolbar"><div><p className="eyebrow">Inventory & procurement</p><h1>Supply documents</h1><p>Review and print purchase orders and posted goods receipt notes.</p></div><button disabled={loading || busy} onClick={() => setRefresh(value => value + 1)}>Refresh documents</button></div>
     {error && <div className="alert" role="alert">{error}</div>}
     {loading ? <p role="status">Loading supply documents…</p> : <section className="card noPrint">
       <div className="dataForm"><label>Document type<select disabled={busy} value={kind} onChange={event => { setKind(event.target.value); setActive(null); }}><option value="ALL">All documents</option><option value="PURCHASE_ORDER">Purchase orders</option><option value="GOODS_RECEIPT">Goods receipt notes</option></select></label><label>Search documents<input disabled={busy} type="search" value={query} onChange={event => { setQuery(event.target.value); setActive(null); }} placeholder="Reference, supplier or status" /></label></div>
@@ -91,7 +94,7 @@ export default function SupplyDocuments() {
       {!shown.length && <p role="status">No supply documents match this view.</p>}
     </section>}
     {busy && <p role="status">Preparing document…</p>}
-    {active && <><div className="cardHead noPrint"><p>Review the current document before printing.</p><button disabled={busy} onClick={() => void prepare(active.index, "PRINT")}>Print / Save PDF</button></div><SupplyDocumentPaper record={active.document} /></>}
+    {active && <><div className="cardHead documentToolbar noPrint"><p>Review the current document before printing.</p><button disabled={busy} onClick={() => void prepare(active.index, "PRINT")}>Print / Save PDF</button></div><SupplyDocumentPaper record={active.document} /></>}
     {printing && createPortal(<div id="supply-document-print"><SupplyDocumentPaper record={printing} /></div>, document.body)}
   </>;
 }

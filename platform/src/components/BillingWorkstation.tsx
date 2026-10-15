@@ -1,4 +1,5 @@
 "use client";
+import { RecordFields } from "./RecordFields";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   allowedClaimStatuses,
@@ -340,27 +341,12 @@ export default function BillingWorkstation({
             reference={p.receipt.receiptNumber}
             badge={<strong className="signedStatus">PAID</strong>}
           />
-          <section className="summaryIdentity">
-            <div>
-              <small>Received from</small>
-              <strong>{v.patient.fullName}</strong>
-              <span>{v.patient.patientNumber}</span>
-            </div>
-            <div>
-              <small>Invoice</small>
-              <strong>{v.invoice!.invoiceNumber}</strong>
-              <span>{v.visitNumber}</span>
-            </div>
-            <div>
-              <small>Payment method</small>
-              <strong>{p.method}</strong>
-              <span>{p.externalReference || "—"}</span>
-            </div>
-            <div>
-              <small>Date</small>
-              <strong>{new Date(p.receivedAt).toLocaleString()}</strong>
-            </div>
-          </section>
+          <RecordFields fields={[
+            { label: "Received from", value: v.patient.fullName }, { label: "Patient number", value: v.patient.patientNumber },
+            { label: "Invoice", value: v.invoice!.invoiceNumber }, { label: "Visit", value: v.visitNumber },
+            { label: "Payment method", value: p.method }, { label: "External reference", value: p.externalReference },
+            { label: "Date", value: new Date(p.receivedAt).toLocaleString() },
+          ]} />
           <div className="receiptAmount">
             <small>Amount received</small>
             <strong>{money(Number(p.amount), v.invoice!.currency)}</strong>
@@ -519,7 +505,7 @@ export default function BillingWorkstation({
                   {p.receipt?.receiptNumber} · {p.status}
                 </strong>
                 {permissions.includes("billing.reverse") && p.status === "CONFIRMED" && (
-                  <span className="reversalControl">
+                  <span className="reversalControl noPrint">
                     <input
                       aria-label={`Reversal reason ${p.receipt?.receiptNumber}`}
                       placeholder="Reason to reverse"

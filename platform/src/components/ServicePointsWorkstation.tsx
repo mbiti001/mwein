@@ -1,4 +1,5 @@
 "use client";
+import { RecordFields, recordValue } from "./RecordFields";
 
 import { FormEvent, useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
@@ -431,6 +432,13 @@ function AssessmentWorkspace({
           <div className="serviceSave">{saved ? <span className="inlineSaveConfirmation">✓ Saved {record?.updatedAt ? new Date(record.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</span> : <button className="primary" disabled={busy || assessmentValidation.errors.length > 0}>{busy ? "Saving…" : assessmentValidation.errors.length ? "Resolve entry errors" : `Save ${profile.label} assessment`}</button>}</div>
         </section>
       </form>
+      {record && <section className="card savedAssessment"><h2>Saved {profile.label} assessment</h2><p>Template {record.templateVersion} · Saved {new Date(record.updatedAt).toLocaleString()}</p>
+        <RecordFields fields={[{ label: "Clinical risk", value: record.riskLevel }, { label: "Next follow-up", value: record.followUpAt ? new Date(record.followUpAt).toLocaleDateString() : null }]} />
+        {profile.sections.map(section => <RecordFields key={section.title} title={section.title} fields={section.fields.map(field => {
+          const value = recordValue(record.data[field.key], true);
+          return { label: field.label, value: value === null ? null : `${value}${field.unit ? ` ${field.unit}` : ""}`, wide: field.type === "textarea" };
+        })} />)}
+      </section>}
     </>
   );
 }
@@ -653,12 +661,15 @@ export function ReferralRow({ referral, onUpdated, onPrint }: { referral: Referr
 function ReferralLetter({ referral }: { referral: Referral }) {
   return <article className="referralLetter" aria-label="Printable referral letter">
     <FacilityLetterhead facilityName={referral.referringFacility} title="Clinical referral" reference={referral.referralNumber} badge={<strong>{referral.urgency}</strong>} />
-    <section className="summaryIdentity"><div><small>Patient</small><strong>{referral.patient.fullName}</strong><span>{referral.patient.patientNumber}</span></div><div><small>Visit</small><strong>{referral.visit.visitNumber}</strong><span>{referral.visit.clinic}</span></div><div><small>Referral type</small><strong>{referral.type}</strong><span>{new Date(referral.createdAt).toLocaleString()}</span></div><div><small>Appointment</small><strong>{referral.appointmentAt ? new Date(referral.appointmentAt).toLocaleString() : "Not scheduled"}</strong></div></section>
-    <section><h2>Referred to</h2><p><strong>{referral.receivingFacility}</strong>{referral.receivingDepartment ? ` · ${referral.receivingDepartment}` : ""}</p></section>
-    <section><h2>Reason and diagnosis</h2><p>{referral.reason}</p><p><strong>Diagnosis / indication:</strong> {referral.diagnosisSummary}</p></section>
-    <section><h2>Clinical summary and treatment</h2><p>{referral.clinicalSummary}</p></section>
+    <section className="summaryIdentity"><div><small>Patient</small><strong>{referral.patient.fullName}</strong><span>{referral.patient.patientNumber}</span></div><div><small>Visit</small><strong>{referral.visit.visitNumber}</strong><span>{referral.visit.clinic}</span></div><div><small>Referral type</small><strong>{referral.type}</strong><span>{new Date(referral.createdAt).toLocaleString()}</span></div>{referral.appointmentAt && <div><small>Appointment</small><strong>{new Date(referral.appointmentAt).toLocaleString()}</strong></div>}</section>
+    <RecordFields fields={[
+      { label: "Receiving facility", value: referral.receivingFacility }, { label: "Receiving department", value: referral.receivingDepartment },
+      { label: "Reason for referral", value: referral.reason, wide: true },
+      { label: "Diagnosis / indication", value: referral.diagnosisSummary, wide: true },
+      { label: "Clinical summary and treatment", value: referral.clinicalSummary, wide: true },
+    ]} />
     {referral.attachments.length ? <section><h2>Attached findings</h2><ul>{referral.attachments.map((attachment) => <li key={attachment.id}>{attachment.metadata.displayName} — {attachment.sourceType === "LABORATORY_RESULT" ? "laboratory result" : "imaging report"} ({attachment.resultId}; metadata v{attachment.metadataVersion})</li>)}</ul></section> : null}
     {referral.acknowledgements.length ? <section><h2>Receiving-provider acknowledgements</h2><ul>{referral.acknowledgements.map((item) => <li key={item.id}>{item.eventType}: {item.providerName}{item.providerRole ? `, ${item.providerRole}` : ""} — {new Date(item.acknowledgedAt).toLocaleString()}</li>)}</ul></section> : null}
-    <footer><div><small>Referrer</small><strong>{referral.referrerName}</strong><span>{referral.referringDepartment || "Clinical service"}</span></div><div><small>Receiving-provider feedback</small><span>{referral.feedback || "________________________________________________________________"}</span></div></footer>
+    <footer><div><small>Referrer</small><strong>{referral.referrerName}</strong><span>{referral.referringDepartment || "Clinical service"}</span></div>{recordValue(referral.feedback) && <div><small>Receiving-provider feedback</small><span>{referral.feedback}</span></div>}</footer>
   </article>;
 }

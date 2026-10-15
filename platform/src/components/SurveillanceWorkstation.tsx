@@ -1,4 +1,5 @@
 "use client";
+import { RecordFields } from "./RecordFields";
 import { FormEvent, useEffect, useState } from "react";
 import type { SurveillanceDetails } from "@/lib/surveillance";
 
@@ -110,6 +111,12 @@ export default function SurveillanceWorkstation({ permissions }: { permissions: 
         <button className="secondary" disabled={actionDisabled || !entryId} onClick={() => void mutate("ANNOTATE", { entryId })}>Append correction note</button>
       </div></details>}
     </section>}
-    {selected && <section className="card"><h2>Concern history</h2><p>Prior entries cannot be overwritten. Corrections are additional entries. Times are shown in Nairobi time.</p>{selected.entries?.map(entry => <details key={entry.id}><summary>v{entry.version} · {entry.action} · {shownTime(entry.occurredAt)} · {entry.actor.displayName}</summary><p>{entry.reason}</p><p>{entry.snapshot.status} · {entry.snapshot.details.priority} · {entry.snapshot.details.concern}</p><p>{entry.snapshot.details.description}</p><p>Location: {entry.snapshot.details.location || "Not recorded"} · Detected: {shownTime(entry.snapshot.details.detectedAt)} · Onset: {entry.snapshot.details.onsetAt ? shownTime(entry.snapshot.details.onsetAt) : "Unknown"}</p>{entry.evidence && <dl>{Object.entries(entry.evidence).map(([key, value]) => <div key={key}><dt>{({ notifiedAt: "Notification time", acknowledgedAt: "Acknowledgement time", recipient: "Recipient", channel: "Channel", outcome: "Staff-reported outcome", evidenceReference: "Evidence reference", assurance: "Assurance", entryId: "Corrected entry", notificationId: "Referenced notification", annotation: "Entry purpose" } as Record<string, string>)[key] || key}</dt><dd>{key.endsWith("At") ? shownTime(value) : value}</dd></div>)}</dl>}</details>)}</section>}
+    {selected && <section className="card"><h2>Concern history</h2><p>Prior entries cannot be overwritten. Corrections are additional entries. Times are shown in Nairobi time.</p>{selected.entries?.map(entry => <details key={entry.id}><summary>v{entry.version} · {entry.action} · {shownTime(entry.occurredAt)} · {entry.actor.displayName}</summary><RecordFields fields={[
+      { label: "Reason", value: entry.reason, wide: true }, { label: "Status", value: entry.snapshot.status },
+      { label: "Priority", value: entry.snapshot.details.priority }, { label: "Concern", value: entry.snapshot.details.concern },
+      { label: "Description", value: entry.snapshot.details.description, wide: true },
+      { label: "Location", value: entry.snapshot.details.location }, { label: "Detected (Nairobi)", value: shownTime(entry.snapshot.details.detectedAt) },
+      { label: "Onset (Nairobi)", value: entry.snapshot.details.onsetAt ? shownTime(entry.snapshot.details.onsetAt) : null },
+    ]} />{entry.evidence && <dl className="recordFields">{Object.entries(entry.evidence).map(([key, value]) => <div key={key}><dt>{({ notifiedAt: "Notification time", acknowledgedAt: "Acknowledgement time", recipient: "Recipient", channel: "Channel", outcome: "Staff-reported outcome", evidenceReference: "Evidence reference", assurance: "Assurance", entryId: "Corrected entry", notificationId: "Referenced notification", annotation: "Entry purpose" } as Record<string, string>)[key] || key}</dt><dd>{key.endsWith("At") ? shownTime(value) : value}</dd></div>)}</dl>}</details>)}</section>}
   </>;
 }

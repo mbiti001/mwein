@@ -1,4 +1,5 @@
 "use client";
+import { RecordFields } from "./RecordFields";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { BrandWordmark } from "@/components/FacilityBrand";
@@ -181,7 +182,14 @@ export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId,
       const canConfirm = !isDispensing || (!loadingStock && Boolean(preview) && allocated >= supplyNow);
       const completion = dispensingCompletionCopy({ isDispensing, loading: loadingStock, remaining: remainingAfterSupply });
       return <form className="card dataForm" onSubmit={e => submit(e, order)} key={order.id}>
-      <div className="wide"><h2>{order.prescription!.genericName || order.displayName}{order.prescription!.strength ? ` ${order.prescription!.strength}` : ""}</h2><p>{order.prescription!.dosageForm || order.prescription!.medicineCode} · {order.prescription!.dose} · {order.prescription!.route} · {order.prescription!.frequency} · {order.prescription!.duration || (order.prescription!.stopDate ? `until ${new Date(order.prescription!.stopDate).toLocaleDateString()}` : "course not defined")}</p><p><strong>Indication:</strong> {order.clinicalIndication || "Not recorded"}</p>{order.prescription!.instructions && <p><strong>Instructions:</strong> {order.prescription!.instructions}</p>}</div>
+      <div className="wide"><h2>{order.prescription!.genericName || order.displayName}{order.prescription!.strength ? ` ${order.prescription!.strength}` : ""}</h2><RecordFields fields={[
+        { label: "Form", value: order.prescription!.dosageForm || order.prescription!.medicineCode },
+        { label: "Dose", value: order.prescription!.dose }, { label: "Route", value: order.prescription!.route },
+        { label: "Frequency", value: order.prescription!.frequency },
+        { label: "Course", value: order.prescription!.duration || (order.prescription!.stopDate ? `until ${new Date(order.prescription!.stopDate).toLocaleDateString()}` : "Course not defined — clarify before supply") },
+        { label: "Indication", value: order.clinicalIndication || "Not recorded — verify before supply" },
+        { label: "Instructions", value: order.prescription!.instructions, wide: true },
+      ]} /></div>
       <div className="wide privacyNotice"><strong>Order context</strong><span>Prescriber: {order.orderedBy?.displayName || "Not recorded"} · Prescribed: {order.requestedAt ? new Date(order.requestedAt).toLocaleString() : "time not recorded"} · Priority: {order.priority || active.priority} · Payer status: {active.invoice?.status || "No invoice"}</span></div>
       <label>Decision *<select name="action" value={choice.action || "DISPENSE"} onChange={(event) => setChoices(current => ({ ...current, [order.id]: { ...choice, action: event.target.value as DispensingChoice["action"] } }))}><option value="DISPENSE">Dispense medicine</option><option value="NOT_DISPENSED">Do not dispense</option></select></label>
       <label>Quantity supplied now *<input name="quantity" type="number" min="0.001" max={outstanding} step="0.001" defaultValue={outstanding} onChange={(event) => { const next = { ...choice, quantity: Number(event.target.value) }; setChoices(current => ({ ...current, [order.id]: next })); void loadStock(order.id, next).catch(x => setError(x.message)); }}/><small>Prescribed: {prescribed} · Previously supplied: {supplied} · Outstanding: {outstanding}</small></label>

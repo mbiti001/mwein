@@ -1,4 +1,5 @@
 "use client";
+import { RecordFields } from "./RecordFields";
 
 import { FormEvent, useEffect, useState } from "react";
 
@@ -76,7 +77,11 @@ export default function LocalReportingWorkstation({ permissions }: { permissions
     {truncated && <p role="status">Showing the 100 most recent revisions for this month. Older records remain stored.</p>}
     {(selected || canPrepare) && <form onSubmit={save}>
       <h3>{selected ? `Revision ${selected.revision} · ${selected.status.replaceAll("_", " ")}` : "New aggregate draft"}</h3>
-      <fieldset disabled={!editable || busy}>
+      {!editable && selected ? <RecordFields title="Saved aggregate worksheet" fields={[
+        { label: "Source reference", value: selected.payload.sourceReference, wide: true },
+        ...selected.payload.rows.map(row => ({ label: row.indicator, value: row.count === null ? "Missing — review required" : row.count })),
+        { label: "Zero activity confirmed", value: selected.payload.zeroConfirmed },
+      ]} /> : <fieldset disabled={busy}>
         <legend>Aggregate worksheet</legend>
         <label>Source reference<input required minLength={3} maxLength={300} value={payload.sourceReference} onChange={event => setPayload({ ...payload, sourceReference: event.target.value })} placeholder="Register or reconciliation reference" /></label>
         {payload.rows.map((row, index) => <div className="reportFilters" key={index}>
@@ -86,7 +91,7 @@ export default function LocalReportingWorkstation({ permissions }: { permissions
         </div>)}
         <button type="button" className="secondary" disabled={payload.rows.length >= 40} onClick={() => setPayload({ ...payload, zeroConfirmed: false, rows: [...payload.rows, { indicator: "", count: null }] })}>Add indicator</button>
         <label><input type="checkbox" checked={payload.zeroConfirmed} onChange={event => setPayload({ ...payload, zeroConfirmed: event.target.checked })} />I confirm every entered indicator is explicitly zero activity.</label>
-      </fieldset>
+      </fieldset>}
       <p>Blank counts mean missing data. Resolve missing counts before requesting review.</p>
       {selected && <label>Reason or review note<input value={reason} minLength={3} maxLength={500} required disabled={busy} onChange={event => setReason(event.target.value)} placeholder="Explain the change or review, without patient details" /></label>}
       <div className="actions noPrint">

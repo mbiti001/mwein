@@ -30,7 +30,9 @@ test("local reports preserve review, frozen approval and correction history", as
   await panel.getByLabel("Reason or review note").fill("Counts reconciled");
   await panel.getByRole("button", { name: "Request review", exact: true }).click();
   await expect(panel.getByRole("heading", { name: "Revision 1 · IN REVIEW" })).toBeVisible();
-  await expect(panel.getByLabel("Count 1", { exact: true })).toBeDisabled();
+  await expect(panel.getByLabel("Count 1", { exact: true })).toHaveCount(0);
+  await expect(panel.getByRole("heading", { name: "Saved aggregate worksheet" })).toBeVisible();
+  await expect(panel.locator(".recordFields")).toContainText("8");
   let record = (await api(page, "GET")).data.reports.find((r: any) => r.payload.sourceReference === "Synthetic September register");
   expect((await api(page, "PATCH", { id: record.id, version: record.version, action: "APPROVE", reason: "Cannot approve as preparer" })).status).toBe(403);
 

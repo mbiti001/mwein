@@ -1,0 +1,46 @@
+/* Shared saved-record and print presentation. Values are filtered in React,
+   never hidden by CSS: explicit negatives, zeroes and workflow warnings remain. */
+.recordGroup { min-width: 0; container-type: inline-size; margin: 0; }
+.recordGroup > h2 { font-size: 15px; margin: 0 0 10px; break-after: avoid; }
+.recordFields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px 14px; margin: 0; }
+.recordFields > div { min-width: 0; padding: 9px 12px; border: 1px solid var(--line); border-radius: 7px; background: #f8fbff; }
+.recordFields dt { color: var(--muted); font-size: 12px; font-weight: 500; }
+.recordFields dd { margin: 3px 0 0; color: var(--ink); font-size: 14px; font-weight: 600; white-space: pre-wrap; overflow-wrap: anywhere; }
+.recordFieldWide { grid-column: 1 / -1; }
+@container (min-width: 440px) { .recordFields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container (min-width: 800px) { .recordFields { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+:is(.clinicFormPaper, .visitSummaryPaper, .reportPaper, .referralLetter, .billingDocument, .mohReport) { min-width: 0; overflow-wrap: anywhere; }
+:is(.clinicFormPaper, .visitSummaryPaper, .reportPaper, .referralLetter, .billingDocument) > .facilityLetterhead { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+:is(.clinicFormPaper, .visitSummaryPaper, .reportPaper, .referralLetter, .billingDocument) .facilityLetterheadBadge { grid-column: 2; justify-self: end; }
+:is(.clinicFormPaper, .visitSummaryPaper, .reportPaper, .referralLetter, .billingDocument) :is(.summaryIdentity, .reportMeta) { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 10px 16px; }
+:is(.summaryIdentity, .reportMeta) > div { min-width: 0; }
+:is(.clinicFormPaper, .visitSummaryPaper, .reportPaper, .referralLetter) :is(p, dd) { white-space: pre-wrap; }
+.referralLetter > .recordGroup { margin: 14px 0; }
+.recordGroup + .recordGroup { margin-top: 14px; }
+.savedClinicFields { margin: 20px 0; }
+.summaryMedicine { min-width: 0; }
+.summaryMedicine > h3 { margin: 0 0 8px; font-size: 14px; break-after: avoid; }
+.summaryMedicine + .summaryMedicine { margin-top: 14px; }
+.documentToolbar { flex-wrap: wrap; }
+.documentToolbar > :first-child { min-width: 0; flex: 1 1 240px; }
+.supplyDocumentPaper td > small { display: block; margin-top: 3px; }
+@media screen and (max-width: 650px) {
+  .documentToolbar { flex-direction: column; align-items: flex-start; }
+  .documentToolbar > :first-child { flex-basis: auto; }
+  :is(.clinicFormPaper, .visitSummaryPaper, .reportPaper, .referralLetter, .billingDocument) > .facilityLetterhead { grid-template-columns: minmax(0, 1fr); }
+  :is(.clinicFormPaper, .visitSummaryPaper, .reportPaper, .referralLetter, .billingDocument) .facilityLetterheadBadge { grid-column: 1; justify-self: start; }
+}
+@media print {
+  .reversalControl.noPrint { display: none !important; }
+  #clinic-form-print .recordGroup { break-inside: auto; }
+  .recordFields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
+  .recordFields > div { background: none; padding: 6px 8px; break-inside: avoid; }
+  .recordFields dd { font-size: 10pt; }
+  .recordFields dt { font-size: 9pt; }
+  :is(.clinicFormPaper, .visitSummaryPaper, .reportPaper, .referralLetter, .billingDocument) .facilityLetterheadDocument { text-align: right; }
+  :is(.clinicFormPaper, .visitSummaryPaper, .reportPaper, .referralLetter, .billingDocument) :is(.summaryIdentity, .reportMeta) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  :is(.clinicFormPaper, .visitSummaryPaper, .reportPaper, .referralLetter, .billingDocument, .mohReport) h2 { break-after: avoid; }
+  .reportResults { width: 100%; table-layout: fixed; }
+  .reportResults :is(th, td) { overflow-wrap: anywhere; }
+  .reportResults tr { break-inside: avoid; }
+}

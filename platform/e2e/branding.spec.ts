@@ -57,7 +57,7 @@ test("reception cannot author clinical certificates", async ({ page }) => {
   await signIn(page, "reception@example.test");
   expect(await page.evaluate(async () => (await fetch("/api/clinic-documents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "SICK", visitId: null, payload: {} }) })).status)).toBe(403);
 });
-test("sign-in uses the website wordmark and compact action buttons", async ({ page }) => {
+test("sign-in keeps the clinician and patient fully visible beside a separate form", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page.locator(".publicNav .brandWordmark")).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
@@ -65,4 +65,19 @@ test("sign-in uses the website wordmark and compact action buttons", async ({ pa
   expect(button!.width).toBeLessThan(220);
   expect(button!.height).toBeGreaterThanOrEqual(44);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  for (const width of [1440, 1024, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const photo = page.getByRole("img", { name: "Clinician reviewing care information with a patient" });
+    await expect(photo).toBeVisible();
+    expect(await photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+    expect(await photo.evaluate(img => getComputedStyle(img).objectFit)).toBe("contain");
+    const image = (await photo.boundingBox())!, form = (await page.locator(".landingLogin").boundingBox())!;
+    const overlaps = image.x < form.x + form.width && image.x + image.width > form.x && image.y < form.y + form.height && image.y + image.height > form.y;
+    expect(overlaps).toBe(false);
+    expect(image.width / image.height).toBeCloseTo(1672 / 941, 2);
+    await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`balanced-sign-in-${width}.png`), fullPage: true });
+  }
 });

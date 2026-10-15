@@ -19,6 +19,8 @@ test("summary omits untouched assessments and aligns only recorded history and f
   const paper = page.locator(".compactVisitSummary");
   await expect(paper.getByRole("heading", { name: "Examination", exact: true })).toHaveCount(0);
   await expect(paper.getByText("Additional history", { exact: true })).toHaveCount(0);
+  for (const title of ["Diagnoses", "Medicines", "Investigations"]) await expect(paper.getByRole("heading", { name: title, exact: true })).toHaveCount(0);
+  await expect(paper.getByText("Not scheduled", { exact: true })).toHaveCount(0);
   await expect(paper.getByText("Duration (as recorded)")).toBeVisible();
   await expect(paper.locator(".summaryComplaint dd").last()).toHaveText("1");
   const complaintY = await paper.locator(".summaryComplaint > div").evaluateAll(elements => elements.map(el => el.getBoundingClientRect().y));
@@ -27,7 +29,10 @@ test("summary omits untouched assessments and aligns only recorded history and f
   summary.encounter.objective.generalExamination = "General appearance: Well appearing\nHydration: Clinically hydrated\nPallor: Absent\nJaundice: Not assessed\nAdditional findings: Assessment completed with the patient seated.";
   summary.encounter.objective.systemicExamination = "Breath sounds: Vesicular bilaterally\nAdded sounds: None\nJVP: Not elevated\nMurmur: No murmur heard\nLowest MRC muscle power: 0/5\nGait: Not examined due to pain\nBowel sounds: Not auscultated\nAdditional findings: Follow-up examination planned.\nReason: mobility limited by pain.";
   summary.encounter.subjective.reviewOfSystems = "Fever: Denied\nCough: Not asked";
+  (summary as any).orders = [{ id: "med", type: "MEDICATION", displayName: "Synthetic medicine", prescription: { genericName: "Synthetic medicine", strength: "Test strength", dosageForm: "Tablet", dose: "Test dose", route: "Test route", frequency: "Test frequency", duration: "Test duration", dispenseStatus: "PENDING", instructions: "" } }];
   await openSummary();
+  await expect(paper.locator(".summaryMedicine").getByText("PENDING", { exact: true })).toBeVisible();
+  await expect(paper.locator(".summaryMedicine").getByText("Instructions", { exact: true })).toHaveCount(0);
   const exam = paper.locator("section").filter({ has: page.getByRole("heading", { name: "Examination", exact: true }) });
   for (const value of ["Well appearing", "Clinically hydrated", "Absent", "None", "Not elevated", "No murmur heard", "0/5", "Not examined due to pain"]) {
     await expect(exam.getByText(value, { exact: true })).toBeVisible();

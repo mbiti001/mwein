@@ -1,4 +1,5 @@
 "use client";
+import { RecordFields } from "./RecordFields";
 import { Button } from "./ui/Button";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -20,7 +21,7 @@ export function ClinicFormPaper({ document: record }: { document: DocumentRecord
     {record.context.patientName && <section className="summaryIdentity"><div><small>Patient</small><strong>{record.context.patientName}</strong><span>{record.context.patientNumber}</span></div><div><small>Visit</small><strong>{record.context.visitNumber}</strong></div></section>}
     {record.kind === "GATE" && <p className="formUseNote">Movement authorization only. This does not certify clinical discharge or payment clearance.</p>}
     {record.kind === "DELIVERY" && <p className="formUseNote">This delivery note does not post stock movements. Record goods receipt in the stock workflow.</p>}
-    <div className="clinicFormFields">{definition.fields.map(field => <section key={field.key}><h2>{field.label}</h2><p className="documentValue">{record.payload[field.key] || "Not recorded"}</p></section>)}</div>
+    <RecordFields className="savedClinicFields" fields={definition.fields.map(field => ({ label: field.label, value: record.payload[field.key], wide: field.type === "textarea" }))} />
     {record.previousId && <p className="formUseNote">Correction of document {record.previousId}. Reason: {record.correctionReason}</p>}
     {record.successor && <p className="formUseNote">{record.successor.status === "SIGNED" ? "Superseded by signed revision" : "A correction draft exists; not yet signed"}: {record.successor.reference}</p>}
     {record.status === "SIGNED" ? <footer className="documentSignature"><strong>Electronically signed by {record.signerName}</strong><span>{record.signerRoles.join(" · ")}</span>{record.signerRegistration && <span>Professional registration (supplied by signer): {record.signerRegistration}</span>}<span>{new Date(record.signedAt!).toLocaleString("en-KE", { timeZone: record.context.timezone })} · {record.context.timezone}</span><small>Signed through the authenticated staff account. Document fingerprint: {record.contentHash}</small></footer> : <p className="draftStatus">Draft only. An authorized staff member must review and sign before issue.</p>}
@@ -88,7 +89,7 @@ export default function ClinicForms({ permissions }: { permissions: string[] }) 
   return <>
     <header><div><p className="eyebrow">Paperless clinic documents</p><h1>Clinic forms</h1><p>Complete a draft, review it, then sign electronically. Signed documents are locked; corrections retain the original.</p></div></header>
     <section className="card noPrint clinicFormTools">
-      <label>Document type<select value={kind} disabled={busy || dirty} onChange={event => { setKind(event.target.value as DocumentKind); setRecords([]); setVisits([]); setVisitId(""); setQuery(""); open(null); }}>{allowed.map(value => <option key={value} value={value}>{documentDefinitions[value].title}</option>)}</select></label>
+      <label>Document type<select value={kind} disabled={busy || dirty} onChange={event => { if (event.target.value === kind) return; setKind(event.target.value as DocumentKind); setRecords([]); setVisits([]); setVisitId(""); setQuery(""); open(null); }}>{allowed.map(value => <option key={value} value={value}>{documentDefinitions[value].title}</option>)}</select></label>
       <label>Find saved document by reference<input value={referenceQuery} onChange={event => setReferenceQuery(event.target.value)} /></label>
       <Button variant="secondary" disabled={busy || dirty} onClick={() => open(null)}>New document</Button>
       {truncated && <p role="status">Showing the latest 100 documents. Search by reference to find older records.</p>}

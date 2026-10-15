@@ -1,0 +1,21 @@
+/* The care image and sign-in form occupy separate areas at every width. */
+.publicHero { grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); gap: clamp(24px, 4vw, 64px); min-height: 0; padding: 36px 0; align-items: center; }
+.heroCopy h1 { font-size: clamp(32px, 3.5vw, 48px); margin: 8px 0 16px; }
+.heroLead { font-size: 17px; line-height: 1.6; }
+.heroActions { flex-wrap: wrap; gap: 12px; margin: 20px 0; }
+.heroCopy .loginImage { position: static; display: block; width: 100%; height: auto; aspect-ratio: 1672 / 941; object-fit: contain; background: none; border-radius: 14px; box-shadow: none; }
+.loginVisual { position: static; min-height: 0; scroll-margin-top: 24px; }
+.landingLogin { position: static; width: 100%; padding: clamp(20px, 2.4vw, 32px); }
+.publicFeatures { width: min(1440px, 100%); margin: 0 auto 28px; }
+.publicFeatures article { min-height: 0; }
+@media (max-width: 900px) {
+  .publicHero { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .loginVisual { width: min(520px, 100%); justify-self: center; }
+  .publicFeatures { max-width: none; }
+}
+@media (max-width: 650px) {
+  .publicHero { padding: 24px 0; }
+  .heroCopy h1 { font-size: 32px; }
+  .heroActions { align-items: flex-start; }
+  .landingLogin { padding: 20px; }
+}

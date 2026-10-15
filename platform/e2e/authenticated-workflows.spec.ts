@@ -137,7 +137,7 @@ test("blocks senseless ANC counts and alerts on abnormal clinical ranges", async
   await expect(page.getByRole("button", { name: "Resolve entry errors" })).toBeDisabled();
 
   await gravida.fill("1");
-  await page.getByText("Assessment and risk", { exact: true }).click();
+  await page.locator(".serviceAssessment summary").filter({ hasText: "Assessment and risk" }).click();
   await page.locator("label").filter({ hasText: "Fetal heart rate" }).locator("input").fill("170");
   await expect(page.getByText("Clinical review alert — verify these unusual values")).toBeVisible();
   await expect(page.getByText(/Fetal heart rate outside 110–160 bpm/)).toBeVisible();
