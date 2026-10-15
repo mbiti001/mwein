@@ -323,8 +323,8 @@ export default function ClinicalApp() {
   if (documentKinds.some(kind => user.permissions.includes(documentDefinitions[kind].permission))) nav.push(["forms", "Clinic forms"]);
   return (
     <main className="shell">
-      <button className="mobileNavToggle" aria-label={mobileNavOpen ? "Close menu" : "☰ Menu"} aria-expanded={mobileNavOpen} aria-controls="main-navigation" onClick={() => setMobileNavOpen(value => !value)}><span>{mobileNavOpen ? "Close menu" : "☰ Menu"}</span><span aria-hidden="true"><BrandWordmark className="mobileWordmark" /></span></button>
-      {mobileNavOpen && <button className="navScrim" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
+      <button className="mobileNavToggle noPrint" aria-label={mobileNavOpen ? "Close menu" : "☰ Menu"} aria-expanded={mobileNavOpen} aria-controls="main-navigation" onClick={() => setMobileNavOpen(value => !value)}><span>{mobileNavOpen ? "Close menu" : "☰ Menu"}</span><span aria-hidden="true"><BrandWordmark className="mobileWordmark" /></span></button>
+      {mobileNavOpen && <button className="navScrim noPrint" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
       <aside className={`sidebar ${mobileNavOpen ? "mobileOpen" : ""}`} id="main-navigation">
         <div className="brand brandWithWordmark">
           <BrandWordmark />

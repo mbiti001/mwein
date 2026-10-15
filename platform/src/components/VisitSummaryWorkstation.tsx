@@ -4,13 +4,14 @@ import { jsonRequest } from "@/lib/client-http";
 import { careServiceProfile } from "@/lib/care-service-points";
 import { FacilityLetterhead } from "@/components/FacilityBrand";
 import { useWorklist } from "@/lib/use-worklist";
+import { hasRecordedFindings, recordedFindings, recordedText, type RecordedFindings } from "@/lib/summary-findings";
 
 type Summary = any;
 const display = (value?: string | null) => value || "Not recorded";
 const complaintDuration = (complaint: Summary) => {
   if (complaint.durationValue && complaint.durationUnit)
     return `${complaint.durationValue} ${String(complaint.durationUnit).toLowerCase()}`;
-  return complaint.legacyDuration || "Duration not recorded";
+  return recordedText(complaint.legacyDuration);
 };
 const money = (value: number, currency = "KES") =>
   `${currency} ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -118,9 +119,21 @@ export default function VisitSummaryWorkstation({ canAddendum = false, initialVi
       </>
     );
   const e = active.encounter;
-  const complaints = Array.isArray(e?.subjective.complaints)
-    ? e.subjective.complaints
+  const subjective = e?.subjective || {};
+  const complaints = Array.isArray(subjective.complaints)
+    ? subjective.complaints.filter((item: Summary) => recordedText(item?.complaint))
     : [];
+  const chiefComplaint = recordedText(subjective.chiefComplaint);
+  const history = recordedText(subjective.historyPresentingIllness);
+  const review = recordedFindings(subjective.reviewOfSystems);
+  const additionalHistory = [
+    { label: "Past medical history", value: recordedText(subjective.pastMedicalHistory) },
+    { label: "Current medicines", value: recordedText(subjective.currentMedicines) },
+    { label: "Family and social history", value: recordedText(subjective.familySocialHistory) },
+  ].filter(item => item.value);
+  const hasAdditionalHistory = hasRecordedFindings(review) || additionalHistory.length > 0;
+  const generalExamination = recordedFindings(e?.objective?.generalExamination);
+  const systemicExamination = recordedFindings(e?.objective?.systemicExamination);
   const serviceProfile = e?.servicePointRecord ? careServiceProfile(e.servicePointRecord.servicePoint) : null;
   const serviceFields = serviceProfile?.sections.flatMap((section) => section.fields) || [];
   const verifiedLabs = active.orders.filter(
@@ -213,39 +226,29 @@ export default function VisitSummaryWorkstation({ canAddendum = false, initialVi
           </section>
         )}
         <div className="visitSummaryGrid">
-        <SummarySection title="Reason for visit and history">
+        {(complaints.length > 0 || chiefComplaint || history || hasAdditionalHistory) && <SummarySection title="Reason for visit and history" wide>
           {complaints.length > 0 ? (
             complaints.map((complaint: Summary, index: number) => (
-              <div className="summaryLine" key={`${complaint.complaint}-${index}`}>
-                <strong>Complaint {index + 1}</strong>
-                <span>
-                  {display(complaint.complaint)} · {complaintDuration(complaint)}
-                </span>
-              </div>
+              <dl className="summaryFactsGrid summaryComplaint" key={`${complaint.complaint}-${index}`}>
+                <div><dt>{complaints.length === 1 ? "Chief complaint" : `Complaint ${index + 1}`}</dt><dd>{complaint.complaint}</dd></div>
+                {complaintDuration(complaint) && <div><dt>Duration</dt><dd>{complaintDuration(complaint)}</dd></div>}
+              </dl>
             ))
-          ) : (
-            <>
-              <p>
-                <b>Chief complaint:</b> {display(e?.subjective.chiefComplaint)}
-              </p>
-              <p>
-                <b>Duration:</b> {display(e?.subjective.symptomDuration)}
-              </p>
-            </>
-          )}
-          <p>
-            <b>History:</b> {display(e?.subjective.historyPresentingIllness)}
-          </p>
-          {(e?.subjective.reviewOfSystems || e?.subjective.pastMedicalHistory) && <details className="summaryDisclosure">
+          ) : chiefComplaint && <dl className="summaryFactsGrid summaryComplaint">
+            <div><dt>Chief complaint</dt><dd>{chiefComplaint}</dd></div>
+            {recordedText(subjective.symptomDuration) && <div><dt>Duration (as recorded)</dt><dd>{subjective.symptomDuration}</dd></div>}
+          </dl>}
+          {history && <div className="summaryNarrative"><h3>History of presenting illness</h3><p>{history}</p></div>}
+          {hasAdditionalHistory && <details className="summaryDisclosure summaryHistory">
             <summary>Additional history</summary>
-            {e.subjective.reviewOfSystems && <div><strong>Review of systems</strong><pre>{e.subjective.reviewOfSystems}</pre></div>}
-            {e.subjective.pastMedicalHistory && <div><strong>Past medical history</strong><pre>{e.subjective.pastMedicalHistory}</pre></div>}
+            <RecordedFindingBlock title="Review of systems" value={review} />
+            {additionalHistory.map(item => <div className="summaryNarrative" key={item.label}><h3>{item.label}</h3><p>{item.value}</p></div>)}
           </details>}
-        </SummarySection>
-        <SummarySection title="Examination">
-          <pre>{display(e?.objective.generalExamination)}</pre>
-          <pre>{display(e?.objective.systemicExamination)}</pre>
-        </SummarySection>
+        </SummarySection>}
+        {(hasRecordedFindings(generalExamination) || hasRecordedFindings(systemicExamination)) && <SummarySection title="Examination" wide>
+          <RecordedFindingBlock title="General examination" value={generalExamination} />
+          <RecordedFindingBlock title="System examination" value={systemicExamination} />
+        </SummarySection>}
         {e?.servicePointRecord && serviceProfile && <SummarySection title={`${serviceProfile.label} assessment`} collapsible wide>
           <div className="summaryLine"><strong>Risk</strong><span>{display(e.servicePointRecord.riskLevel)}</span></div>
           {serviceFields.filter((field) => {
@@ -380,6 +383,7 @@ export default function VisitSummaryWorkstation({ canAddendum = false, initialVi
         )}
         </div>
         <footer>
+          <p>Only documented history and examination findings are shown.</p>
           <p>
             This summary supports continuity of care. Seek urgent medical
             attention if symptoms worsen or emergency warning signs develop.
@@ -389,6 +393,18 @@ export default function VisitSummaryWorkstation({ canAddendum = false, initialVi
       </article>
     </>
   );
+}
+function RecordedFindingBlock({ title, value }: { title: string; value: RecordedFindings }) {
+  if (!hasRecordedFindings(value)) return null;
+  return <div className="summaryFindingBlock">
+    <h3>{title}</h3>
+    {value.findings.length > 0 && <dl className="summaryFactsGrid">
+      {value.findings.map((finding, index) => <div key={`${finding.label}-${index}`}><dt>{finding.label}</dt><dd>{finding.value}</dd></div>)}
+    </dl>}
+    {value.notes.map((note, index) => <div className="summaryNarrative" key={index}>
+      {note.label && <h4>{note.label}</h4>}<p>{note.value}</p>
+    </div>)}
+  </div>;
 }
 function SummarySection({
   title,
