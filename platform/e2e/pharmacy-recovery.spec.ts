@@ -71,10 +71,17 @@ test("lost dispensing response locks details and retries the exact request with 
   expect(posts).toHaveLength(1); release();
   const recovery = page.locator(".pharmacyRecovery").filter({ hasText: "Supply outcome not confirmed" });
   await expect(recovery).toBeVisible(); await expect(quantity(page)).toBeDisabled();
-  for (const width of [1440, 768, 390, 320]) {
+  await page.getByRole("button", { name: "← Back to queue" }).click();
+  await page.getByRole("button", { name: /Synthetic one.*P-one/ }).click();
+  await expect(page.locator('[name="notes"]')).toHaveValue("Retain this synthetic supply reason");
+  await expect(counselling(page)).toBeChecked(); await expect(quantity(page)).toBeDisabled();
+  for (const [index, width] of [1440, 768, 390, 320, 320, 320].entries()) {
     await page.setViewportSize({ width, height: 900 });
+    if (index === 4) await page.evaluate(() => { document.body.style.fontFamily = "Arial, sans-serif"; document.body.style.fontSize = "17px"; });
+    if (index === 5) await page.evaluate(() => { document.body.style.fontFamily = "monospace"; document.body.style.fontSize = "17px"; });
     const overflow = await page.evaluate(() => Array.from(document.querySelectorAll("body *")).filter(el => el.getBoundingClientRect().right > innerWidth + 1).map(el => ({ tag: el.tagName, class: el.className, right: el.getBoundingClientRect().right, text: el.textContent?.slice(0, 70) })));
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: ${JSON.stringify(overflow)}`).toBe(true);
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: info.outputPath(`pharmacy-recovery-${width}.png`), fullPage: true });
   }
   await page.emulateMedia({ media: "print" }); await expect(recovery).toBeHidden(); await page.emulateMedia({ media: "screen" });
