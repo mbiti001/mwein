@@ -1,6 +1,6 @@
 # Mwein release versions
 
-The owner-designated initial release is **1**, recorded canonically as **1.0.0**. Version **1.1.0** is deployed with retained evidence; **1.2.0** is reserved for the next candidate. `versions.json` is the shared allocation ledger; `platform/package.json` supplies the running application's version. Versions identify a release series; the full source SHA and deployment ID identify an exact build. A version label alone is neither deployment evidence nor patient-use approval.
+The owner-designated initial release is **1**, recorded canonically as **1.0.0**. Versions **1.1.0** and **1.2.0** have retained deployment evidence; **1.2.0** is the current live release. Reserve a new version before subsequent application changes. `versions.json` is the shared allocation ledger; `platform/package.json` supplies the running application's version. Versions identify a release series; the full source SHA and deployment ID identify an exact build. A version label alone is neither deployment evidence nor patient-use approval.
 
 Before allocating a version, fetch the shared branch and tags and inspect this ledger. Reserve it in a normal fast-forward commit; if another contributor wins the push, reconcile their entry before retrying. Never force-push, reuse a released number for different source, or move a version tag. Use subsequent minor versions for added capabilities and patch versions for corrections after a release. Candidate refinements retain their allocated version until the tested source is frozen.
 

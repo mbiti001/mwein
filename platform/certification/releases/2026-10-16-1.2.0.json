@@ -1,0 +1,184 @@
+{
+  "purpose": "Owner-authorized Mwein 1.2.0 release; not patient-use or regulatory approval",
+  "version": "1.2.0",
+  "source": "601a591799461719678e082b31144ea41a918b56",
+  "branch": "codex/mwein-platform",
+  "tag": "mwein-v1.2.0",
+  "sourceArchiveSha256": "7c84e34236f87ca9a34d4965a0424e9c2cbaf518febd869f59242c7fd4b092c8",
+  "deploymentArchiveSha256": "1e1ddf326ddfe3b746be15f79468fd645b6df3c65e1887a1f9487b525857e267",
+  "ci": {
+    "runId": 38810888241,
+    "url": "https://github.com/mbiti001/mwein/actions/runs/38810888241",
+    "source": "601a591799461719678e082b31144ea41a918b56",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "id": 116683514943,
+        "name": "Legacy compatibility verification",
+        "conclusion": "success"
+      },
+      {
+        "id": 116683515206,
+        "name": "Platform verification",
+        "conclusion": "success"
+      }
+    ],
+    "unitTests": 620,
+    "unitFiles": 105,
+    "migrations": 54,
+    "isolatedOutpatientChecks": 132,
+    "browserScenarios": 101,
+    "productionDependencyVulnerabilities": 0
+  },
+  "backup": {
+    "purpose": "Pre-migration backup for Mwein 1.2.0",
+    "startedAt": "2026-10-15T21:35:32.072Z",
+    "completedAt": "2026-10-15T21:35:33.496Z",
+    "deploymentId": "dpl_BLKLrnxCz9ttEmcqcXsEQXdtNXQv",
+    "sourceIdentitySha256": "39d78da16d096177c06dc35c0f0f1708d9b84f096eab4dd7ee81f7af0676a092",
+    "sourceMetadata": {
+      "serverVersion": "18.6 (653b019)",
+      "databaseBytes": 17637376,
+      "lastMigration": "20261015193000_rights_response_delivery",
+      "unfinishedMigrations": 0
+    },
+    "sourceCommit": "601a591799461719678e082b31144ea41a918b56",
+    "storeId": "store_AhDgcZhyGCFd935a",
+    "access": "private",
+    "region": "iad1",
+    "pathname": "releases/1.2.0/mwein-pre-1.2.0-2026-10-15T21-35-32.072Z-615c4a4c-16ae-4e90-bb08-f51348d29e16.dump",
+    "bytes": 582781,
+    "downloadedBytes": 582781,
+    "sha256": "9d2e5ac33bab38c33a93af85d6ba6384218828c60fd710d5a8df1a8af569f4be",
+    "downloadedSha256": "9d2e5ac33bab38c33a93af85d6ba6384218828c60fd710d5a8df1a8af569f4be",
+    "checksumPathname": "releases/1.2.0/mwein-pre-1.2.0-2026-10-15T21-35-32.072Z-615c4a4c-16ae-4e90-bb08-f51348d29e16.dump.sha256",
+    "etag": "\"0b0cf936fbd8cb3752811f940a725f76\"",
+    "uploadedAt": "2026-10-15T21:35:34.000Z",
+    "toolVersion": "pg_dump (PostgreSQL) 18.3",
+    "archiveEntries": 716,
+    "verification": {
+      "dumpExit": 0,
+      "listExit": 0,
+      "fullArchiveDecodeExit": 0,
+      "externalReadbackChecksumMatched": true,
+      "externalChecksumFileMatched": true,
+      "anonymousAccessHttp": 403
+    },
+    "actualRestorePerformed": false,
+    "independentRestoreAcceptance": false,
+    "automaticExpiryConfigured": false,
+    "temporaryProjectConnectionRemoved": true,
+    "remainingStoreConnections": 0,
+    "normalApplicationBackupEnvironmentVariables": 0,
+    "encryptionAtRest": "Vercel Blob AES-256 per provider documentation retained with 1.1.0 release",
+    "retention": "Private retained objects; no automatic expiry or immutable/WORM claim",
+    "restoreAcceptance": "Archive decode/readback verified; independent witnessed production restore remains outstanding"
+  },
+  "migration": {
+    "source": "601a591799461719678e082b31144ea41a918b56",
+    "backupSha256": "9d2e5ac33bab38c33a93af85d6ba6384218828c60fd710d5a8df1a8af569f4be",
+    "backupStoreId": "store_AhDgcZhyGCFd935a",
+    "backupPathname": "releases/1.2.0/mwein-pre-1.2.0-2026-10-15T21-35-32.072Z-615c4a4c-16ae-4e90-bb08-f51348d29e16.dump",
+    "baseline": "20261015193000_rights_response_delivery",
+    "appliedMigrations": [
+      "20261015210000_diagnostic_review",
+      "20261016001000_clinic_document_numbering"
+    ],
+    "previousAppliedCount": 52,
+    "lineEndingEquivalentCount": 3,
+    "constraints": [
+      {
+        "conname": "ClinicDocument_creation_receipt_check",
+        "convalidated": true
+      },
+      {
+        "conname": "DiagnosticReview_report_evidence",
+        "convalidated": true
+      },
+      {
+        "conname": "PurchaseOrder_request_hash_check",
+        "convalidated": true
+      }
+    ],
+    "triggers": [
+      {
+        "tgname": "DiagnosticReview_immutable",
+        "tgenabled": "O"
+      },
+      {
+        "tgname": "clinic_document_identity_immutable",
+        "tgenabled": "O"
+      },
+      {
+        "tgname": "purchase_order_identity_immutable",
+        "tgenabled": "O"
+      }
+    ],
+    "verifiedAt": "2026-10-15T21:40:40.482Z",
+    "deploymentId": "dpl_7pzkzNZ7CdULUExnCqzWFUfJP8Nr",
+    "productionSeeded": false,
+    "sqlSha256": {
+      "20261015210000_diagnostic_review": "b4f592915c43e296c2257c82b244dab7302d10f8ef6dc561711035f8b638e18e",
+      "20261016001000_clinic_document_numbering": "b634adfaded6861fff96411af933dd1f0f31090b5bb100391366c099c892fcf8"
+    }
+  },
+  "deployment": {
+    "id": "dpl_DeoV14bAxdDBqtqbrFDtdysANWob",
+    "url": "https://mwein-hmis-platform-hatskl26a-mbitis-projects.vercel.app",
+    "origin": "https://mwein-hmis-platform.vercel.app",
+    "promoted": true
+  },
+  "liveVerification": {
+    "verifiedAt": "2026-10-15T21:41:42.598Z",
+    "origin": "https://mwein-hmis-platform.vercel.app",
+    "health": {
+      "status": "ok",
+      "database": "connected",
+      "migration": "20261016001000_clinic_document_numbering",
+      "release": {
+        "version": "1.2.0",
+        "commit": "601a591799461719678e082b31144ea41a918b56",
+        "shortCommit": "601a59179946",
+        "environment": "production",
+        "branch": "codex/mwein-platform",
+        "deployment": "dpl_DeoV14bAxdDBqtqbrFDtdysANWob",
+        "application": "mwein-hmis-platform"
+      },
+      "time": "2026-10-15T21:41:36.105Z"
+    },
+    "readiness": {
+      "http": 503,
+      "status": "blocked"
+    },
+    "unauthenticatedReadChecks": 3,
+    "browser": "155.0.8059.40",
+    "widths": [
+      1440,
+      768,
+      390,
+      320
+    ],
+    "buildKeyboardExpansion": true,
+    "buildExcludedFromPrint": true,
+    "pageErrors": [],
+    "productionPatientDataUsed": false
+  },
+  "auditInventory": {
+    "routes": 73,
+    "detectedGaps": 0,
+    "unclassified": 10,
+    "unreviewedAliases": 0,
+    "limitation": "Engineering inventory only; remaining classifications and independent assurance are not waived"
+  },
+  "preservedHistory": true,
+  "productionSeeded": false,
+  "productionClinicalWorkflowsUsed": false,
+  "notes": [
+    "GitHub and local working branch renamed to codex/mwein-platform; historical release branch metadata preserved.",
+    "New numbering covers SICK, MATERNITY, DELIVERY, GATE, PO and GRN. Existing signed references remain unchanged.",
+    "Included previously verified diagnostic review and contributor backup hardening.",
+    "Earlier 0e581fa candidate was not promoted; phone register CSS override was corrected and final source reverified.",
+    "Scoped automatic Git deployment guard retains controlled releases while preview/production database settings overlap.",
+    "Only the application deployment was promoted; backup and migration helpers were not promoted."
+  ]
+}

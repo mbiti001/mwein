@@ -24,10 +24,13 @@
     {
       "version": "1.2.0",
       "displayName": "1.2.0",
-      "status": "candidate",
+      "status": "deployed",
       "branch": "codex/mwein-platform",
       "requiredMigration": "20261016001000_clinic_document_numbering",
-      "note": "Diagnostic responsibility/review and structured clinic, purchase-order and goods-receipt numbering implemented and locally verified. Not deployed; requires a fresh verified backup, both pending migrations and exact-source CI/release verification."
+      "note": "Structured clinic/PO/GRN serials, diagnostic review and backup hardening released after fresh private backup, controlled migrations, exact-source CI and live browser verification. Independent patient-use readiness remains blocked.",
+      "source": "601a591799461719678e082b31144ea41a918b56",
+      "deploymentId": "dpl_DeoV14bAxdDBqtqbrFDtdysANWob",
+      "evidence": "2026-10-16-1.2.0.json"
     }
   ]
 }
