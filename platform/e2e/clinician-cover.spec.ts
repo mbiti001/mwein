@@ -56,9 +56,12 @@ test("shortage-cover clinician starts in consultation, records vitals, bills and
   await expect(page.getByRole("heading", { name: "Browser Shortage Cover", exact: true })).toBeVisible();
 
   // Exercise the real consultation endpoint under this same clinician's session.
-  async function consultation(data: unknown) {
-    const response = await request(page, `/api/visits/${visit.id}/consultation`, data);
+  let expectedRevision: string | null = null;
+  async function consultation(data: object) {
+    const response = await request(page, `/api/visits/${visit.id}/consultation`, { ...data, expectedRevision });
     expect(response.ok, JSON.stringify(response.body)).toBeTruthy();
+    if (response.body.draftRevision) expectedRevision = response.body.draftRevision;
+    if (response.body.draftRevision) expectedRevision = response.body.draftRevision;
   }
   await consultation({ action: "SAVE_NOTES", data: {
     chiefComplaint: "Headache", complaints: [{ complaint: "Headache", durationValue: 2, durationUnit: "DAYS" }],

@@ -7,6 +7,9 @@ const localChrome = [
   "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
 ].find(path => existsSync(path));
 
+const appPort = process.env.E2E_APP_PORT || "3210";
+const dbPort = process.env.E2E_DB_PORT || "3211";
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
@@ -14,7 +17,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: "list",
   use: {
-    baseURL: "http://127.0.0.1:3210",
+    baseURL: `http://127.0.0.1:${appPort}`,
     headless: true,
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
@@ -23,9 +26,9 @@ export default defineConfig({
   },
   webServer: {
     command: "node node_modules/next/dist/bin/next build && node scripts/e2e-outpatient.mjs",
-    env: { E2E_PRODUCTION: "1", E2E_HOLD: "1", E2E_KEEP_TEMPORARY_PASSWORD: "1", E2E_APP_PORT: "3210", E2E_DB_PORT: "3211" },
+    env: { E2E_PRODUCTION: "1", E2E_HOLD: "1", E2E_KEEP_TEMPORARY_PASSWORD: "1", E2E_APP_PORT: appPort, E2E_DB_PORT: dbPort },
     // Health becomes available before fixture assertions and account resets finish.
-    wait: { stdout: /Browser fixture ready at http:\/\/127\.0\.0\.1:3210/ },
+    wait: { stdout: new RegExp(`Browser fixture ready at http://127\\.0\\.0\\.1:${appPort}`) },
     reuseExistingServer: false,
     timeout: 120_000,
   },

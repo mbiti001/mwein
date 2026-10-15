@@ -4,10 +4,10 @@ import { db } from "./db";
 
 type Actor = { id: string; facilityId: string; sessionId: string };
 type Resource = {
-  type: "Patient" | "Visit" | "LaboratoryResult" | "ImagingResult";
+  type: "Patient" | "Visit" | "Encounter" | "LaboratoryResult" | "ImagingResult";
   id: string;
 };
-type AccessContext = "PATIENT_SEARCH" | "PATIENT_HISTORY" | "PATIENT_CONSENTS" | "VISIT_SUMMARIES" | "CLINICAL_RESULT" | "VISIT_WORKLIST" | "VISIT_INVESTIGATIONS";
+type AccessContext = "PATIENT_SEARCH" | "PATIENT_HISTORY" | "PATIENT_CONSENTS" | "VISIT_SUMMARIES" | "CLINICAL_RESULT" | "VISIT_WORKLIST" | "VISIT_INVESTIGATIONS" | "CONSULTATION_RECOVERY";
 
 /** Record the authorised disclosure before returning it. Never log search terms or clinical content.
  * A single event covers the response's resource set, avoiding one chain lock per list item.

@@ -3,7 +3,10 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
-import { apiError } from "@/lib/http";
+import { apiError, privateJson } from "@/lib/http";
+import { consultationRevision, consultationConflict, nextEncounterTime } from "@/lib/consultation-revision";
+import { recordClinicalAccess } from "@/lib/clinical-access";
+import { createHash } from "node:crypto";
 import { appendAudit } from "@/lib/audit";
 import { canonicalLaboratoryCode } from "@/lib/laboratory";
 import { verifyDiagnosisSelectionToken } from "@/lib/diagnosis-selection";
@@ -21,8 +24,8 @@ import {
 } from "@/lib/consultation";
 
 const requestSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("SAVE_NOTES"), data: consultationNotesSchema }),
-  z.object({ action: z.literal("SAVE_DIAGNOSIS"), data: diagnosisSchema }),
+  z.object({ action: z.literal("SAVE_NOTES"), expectedRevision: z.string().max(120).nullable().optional(), data: consultationNotesSchema }),
+  z.object({ action: z.literal("SAVE_DIAGNOSIS"), expectedRevision: z.string().max(120).nullable().optional(), data: diagnosisSchema }),
   z.object({
     action: z.literal("SUBMIT_INVESTIGATIONS"),
     data: investigationOrderSchema,
@@ -31,8 +34,29 @@ const requestSchema = z.discriminatedUnion("action", [
     action: z.literal("SAVE_PRESCRIPTION"),
     data: prescriptionSchema,
   }),
-  z.object({ action: z.literal("SIGN"), data: signConsultationSchema }),
+  z.object({ action: z.literal("SIGN"), expectedRevision: z.string().max(120).nullable().optional(), data: signConsultationSchema }),
 ]);
+
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    const user = await requirePermission("encounter.write");
+    const id = z.uuid().parse((await context.params).id);
+    const visit = await db.visit.findFirst({
+      where: { id, facilityId: user.facilityId },
+      select: {
+        id: true, status: true, clinicallyClosedAt: true,
+        encounters: {
+          orderBy: [{ createdAt: "desc" }, { id: "asc" }], take: 1,
+          select: { id: true, status: true, subjective: true, objective: true, assessment: true, plan: true,
+            updatedAt: true, signedAt: true, diagnoses: true, clinician: { select: { displayName: true } } },
+        },
+      },
+    });
+    if (!visit) throw Object.assign(new Error("Visit not found"), { status: 404 });
+    await recordClinicalAccess(user, "CONSULTATION_RECOVERY", [{ type: "Visit", id }, ...visit.encounters.map(item => ({ type: "Encounter" as const, id: item.id }))]);
+    return privateJson({ visit });
+  } catch (error) { return apiError(error); }
+}
 
 export async function POST(
   request: Request,
@@ -40,7 +64,7 @@ export async function POST(
 ) {
   try {
     const user = await requirePermission("encounter.write");
-    const { id } = await context.params;
+    const id = z.uuid().parse((await context.params).id);
     const input = requestSchema.parse(await request.json());
     const result = await db.$transaction(
       async (tx) => {
@@ -66,6 +90,10 @@ export async function POST(
         let encounter = visit.encounters.find(
           (item) => item.status === "DRAFT",
         );
+
+        if ((input.action === "SAVE_NOTES" || input.action === "SIGN" || input.action === "SAVE_DIAGNOSIS") && input.expectedRevision === undefined)
+          throw Object.assign(new Error("Reload the consultation before saving or signing. This screen has no saved revision."), { status: 428 });
+        if ((input.action === "SIGN" || input.action === "SAVE_DIAGNOSIS") && input.expectedRevision !== consultationRevision(encounter)) throw consultationConflict();
 
         if (input.action === "SAVE_NOTES") {
           const data = {
@@ -100,8 +128,25 @@ export async function POST(
               dispositionDetails: input.data.dispositionDetails,
             }),
           };
+          if (input.expectedRevision !== consultationRevision(encounter)) {
+            // A lost response may be retried, but never overwrite a different saved snapshot.
+            if (encounter && encounter.noteFormat === data.noteFormat && encounter.subjective === data.subjective && encounter.objective === data.objective && encounter.plan === data.plan) {
+              const savedAudit = await tx.auditEvent.findFirst({
+                where: { facilityId: user.facilityId, userId: user.id, entityType: "Encounter", entityId: encounter.id, action: "CONSULTATION_DRAFT_SAVED" },
+                orderBy: { sequence: "desc" }, select: { reason: true },
+              });
+              // Tie confirmation to this actor's original base and the exact committed revision.
+              // Matching text alone must not accept an intervening diagnosis or another writer.
+              const expectedReceipt = JSON.stringify({ expectedRevision: input.expectedRevision, savedRevision: consultationRevision(encounter) });
+              if (savedAudit?.reason !== expectedReceipt) throw consultationConflict();
+              await appendAudit(tx, { userId: user.id, sessionId: user.sessionId, action: "CONSULTATION_DRAFT_CONFIRMED", entityType: "Encounter", entityId: encounter.id });
+              return { stage: "NOTES_CONFIRMED", draftRevision: consultationRevision(encounter) };
+            }
+            throw consultationConflict();
+          }
+          const beforeHash = encounter ? createHash("sha256").update(JSON.stringify([encounter.subjective, encounter.objective, encounter.plan])).digest("hex") : undefined;
           encounter = encounter
-            ? await tx.encounter.update({ where: { id: encounter.id }, data })
+            ? await tx.encounter.update({ where: { id: encounter.id, updatedAt: encounter.updatedAt, status: "DRAFT" }, data: { ...data, updatedAt: nextEncounterTime(encounter.updatedAt) } })
             : await tx.encounter.create({
                 data: {
                   visitId: id,
@@ -126,11 +171,15 @@ export async function POST(
           }
           await appendAudit(tx, {
             userId: user.id,
+            sessionId: user.sessionId,
             action: "CONSULTATION_DRAFT_SAVED",
             entityType: "Encounter",
             entityId: encounter.id,
+            beforeHash,
+            reason: JSON.stringify({ expectedRevision: input.expectedRevision, savedRevision: consultationRevision(encounter) }),
+            afterHash: createHash("sha256").update(JSON.stringify([encounter.subjective, encounter.objective, encounter.plan])).digest("hex"),
           });
-          return { stage: "NOTES_SAVED" };
+          return { stage: "NOTES_SAVED", draftRevision: consultationRevision(encounter) };
         }
 
         if (!encounter)
@@ -171,9 +220,9 @@ export async function POST(
               primary: input.data.primary,
             },
           });
-          await tx.encounter.update({
+          const revisedEncounter = await tx.encounter.update({
             where: { id: encounter.id },
-            data: { assessment: input.data.title },
+            data: { assessment: input.data.title, updatedAt: nextEncounterTime(encounter.updatedAt) },
           });
           await appendAudit(tx, {
             userId: user.id,
@@ -182,7 +231,7 @@ export async function POST(
             entityId: diagnosis.id,
             afterHash: `${diagnosis.code}:${diagnosis.description}`,
           });
-          return { stage: "DIAGNOSIS_SAVED", diagnosis };
+          return { stage: "DIAGNOSIS_SAVED", diagnosis, draftRevision: consultationRevision(revisedEncounter) };
         }
 
         const primary = await tx.diagnosis.findFirst({
@@ -622,7 +671,7 @@ export async function POST(
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
-    return NextResponse.json(result);
+    return privateJson(result);
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       const target = String(error.meta?.target);

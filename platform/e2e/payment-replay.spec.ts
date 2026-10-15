@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
 test("concurrent payment retries and repeated external references create one receipt", async ({ request }) => {
-  const origin = "http://127.0.0.1:3210";
+  const origin = `http://127.0.0.1:${process.env.E2E_APP_PORT || "3210"}`;
   const login = await request.post("/api/auth/login", { headers: { origin }, data: { facilityCode: "MMS", email: "admin@mwein.local", password: "Mwein-E2E-Password-2026!" } });
   expect(login.ok()).toBe(true);
   // This isolated fixture uses HTTP loopback with production Secure cookies.

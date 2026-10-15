@@ -2,7 +2,7 @@ import { test, expect, type APIRequestContext, type Page } from "@playwright/tes
 import { randomUUID } from "node:crypto";
 
 async function authenticate(request: APIRequestContext, email: string) {
-  const origin = "http://127.0.0.1:3210";
+  const origin = `http://127.0.0.1:${process.env.E2E_APP_PORT || "3210"}`;
   const response = await request.post("/api/auth/login", { headers: { origin }, data: { facilityCode: "MMS", email, password: "Mwein-E2E-Password-2026!" } });
   expect(response.status()).toBe(200);
   return { origin, cookie: response.headers()["set-cookie"].split(";")[0] };
@@ -23,11 +23,11 @@ test("draft diagnostics stay in their workbenches until verification releases th
   }
   const { patient } = await post("/api/patients", { givenName: "Diagnostic", familyName: `Synthetic-${randomUUID().slice(0, 8)}`, phone: "+254700000004", estimatedAgeYears: 30, sexAtBirth: "UNKNOWN", county: "Nairobi", subcounty: "Westlands", treatmentConsent: true, electronicRecordConsent: true, messagingConsent: false });
   const { visit } = await post("/api/visits", { patientId: patient.id, clinic: "Outpatient", priority: "ROUTINE", visitType: "WALK_IN", idempotencyKey: randomUUID() });
-  await post(`/api/visits/${visit.id}/consultation`, { action: "SAVE_NOTES", data: { chiefComplaint: "Synthetic investigation review", historyPresentingIllness: "Synthetic history only", generalExamination: "Synthetic examination only", disposition: "OUTPATIENT" } }, clinician);
+  const notesSaved = await post(`/api/visits/${visit.id}/consultation`, { action: "SAVE_NOTES", expectedRevision: null, data: { chiefComplaint: "Synthetic investigation review", historyPresentingIllness: "Synthetic history only", generalExamination: "Synthetic examination only", disposition: "OUTPATIENT" } }, clinician);
   const diagnosisResponse = await request.get("/api/diagnoses/search?q=headache", { headers: clinician });
   expect(diagnosisResponse.status()).toBe(200);
   const diagnosis = (await diagnosisResponse.json()).results[0]; expect(diagnosis).toBeTruthy();
-  await post(`/api/visits/${visit.id}/consultation`, { action: "SAVE_DIAGNOSIS", data: { ...diagnosis, primary: true, type: "PROVISIONAL" } }, clinician);
+  await post(`/api/visits/${visit.id}/consultation`, { action: "SAVE_DIAGNOSIS", expectedRevision: notesSaved.draftRevision, data: { ...diagnosis, primary: true, type: "PROVISIONAL" } }, clinician);
   await post(`/api/visits/${visit.id}/consultation`, { action: "SUBMIT_INVESTIGATIONS", data: { labs: ["FBC"], imaging: ["XRAY_CHEST"], priority: "ROUTINE", indication: "Synthetic release-boundary test" } }, clinician);
   const requested = (await get(`/api/visits/${visit.id}/investigations`)).visit.orders;
   const labOrder = requested.find((order: any) => order.type === "LABORATORY");

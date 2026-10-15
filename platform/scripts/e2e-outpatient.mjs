@@ -449,7 +449,7 @@ try {
   assert(cancelledState.cancelledQueues === 1, "Cancellation left an active queue entry");
   const closedConsultation = await requestWithCookie(`/api/visits/${shaCancellationVisit.body.visit.id}/consultation`, sessionCookie, {
     method: "POST",
-    body: JSON.stringify({ action: "SAVE_NOTES", data: { chiefComplaint: "Stale screen", historyPresentingIllness: "Attempt after cancellation", generalExamination: "Not performed", disposition: "OUTPATIENT" } }),
+    body: JSON.stringify({ action: "SAVE_NOTES", expectedRevision: null, data: { chiefComplaint: "Stale screen", historyPresentingIllness: "Attempt after cancellation", generalExamination: "Not performed", disposition: "OUTPATIENT" } }),
   });
   assert(closedConsultation.response.status === 409, "A cancelled visit accepted consultation changes");
 
@@ -646,10 +646,10 @@ try {
   const calledQueue = await api("call next consultation by priority", "/api/queues", { method: "POST", body: JSON.stringify({ action: "CALL_NEXT", servicePoint: "CONSULTATION" }) });
   await api("start called consultation", "/api/queues", { method: "POST", body: JSON.stringify({ action: "START", queueEntryId: calledQueue.body.entry.id }) });
 
-  await api("save consultation notes", `/api/visits/${visit.id}/consultation`, {
+  const savedConsultation = await api("save consultation notes", `/api/visits/${visit.id}/consultation`, {
     method: "POST",
     body: JSON.stringify({
-      action: "SAVE_NOTES",
+      action: "SAVE_NOTES", expectedRevision: null,
       data: {
         chiefComplaint: "Headache and fatigue",
         complaints: [
@@ -673,7 +673,7 @@ try {
   await api("record primary ICD-11 diagnosis", `/api/visits/${visit.id}/consultation`, {
     method: "POST",
     body: JSON.stringify({
-      action: "SAVE_DIAGNOSIS",
+      action: "SAVE_DIAGNOSIS", expectedRevision: savedConsultation.body.draftRevision,
       data: {
         code: "MG30.0",
         title: "Acute headache",
@@ -739,9 +739,12 @@ try {
     }),
   });
 
+  const signSnapshot = await api("read consultation revision before signing", `/api/visits/${visit.id}/consultation`);
+  const signEncounter = signSnapshot.body.visit.encounters[0];
+  const signRevision = `${signEncounter.id}:${signEncounter.updatedAt}`;
   await api("sign consultation", `/api/visits/${visit.id}/consultation`, {
     method: "POST",
-    body: JSON.stringify({ action: "SIGN", data: { disposition: "OUTPATIENT" } }),
+    body: JSON.stringify({ action: "SIGN", expectedRevision: signRevision, data: { disposition: "OUTPATIENT" } }),
   });
 
   const problemResult = await api("record longitudinal patient problem", `/api/patients/${patient.id}/problems`, {
@@ -904,7 +907,7 @@ try {
     }
     const closed = await api(`close signed visit with ${outcome} independently of an invoice`, `/api/visits/${closureId}/discharge`, { method: "POST", body: JSON.stringify({ outcome, details: "Isolated test: clinical circumstances, counselling and handover documented" }) });
     assert(closed.body.visit.status === "DISCHARGED" && closed.body.disposition.outcome === outcome && closed.body.visit.clinicallyClosedAt, `Closure did not preserve ${outcome}`);
-    const staleWrite = await requestWithCookie(`/api/visits/${closureId}/consultation`, sessionCookie, { method: "POST", body: JSON.stringify({ action: "SAVE_NOTES", data: { chiefComplaint: "Stale edit", historyPresentingIllness: "Closed record", generalExamination: "Not examined", disposition: "OUTPATIENT" } }) });
+    const staleWrite = await requestWithCookie(`/api/visits/${closureId}/consultation`, sessionCookie, { method: "POST", body: JSON.stringify({ action: "SAVE_NOTES", expectedRevision: null, data: { chiefComplaint: "Stale edit", historyPresentingIllness: "Closed record", generalExamination: "Not examined", disposition: "OUTPATIENT" } }) });
     assert(staleWrite.response.status === 409, "Discharged encounter accepted new clinical notes");
   }
 
@@ -922,10 +925,13 @@ try {
   await pg.query(`INSERT INTO "Encounter" ("id", "visitId", "clinicianId", "status", "plan", "updatedAt") VALUES ($1,$2,$3,'DRAFT',$4,now())`, [deathEncounter, deathId, admin.id, JSON.stringify({ plan: "Synthetic test: circumstances and next steps documented" })]);
   await pg.query(`INSERT INTO "Diagnosis" ("id", "encounterId", "type", "description", "code", "primary") VALUES ($1,$2,'FINAL','Synthetic test diagnosis','MG30.0',true)`, [randomUUID(), deathEncounter]);
   await pg.query(`INSERT INTO "ClinicalOrder" ("id", "visitId", "orderedById", "type", "displayName") VALUES ($1,$2,$3,'MEDICATION','Synthetic unstarted medicine')`, [unstartedOrder, deathId, admin.id]);
+  const deathSnapshot = await api("read exceptional consultation revision", `/api/visits/${deathId}/consultation`);
+  const deathSaved = deathSnapshot.body.visit.encounters[0];
+  const deathRevision = `${deathSaved.id}:${deathSaved.updatedAt}`;
   const deathData = { disposition: "DECEASED", dispositionDetails: "Synthetic mortality test: circumstances and handover recorded" };
-  const unsignedDeath = await requestWithCookie(`/api/visits/${deathId}/consultation`, sessionCookie, { method: "POST", body: JSON.stringify({ action: "SIGN", data: deathData }) });
+  const unsignedDeath = await requestWithCookie(`/api/visits/${deathId}/consultation`, sessionCookie, { method: "POST", body: JSON.stringify({ action: "SIGN", expectedRevision: deathRevision, data: deathData }) });
   assert(unsignedDeath.response.status === 409, "Exceptional signing silently discarded pending orders");
-  await api("sign exceptional outcome with explicit unstarted-order cancellation", `/api/visits/${deathId}/consultation`, { method: "POST", body: JSON.stringify({ action: "SIGN", data: { ...deathData, cancelPendingOrders: true } }) });
+  await api("sign exceptional outcome with explicit unstarted-order cancellation", `/api/visits/${deathId}/consultation`, { method: "POST", body: JSON.stringify({ action: "SIGN", expectedRevision: deathRevision, data: { ...deathData, cancelPendingOrders: true } }) });
   const deathState = (await pg.query(`SELECT v."status", (SELECT "status" FROM "ClinicalOrder" WHERE "id"=$2) AS "orderStatus", (SELECT COUNT(*)::int FROM "QueueEntry" WHERE "visitId"=v."id" AND "status" IN ('WAITING','CALLED','IN_PROGRESS')) AS "activeQueues" FROM "Visit" v WHERE v."id"=$1`, [deathId, unstartedOrder])).rows[0];
   assert(deathState.status === "DISCHARGED" && deathState.orderStatus === "CANCELLED" && deathState.activeQueues === 0, "Deceased patient remained in an ordinary care queue");
 

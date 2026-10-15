@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { consultationRevision } from "@/lib/consultation-revision";
+import ConsultationRecovery from "@/components/ConsultationRecovery";
 import { patientClinicalGroup } from "@/lib/domain";
 import { jsonRequest } from "@/lib/client-http";
 import { calculateDispenseQuantity } from "@/lib/medication";
@@ -58,6 +60,8 @@ export type ConsultationVisit = {
   } | null;
   encounters?: {
     id?: string;
+    updatedAt?: string;
+    clinician?: { displayName: string };
     status?: string;
     subjective?: string | null;
     objective?: string | null;
@@ -1133,16 +1137,29 @@ export default function ConsultationWorkstation({
   );
 }
 
-export function ConsultationForm({
+export function ConsultationForm(props: {
+  visit: ConsultationVisit;
+  onBack: () => void;
+  onCompleted: (name: string) => void;
+  onOpenServicePoints?: (visitId: string) => void;
+}) {
+  const [recovered, setRecovered] = useState<{ visit: ConsultationVisit; generation: number } | null>(null);
+  const visit = recovered?.visit.id === props.visit.id ? recovered.visit : props.visit;
+  return <ConsultationEditor {...props} visit={visit} key={`${visit.id}:${recovered?.generation || 0}`} onRecover={snapshot => setRecovered(current => ({ visit: { ...visit, ...snapshot }, generation: (current?.generation || 0) + 1 }))} />;
+}
+
+function ConsultationEditor({
   visit,
   onBack,
   onCompleted,
   onOpenServicePoints,
+  onRecover,
 }: {
   visit: ConsultationVisit;
   onBack: () => void;
   onCompleted: (name: string) => void;
   onOpenServicePoints?: (visitId: string) => void;
+  onRecover: (snapshot: Partial<ConsultationVisit>) => void;
 }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -1177,6 +1194,12 @@ export function ConsultationForm({
   const savedSubjective = parseRecord(draft?.subjective);
   const savedObjective = parseRecord(draft?.objective);
   const savedPlan = parseRecord(draft?.plan);
+  const revision = useRef(consultationRevision(draft));
+  const actionPending = useRef(false);
+  const activeForm = useRef(true);
+  useEffect(() => { activeForm.current = true; return () => { activeForm.current = false; }; }, []);
+  const [savingAction, setSavingAction] = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
   const [complaints, setComplaints] = useState<ComplaintDraft[]>(() =>
     parseSavedComplaints(savedSubjective),
   );
@@ -1318,13 +1341,19 @@ export function ConsultationForm({
     );
   }
   async function run(action: string, data: unknown, message: string) {
+    if (actionPending.current) return false;
+    actionPending.current = true;
+    setSavingAction(true);
     setError("");
     setNotice("");
     try {
       const result = await post(`/api/visits/${visit.id}/consultation`, {
         action,
         data,
+        expectedRevision: revision.current,
       });
+      if (!activeForm.current) return false;
+      if (typeof result.draftRevision === "string") revision.current = result.draftRevision;
       if (action === "SUBMIT_INVESTIGATIONS") setInvestigationRevision(value => value + 1);
       setNotice(
         result.warnings?.length
@@ -1333,6 +1362,7 @@ export function ConsultationForm({
       );
       return result;
     } catch (e) {
+      if (!activeForm.current) return false;
       const details = (e as Error & { details?: DuplicateConflict }).details;
       if (
         details?.code === "EXACT_DUPLICATE" ||
@@ -1340,7 +1370,11 @@ export function ConsultationForm({
       )
         setDuplicateConflict(details);
       setError((e as Error).message);
+      if (["SAVE_NOTES", "SAVE_DIAGNOSIS", "SIGN"].includes(action)) setShowRecovery(true);
       return false;
+    } finally {
+      actionPending.current = false;
+      if (activeForm.current) setSavingAction(false);
     }
   }
   function notes(f: FormData) {
@@ -1492,6 +1526,7 @@ export function ConsultationForm({
         setSavingPrescription(false);
       }
     }
+    if (!await run("SAVE_NOTES", notes(f), "Clinical notes saved. Signing is not yet confirmed.")) return false;
     if (
       await run(
         action,
@@ -1656,6 +1691,8 @@ export function ConsultationForm({
       >
         {error && <div className="alert">{error}</div>}
         {notice && <div className="alert success" role="status">{notice}</div>}
+        {savingAction && <p role="status">Saving consultation. Wait for confirmation before another action.</p>}
+        {showRecovery && <ConsultationRecovery visitId={visit.id} onLoad={onRecover} />}
         <nav id="consultation-work" className="consultNavigator" aria-label="Consultation sections">
           {[
             [1, "History"],
@@ -1957,6 +1994,7 @@ export function ConsultationForm({
           <button
             type="button"
             className="secondary"
+            disabled={savingAction}
             onClick={async (event) => {
               if (await act(event, "SAVE_NOTES")) setActiveStep(4);
             }}

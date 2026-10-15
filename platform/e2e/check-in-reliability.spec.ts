@@ -2,7 +2,7 @@ import { test, expect, type APIRequestContext, type Page } from "@playwright/tes
 import { randomUUID } from "node:crypto";
 
 async function setup(request: APIRequestContext) {
-  const origin = "http://127.0.0.1:3210";
+  const origin = `http://127.0.0.1:${process.env.E2E_APP_PORT || "3210"}`;
   const login = await request.post("/api/auth/login", { headers: { origin }, data: { facilityCode: "MMS", email: "admin@mwein.local", password: "Mwein-E2E-Password-2026!" } });
   expect(login.ok()).toBe(true);
   // Preserve the fixture's Secure cookie on HTTP loopback for APIRequestContext.
