@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { KEML_SOURCE, kenyaMedicineReferences, kenyaReferenceDraft } from "@/lib/kenya-medicines";
+import { SearchablePicker } from "./SearchablePicker";
 import { jsonRequest } from "@/lib/client-http";
 import { nairobiDateInputValue } from "@/lib/catalog-pricing";
 
@@ -52,6 +54,10 @@ export default function CatalogManager() {
   const [items, setItems] = useState<Item[]>([]);
   const [category, setCategory] = useState<Category>("LABORATORY_TEST");
   const [editing, setEditing] = useState<Item | null>(null);
+  const [referenceId, setReferenceId] = useState("");
+  const reference = kenyaMedicineReferences.find(item => item.id === referenceId);
+  const referenceDraft = !editing && reference ? kenyaReferenceDraft(reference) : null;
+  const defaults = editing || referenceDraft;
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
@@ -70,7 +76,8 @@ export default function CatalogManager() {
     event.preventDefault();
     setError("");
     setNotice("");
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const body = Object.fromEntries(form.entries()) as Record<string, unknown>;
     body.category = category;
     body.active = form.get("active") === "on";
@@ -86,7 +93,8 @@ export default function CatalogManager() {
       const scheduled = editing && String(body.priceEffectiveFrom) > nairobiDateInputValue();
       setNotice(scheduled ? "Future price scheduled. Today's billing price is unchanged." : editing ? "Catalogue item updated." : "Catalogue item added.");
       setEditing(null);
-      event.currentTarget.reset();
+      setReferenceId("");
+      formElement.reset();
       await load();
     } catch (error) {
       setError((error as Error).message);
@@ -133,6 +141,7 @@ export default function CatalogManager() {
             className={category === value ? "active" : ""}
             onClick={() => {
               setCategory(value);
+              setReferenceId("");
               setEditing(null);
             }}
           >
@@ -144,9 +153,9 @@ export default function CatalogManager() {
       {error && <div className="alert">{error}</div>}
       {notice && <div className="alert success" role="status">{notice}</div>}
       <section className="catalogLayout">
-        <details className="card managementPanel" open={Boolean(editing)}><summary><span><strong>{editing ? "Edit catalogue item" : "Add catalogue item"}</strong><small>Open only when you need to maintain services or pricing</small></span><b>Open</b></summary><form
+        <details className="card managementPanel" open={Boolean(editing || referenceId)}><summary><span><strong>{editing ? "Edit catalogue item" : "Add catalogue item"}</strong><small>Open only when you need to maintain services or pricing</small></span><b>Open</b></summary><form
           className="dataForm catalogForm managementBody"
-          key={editing?.id || category}
+          key={editing?.id || referenceId || category}
           onSubmit={submit}
         >
           <div className="wide">
@@ -160,17 +169,25 @@ export default function CatalogManager() {
               item instead of reusing its code.
             </p>
           </div>
+          {category === "PHARMACEUTICAL" && !editing && <div className="wide kenyaMedicineReference">
+            <h3>Kenya medicine naming reference</h3>
+            <p>14 selected KEML 2023 formulations. Start an inactive catalogue entry, then verify the product and local formulary before activation.</p>
+            <SearchablePicker value={referenceId} onChange={setReferenceId} placeholder="Search Kenya medicine references…" options={kenyaMedicineReferences.map(item=>({value:item.id,label:[item.genericName,item.strength,item.dosageForm].join(" · "),detail:"KEML "+item.section+" · Level of use "+item.level}))}/>
+            {reference && <p>Printed page {reference.page}, section {reference.section}, level of use {reference.level}. {reference.note}</p>}
+            <p><a href={KEML_SOURCE} target="_blank" rel="noreferrer">Kenya Essential Medicines List</a> · <a href="https://products.pharmacyboardkenya.org/" target="_blank" rel="noreferrer">PPB product verification</a> · <a href="https://web.pharmacyboardkenya.org/rapid-alerts/" target="_blank" rel="noreferrer">Current PPB alerts</a></p>
+            <small>This reference does not authorize a brand, dose or therapeutic substitution. Confirm release type, product registration, dispensing unit, price and facility scope.</small>
+          </div>}
           <label>
             Code *
             <input
               name="code"
               required
-              defaultValue={editing?.code}
+              defaultValue={defaults?.code}
               placeholder="Unique code"
             />
           </label>
           <label>
-            Name *<input name="name" required defaultValue={editing?.name} />
+            Name *<input name="name" required defaultValue={defaults?.name} />
           </label>
           <label>
             Price (KES) *
@@ -222,7 +239,7 @@ export default function CatalogManager() {
                 <input
                   name="genericName"
                   required
-                  defaultValue={editing?.genericName || ""}
+                  defaultValue={defaults?.genericName || ""}
                 />
               </label>
               <label>
@@ -230,7 +247,7 @@ export default function CatalogManager() {
                 <input
                   name="strength"
                   required
-                  defaultValue={editing?.strength || ""}
+                  defaultValue={defaults?.strength || ""}
                   placeholder="500 mg"
                 />
               </label>
@@ -239,7 +256,7 @@ export default function CatalogManager() {
                 <input
                   name="dosageForm"
                   required
-                  defaultValue={editing?.dosageForm || ""}
+                  defaultValue={defaults?.dosageForm || ""}
                   placeholder="Tablet, suspension…"
                 />
               </label>
@@ -281,14 +298,14 @@ export default function CatalogManager() {
             <textarea
               name="description"
               rows={3}
-              defaultValue={editing?.description || ""}
+              defaultValue={defaults?.description || ""}
             />
           </label>
           <label className="checkItem wide">
             <input
               type="checkbox"
               name="active"
-              defaultChecked={editing?.active ?? true}
+              defaultChecked={defaults?.active ?? true}
             />
             <span>Active and available for ordering</span>
           </label>

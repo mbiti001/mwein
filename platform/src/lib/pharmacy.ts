@@ -29,6 +29,7 @@ export type FefoBatch = {
 };
 
 export type MedicationIdentity = {
+  unitOfMeasure?: string | null;
   medicationConceptId?: string | null;
   genericName?: string | null;
   strength?: string | null;
@@ -53,6 +54,9 @@ export function isEquivalentMedication(
 
   return Boolean(
     sameIngredient &&
+      normalized(prescribed.strength) && normalized(prescribed.dosageForm) &&
+      normalized(prescribed.unitOfMeasure) &&
+      normalized(prescribed.unitOfMeasure) === normalized(candidate.unitOfMeasure) &&
       normalized(prescribed.strength) === normalized(candidate.strength) &&
       normalized(prescribed.dosageForm) === normalized(candidate.dosageForm),
   );

@@ -1,0 +1,228 @@
+{
+  "purpose": "Owner-authorized diagnostic table/search/paging application release; not clinical or regulatory approval",
+  "version": "1.4.0",
+  "status": "deployed-and-verified",
+  "source": "e21384455f78449a1fb4437a9836797baf52615b",
+  "branch": "codex/mwein-platform",
+  "tag": "mwein-v1.4.0",
+  "recordedAt": "2026-10-15T22:46:09.565Z",
+  "authorization": "Owner explicitly requested coordination with the other agent to deploy verified 1.4.0 and repeat live/Vercel checks",
+  "sourceArchiveSha256": "47473e916b679f645d8d3d5d48935b0f0b168ba7c060486b65b406f6e3e1a68c",
+  "deploymentArchiveSha256": "ff0c9ee6e1731dba7f293826a422dca63ab4418235cc324dbb4ae5c97c90b44d",
+  "ci": {
+    "runId": 38817903752,
+    "url": "https://github.com/mbiti001/mwein/actions/runs/38817903752",
+    "status": "completed",
+    "conclusion": "success",
+    "platformJob": 116707072233,
+    "legacyJob": 116707072005,
+    "unitTests": 661,
+    "testFiles": 108,
+    "migrations": 55,
+    "syntheticWorkflowChecks": 142,
+    "browserScenarios": 106,
+    "productionDependencyVulnerabilities": 0
+  },
+  "scope": [
+    "Semantic table with separate patient/visit, investigation, review status, responsibility and action columns",
+    "Search and keyset paging beyond the previous 100-item limit",
+    "Current permission, facility predicates, audited disclosure and private/no-store responses",
+    "Debounced and stale-safe search; failed-page recovery; retained selected review and unsaved text",
+    "Saved action refreshes current search; existing exact retry and clinical gates unchanged",
+    "1440/768/390/320 pixel checks, readable cells and labels, keyboard scroll/selection and print exclusions"
+  ],
+  "database": {
+    "changed": false,
+    "migrationsRun": 0,
+    "latestMigration": "20261016010000_rights_identity_evidence",
+    "schemaAndMigrationDiff": "No changes from deployed 65b66f8 to e213844; scripts/build configuration also unchanged",
+    "newBackupTaken": false,
+    "existingBackupEvidence": "2026-10-16-1.3.0.json",
+    "note": "Application-only release. Existing retained backup is historical, not represented as a fresh backup for a database release. October 15 exception not used."
+  },
+  "deployment": {
+    "id": "dpl_FouhRPioAV9Ak9YqdzdCGdkzTTwa",
+    "url": "https://mwein-hmis-platform-8vb6qd2iv-mbitis-projects.vercel.app",
+    "origin": "https://mwein-hmis-platform.vercel.app",
+    "readyState": "READY",
+    "builds": [
+      {
+        "id": "bld_eqjoi9tk0",
+        "readyState": "READY",
+        "use": "@vercel/vc-build"
+      }
+    ],
+    "promoted": true,
+    "buildMigrationFree": true
+  },
+  "prePromotionBaseline": {
+    "status": "ok",
+    "database": "connected",
+    "migration": "20261016010000_rights_identity_evidence",
+    "release": {
+      "version": "1.3.0",
+      "commit": "65b66f8cf435b7f555c2e4e7705cddd7599e63e7",
+      "shortCommit": "65b66f8cf435",
+      "environment": "production",
+      "branch": "codex/mwein-platform",
+      "deployment": "dpl_Trb7SALM7hMdjL8YZrzDcpHYWudv",
+      "application": "mwein-hmis-platform"
+    },
+    "time": "2026-10-15T22:44:13.824Z"
+  },
+  "stagedHealth": {
+    "status": "ok",
+    "database": "connected",
+    "migration": "20261016010000_rights_identity_evidence",
+    "release": {
+      "version": "1.4.0",
+      "commit": "e21384455f78449a1fb4437a9836797baf52615b",
+      "shortCommit": "e21384455f78",
+      "environment": "production",
+      "branch": "codex/mwein-platform",
+      "deployment": "dpl_FouhRPioAV9Ak9YqdzdCGdkzTTwa",
+      "application": "mwein-hmis-platform"
+    },
+    "time": "2026-10-15T22:43:45.293Z"
+  },
+  "liveVerification": {
+    "verifiedAt": "2026-10-15T22:44:49.074Z",
+    "origin": "https://mwein-hmis-platform.vercel.app",
+    "health": {
+      "status": "ok",
+      "database": "connected",
+      "migration": "20261016010000_rights_identity_evidence",
+      "release": {
+        "version": "1.4.0",
+        "commit": "e21384455f78449a1fb4437a9836797baf52615b",
+        "shortCommit": "e21384455f78",
+        "environment": "production",
+        "branch": "codex/mwein-platform",
+        "deployment": "dpl_FouhRPioAV9Ak9YqdzdCGdkzTTwa",
+        "application": "mwein-hmis-platform"
+      },
+      "time": "2026-10-15T22:44:40.489Z"
+    },
+    "readiness": {
+      "http": 503,
+      "status": "blocked"
+    },
+    "unauthenticatedReadChecks": 4,
+    "browser": "155.0.8059.40",
+    "widths": [
+      1440,
+      768,
+      390,
+      320
+    ],
+    "buildKeyboardExpansion": true,
+    "buildExcludedFromPrint": true,
+    "pageErrors": [],
+    "failedRequests": [],
+    "serverErrors": [],
+    "protectedReads": [
+      {
+        "route": "/api/auth/me",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/patients",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/visits",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/diagnostic-reviews?limit=25",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      }
+    ],
+    "productionPatientDataUsed": false
+  },
+  "vercelAudit": {
+    "runtime": {
+      "query": "level:error OR level:warning OR level:fatal",
+      "type": "summary",
+      "recordsReturned": 0,
+      "timeRange": {
+        "start": "2026-10-15T22:15:11.228Z",
+        "end": "2026-10-15T22:45:11.228Z"
+      },
+      "pagination": {
+        "hasMore": false,
+        "next": null
+      },
+      "excludedIntervals": []
+    },
+    "serverRequests": {
+      "deploymentId": "dpl_FouhRPioAV9Ak9YqdzdCGdkzTTwa",
+      "query": "httpStatus >= 500",
+      "type": "summary",
+      "recordsReturned": 1,
+      "timeRange": {
+        "start": "2026-10-15T22:15:11.000Z",
+        "end": "2026-10-15T22:45:11.000Z"
+      },
+      "pagination": {
+        "hasMore": false,
+        "next": null
+      },
+      "excludedIntervals": [],
+      "records": [
+        {
+          "time": "2026-10-15T22:44:40.766Z",
+          "path": "/api/ready",
+          "status": 503
+        }
+      ],
+      "interpretation": "Only intentional readiness 503; no unexpected server error found"
+    },
+    "build": {
+      "completed": true,
+      "productionDependencyVulnerabilities": 0,
+      "notes": "Transitive npm deprecation/configuration warnings retained; build passed"
+    },
+    "limitation": "Recent log window and public browser verification. No authenticated production patient workflow was exercised."
+  },
+  "auditInventory": {
+    "source": "canonical LF source",
+    "routes": 73,
+    "missingCalls": 0,
+    "unclassified": 8,
+    "unreviewedAliases": 0,
+    "assurance": "Engineering inventory only"
+  },
+  "safeguards": {
+    "productionSeeded": false,
+    "credentialsChanged": false,
+    "realPatientWorkflowsUsed": false,
+    "userSignInRequired": false,
+    "clinicalReadiness": "blocked",
+    "nationalTransportEnabled": false,
+    "gitDeploymentGuardPreserved": true,
+    "temporaryBackupStoreConnections": 0
+  },
+  "recovery": {
+    "previousDeployment": "dpl_Trb7SALM7hMdjL8YZrzDcpHYWudv",
+    "previousSource": "65b66f8cf435b7f555c2e4e7705cddd7599e63e7",
+    "procedure": "If a material application regression occurs, first reconcile any later live release and promote the retained 1.3.0 application. Schema is unchanged; retain all database records and do not restore a historical database over newer writes. No rollback was needed."
+  },
+  "coordination": {
+    "candidateOwner": "01a141a2-8b25-7b90-92f3-9891a1067b6b",
+    "releaseOwner": "01a14169-4f35-7311-bc6c-50c958c1f476",
+    "laterWork": "Main chat owns 1.5.0 prescribing. Owner subsequently challenged separate Vitals/Triage; diagnostic agent now owns a separate role-aware consolidation batch planned as 1.6.0 after integration. Neither later batch is included in this release."
+  },
+  "remaining": [
+    "Detail history still limited to latest50 events",
+    "Two-party handover, inactive owners, escalation and review addenda remain open",
+    "HIE contracts, sandbox, UAT and DHA acceptance remain gates",
+    "Legal/clinical/security acceptance, independent restore and separate preview database remain dependencies",
+    "Owner-requested unified vitals/triage workspace with preserved capture versus assessment permissions",
+    "Main-agent multi-medicine prescribing corrections and governed medicine references"
+  ]
+}

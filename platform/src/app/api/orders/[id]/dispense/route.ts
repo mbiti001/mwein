@@ -53,12 +53,14 @@ function prescriptionIdentity(prescription: {
   strength?: string | null;
   dosageForm?: string | null;
 }, prescribedItem: {
+  unitOfMeasure?: string | null;
   medicationConceptId?: string | null;
   genericName?: string | null;
   strength?: string | null;
   dosageForm?: string | null;
 }) {
   return {
+    unitOfMeasure: prescribedItem.unitOfMeasure,
     medicationConceptId: prescription.medicationConceptId || prescribedItem.medicationConceptId,
     genericName: prescription.genericName || prescribedItem.genericName,
     strength: prescription.strength || prescribedItem.strength,
