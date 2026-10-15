@@ -153,7 +153,10 @@ export default function PrivacyRightsPanel() {
       <label>Find patient<input disabled={busy} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name or patient number" /></label>
       {!!patients.length && <div className="queue">{patients.map((patient) => <button type="button" className="row stockAction" disabled={busy} key={patient.id} onClick={() => void select(patient)}><span className="dot"/><div><strong>{patient.fullName}</strong><small>{patient.patientNumber}</small></div><b>Open</b></button>)}</div>}
       {selected && <div className="notice">Managing privacy record for <strong>{selected.fullName}</strong> · {selected.patientNumber}</div>}
-      {selected && !record && !busy && <button className="secondary" onClick={() => void select(selected)}>Reload privacy record</button>}
+      {selected && !busy && <button className="secondary" onClick={() => {
+        if (deliveryRequestId && !window.confirm("Reload the saved privacy record and discard the delivery details currently entered? This does not resend the response.")) return;
+        void select(selected);
+      }}>Reload privacy record</button>}
     </section>
     {record && record.patient.id === selected?.id && <div key={record.patient.id}>
       <div className="supplyGrid"><section className="card"><div className="cardHead"><div><h2>Record consent decision</h2><p>A new decision supersedes the active record of the same type without deleting its history.</p></div></div>

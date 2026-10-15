@@ -45,10 +45,16 @@ test("DPO records consent and fulfills an audited export without mixing patient 
   }
   await page.screenshot({ path: "../../outputs/mwein-rights-delivery-mobile.png", fullPage: true });
   let rejectDelivery = true;
+  let deliveryPosts = 0;
   await page.route(/\/api\/patients\/[^/]+\/privacy$/, async route => {
-    if (route.request().method() === "POST" && route.request().postDataJSON().action === "CONFIRM_DELIVERY" && rejectDelivery) {
-      rejectDelivery = false;
-      return route.fulfill({ status: 503, json: { error: "Synthetic delivery-save failure" } });
+    if (route.request().method() === "POST" && route.request().postDataJSON().action === "CONFIRM_DELIVERY") {
+      deliveryPosts++;
+      if (rejectDelivery) {
+        rejectDelivery = false;
+        return route.fulfill({ status: 503, json: { error: "Synthetic delivery-save failure" } });
+      }
+      const saved = await route.fetch(); expect(saved.status()).toBe(200);
+      return route.fulfill({ status: 503, json: { error: "Synthetic lost delivery confirmation" } });
     }
     return route.continue();
   });
@@ -57,7 +63,14 @@ test("DPO records consent and fulfills an audited export without mixing patient 
   await expect(row.getByLabel("Delivery receipt reference")).toHaveValue("BROWSER-DELIVERY-RECEIPT");
   await expect(row).toContainText("IN REVIEW");
   await row.getByRole("button", { name: "Confirm delivery and close" }).click();
+  await expect(page.getByText("Synthetic lost delivery confirmation", { exact: false })).toBeVisible();
+  page.once("dialog", dialog => dialog.dismiss());
+  await page.getByRole("button", { name: "Reload privacy record" }).click();
+  await expect(row.getByLabel("Delivery receipt reference")).toHaveValue("BROWSER-DELIVERY-RECEIPT");
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Reload privacy record" }).click();
   await expect(row).toContainText("COMPLETED");
+  expect(deliveryPosts).toBe(2);
   await expect(row).toContainText("BROWSER-DELIVERY-RECEIPT");
   await expect(row).toContainText("BROWSER-AUTHORITY-CHECK");
   await page.getByLabel("Request details").fill("Draft for Amina must not follow another patient");
