@@ -1,0 +1,134 @@
+{
+  "purpose": "Owner-authorized Mwein 1.1.0 production application release; not patient-use or regulatory approval",
+  "version": "1.1.0",
+  "source": "98ba5cfaa56d97ccb41b83967796d082c38b1bbc",
+  "branch": "codex/hosipoa-expiry-report",
+  "tag": "mwein-v1.1.0",
+  "sourceArchiveSha256": "74594890fdffb96d76e42f6e48eebfe963824b2e57f729cd87c6c285f079401f",
+  "ci": {
+    "url": "https://github.com/mbiti001/mwein/actions/runs/38801334949",
+    "conclusion": "success",
+    "unitTests": 560,
+    "unitFiles": 102,
+    "migrations": 52,
+    "isolatedOutpatientChecks": 129,
+    "browserScenarios": 96,
+    "productionDependencyVulnerabilities": 0
+  },
+  "backup": {
+    "purpose": "Pre-migration backup for Mwein 1.1.0",
+    "startedAt": "2026-10-15T20:38:26.828Z",
+    "completedAt": "2026-10-15T20:38:27.849Z",
+    "deploymentId": "dpl_9mKLBdxzV8U9xy9EeiqvSYqdFGv6",
+    "sourceIdentitySha256": "39d78da16d096177c06dc35c0f0f1708d9b84f096eab4dd7ee81f7af0676a092",
+    "sourceMetadata": {
+      "serverVersion": "18.6 (653b019)",
+      "databaseBytes": 17588224,
+      "lastMigration": "20261015090000_goods_receipt_documents",
+      "unfinishedMigrations": 0
+    },
+    "sourceCommit": "98ba5cfaa56d97ccb41b83967796d082c38b1bbc",
+    "storeId": "store_AhDgcZhyGCFd935a",
+    "access": "private",
+    "region": "iad1",
+    "pathname": "releases/1.1.0/mwein-pre-1.1.0-2026-10-15T20-38-26.828Z-9cd4677b-a278-4666-9656-72dd1384d912.dump",
+    "bytes": 570745,
+    "downloadedBytes": 570745,
+    "sha256": "1862b17975b089c6b07546c99f471c9db44ada68dba0630c8a1388ece93c584b",
+    "downloadedSha256": "1862b17975b089c6b07546c99f471c9db44ada68dba0630c8a1388ece93c584b",
+    "checksumPathname": "releases/1.1.0/mwein-pre-1.1.0-2026-10-15T20-38-26.828Z-9cd4677b-a278-4666-9656-72dd1384d912.dump.sha256",
+    "etag": "\"886994a69b52d243cc6d7684ed225e3c\"",
+    "uploadedAt": "2026-10-15T20:38:28.000Z",
+    "toolVersion": "pg_dump (PostgreSQL) 18.3",
+    "archiveEntries": 716,
+    "verification": {
+      "dumpExit": 0,
+      "listExit": 0,
+      "fullArchiveDecodeExit": 0,
+      "externalReadbackChecksumMatched": true,
+      "externalChecksumFileMatched": true,
+      "anonymousAccessHttp": 403
+    },
+    "actualRestorePerformed": false,
+    "independentRestoreAcceptance": false,
+    "automaticExpiryConfigured": false,
+    "temporaryProjectConnectionRemoved": true,
+    "remainingStoreConnections": 0,
+    "normalApplicationBackupEnvironmentVariables": 0,
+    "encryptionAtRest": "Vercel Blob AES-256 per provider documentation",
+    "retention": "Private objects retained; no automatic expiry configured. No immutable/WORM claim.",
+    "restoreAcceptance": "Not performed; independent witnessed restore remains outstanding"
+  },
+  "migration": {
+    "deploymentId": "dpl_7X5L5xURTKQBoP2VYjq6ZY5Xha63",
+    "appliedMigration": "20261015193000_rights_response_delivery",
+    "previousMigration": "20261015090000_goods_receipt_documents",
+    "previousAppliedCount": 51,
+    "verifiedAt": "2026-10-15T20:48:15.334Z",
+    "constraintsValidated": [
+      "DataSubjectRequest_response_pair_check",
+      "DataSubjectRequest_delivery_check"
+    ],
+    "preflight": "All applied SQL checksums matched archive bytes or exact LF/CRLF equivalents; all other content differences rejected. Exactly one pending migration allowed.",
+    "verificationScriptSha256": "e23dbe7e1c7e0c91bb0eafee3c4a4eee1cbb7c6bc21d9c182e19033856a26712",
+    "evidenceLimit": "Provider truncated the long verification log event at 4096 bytes. The controlled script emitted that event only after both constraint and applied-migration assertions passed; deployment completed successfully. No claim of a complete retained per-migration checksum report.",
+    "productionSeeded": false
+  },
+  "application": {
+    "deploymentId": "dpl_78MkuDQq5y5StPisHXizVCFME8CN",
+    "deploymentUrl": "https://mwein-hmis-platform-cn312zzyy-mbitis-projects.vercel.app",
+    "liveUrl": "https://mwein-hmis-platform.vercel.app",
+    "baselineBeforePromotion": "1f9ce53871a81daeff1448b7b6fd04bc638d095c",
+    "baselineDeployment": "dpl_6at1exbSbP6ufqMSc64MvzzpNhkF"
+  },
+  "liveVerification": {
+    "verifiedAt": "2026-10-15T20:50:22.408Z",
+    "origin": "https://mwein-hmis-platform.vercel.app",
+    "health": {
+      "status": "ok",
+      "database": "connected",
+      "migration": "20261015193000_rights_response_delivery",
+      "release": {
+        "version": "1.1.0",
+        "commit": "98ba5cfaa56d97ccb41b83967796d082c38b1bbc",
+        "shortCommit": "98ba5cfaa56d",
+        "environment": "production",
+        "branch": "codex/hosipoa-expiry-report",
+        "deployment": "dpl_78MkuDQq5y5StPisHXizVCFME8CN",
+        "application": "mwein-hmis-platform"
+      },
+      "time": "2026-10-15T20:50:14.125Z"
+    },
+    "readiness": {
+      "http": 503,
+      "status": "blocked"
+    },
+    "unauthenticatedReadChecks": 3,
+    "browser": "155.0.8059.40",
+    "widths": [
+      1440,
+      768,
+      390,
+      320
+    ],
+    "buildKeyboardExpansion": true,
+    "buildExcludedFromPrint": true,
+    "pageErrors": [],
+    "productionPatientDataUsed": false,
+    "releaseIdentityCommand": "ops:release-verify passed",
+    "horizontalOverflow": false,
+    "careImageLoadedAndUnobscured": true,
+    "patientUseApproved": false
+  },
+  "preservedNextRelease": {
+    "source": "dba010502e28048253b542a5236898574ee2a190",
+    "ci": "https://github.com/mbiti001/mwein/actions/runs/38802816525",
+    "conclusion": "success",
+    "unappliedMigration": "20261015210000_diagnostic_review"
+  },
+  "references": [
+    "https://vercel.com/docs/vercel-blob/security",
+    "https://vercel.com/docs/vercel-blob/using-blob-sdk",
+    "https://neon.com/docs/postgres/backup-restore/backups"
+  ]
+}

@@ -13,10 +13,21 @@
     {
       "version": "1.1.0",
       "displayName": "1.1.0",
-      "status": "candidate",
+      "status": "deployed",
       "branch": "codex/hosipoa-expiry-report",
       "requiredMigration": "20261015193000_rights_response_delivery",
-      "note": "Reserved for the integrated consultation, pharmacy, patient-rights, release identity and search improvements. Live promotion requires retained backup evidence and controlled migration."
+      "note": "Verified private backup, controlled rights-delivery migration, exact-source CI and public browser verification completed. Independent patient-use approval remains blocked.",
+      "source": "98ba5cfaa56d97ccb41b83967796d082c38b1bbc",
+      "deploymentId": "dpl_78MkuDQq5y5StPisHXizVCFME8CN",
+      "evidence": "2026-10-15-1.1.0.json"
+    },
+    {
+      "version": "1.2.0",
+      "displayName": "1.2.0",
+      "status": "candidate",
+      "branch": "codex/hosipoa-expiry-report",
+      "requiredMigration": "20261015210000_diagnostic_review",
+      "note": "Reserved for preserved diagnostic responsibility/review work and subsequent verified improvements. Not deployed; requires a fresh backup and separate exact-source release verification. Document numbering is queued, not yet implemented."
     }
   ]
 }

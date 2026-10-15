@@ -25,7 +25,7 @@ describe("release identity", () => {
     const environment = { DEPLOYMENT_VERSION: "a".repeat(40), RELEASE_BRANCH: "codex/release", VERCEL_ENV: "production", VERCEL_DEPLOYMENT_ID: "dpl_first", AUTH_SECRET: "must-not-be-exposed", DATABASE_URL: "must-not-be-exposed" };
     const first = releaseIdentity(environment);
     const second = releaseIdentity({ ...environment, VERCEL_DEPLOYMENT_ID: "dpl_second" });
-    expect(first).toEqual({ application: "mwein-hmis-platform", version: "1.1.0", commit: "a".repeat(40), shortCommit: "a".repeat(12), branch: "codex/release", deployment: "dpl_first", environment: "production" });
+    expect(first).toEqual({ application: "mwein-hmis-platform", version: packageMetadata.version, commit: "a".repeat(40), shortCommit: "a".repeat(12), branch: "codex/release", deployment: "dpl_first", environment: "production" });
     expect(second.commit).toBe(first.commit);
     expect(second.deployment).not.toBe(first.deployment);
     expect(JSON.stringify(first)).not.toContain("must-not-be-exposed");
