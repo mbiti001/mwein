@@ -6,7 +6,7 @@ Production release is deliberately separate from application build and from firs
 
 Set the hosting project root to `platform/`, framework to Next.js, install command to `npm ci`, and build command to `npm run vercel-build`. The root repository's `vercel.json`, Dockerfile and cloud bundle are legacy-only. Preview environments must never receive production database credentials.
 
-Require the GitHub **Platform verification** check in branch protection/rulesets. It verifies types, unit tests, migrations, the production build, the isolated outpatient flow and browser workflows. Merely adding the workflow does not configure branch protection. Build jobs need no live database credentials; database changes run in a separately authorised release context.
+Require the GitHub **Platform verification** check in branch protection/rulesets. It checks production dependency advisories (`npm audit --omit=dev --audit-level=high`), types, unit tests, migrations, the production build, the isolated outpatient flow and browser workflows. Resolve high/critical dependency findings with reviewed compatible updates before release; do not use forced major upgrades or suppress findings to pass CI. The audit depends on the registry and is not a complete security review. Merely adding the workflow does not configure branch protection. Build jobs need no live database credentials; database changes run in a separately authorised release context.
 
 ## Release order
 
@@ -18,6 +18,14 @@ Require the GitHub **Platform verification** check in branch protection/rulesets
 6. Verify the deployed source and database are the approved pair: `RELEASE_ORIGIN=https://... EXPECTED_RELEASE_SHA=<full commit> EXPECTED_MIGRATION=<migration name> npm run ops:release-verify`. Retain the output with the deployment approval. A mismatch is release drift and blocks clinical use.
 
 Run `npm run db:bootstrap` only for explicit first-time provisioning or a reviewed role/catalogue change. `BOOTSTRAP_ADMIN_PASSWORD` is required to create the initial administrator; reruns do not reactivate a disabled account or overwrite facility metadata.
+
+## Build identity and parallel contributors
+
+The **Build** footer on both public and authenticated screens identifies the loaded application. Expand it for the full source commit, hosting environment, branch and Vercel deployment ID. `/api/health` reports the same release identity; Administration uses its short commit. A production hosting label does not replace the clinical readiness check.
+
+For a CLI release, archive a clean, reviewed Git commit and set `DEPLOYMENT_VERSION` to that full SHA at build time and runtime, with `RELEASE_BRANCH` set to the source branch. Vercel Git deployments supply their corresponding Git variables automatically. Never substitute a mutable branch name for the source SHA or copy another deployment's ID; Vercel supplies its own ID. Keep deployment/job purpose in Vercel metadata and record the deployment URL, source SHA and migration in the release log. Git release tags must be unique and must never be moved to a different commit.
+
+Before promotion, check the live commit against the release baseline. If another contributor has promoted a different commit, reconcile that release before proceeding; do not overwrite it blindly or force-push the shared branch. A staged production build uses `--prod --skip-domain` until validation is complete. Only promote the application deployment; a controlled database release job is never an application candidate. Builds do not migrate or seed the database.
 
 ## Required production configuration
 

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
+import BuildStamp from "@/components/BuildStamp";
+import { releaseIdentity } from "@/lib/release";
 import "./styles.css";
 import "./triage.css";
 import "./privacy.css";
@@ -19,6 +21,8 @@ import "./branding.css";
 import "./actions.css";
 import "./worklists.css";
 import "./theme.css";
+import "./build-stamp.css";
+import "./measured-vitals.css";
 
 export const metadata: Metadata = {
   title: "Mwein HMIS · Connected outpatient care",
@@ -31,7 +35,7 @@ export default async function RootLayout({
   await connection();
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>{children}<BuildStamp release={releaseIdentity()} /></body>
     </html>
   );
 }

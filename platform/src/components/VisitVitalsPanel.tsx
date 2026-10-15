@@ -21,14 +21,19 @@ export default function VisitVitalsPanel({ visitId, capture = false, onUse }: { 
       form.reset(); setRefresh(value => value + 1); setMessage("Vitals saved to this visit. Clinical triage and visit priority are unchanged.");
     } catch (error) { setError((error as Error).message); } finally { setBusy(false); }
   }
-  return <section className="card" aria-label="Recorded vital measurements"><h2>Recorded vital measurements</h2><p>Only enter measurements actually taken. Recording vitals does not complete clinical triage. Alert clinical staff promptly if the patient appears unwell.</p>
+  return <section className="card recordedVitals" aria-label="Recorded vital measurements"><h2>Recorded vital measurements</h2><p>Only enter measurements actually taken. Recording vitals does not complete clinical triage. Alert clinical staff promptly if the patient appears unwell.</p>
     {error && <div role="alert" className="alert">{error}</div>}{message && <p role="status">{message}</p>}
     {capture && <form onSubmit={save} className="dataForm"><fieldset className="wide vitalGrid" disabled={busy}><legend>Measured values</legend><p className="wide">Leave unmeasured values blank. Nothing is assumed normal.</p>{measuredVitalFields.map(field => <label key={field.key}>{field.label}<input name={field.key} type="number" min={field.min} max={field.max} step={field.step} /></label>)}</fieldset>
       <label>Measured at (Nairobi)<input type="datetime-local" name="measuredAt" required defaultValue={new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 16)} disabled={busy} /></label>
       <label>Measurement or correction note<input name="note" maxLength={500} disabled={busy} /></label><button className="primary" disabled={busy}>Save measured vitals</button>
     </form>}
     {!records.length && <p>No recorded measurements loaded for this visit.</p>}
-    {records.map((record, index) => <article key={record.id}><h3>{index === 0 ? "Latest recorded set" : "Earlier recorded set"}</h3><p>Measured {new Date(record.measuredAt).toLocaleString("en-GB", { timeZone: "Africa/Nairobi" })} Nairobi · Recorded by {record.recordedBy.displayName}</p><div className="summaryGrid">{measuredVitalFields.filter(field => record.values[field.key] !== undefined).map(field => <div className="summaryLine" key={field.key}><strong>{field.label}</strong><span>{record.values[field.key]}</span></div>)}</div>{record.note && <p>{record.note}</p>}{index === 0 && onUse && <button type="button" className="secondary" onClick={() => onUse(record.values, record.id)}>Use recorded measurements in triage</button>}</article>)}
+    <div className="measurementHistory">{records.map((record, index) => <article className="measurementSet" key={record.id}>
+      <header className="measurementHeading"><h3>{index === 0 ? "Latest recorded set" : "Earlier recorded set"}</h3><div><p>Measured <time dateTime={record.measuredAt}>{new Date(record.measuredAt).toLocaleString("en-GB", { timeZone: "Africa/Nairobi" })}</time> Nairobi</p><p>Recorded by {record.recordedBy.displayName}</p></div></header>
+      <dl className="measurementValues">{measuredVitalFields.map(field => <div className={record.values[field.key] == null ? "unmeasured" : undefined} key={field.key}><dt>{field.label}</dt><dd>{record.values[field.key] ?? "Not recorded"}</dd></div>)}</dl>
+      {record.note && <p className="measurementNote"><strong>Note:</strong> {record.note}</p>}
+      {index === 0 && onUse && <button type="button" className="secondary" onClick={() => onUse(record.values, record.id)}>Use recorded measurements in triage</button>}
+    </article>)}</div>
     {truncated && <p>Showing the 50 most recently recorded measurement sets. Older sets remain stored.</p>}
   </section>;
 }

@@ -27,6 +27,8 @@ jobs:
           cache-dependency-path: platform/package-lock.json
       - name: Install locked dependencies
         run: npm ci
+      - name: Check production dependency advisories
+        run: npm audit --omit=dev --audit-level=high
       - name: Generate database client
         run: npm run db:generate
       - name: Check types

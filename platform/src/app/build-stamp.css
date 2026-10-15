@@ -1,0 +1,9 @@
+.buildStamp{padding:10px clamp(18px,3vw,44px);border-top:1px solid var(--line);background:var(--surface);color:var(--muted);font-size:12px}
+.buildStamp details{max-width:760px}
+.buildStamp summary{width:fit-content;min-height:44px;padding:10px 0;cursor:pointer;color:var(--blue);font-weight:650;overflow-wrap:anywhere}
+.buildStamp summary:focus-visible{outline:3px solid var(--blue);outline-offset:3px;border-radius:4px}
+.buildStamp dl{display:grid;gap:6px;margin:4px 0 10px}
+.buildStamp dl>div{display:grid;grid-template-columns:140px minmax(0,1fr);gap:12px}
+.buildStamp dt{font-weight:600}.buildStamp dd{margin:0;overflow-wrap:anywhere}.buildStamp p{margin:0 0 8px}
+@media(max-width:500px){.buildStamp dl>div{grid-template-columns:1fr;gap:2px}}
+@media print{.buildStamp{display:none!important}}

@@ -1,0 +1,19 @@
+.recordedVitals{container-type:inline-size}
+.recordedVitals>form{margin-top:18px}
+.recordedVitals .vitalGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.measurementHistory{display:grid;gap:16px;margin-top:20px}
+.measurementSet{min-width:0;padding:16px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.measurementSet:first-child{border-top:3px solid var(--blue)}
+.measurementHeading{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px 20px;margin-bottom:14px}
+.measurementHeading h3{font-size:14px;margin:0;color:var(--ink)}
+.measurementHeading>div{font-size:12px;overflow-wrap:anywhere}
+.measurementValues{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0}
+.measurementValues>div{min-width:0;padding:10px 12px;border-radius:7px;background:var(--bg)}
+.measurementValues dt{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.measurementValues dd{margin:4px 0 0;color:var(--ink);font-size:21px;font-weight:650;line-height:1.3;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.measurementValues .unmeasured dd{font-size:13px;font-weight:400;color:var(--muted)}
+.measurementSet .measurementNote{margin-top:12px;font-size:13px;overflow-wrap:anywhere}
+.measurementSet>button{margin-top:14px;white-space:normal}
+@container(min-width:500px){.measurementValues,.recordedVitals .vitalGrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container(min-width:900px){.measurementValues,.recordedVitals .vitalGrid{grid-template-columns:repeat(8,minmax(0,1fr))}}
+@media print{.measurementSet{break-inside:avoid}.measurementValues{grid-template-columns:repeat(4,minmax(0,1fr))}.measurementValues>div{background:white;border:1px solid #ddd}}
