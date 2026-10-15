@@ -108,6 +108,14 @@ Validation: types passed; **482 unit tests across 97 files** passed; the complet
 
 Audit inventory limit discovered during release checking: the existing exact-byte inventory is affected by Windows line endings, and ten previously changed routes still require source classification even with LF normalization. The newly touched Administration overview was reviewed: its facility predicates, authorization and audited disclosure are unchanged; only runtime version formatting now uses the shared helper. Its reviewed hash uses canonical Git LF content. No unrelated route hashes or exceptions were automatically approved. This source-inventory maintenance remains a follow-up; passing behavioral tests is not independent audit certification.
 
+## Completed batch: compact registration layout — 15 October 2026
+
+Grouped registration into Patient details, Identifiers and communication, Location, Representative (when needed) and Consent. Wide screens use three columns for names and identifiers, four for demographics and location, and three distinct consent controls. Controls have consistent label spacing and usable touch targets; narrower containers reduce columns without horizontal overflow. The registration route sits beside the heading and the submission action is compact. Required consent, emergency reasons, representative fields, lawful-basis values and server behavior are unchanged. This complements the matching capture/saved-vitals columns in the preceding batch.
+
+Validation: lint passed. The production build and isolated synthetic outpatient fixture completed, followed by **25 passing Chrome scenarios** covering authenticated workflows, registration, reception capture and saved vitals. The new registration scenario checks aligned desktop rows, route-specific required fields, optional messaging consent, retained input and 768/390/320 px widths. Visually inspected desktop and phone captures, retained as `outputs/mwein-registration-desktop.png` and `outputs/mwein-registration-mobile.png` in the chat workspace. `git diff --check` passed. No schema, clinical-rule or authorization change.
+
+The user has authorized continued work while at work and requested immediate notice if authentication is needed. Vercel authentication is currently working. The hourly continuation has been updated to preserve the current release authorization and its one-release backup exception, visible build identities, coordination with other agents and the remaining workflow audit priorities. The final deployment must include this registration batch; the staged `5ef6a44` application is superseded and must not be promoted.
+
 ## Research basis
 
 - [HosiPoa modules](https://www.hosipoa.co.ke/modules/), reviewed 15 October 2026: connected reception, appointment, queue, referral, diagnostic, pharmacy and cashier capabilities inform the backlog. Public scope descriptions are not implementation specifications.

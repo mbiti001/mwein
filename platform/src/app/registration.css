@@ -1,0 +1,18 @@
+.registrationForm{container-type:inline-size;display:grid;gap:20px}
+.registrationHeading{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px 24px}
+.registrationHeading>div{flex:1 1 240px}.registrationHeading>label{flex:0 1 390px;min-width:0}
+.registrationHeading select{width:100%;min-width:0}
+.registrationSection{margin:0;padding:14px 0 0;border:0;border-top:1px solid var(--line);min-width:0}
+.registrationSection legend{padding:0 10px 0 0;color:var(--blue);font-size:13px;font-weight:700}
+.registrationFields{display:grid;grid-template-columns:minmax(0,1fr);gap:12px 16px}
+.registrationFields+.registrationFields{margin-top:12px}
+.registrationFields label{min-width:0;gap:5px;align-content:start}
+.registrationFields input,.registrationFields select{min-width:0;min-height:44px;width:100%}
+.registrationConsents{display:grid;grid-template-columns:minmax(0,1fr);gap:10px 16px}
+.registrationConsents label{display:flex;align-items:flex-start;gap:9px;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:7px;background:var(--bg);font-size:13px;font-weight:500}
+.registrationConsents input{width:18px;height:18px;flex:none;margin:2px 0 0;accent-color:var(--blue)}
+.registrationActions{display:flex;justify-content:flex-end;border-top:1px solid var(--line);padding-top:16px}
+.registrationActions button{min-height:44px;white-space:normal}
+@container(min-width:480px){.registrationFields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container(min-width:650px){.registrationNames,.registrationIdentifiers{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container(min-width:850px){.registrationDemographics,.registrationLocation{grid-template-columns:repeat(4,minmax(0,1fr))}.registrationConsents{grid-template-columns:repeat(3,minmax(0,1fr))}}

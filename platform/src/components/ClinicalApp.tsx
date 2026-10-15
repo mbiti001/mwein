@@ -1039,23 +1039,28 @@ function PatientRegister({
           </button>
         ))}
       </section>
-      <form className="card dataForm" onSubmit={submit}>
-        <div className="wide">
+      <form className="card registrationForm" aria-label="Patient registration" onSubmit={submit}>
+        <header className="registrationHeading"><div>
           <h2>Register a new patient</h2>
           <p>Required fields are marked with an asterisk.</p>
-          {error && <div className="alert">{error}</div>}
         </div>
-        <label className="wide">Registration route
+        <label>Registration route
           <select name="registrationMode" value={registrationMode} onChange={(event) => setRegistrationMode(event.target.value)}>
             <option value="STANDARD">Patient provides identity and consent</option>
             <option value="GUARDIAN_ASSISTED">Parent, guardian or representative</option>
             <option value="EMERGENCY_UNKNOWN">Emergency unidentified patient</option>
           </select>
         </label>
+        </header>
+        {error && <div className="alert" role="alert">{error}</div>}
         {registrationMode === "EMERGENCY_UNKNOWN" && <div className="wide notice">Create a restricted temporary identity without inventing a name, age, phone or consent. Reconcile identity as soon as clinically safe.</div>}
+        <fieldset className="registrationSection"><legend>Patient details</legend>
+        <div className="registrationFields registrationNames">
         <label>First name {registrationMode !== "EMERGENCY_UNKNOWN" ? "*" : ""}<input name="givenName" required={registrationMode !== "EMERGENCY_UNKNOWN"} autoComplete="given-name" /></label>
         <label>Middle name<input name="middleName" autoComplete="additional-name" /></label>
         <label>Surname {registrationMode !== "EMERGENCY_UNKNOWN" ? "*" : ""}<input name="familyName" required={registrationMode !== "EMERGENCY_UNKNOWN"} autoComplete="family-name" /></label>
+        </div>
+        <div className="registrationFields registrationDemographics">
         <label>
           Date of birth
           <input name="dateOfBirth" type="date" />
@@ -1079,6 +1084,10 @@ function PatientRegister({
         <label>
           {registrationMode === "GUARDIAN_ASSISTED" ? "Representative phone *" : `Phone ${registrationMode === "EMERGENCY_UNKNOWN" ? "" : "*"}`}<input name="phone" type="tel" required={registrationMode !== "EMERGENCY_UNKNOWN"} />
         </label>
+        </div>
+        </fieldset>
+        <fieldset className="registrationSection"><legend>Identifiers and communication</legend>
+        <div className="registrationFields registrationIdentifiers">
         <label>
           National ID
           <input name="nationalId" />
@@ -1087,6 +1096,11 @@ function PatientRegister({
           SHA number
           <input name="shaNumber" />
         </label>
+        <label>Preferred language<select name="preferredLanguage"><option>English</option><option>Kiswahili</option></select></label>
+        </div>
+        </fieldset>
+        <fieldset className="registrationSection"><legend>Location</legend>
+        <div className="registrationFields registrationLocation">
         <label>
           County {registrationMode !== "EMERGENCY_UNKNOWN" ? "*" : ""}<input name="county" defaultValue={registrationMode === "EMERGENCY_UNKNOWN" ? "" : "Busia"} required={registrationMode !== "EMERGENCY_UNKNOWN"} />
         </label>
@@ -1101,21 +1115,16 @@ function PatientRegister({
           Village
           <input name="village" />
         </label>
-        <label>
-          Preferred language
-          <select name="preferredLanguage">
-            <option>English</option>
-            <option>Kiswahili</option>
-          </select>
-        </label>
-        {registrationMode === "GUARDIAN_ASSISTED" && <>
+        </div>
+        </fieldset>
+        {registrationMode === "GUARDIAN_ASSISTED" && <fieldset className="registrationSection"><legend>Representative</legend><div className="registrationFields">
           <label>Representative name *<input name="representativeName" required /></label>
           <label>Relationship *<input name="representativeRelationship" required placeholder="Parent, guardian, spouse…" /></label>
-        </>}
+        </div></fieldset>}
         {registrationMode === "EMERGENCY_UNKNOWN" && <label className="wide">Emergency registration reason *<textarea name="emergencyReason" required minLength={5} placeholder="Why identity and consent cannot currently be obtained" /></label>}
         <input type="hidden" name="noticeVersion" value="MWEIN-PRIVACY-2026-01" />
         <input type="hidden" name="lawfulBasis" value={registrationMode === "EMERGENCY_UNKNOWN" ? "VITAL_INTERESTS" : "CONSENT"} />
-        <div className="wide checks">
+        <fieldset className="registrationSection"><legend>Consent</legend><div className="registrationConsents">
           <label>
             <input name="treatmentConsent" type="checkbox" required={registrationMode !== "EMERGENCY_UNKNOWN"} /> Consent
             to treatment {registrationMode !== "EMERGENCY_UNKNOWN" ? "*" : ""}
@@ -1128,8 +1137,8 @@ function PatientRegister({
             <input name="messagingConsent" type="checkbox" /> Consent to
             appointment messages
           </label>
-        </div>
-        <button className="primary wide" disabled={saving}>{saving ? "Registering patient…" : "Register patient and continue"}</button>
+        </div></fieldset>
+        <div className="registrationActions"><button className="primary" disabled={saving}>{saving ? "Registering patient…" : "Register patient and continue"}</button></div>
       </form>
     </>
   );
