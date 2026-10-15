@@ -41,7 +41,7 @@ export default function DiagnosticReviewWorkstation() {
         <label>Report availability<select value={state} onChange={event => { setState(event.target.value); setPages([""]); }}><option value="ALL">All outstanding investigations</option><option value="RELEASED">Released reports awaiting review</option><option value="PENDING">Awaiting verified reports</option><option value="ACKNOWLEDGED">Acknowledged reports (history)</option></select></label>
         <label>Find diagnostic work<input type="search" maxLength={100} value={query} placeholder="Patient, patient number, visit or test" onChange={event => { setQuery(event.target.value); setPages([""]); }} /></label>
       </div>
-      <p>Oldest requests first, 25 per page. These are review tasks, not proof of patient contact or completed care. The selected review stays open when browsing.</p>
+      <p>Browse 25 requests per page. The selected review stays open while you search.</p>
       {list.loading && <p role="status">Loading diagnostic work…</p>}
       {list.error && <p role="alert">Worklist unavailable. {list.error} Use Refresh worklist to try again.</p>}
       <nav className="diagnosticReviewToolbar" aria-label="Diagnostic work pages">
@@ -50,20 +50,34 @@ export default function DiagnosticReviewWorkstation() {
         <span role="status">Page {pages.length}{list.data ? ` · ${list.data.orders.length} requests${list.data.truncated ? " · More available" : " · End of current results"}` : ""}</span>
         <button type="button" className="secondary" disabled={list.loading || !list.data?.nextCursor} onClick={() => { if (list.data?.nextCursor) setPages(current => [...current, list.data!.nextCursor!]); }}>Next page</button>
       </nav>
-      <p>Results can change as staff work. Use First page to check earlier requests again; page numbers are browsing positions, not a total count.</p>
+      <p>Live list · Oldest first. Use First page to recheck earlier work. Page numbers are browsing positions, not a total count.</p>
       {list.data && !list.data.orders.length && <p>No {state === "ACKNOWLEDGED" ? "acknowledged reports" : "outstanding investigations"} in this view.</p>}
-      <div className="diagnosticReviewList">{list.data?.orders.map(order => <button type="button" aria-pressed={order.id === selected} className={order.id === selected ? "active" : "secondary"} key={order.id} onClick={() => { if (order.id !== selected && leave()) { dirty.current = false; setSelected(order.id); } }}>
-        <strong>{order.visit.patient.fullName} · {order.visit.patient.patientNumber}</strong><span>{order.displayName} · {order.visit.visitNumber}</span>
-        <span>{order.diagnosticReviews[0]?.action === "ACKNOWLEDGE" ? "Acknowledged" : report(order) ? "Released — awaiting acknowledgement" : "Awaiting verified report"} · {order.priority}</span>
-        <span>Owner: {order.diagnosticReviews[0]?.actor.displayName || "Not accepted"} · Requested {time(order.requestedAt)}</span>
-        {(order.visit.clinicallyClosedAt || ["COMPLETED", "CANCELLED"].includes(order.visit.status)) && <span>Closed visit{order.diagnosticReviews[0]?.action !== "ACKNOWLEDGE" ? " — review remains outstanding" : ""}</span>}
-      </button>)}</div>
+      {!!list.data?.orders.length && <>
+        <p className="diagnosticTableHint" id="diagnostic-table-hint">Scroll across the table to see all columns on smaller screens.</p>
+        <div className="diagnosticReviewTableScroll" role="region" aria-label="Diagnostic requests table" aria-describedby="diagnostic-table-hint" tabIndex={0}>
+          <table className="diagnosticReviewTable">
+            <caption>Diagnostic requests · current page</caption>
+            <colgroup><col className="diagnosticPatientColumn" /><col className="diagnosticTestColumn" /><col className="diagnosticStateColumn" /><col className="diagnosticOwnerColumn" /><col className="diagnosticActionColumn" /></colgroup>
+            <thead><tr><th scope="col">Patient / visit</th><th scope="col">Investigation</th><th scope="col">Review status</th><th scope="col">Responsibility / requested</th><th scope="col">Action</th></tr></thead>
+            <tbody>{list.data.orders.map(order => <tr key={order.id} className={order.id === selected ? "diagnosticSelectedRow" : undefined}>
+              <th scope="row"><strong>{order.visit.patient.fullName}</strong><span>{order.visit.patient.patientNumber}</span><span>{order.visit.visitNumber}</span></th>
+              <td><strong>{order.displayName}</strong><span>{order.type === "LABORATORY" ? "Laboratory" : "Imaging"} · {order.priority}</span></td>
+              <td><strong>{order.diagnosticReviews[0]?.action === "ACKNOWLEDGE" ? "Acknowledged" : report(order) ? "Released — awaiting acknowledgement" : "Awaiting verified report"}</strong>
+                {(order.visit.clinicallyClosedAt || ["COMPLETED", "CANCELLED"].includes(order.visit.status)) && <span>Closed visit{order.diagnosticReviews[0]?.action !== "ACKNOWLEDGE" ? " — review remains outstanding" : ""}</span>}</td>
+              <td><strong>{order.diagnosticReviews[0]?.actor.displayName || "Not accepted"}</strong><span>Requested {time(order.requestedAt)}</span></td>
+              <td><button type="button" className="secondary" aria-pressed={order.id === selected} aria-label={`Open review: ${order.visit.patient.fullName} · ${order.visit.patient.patientNumber} · ${order.displayName}`} onClick={() => { if (order.id !== selected && leave()) { dirty.current = false; setSelected(order.id); } }}>{order.id === selected ? "Selected" : "Review"}</button></td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+      </>}
     </div>
     {selected && <ReviewDetail key={selected} id={selected} onDirty={value => { dirty.current = value; }} onSaved={() => void list.refresh()} />}
   </section>;
 }
 
 function ReviewDetail({ id, onDirty, onSaved }: { id: string; onDirty: (value: boolean) => void; onSaved: () => void }) {
+  const refreshCurrentList = useRef(onSaved);
+  refreshCurrentList.current = onSaved;
   const saved = useWorklist<Saved>(`/api/orders/${id}/diagnostic-review`);
   const [note, setNote] = useState("");
   const [attested, setAttested] = useState(false);
@@ -92,7 +106,7 @@ function ReviewDetail({ id, onDirty, onSaved }: { id: string; onDirty: (value: b
       const refreshed = await saved.refresh();
       if (!mounted.current) return;
       if (!refreshed) setNotice("The review action is confirmed as saved. The saved-record refresh failed; use Reload saved review. Do not submit it again.");
-      onSaved();
+      refreshCurrentList.current();
     } catch (failure) {
       if (mounted.current) setError(`${(failure as Error).message} The action is unconfirmed. Retry the same action or reload the saved review before changing it.`);
     } finally { busy.current = false; if (mounted.current) setPending(false); }

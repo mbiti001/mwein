@@ -274,9 +274,19 @@
 .diagnosticReviewToolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; justify-content: space-between; }
 .diagnosticReviewToolbar > div { flex: 1 1 250px; min-width: 0; }
 .diagnosticReviewToolbar button { white-space: normal; }
-.diagnosticReviewList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 14px 0; max-height: 380px; overflow-y: auto; }
-body .diagnosticReviewWorkspace .diagnosticReviewList > button[class] { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; gap: 5px; text-align: left; min-width: 0; white-space: normal; overflow-wrap: anywhere; font-weight: 400; }
-.diagnosticReviewList button.active { border: 2px solid #1d4ed8; background: #eff6ff; color: #17365d; }
+.diagnosticReviewTableScroll { max-width: 100%; min-width: 0; overflow: auto; max-height: 460px; margin: 14px 0; border: 1px solid #bfdbfe; border-radius: 8px; }
+.diagnosticReviewTableScroll:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+.diagnosticReviewTable { width: 100%; min-width: 920px; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+.diagnosticReviewTable caption { text-align: left; padding: 10px 12px; color: #17365d; font-weight: 650; background: #eff6ff; }
+.diagnosticReviewTable :is(th, td) { padding: 10px 12px; text-align: left; vertical-align: top; white-space: normal; overflow-wrap: anywhere; border-bottom: 1px solid #dbeafe; }
+.diagnosticReviewTable thead th { position: sticky; top: 0; z-index: 1; background: #1e40af; color: white; font-weight: 650; }
+.diagnosticReviewTable tbody th { font-weight: 400; }
+.diagnosticReviewTable :is(strong, span) { display: block; }
+.diagnosticReviewTable span { margin-top: 4px; color: #526784; font-weight: 400; }
+.diagnosticReviewTable tbody tr:nth-child(even) { background: #f8fbff; }
+.diagnosticReviewTable tbody tr.diagnosticSelectedRow { background: #eff6ff; box-shadow: inset 3px 0 #2563eb; }
+.diagnosticPatientColumn { width: 22%; } .diagnosticTestColumn { width: 24%; } .diagnosticStateColumn { width: 21%; } .diagnosticOwnerColumn { width: 22%; } .diagnosticActionColumn { width: 11%; }
+.diagnosticTableHint { font-size: 12px; color: var(--muted); }
 .diagnosticReviewDetail { border-top: 2px solid var(--line); padding-top: 16px; }
 .diagnosticReviewGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; }
 .diagnosticReviewGrid p { margin: 6px 0; }
@@ -286,7 +296,7 @@ body .diagnosticReviewWorkspace .diagnosticReviewList > button[class] { display:
 .diagnosticReviewAttestation { display: flex; align-items: flex-start; gap: 8px; }
 .diagnosticReviewAttestation input { width: auto; flex: 0 0 auto; }
 .diagnosticReviewHistory { border-top: 1px solid var(--line); padding: 8px 0; }
-@media (max-width: 650px) { .diagnosticReviewList, .diagnosticReviewGrid, .diagnosticReviewForm fieldset { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 650px) { .diagnosticReviewGrid, .diagnosticReviewForm fieldset { grid-template-columns: minmax(0, 1fr); } }
 @media print { .diagnosticReviewDetail { border: 0; } .diagnosticReviewHistory { break-inside: avoid; } .diagnosticReviewDetail .investigationReview details > * { display: block; } }
 .investigationReviewHeading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .investigationReviewHeading button { flex-shrink: 0; }

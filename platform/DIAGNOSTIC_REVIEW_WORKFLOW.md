@@ -10,6 +10,8 @@ Requests remain ordered by their original request time and identifier. Continuat
 
 The selected review and any unfinished text remain open and clearly identified while searching or paging. Selecting another record still asks before discarding unfinished work. Paging controls and search are excluded from print; saved review attribution and the verified report remain printable.
 
+At the owner's 16 October request, the worklist uses a compact blue-and-white table with one investigation per row: patient/visit, investigation/priority, review state/closed-visit warning, owner/request time, and a labelled Review action. A selected row remains identifiable. At narrow widths the table scrolls inside a labelled keyboard-focusable region rather than squeezing fields into unreadable fragments. Worklist rows are excluded from printing a selected patient's review. Table layouts should be assessed for other suitable worklists in the remaining pipeline.
+
 The requester is shown separately from the accepted review owner. Ordering a test, opening a report and recording critical-result communication do not automatically accept responsibility or acknowledge review. An unclaimed task explicitly says **Not accepted**.
 
 1. A clinician accepts responsibility with a reason. A covering clinician can explicitly accept responsibility from the current owner with a handover reason. This records the incoming clinician's acceptance; it does not claim outgoing consent, send a notification or establish an external handover.

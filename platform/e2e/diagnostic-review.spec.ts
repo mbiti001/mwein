@@ -138,16 +138,27 @@ test("diagnostic paging reaches work beyond 100 and retains the selected review 
     await page.setViewportSize({ width, height: 1000 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await expect(search).toBeVisible();
-    // Overflow alone misses shared action CSS squeezing record fields side by side.
-    const fields = await page.locator('.diagnosticReviewList > button[aria-pressed="false"]').first().evaluate(element => {
-      const bounds = element.getBoundingClientRect();
-      return [...element.children].map(child => child.getBoundingClientRect().width / bounds.width);
-    });
-    expect(fields.every(ratio => ratio > 0.7)).toBe(true);
+    const table = page.getByRole("table", { name: "Diagnostic requests · current page" });
+    await expect(table.getByRole("columnheader")).toHaveText(["Patient / visit", "Investigation", "Review status", "Responsibility / requested", "Action"]);
+    const fields = await table.locator("tbody tr").first().evaluate(element => [...element.children].map(child => child.getBoundingClientRect().width));
+    expect(fields.every(cellWidth => cellWidth > 90)).toBe(true);
+    const scroll = page.getByRole("region", { name: "Diagnostic requests table", exact: true });
+    await scroll.evaluate(element => { element.scrollLeft = 0; });
     await page.screenshot({ path: testInfo.outputPath(`diagnostic-paging-${width}.png`), fullPage: true });
+    if (width === 320) {
+      await scroll.focus(); await page.keyboard.press("ArrowRight");
+      await expect.poll(() => scroll.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
+      const review = table.getByRole("button").nth(1);
+      await review.focus();
+      page.once("dialog", dialog => dialog.dismiss());
+      await page.keyboard.press("Enter");
+      await expect(note).toHaveValue("Synthetic unfinished review retained while browsing");
+      await page.screenshot({ path: testInfo.outputPath("diagnostic-paging-320-actions.png"), fullPage: true });
+    }
   }
   await page.emulateMedia({ media: "print" });
   await expect(paging).toBeHidden(); await expect(search).toBeHidden(); await expect(note).toBeHidden();
+  await expect(page.getByRole("table", { name: "Diagnostic requests · current page" })).toBeHidden();
   expect(queries).toContain("P-101");
 });
 
@@ -170,6 +181,34 @@ test("diagnostic search debounces input and rejects a late superseded page", asy
   releaseOld();
   await expect(page.getByRole("button", { name: /Stale test/ })).toHaveCount(0);
   expect(queries.filter(Boolean)).toEqual(["old", "new"]);
+});
+
+test("a review saved during browsing refreshes the current search instead of reviving an earlier page", async ({ page }) => {
+  const order = synthetic(); const queries: string[] = [];
+  let finish!: () => void; const delayed = new Promise<void>(resolve => { finish = resolve; });
+  await page.route("**/api/diagnostic-reviews?*", route => {
+    queries.push(new URL(route.request().url()).searchParams.get("q") || "");
+    return route.fulfill({ json: { orders: [order], limit: 25, nextCursor: null, truncated: false } });
+  });
+  await page.route("**/api/orders/*/diagnostic-review", async route => {
+    if (route.request().method() === "POST") {
+      await delayed;
+      order.diagnosticReviews = [{ id: randomUUID(), sequence: 1, action: "CLAIM", note: "Synthetic responsibility", recordedAt: now, actor: { id: actorId, displayName: "Synthetic clinician" } }];
+      return route.fulfill({ status: 201, json: { eventId: order.diagnosticReviews[0].id, replayed: false } });
+    }
+    return route.fulfill({ json: { order, actorId, canReview: true, historyTruncated: false } });
+  });
+  await fixture(page);
+  await page.getByRole("button", { name: /Synthetic Review Patient.*Synthetic blood test/ }).click();
+  await page.getByLabel("Responsibility or handover reason").fill("Synthetic responsibility");
+  await page.getByRole("button", { name: "Accept review responsibility" }).click();
+  await page.getByRole("searchbox", { name: "Find diagnostic work" }).fill("P-SYNTHETIC");
+  await expect.poll(() => queries.at(-1)).toBe("P-SYNTHETIC");
+  finish();
+  await expect(page.getByRole("region", { name: "Selected diagnostic review" })).toContainText("confirmed as saved");
+  await expect.poll(() => queries.filter(value => value === "P-SYNTHETIC").length).toBe(2);
+  await expect(page.getByRole("navigation", { name: "Diagnostic work pages" })).toContainText("Page 1 · 1 requests");
+  expect(queries).toEqual(["", "P-SYNTHETIC", "P-SYNTHETIC"]);
 });
 
 test("review recovery preserves the exact action, confirms saved work and renders compact layouts", async ({ page }, testInfo) => {

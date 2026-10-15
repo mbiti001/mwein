@@ -294,7 +294,7 @@
       "methodExceptions": {}
     },
     "diagnostic-reviews": {
-      "sourceSha256": "0b36d98b88913401630e4920b6558ff6d02ec0b3870e2c0f6fd41677383f3ca5",
+      "sourceSha256": "005b65271ed9d35f961fbc7d5fe00ee76c3eb4e692edac974d8a560e603479c5",
       "methodExceptions": {}
     },
     "orders/[id]/diagnostic-review": {
