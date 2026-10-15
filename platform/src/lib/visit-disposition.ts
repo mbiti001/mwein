@@ -33,9 +33,14 @@ export function dispositionVisitStatus(disposition: string, medicines: number) {
 }
 
 export const closeVisitSchema = z.object({
+  requestKey: z.uuid().optional(),
+  expectedRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   outcome: z.enum(["RECOVERED", "OUTPATIENT", "DECEASED", "REFERRED", "AGAINST_MEDICAL_ADVICE", "OTHER"]),
   details: z.string().trim().min(10).max(2000),
   cancelPendingOrders: z.boolean().default(false),
+}).superRefine((input, context) => {
+  if (input.cancelPendingOrders && !input.expectedRevision)
+    context.addIssue({ code: "custom", path: ["expectedRevision"], message: "Review the current orders before cancelling them at discharge" });
 });
 
 export function clinicalClosureBlockers(visit: { status: string; encounters: { status: string }[]; orders: { status: string }[] }, cancelPendingOrders: boolean) {

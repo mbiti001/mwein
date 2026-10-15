@@ -17,6 +17,10 @@
 :is(.clinicFormPaper, .visitSummaryPaper, .reportPaper, .referralLetter) :is(p, dd) { white-space: pre-wrap; }
 .referralLetter > .recordGroup { margin: 14px 0; }
 .recordGroup + .recordGroup { margin-top: 14px; }
+.dischargePanel { scroll-margin-top: 85px; }
+.dischargePanel .dataForm label.closureCancellation { display: flex; flex-direction: row; align-items: flex-start; gap: 10px; }
+.dischargePanel .closureCancellation input[type="checkbox"] { width: 18px; height: 18px; min-height: 18px; flex: 0 0 18px; margin: 3px 0 0; padding: 0; }
+.dischargePanel .closureCancellation span { min-width: 0; }
 .savedClinicFields { margin: 20px 0; }
 .summaryMedicine { min-width: 0; }
 .summaryMedicine > h3 { margin: 0 0 8px; font-size: 14px; break-after: avoid; }
@@ -31,6 +35,9 @@
   :is(.clinicFormPaper, .visitSummaryPaper, .reportPaper, .referralLetter, .billingDocument) .facilityLetterheadBadge { grid-column: 1; justify-self: start; }
 }
 @media print {
+  body.printingDischarge > :not(#discharge-print) { display: none !important; }
+  #discharge-print { display: block; padding: 12mm; color: #102e50; font-family: Arial, sans-serif; }
+  #discharge-print h1 { font-size: 16pt; margin: 0 0 20px; }
   .reversalControl.noPrint { display: none !important; }
   #clinic-form-print .recordGroup { break-inside: auto; }
   .recordFields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }

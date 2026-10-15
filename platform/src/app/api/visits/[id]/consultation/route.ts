@@ -1,3 +1,4 @@
+import { ensureServiceTask } from "@/lib/visit-handoff";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -381,21 +382,9 @@ export async function POST(
             data: { status: "TRANSFERRED", completedAt: new Date() },
           });
           if (input.data.labs.length)
-            await tx.queueEntry.create({
-              data: {
-                visitId: id,
-                servicePoint: "LABORATORY",
-                priority: visit.priority,
-              },
-            });
+            await ensureServiceTask(tx, visit, "LABORATORY");
           if (input.data.imaging.length)
-            await tx.queueEntry.create({
-              data: {
-                visitId: id,
-                servicePoint: "IMAGING",
-                priority: visit.priority,
-              },
-            });
+            await ensureServiceTask(tx, visit, "IMAGING");
           await appendAudit(tx, {
             userId: user.id,
             action: "INVESTIGATIONS_SUBMITTED",
@@ -606,7 +595,7 @@ export async function POST(
             { status: 409 },
           );
         const medicines = await tx.clinicalOrder.count({
-          where: { visitId: id, type: "MEDICATION", status: "REQUESTED" },
+          where: { visitId: id, type: "MEDICATION", status: { in: ["REQUESTED", "IN_PROGRESS"] } },
         });
         if (input.data.disposition === "REFER") {
           const sentReferral = await tx.referral.findFirst({
@@ -642,21 +631,9 @@ export async function POST(
           data: { status: "COMPLETED", completedAt: new Date() },
         });
         if (target === "AWAITING_PHARMACY")
-          await tx.queueEntry.create({
-            data: {
-              visitId: id,
-              servicePoint: "PHARMACY",
-              priority: visit.priority,
-            },
-          });
+          await ensureServiceTask(tx, visit, "PHARMACY");
         if (target === "AWAITING_PAYMENT")
-          await tx.queueEntry.create({
-            data: {
-              visitId: id,
-              servicePoint: "BILLING",
-              priority: visit.priority,
-            },
-          });
+          await ensureServiceTask(tx, visit, "BILLING");
         await tx.visit.update({ where: { id }, data: { status: target } });
         // A consultation plan is not final discharge. A clinician closes the visit explicitly.
         await appendAudit(tx, {

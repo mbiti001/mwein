@@ -14,6 +14,7 @@ type Visit = {
   visitNumber: string;
   status: string;
   priority: string;
+  clinicallyClosedAt?: string | null;
   facility?: { name: string; code: string };
   patient: { fullName: string; patientNumber: string };
   invoice?: {
@@ -126,8 +127,10 @@ export default function BillingWorkstation({
 }) {
   const queue = useMemo(() => visits.filter((v) => v.invoice && ["AWAITING_PAYMENT", "DISCHARGED", "REFERRED"].includes(v.status)), [visits]);
   const [active, setActive] = useState<Visit | null>(null);
+  useEffect(() => { setActive(current => current ? visits.find(visit => visit.id === current.id) || null : null); }, [visits]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const completionInFlight = useRef(false);
   const paymentInFlight = useRef(false);
   const paymentAttempt = useRef<{ fingerprint: string; key: string } | null>(null);
   const [lastReceipt, setLastReceipt] = useState("");
@@ -179,7 +182,7 @@ export default function BillingWorkstation({
     invoice?.payments
       .filter((p) => p.status === "CONFIRMED")
       .reduce((s, p) => s + Number(p.amount), 0) || 0;
-  const claimed = invoice?.claims.filter(c => ["DRAFT", "SUBMITTED", "APPROVED", "PAID"].includes(c.status)).reduce((sum, c) => sum + Number(c.amount), 0) || 0;
+  const claimed = invoice?.claims.filter(c => ["SUBMITTED", "APPROVED", "PAID"].includes(c.status)).reduce((sum, c) => sum + Number(c.amount), 0) || 0;
   const balance = Math.max(0, total - paid - claimed);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -195,7 +198,7 @@ export default function BillingWorkstation({
       const data = await jsonRequest<any>(`/api/invoices/${invoice.id}/payments`, {
         method: "POST", body: JSON.stringify({ ...input, idempotencyKey: paymentAttempt.current.key }),
       }, "Payment could not be recorded");
-      setLastReceipt(data.payment.receipt?.receiptNumber || "");
+      setLastReceipt(`Payment recorded · Receipt ${data.payment.receipt?.receiptNumber || "Not recorded"}`);
       setReceiptView({ visit: active, payment: data.payment });
       paymentAttempt.current = null;
       try { await onUpdated(); }
@@ -273,15 +276,16 @@ export default function BillingWorkstation({
     }
   }
   async function completeVisit() {
-    if (!active) return;
+    if (!active || completionInFlight.current) return;
+    completionInFlight.current = true;
     setBusy(true); setError("");
     try {
       await jsonRequest(`/api/visits/${active.id}/complete`, { method: "POST" }, "Visit could not be completed");
       setLastReceipt(`${active.visitNumber} completed and removed from active patient flow.`);
       setActive(null);
-      await onUpdated();
+      try { await onUpdated(); } catch { setError("Visit completion is saved. The worklist could not refresh; reload it before continuing."); }
     } catch (reason) { setError((reason as Error).message); }
-    finally { setBusy(false); }
+    finally { completionInFlight.current = false; setBusy(false); }
   }
   async function updateClaim(
     event: FormEvent<HTMLFormElement>,
@@ -371,9 +375,11 @@ export default function BillingWorkstation({
             </p>
           </div>
         </header>
+        {error && <div className="alert" role="alert">{error}</div>}
+        {visits.some(visit => visit.clinicallyClosedAt && !visit.invoice) && <section className="card"><h2>Billing review needed · no invoice</h2><p>These clinically discharged visits remain open for administrative review. Ask the billing administrator to resolve the missing invoice before completion.</p>{visits.filter(visit => visit.clinicallyClosedAt && !visit.invoice).map(visit => <p key={visit.id}>{visit.patient.fullName} · {visit.visitNumber}</p>)}</section>}
         {lastReceipt && (
           <div className="alert success" role="status">
-            Payment recorded · Receipt {lastReceipt}
+            {lastReceipt}
           </div>
         )}
         {permissions.includes("billing.write") && <CashierShiftPanel permissions={permissions} />}
@@ -533,7 +539,7 @@ export default function BillingWorkstation({
           </div>
         )}
       </section>
-      {permissions.includes("billing.write") && balance <= 0.001 && <section className="card noPrint visitClosure"><div><h2>Finish this visit</h2><p>Completion removes the patient from active queues. The system will stop and explain what remains if consultation, orders or financial cover are incomplete.</p></div><Button variant="primary" type="button" disabled={busy} onClick={() => void completeVisit()}>{busy ? "Checking…" : "Complete visit"}</Button></section>}
+      {permissions.includes("billing.write") && balance <= 0.001 && <section className="card noPrint visitClosure"><div><h2>Finish this visit</h2><p>Completion removes the patient from active queues. The system checks clinical closure, orders and financial cover before completing the visit.</p></div>{!active.clinicallyClosedAt && <p role="status">Awaiting clinician discharge and follow-up plan. Payment is recorded independently.</p>}<Button variant="primary" type="button" disabled={busy || !active.clinicallyClosedAt} onClick={() => void completeVisit()}>{busy ? "Checking…" : "Complete visit"}</Button></section>}
       {permissions.includes("billing.write") && <form className="card dataForm noPrint" onSubmit={submit}>
         <div className="wide">
           <h2>Receive payment</h2>

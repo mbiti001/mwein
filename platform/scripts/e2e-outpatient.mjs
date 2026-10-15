@@ -963,7 +963,12 @@ try {
   assert(unsignedDeath.response.status === 409, "Exceptional signing silently discarded pending orders");
   await api("sign exceptional outcome with explicit unstarted-order cancellation", `/api/visits/${deathId}/consultation`, { method: "POST", body: JSON.stringify({ action: "SIGN", expectedRevision: deathRevision, data: { ...deathData, cancelPendingOrders: true } }) });
   const deathState = (await pg.query(`SELECT v."status", (SELECT "status" FROM "ClinicalOrder" WHERE "id"=$2) AS "orderStatus", (SELECT COUNT(*)::int FROM "QueueEntry" WHERE "visitId"=v."id" AND "status" IN ('WAITING','CALLED','IN_PROGRESS')) AS "activeQueues" FROM "Visit" v WHERE v."id"=$1`, [deathId, unstartedOrder])).rows[0];
-  assert(deathState.status === "DISCHARGED" && deathState.orderStatus === "CANCELLED" && deathState.activeQueues === 0, "Deceased patient remained in an ordinary care queue");
+  assert(deathState.status === "DISCHARGED" && deathState.orderStatus === "CANCELLED" && deathState.activeQueues === 1, "Exceptional closure did not retain exactly one administrative review task");
+  const deathTasks = await pg.query(`SELECT "servicePoint" FROM "QueueEntry" WHERE "visitId"=$1 AND status IN ('WAITING','CALLED','IN_PROGRESS')`, [deathId]);
+  assert(deathTasks.rows.every(task => task.servicePoint === "BILLING"), "Deceased patient remained in an ordinary care queue");
+
+  const { verifyPatientJourney } = await import("./e2e-patient-journey.mjs");
+  await verifyPatientJourney({ pg, api, requestWithCookie, sessionCookie, facility, patient, admin, assert, steps });
 
   await verifySupplyDocuments({ pg, api, requestWithCookie, authenticate, sessionCookie, facility, medicine, storeId, otherFacilityId, assert, steps });
 
