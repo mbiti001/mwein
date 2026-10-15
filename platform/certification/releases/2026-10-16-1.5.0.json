@@ -205,5 +205,82 @@
     "No therapeutic substitution, dose conversion or invented clinical rules.",
     "Dedicated prescription serial/export, professional registration/signature, approved clinical coverage and pharmacy clarification remain acceptance gaps.",
     "No clinical, legal, regulatory or DHA certification is claimed."
-  ]
+  ],
+  "independentPublicVerification": {
+    "checkedAt": "2026-10-15T23:07:31.247Z",
+    "origin": "https://mwein-hmis-platform.vercel.app",
+    "productionPatientDataUsed": false,
+    "healthStatus": 200,
+    "health": {
+      "status": "ok",
+      "database": "connected",
+      "migration": "20261016010000_rights_identity_evidence",
+      "release": {
+        "version": "1.5.0",
+        "commit": "fe310daf67b2f4ab8caf4aa297cac70906ac1ed2",
+        "shortCommit": "fe310daf67b2",
+        "environment": "production",
+        "branch": "codex/mwein-platform",
+        "deployment": "dpl_5nckHZrUB5ev2HjXH8tPs5juNTTL",
+        "application": "mwein-hmis-platform"
+      },
+      "time": "2026-10-15T23:07:32.693Z"
+    },
+    "readiness": {
+      "http": 503,
+      "status": "blocked"
+    },
+    "protectedReads": [
+      {
+        "route": "/api/auth/me",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/catalog",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/orders/00000000-0000-4000-8000-000000000001/dispense",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/visits/00000000-0000-4000-8000-000000000001/consultation",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      }
+    ],
+    "widths": [
+      {
+        "width": 1440,
+        "overflow": false,
+        "buildText": "Mwein 1.5.0 · Build fe310daf67b2"
+      },
+      {
+        "width": 768,
+        "overflow": false,
+        "buildText": "Mwein 1.5.0 · Build fe310daf67b2"
+      },
+      {
+        "width": 390,
+        "overflow": false,
+        "buildText": "Mwein 1.5.0 · Build fe310daf67b2"
+      },
+      {
+        "width": 320,
+        "overflow": false,
+        "buildText": "Mwein 1.5.0 · Build fe310daf67b2"
+      }
+    ],
+    "buildKeyboardExpansion": true,
+    "buildExcludedFromPrint": true,
+    "pageErrors": [],
+    "missingRouteProbe": {
+      "route": "/api/pharmacy",
+      "http": 404,
+      "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate"
+    }
+  }
 }

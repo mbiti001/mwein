@@ -1,0 +1,259 @@
+{
+  "version": "1.6.0",
+  "status": "deployed-with-known-logic-defect",
+  "source": "acd30b4b46042a910c1dcead64c944154212c7b6",
+  "branch": "codex/mwein-platform",
+  "tag": "mwein-v1.6.0",
+  "recordedAt": "2026-10-15T23:14:35.802Z",
+  "authorization": "Owner explicitly authorized coordinated implementation, verification and Vercel deployment in the collaborating chats",
+  "scope": "One Triage navigation destination with Vitals inside, automatic reuse, partial-set completion with original provenance, atomic measurement/assessment/handoff and safe retries",
+  "sourceArchiveSha256": "85ad392f43a2e43345de2628b777277699b3cda53c35559218656066933433aa",
+  "deploymentArchiveSha256": "a2a41c63cd3658c8eb395e17460aed753c5cd973836724acd42bcbac4d03cffb",
+  "ci": {
+    "runId": 38821264079,
+    "url": "https://github.com/mbiti001/mwein/actions/runs/38821264079",
+    "platformJobId": 116718126418,
+    "legacyJobId": 116718126670,
+    "status": "completed",
+    "conclusion": "success",
+    "platform": "success",
+    "legacy": "success",
+    "unitTests": 696,
+    "unitFiles": 111,
+    "migrationChecks": 55,
+    "syntheticWorkflowChecks": 146,
+    "browserScenarios": 119,
+    "productionDependencyVulnerabilities": 0,
+    "hostedBuildId": "Not exposed in hosted logs; successful build and exact source retained"
+  },
+  "candidateEvidence": "2026-10-16-1.6.0-candidate.json",
+  "database": {
+    "changed": false,
+    "migrationsRun": 0,
+    "latestMigration": "20261016010000_rights_identity_evidence",
+    "newBackupTaken": false,
+    "existingBackupEvidence": "2026-10-16-1.3.0.json",
+    "note": "No schema or migration change from prior live release. Historical backup retained; no new database-release backup or October 15 exception claimed."
+  },
+  "deployment": {
+    "id": "dpl_7dQC4aP5KLoWcwgDwboabjUGGV5c",
+    "url": "https://mwein-hmis-platform-dbjhjuuj4-mbitis-projects.vercel.app",
+    "origin": "https://mwein-hmis-platform.vercel.app",
+    "readyState": "READY",
+    "builds": [
+      {
+        "id": "bld_flgizex2r",
+        "readyState": "READY",
+        "use": "@vercel/vc-build"
+      }
+    ],
+    "promoted": true,
+    "buildMigrationFree": true
+  },
+  "prePromotionBaseline": {
+    "status": "ok",
+    "database": "connected",
+    "migration": "20261016010000_rights_identity_evidence",
+    "release": {
+      "version": "1.5.0",
+      "commit": "fe310daf67b2f4ab8caf4aa297cac70906ac1ed2",
+      "shortCommit": "fe310daf67b2",
+      "environment": "production",
+      "branch": "codex/mwein-platform",
+      "deployment": "dpl_5nckHZrUB5ev2HjXH8tPs5juNTTL",
+      "application": "mwein-hmis-platform"
+    },
+    "time": "2026-10-15T23:11:40.006Z"
+  },
+  "stagedHealth": {
+    "status": "ok",
+    "database": "connected",
+    "migration": "20261016010000_rights_identity_evidence",
+    "release": {
+      "version": "1.6.0",
+      "commit": "acd30b4b46042a910c1dcead64c944154212c7b6",
+      "shortCommit": "acd30b4b4604",
+      "environment": "production",
+      "branch": "codex/mwein-platform",
+      "deployment": "dpl_7dQC4aP5KLoWcwgDwboabjUGGV5c",
+      "application": "mwein-hmis-platform"
+    },
+    "time": "2026-10-15T23:10:35.436Z"
+  },
+  "liveVerification": {
+    "verifiedAt": "2026-10-15T23:12:13.044Z",
+    "origin": "https://mwein-hmis-platform.vercel.app",
+    "health": {
+      "status": "ok",
+      "database": "connected",
+      "migration": "20261016010000_rights_identity_evidence",
+      "release": {
+        "version": "1.6.0",
+        "commit": "acd30b4b46042a910c1dcead64c944154212c7b6",
+        "shortCommit": "acd30b4b4604",
+        "environment": "production",
+        "branch": "codex/mwein-platform",
+        "deployment": "dpl_7dQC4aP5KLoWcwgDwboabjUGGV5c",
+        "application": "mwein-hmis-platform"
+      },
+      "time": "2026-10-15T23:12:05.966Z"
+    },
+    "readiness": {
+      "http": 503,
+      "status": "blocked"
+    },
+    "unauthenticatedReadChecks": 4,
+    "browser": "155.0.8059.40",
+    "widths": [
+      1440,
+      768,
+      390,
+      320
+    ],
+    "buildKeyboardExpansion": true,
+    "buildExcludedFromPrint": true,
+    "pageErrors": [],
+    "failedRequests": [],
+    "serverErrors": [],
+    "protectedReads": [
+      {
+        "route": "/api/auth/me",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/patients",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/visits",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/visits/00000000-0000-4000-8000-000000000001/vitals",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      }
+    ],
+    "productionPatientDataUsed": false
+  },
+  "vercelAudit": {
+    "runtime": {
+      "type": "summary",
+      "recordsReturned": 0,
+      "timeRange": {
+        "start": "2026-10-15T22:42:36.381Z",
+        "end": "2026-10-15T23:12:36.381Z"
+      },
+      "pagination": {
+        "hasMore": false,
+        "next": null
+      },
+      "excludedIntervals": []
+    },
+    "serverRequests": {
+      "summary": {
+        "type": "summary",
+        "recordsReturned": 1,
+        "timeRange": {
+          "start": "2026-10-15T22:42:40.000Z",
+          "end": "2026-10-15T23:12:40.000Z"
+        },
+        "pagination": {
+          "hasMore": false,
+          "next": null
+        },
+        "excludedIntervals": []
+      },
+      "records": [
+        {
+          "time": "2026-10-15T23:12:06.250Z",
+          "path": "/api/ready",
+          "status": 503
+        }
+      ],
+      "interpretation": "Only expected readiness 503; no unexpected server failure found"
+    },
+    "limitation": "Recent 30-minute logs and signed-out public checks; authenticated workflows exercised only against synthetic local/CI data."
+  },
+  "safeguards": {
+    "productionSeeded": false,
+    "credentialsChanged": false,
+    "realPatientWorkflowsUsed": false,
+    "userSignInRequired": false,
+    "clinicalReadiness": "blocked",
+    "nationalTransportEnabled": false,
+    "gitDeploymentGuardPreserved": true
+  },
+  "recovery": {
+    "previousDeployment": "dpl_5nckHZrUB5ev2HjXH8tPs5juNTTL",
+    "previousSource": "fe310daf67b2f4ab8caf4aa297cac70906ac1ed2",
+    "procedure": "Reconcile any later live release before an application rollback. Keep all database records; do not restore an old database over subsequent writes."
+  },
+  "coordination": {
+    "releaseOwner": "01a14169-4f35-7311-bc6c-50c958c1f476",
+    "otherAgents": "01a13c99 prescribing; 01a141a2 unified triage; all contributor work retained through normal integration"
+  },
+  "limitations": [
+    "Clinical thresholds and urgency categories are unchanged and require qualified facility acceptance.",
+    "No clinical freshness expiry policy is invented: original measurement times remain visible and clinicians choose whether new readings are required.",
+    "Mocked browser failure cases are distinct from real database rollback/concurrency and reception-to-nurse tests.",
+    "Existing broader clinical/legal/DHA/restore readiness gates remain; passing engineering checks is not clinical certification."
+  ],
+  "knownIssue": {
+    "finding": "All numeric observations inherit abnormal=true whenever any triage alert exists, incorrectly flagging unrelated normal readings.",
+    "scope": "Inherited storage flag defect; source values, attribution and one-time handoff were verified, but observation flag semantics were not covered by the initial outcome inspection.",
+    "discovered": "Additional main-agent source review crossed the promotion message. Owner was immediately informed. No clinical completeness claimed.",
+    "correction": "Main agent owns verified 1.6.1 field-specific flags preserving existing thresholds. Coordinator will release separately after exact-source checks.",
+    "historicalRecords": "No historical patient records changed or retrospective corrections claimed."
+  },
+  "independentVerification": {
+    "routeAndReleaseTests": 43,
+    "browserScenarios": 10,
+    "localBuildId": "jqBYpKIC9nEpwxHYsuTd-",
+    "outcomeReview": {
+      "source": "acd30b4b46042a910c1dcead64c944154212c7b6",
+      "checkedAt": "2026-10-15T23:11:18.323Z",
+      "syntheticOnly": true,
+      "readOnlyInspection": true,
+      "results": [
+        {
+          "case": "E2E-TRIAGE-REVIEW-NEW",
+          "verifiedValues": 8,
+          "verifiedObservationValues": 8,
+          "painAndConsciousness": true,
+          "measurementCount": 1,
+          "correctVisitLink": true,
+          "actorAndFacilityMatchAudit": true,
+          "oneConsultationTask": true,
+          "sourceTimePreserved": null
+        },
+        {
+          "case": "E2E-TRIAGE-REVIEW-COMPLETE",
+          "verifiedValues": 8,
+          "verifiedObservationValues": 8,
+          "painAndConsciousness": true,
+          "measurementCount": 1,
+          "correctVisitLink": true,
+          "actorAndFacilityMatchAudit": true,
+          "oneConsultationTask": true,
+          "sourceTimePreserved": true
+        },
+        {
+          "case": "E2E-TRIAGE-REVIEW-PARTIAL",
+          "verifiedValues": 8,
+          "verifiedObservationValues": 8,
+          "painAndConsciousness": true,
+          "measurementCount": 2,
+          "correctVisitLink": true,
+          "actorAndFacilityMatchAudit": true,
+          "oneConsultationTask": true,
+          "sourceTimePreserved": true
+        }
+      ]
+    },
+    "limitation": "This read-only review verified values and relationships, not abnormal/critical semantics. First second-client inspection hit a synthetic socket prepared-statement collision; retry with appropriate client configuration passed. No application safeguard was changed."
+  }
+}

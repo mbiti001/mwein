@@ -66,9 +66,12 @@
     {
       "version": "1.6.0",
       "displayName": "1.6.0",
-      "status": "candidate",
+      "status": "deployed",
       "branch": "codex/mwein-platform",
-      "note": "Unified role-aware vitals and triage; saved reading reuse, partial completion provenance and recoverable measurement saves. Includes verified prescribing 1.5.0 source fe310da. No new migration; release coordinator owns deployment after combined verification."
+      "note": "One Triage navigation destination with Vitals inside, automatic reuse, partial-set completion with original provenance, atomic measurement/assessment/handoff and safe retries. Exact-source CI and live browser/Vercel checks passed. Application-only release; clinical readiness remains blocked. Known inherited observation-flag defect discovered as promotion completed; values/handoffs pass but logical completeness is not claimed. Separate 1.6.1 correction in progress.",
+      "source": "acd30b4b46042a910c1dcead64c944154212c7b6",
+      "deploymentId": "dpl_7dQC4aP5KLoWcwgDwboabjUGGV5c",
+      "evidence": "2026-10-16-1.6.0.json"
     }
   ]
 }
