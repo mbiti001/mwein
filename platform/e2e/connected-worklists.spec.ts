@@ -77,6 +77,54 @@ test("a reception role cannot open clinical records or referral actions from fol
   await expect(page.getByRole("button", { name: "Review referral" })).toHaveCount(0);
 });
 
+test("failed follow-up refresh removes stale actions and recovers the selected filters without a mutation", async ({ page }) => {
+  await fixture(page);
+  let failed = false;
+  const methods: string[] = [];
+  await page.route("**/api/follow-ups", route => {
+    methods.push(route.request().method());
+    return route.fulfill(failed ? { status: 503, json: { error: "Follow-up service unavailable" } } : { json: followUps });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Follow-up work", exact: true }).click();
+  await page.getByRole("button", { name: /^Missed appointments/ }).click();
+  await page.getByLabel("Find follow-up work").fill("P-WORK-001");
+  await expect(page.getByRole("button", { name: "Review appointment" })).toBeVisible();
+  failed = true;
+  await page.getByRole("button", { name: "Refresh follow-ups" }).click();
+  await expect(page.locator("main").getByRole("alert")).toContainText("Follow-up service unavailable");
+  await expect(page.locator(".followUpRow")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Review appointment|Review referral|Review clinical record/ })).toHaveCount(0);
+  failed = false;
+  await page.getByRole("button", { name: "Refresh follow-ups" }).click();
+  await expect(page.getByRole("button", { name: /^Missed appointments/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByLabel("Find follow-up work")).toHaveValue("P-WORK-001");
+  await expect(page.locator(".followUpRow")).toHaveCount(1);
+  await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
+  expect(methods).toEqual(["GET", "GET", "GET"]);
+});
+
+test("follow-up identifiers and snapshot limits remain readable across screen sizes and print", async ({ page }, testInfo) => {
+  await fixture(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Follow-up work", exact: true }).click();
+  for (const width of [1440, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    if (width <= 768) await expect.poll(() => page.locator("#main-navigation").evaluate(element => element.getBoundingClientRect().right)).toBeLessThanOrEqual(0);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
+    await expect(page.locator(".followUpRow")).toHaveCount(3);
+    await expect(page.locator(".followUpRow").first()).toContainText("P-WORK-001");
+    await expect(page.getByText(/Opening an item does not contact the patient or mark care completed/)).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`recall-${width}.png`), fullPage: true });
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator(".followUpRow").first()).toContainText("P-WORK-001");
+  await expect(page.getByText(/Opening an item does not contact the patient or mark care completed/)).toBeVisible();
+  await expect(page.locator("#main-navigation")).toBeHidden();
+  await page.screenshot({ path: testInfo.outputPath("recall-print.png"), fullPage: true });
+});
+
 test("failed appointment refresh removes actionable stale rows and supports retry", async ({ page }) => {
   await fixture(page);
   let failed = false;

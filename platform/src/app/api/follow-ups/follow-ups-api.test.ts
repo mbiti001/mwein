@@ -15,6 +15,27 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 describe("follow-up provenance and limits", () => {
+  it.each([401, 403])("denies access with %s before reading any worklist", async status => {
+    vi.mocked(requirePermission).mockRejectedValue(Object.assign(new Error("Access denied"), { status }));
+    const response = await GET();
+    expect(response.status).toBe(status);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    for (const model of [db.appointment, db.referral, db.servicePointRecord, db.encounter]) expect(model.findMany).not.toHaveBeenCalled();
+    expect(recordDisclosure).not.toHaveBeenCalled();
+    expect(await response.json()).not.toHaveProperty("worklists");
+  });
+  it.each(["appointment", "referral", "servicePointRecord", "encounter"] as const)("withholds every worklist when the %s read fails", async model => {
+    vi.mocked(db.appointment.findMany).mockResolvedValue([{ id: "private-appointment" }] as never);
+    vi.mocked(db[model].findMany).mockRejectedValue(new Error("private database diagnostic"));
+    const response = await GET();
+    expect(response.status).toBe(500);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    const body = await response.text();
+    expect(body).not.toContain("private-appointment");
+    expect(body).not.toContain("private database diagnostic");
+    expect(body).not.toContain("worklists");
+    expect(recordDisclosure).not.toHaveBeenCalled();
+  });
   it("only reads signed, non-cancelled specialty and clinical plans from the actor's facility", async () => {
     const response = await GET();
     expect(response.status).toBe(200); expect(response.headers.get("cache-control")).toBe("private, no-store");
@@ -22,6 +43,7 @@ describe("follow-up provenance and limits", () => {
     expect(db.servicePointRecord.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ encounter: { status: "SIGNED", visit: { facilityId: actor.facilityId, status: { not: "CANCELLED" } } } }) }));
     expect(db.encounter.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ status: "SIGNED", visit: { facilityId: actor.facilityId, status: { not: "CANCELLED" } } }), take: 1001 }));
     expect(db.appointment.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ facilityId: actor.facilityId, scheduledAt: { gte: new Date("2026-07-16T21:00:00Z"), lt: new Date() } }) }));
+    expect(db.referral.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ facilityId: actor.facilityId }), take: 101 }));
   });
   it("excludes invalid or beyond-horizon dates and links the original visit", async () => {
     vi.mocked(db.encounter.findMany).mockResolvedValue([
@@ -45,7 +67,11 @@ describe("follow-up provenance and limits", () => {
     expect(ids).toHaveLength(200); expect(ids).not.toContain("a100"); expect(ids).not.toContain("e1000");
   });
   it("does not disclose a successful response if recording the audit fails", async () => {
+    vi.mocked(db.encounter.findMany).mockResolvedValue([{ id: "private-encounter", plan: '{"followUpDate":"2026-10-15"}', visit }] as never);
     vi.mocked(recordDisclosure).mockRejectedValue(new Error("Audit unavailable"));
-    expect((await GET()).status).toBe(500);
+    const response = await GET();
+    expect(response.status).toBe(500);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(await response.text()).not.toContain("private-encounter");
   });
 });

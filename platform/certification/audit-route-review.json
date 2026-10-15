@@ -72,11 +72,11 @@
       "methodExceptions": {}
     },
     "appointments/[id]/status": {
-      "sourceSha256": "3b70678d5567fd9ed87448cb4174f85e35a8afb107514b7df6b841989ecc0ee6",
+      "sourceSha256": "9db7ad8d436ede0b4466cb265a433d4d85d62dcdde31e4b453bac13334508730",
       "methodExceptions": {}
     },
     "appointments": {
-      "sourceSha256": "272f3a09241d24360115441a755782b4f7fb4145e05320285e1841c84c330d8f",
+      "sourceSha256": "2637ad5607219c0a9e913ee7ccbd372790b6694d0623bc500d1d439ecb033f05",
       "methodExceptions": {}
     },
     "auth/login": {
@@ -128,7 +128,7 @@
       "methodExceptions": {}
     },
     "follow-ups": {
-      "sourceSha256": "70ac433f91f9ef0db70511544043a9bb36a343c50e5a6c5aadb00b7343a19188",
+      "sourceSha256": "a7e716bdf4d826f8b87cc7a61f024a9a2762880d7b34bcfc6ad116a14d76f344",
       "methodExceptions": {}
     },
     "health": {
