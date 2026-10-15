@@ -1,0 +1,117 @@
+{
+  "application": "Mwein HMIS",
+  "version": "1.6.0",
+  "status": "verified-candidate",
+  "branch": "codex/mwein-platform",
+  "source": "acd30b4b46042a910c1dcead64c944154212c7b6",
+  "canonicalSourceArchive": {
+    "format": "git archive tar with core.autocrlf=false from repository root",
+    "sha256": "85ad392f43a2e43345de2628b777277699b3cda53c35559218656066933433aa",
+    "bytes": 6174720
+  },
+  "localValidation": {
+    "unitTests": 696,
+    "unitFiles": 111,
+    "migrationChecks": 55,
+    "fullBrowserScenarios": 119,
+    "focusedBrowserScenarios": 9,
+    "finalLayoutAndRecoveryScenarios": 7,
+    "fullSourceBuildId": "QDgXV4Vkxe2mWJqgAOu8a",
+    "focusedBuildId": "FL77ftt1DjclnFnsIE7LB",
+    "types": "passed",
+    "productionDependencyVulnerabilities": 0,
+    "syntheticWorkflowChecks": 145,
+    "visualReview": [
+      "1440px desktop",
+      "768px tablet",
+      "390px and320px phone",
+      "print with patient identity and saved readings, excluding draft controls"
+    ],
+    "note": "Full119 browser suite rebuilt and passed final frozen source. Local145 versus hosted146 synthetic checks reflects the fixture temporary-password hold mode."
+  },
+  "independentVerification": {
+    "reviewer": "release coordinator",
+    "routeAndReleaseTests": 43,
+    "browserScenarios": 10,
+    "directDatabaseOutcomeReview": {
+      "source": "acd30b4b46042a910c1dcead64c944154212c7b6",
+      "checkedAt": "2026-10-15T23:10:16.940Z",
+      "syntheticOnly": true,
+      "readOnlyInspection": true,
+      "results": [
+        {
+          "case": "E2E-TRIAGE-REVIEW-NEW",
+          "verifiedValues": 8,
+          "verifiedObservationValues": 8,
+          "painAndConsciousness": true,
+          "measurementCount": 1,
+          "correctVisitLink": true,
+          "actorAndFacilityMatchAudit": true,
+          "oneConsultationTask": true,
+          "sourceTimePreserved": null
+        },
+        {
+          "case": "E2E-TRIAGE-REVIEW-COMPLETE",
+          "verifiedValues": 8,
+          "verifiedObservationValues": 8,
+          "painAndConsciousness": true,
+          "measurementCount": 1,
+          "correctVisitLink": true,
+          "actorAndFacilityMatchAudit": true,
+          "oneConsultationTask": true,
+          "sourceTimePreserved": true
+        },
+        {
+          "case": "E2E-TRIAGE-REVIEW-PARTIAL",
+          "verifiedValues": 8,
+          "verifiedObservationValues": 8,
+          "painAndConsciousness": true,
+          "measurementCount": 2,
+          "correctVisitLink": true,
+          "actorAndFacilityMatchAudit": true,
+          "oneConsultationTask": true,
+          "sourceTimePreserved": true
+        }
+      ]
+    }
+  },
+  "auditInventory": {
+    "routes": 73,
+    "gaps": 0,
+    "unclassified": 8,
+    "unreviewedAliases": 0
+  },
+  "production": {
+    "deployedByThisBatch": false,
+    "newMigration": false,
+    "baselineVersion": "1.5.0",
+    "baselineSource": "fe310daf67b2f4ab8caf4aa297cac70906ac1ed2",
+    "baselineDeploymentId": "dpl_5nckHZrUB5ev2HjXH8tPs5juNTTL",
+    "note": "Release coordinator owns exact-source promotion. Clinical/MFA/HIE/legal/backup/restore safeguards retained; no production workflow, seed or credential change."
+  },
+  "references": "../TRIAGE_WORKFLOW_EVIDENCE.md",
+  "limitations": [
+    "Clinical thresholds and urgency categories are unchanged and require qualified facility acceptance.",
+    "No clinical freshness expiry policy is invented: original measurement times remain visible and clinicians choose whether new readings are required.",
+    "Mocked browser failure cases are distinct from real database rollback/concurrency and reception-to-nurse tests.",
+    "Existing broader clinical/legal/DHA/restore readiness gates remain; passing engineering checks is not clinical certification."
+  ],
+  "ci": {
+    "runId": 38821264079,
+    "url": "https://github.com/mbiti001/mwein/actions/runs/38821264079",
+    "platformJobId": 116718126418,
+    "legacyJobId": 116718126670,
+    "status": "completed",
+    "conclusion": "success",
+    "platform": "success",
+    "legacy": "success",
+    "unitTests": 696,
+    "unitFiles": 111,
+    "migrationChecks": 55,
+    "syntheticWorkflowChecks": 146,
+    "browserScenarios": 119,
+    "productionDependencyVulnerabilities": 0,
+    "hostedBuildId": "Not exposed in hosted logs; successful build and exact source retained"
+  },
+  "verifiedAt": "2026-10-15T23:12:25.163Z"
+}
