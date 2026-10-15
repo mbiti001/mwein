@@ -84,7 +84,7 @@ export async function GET() {
           },
         } } : {}),
         ...(access.clinical || access.pharmacy ? { encounters: {
-          where: { status: { in: ["DRAFT", "SIGNED"] } },
+          where: { status: { in: ["DRAFT", "SIGNED", "CORRECTED"] } },
           include: { diagnoses: true },
           orderBy: { createdAt: "desc" },
           take: 1,

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { workflowTransaction } from "@/lib/workflow-transaction";
+import { advanceAfterService } from "@/lib/visit-handoff";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
@@ -37,7 +38,7 @@ export async function POST(
     const user = await requirePermission("imaging.write");
     const { id } = await context.params;
     const input = schema.parse(await request.json());
-    const result = await db.$transaction(async (tx) => {
+    const result = await workflowTransaction(async (tx) => {
       const order = await tx.clinicalOrder.findFirst({
         where: { id, type: "IMAGING", visit: { facilityId: user.facilityId } },
         include: { imaging: true, visit: true },
@@ -63,6 +64,7 @@ export async function POST(
           entityId: id,
           reason: input.reason,
         });
+        await advanceAfterService(tx, user.facilityId, order.visitId, "IMAGING");
         return { status: "CANCELLED" };
       }
       const verified = input.action === "VERIFY";
@@ -100,33 +102,7 @@ export async function POST(
         },
       });
       if (verified) {
-        const remainingImaging = await tx.clinicalOrder.count({
-          where: { visitId: order.visitId, type: "IMAGING", status: { in: ["REQUESTED", "IN_PROGRESS"] } },
-        });
-        if (remainingImaging === 0) await tx.queueEntry.updateMany({
-          where: { visitId: order.visitId, servicePoint: "IMAGING", status: { in: ["WAITING", "CALLED", "IN_PROGRESS"] } },
-          data: { status: "COMPLETED", completedAt: new Date() },
-        });
-        const remainingDiagnostics = await tx.clinicalOrder.count({
-          where: {
-            visitId: order.visitId,
-            type: { in: ["LABORATORY", "IMAGING"] },
-            status: { in: ["REQUESTED", "IN_PROGRESS"] },
-          },
-        });
-        if (!remainingDiagnostics) {
-          await tx.visit.update({
-            where: { id: order.visitId },
-            data: { status: "AWAITING_CLINICIAN" },
-          });
-          await tx.queueEntry.create({
-            data: {
-              visitId: order.visitId,
-              servicePoint: "CONSULTATION",
-              priority: order.visit.priority,
-            },
-          });
-        }
+        await advanceAfterService(tx, user.facilityId, order.visitId, "IMAGING");
       }
       await appendAudit(tx, {
         userId: user.id,

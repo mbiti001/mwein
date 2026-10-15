@@ -1,3 +1,4 @@
+import { advanceAfterService } from "@/lib/visit-handoff";
 import { recordDisclosure } from "@/lib/disclosure-audit";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -343,11 +344,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const orderComplete = input.action === "NOT_DISPENSED" || balance!.complete;
       await tx.clinicalOrder.update({ where: { id }, data: { status: orderComplete ? "COMPLETED" : "IN_PROGRESS", completedAt: orderComplete ? new Date() : null } });
       const remaining = await tx.clinicalOrder.count({ where: { visitId: order.visitId, type: "MEDICATION", status: { in: ["REQUESTED", "IN_PROGRESS"] } } });
-      if (!remaining) {
-        await tx.queueEntry.updateMany({ where: { visitId: order.visitId, servicePoint: "PHARMACY", status: { in: ["WAITING", "CALLED", "IN_PROGRESS"] } }, data: { status: "COMPLETED", completedAt: new Date() } });
-        await tx.queueEntry.create({ data: { visitId: order.visitId, servicePoint: "BILLING", priority: order.visit.priority } });
-        await tx.visit.update({ where: { id: order.visitId }, data: { status: "AWAITING_PAYMENT" } });
-      }
+      await advanceAfterService(tx, user.facilityId, order.visitId, "PHARMACY");
       const batchTrace = allocations.map((item) => `${item.batchNumber}:${item.quantity}`).join("|");
       await appendAudit(tx, {
         userId: user.id,

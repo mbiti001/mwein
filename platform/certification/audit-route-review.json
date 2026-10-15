@@ -164,15 +164,15 @@
       "methodExceptions": {}
     },
     "orders/[id]/dispense": {
-      "sourceSha256": "62fb36cda72e88c3414677c24ad8cc2b3d33761a43209c3043429afdd04cdef7",
+      "sourceSha256": "e30c1bcd95c7a1938e5e8dbab81715196d6da4a19af656385f2a190ddec41866",
       "methodExceptions": {}
     },
     "orders/[id]/imaging-result": {
-      "sourceSha256": "bcce947d98e58576c3bd83c00b020a9c0640acae5d30c6c1a9c816a2d3f97946",
+      "sourceSha256": "eb4f20afea63bfcb9097f5f815c0ae7e54c42970f4ec7aedcf4d0c1ae3d45954",
       "methodExceptions": {}
     },
     "orders/[id]/laboratory-result": {
-      "sourceSha256": "e08500f8715bdc7ee818c3532fd0efabe23a2f26a2dfdd3ec5c35e5ed9413ec9",
+      "sourceSha256": "07d57387f50ade71b60154ea136e937c3ee9d4ae0e63847b244f04512243b9d2",
       "methodExceptions": {}
     },
     "orders/[id]/specimen": {
@@ -266,15 +266,15 @@
       "methodExceptions": {}
     },
     "visits/[id]/complete": {
-      "sourceSha256": "ac1188faaa16f660dd5b7dff21c1356b021ef0bf1e36724b08a62879ed795ead",
+      "sourceSha256": "81982bb033466e6d40abe9ae41a232e7495bd254b36dc49277fa764fdc0ee7da",
       "methodExceptions": {}
     },
     "visits/[id]/consultation": {
-      "sourceSha256": "0f8c13f247041d3756e28e5c4fa306394d13d26999d1079cf80f0366a5827c1c",
+      "sourceSha256": "75acbb107b92a3db010407a84cb53a005c5d671d6fa7bd9d79a93e2254657539",
       "methodExceptions": {}
     },
     "visits/[id]/discharge": {
-      "sourceSha256": "0a70ada3542b33ea6da3d8a0a42da4a5baceb7274846580cd823155ae625b6af",
+      "sourceSha256": "b3660d82fcd0b7b03ee36a05f48319099abdb301fa1774438c22b2febe9e5211",
       "methodExceptions": {}
     },
     "visits/[id]/triage": {
@@ -286,7 +286,7 @@
       "methodExceptions": {}
     },
     "visits": {
-      "sourceSha256": "de5e2b398263d89eec828718c25298da5ddee62e154d8ec812540abc368a705a",
+      "sourceSha256": "6a9715e475c8362f6cd20184060e89f24785425ab93a9f5df3c2845294db6c5e",
       "methodExceptions": {}
     },
     "clinic-documents": {

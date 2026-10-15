@@ -17,6 +17,10 @@
 :is(.clinicFormPaper, .visitSummaryPaper, .reportPaper, .referralLetter) :is(p, dd) { white-space: pre-wrap; }
 .referralLetter > .recordGroup { margin: 14px 0; }
 .recordGroup + .recordGroup { margin-top: 14px; }
+.dischargePanel { scroll-margin-top: 85px; }
+.dischargePanel .dataForm label.closureCancellation { display: flex; flex-direction: row; align-items: flex-start; gap: 10px; }
+.dischargePanel .closureCancellation input[type="checkbox"] { width: 18px; height: 18px; min-height: 18px; flex: 0 0 18px; margin: 3px 0 0; padding: 0; }
+.dischargePanel .closureCancellation span { min-width: 0; }
 .savedClinicFields { margin: 20px 0; }
 .summaryMedicine { min-width: 0; }
 .summaryMedicine > h3 { margin: 0 0 8px; font-size: 14px; break-after: avoid; }

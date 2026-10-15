@@ -8,6 +8,8 @@ import { assessTriageVitals, patientClinicalGroup } from "@/lib/domain";
 import type { StockFocus } from "@/components/InventoryWorkstation";
 import VisitVitalsPanel from "@/components/VisitVitalsPanel";
 import { Button } from "@/components/ui/Button";
+import { PatientJourney } from "./PatientJourney";
+import type { ConsultationVisit } from "./ConsultationWorkstation";
 import { activeServiceTasks, servicePoints, isWaitingOverdue, type ServicePointCode } from "@/lib/service-points";
 import { appointmentClinics } from "@/lib/appointments";
 import { careServiceForClinic } from "@/lib/care-service-points";
@@ -75,6 +77,7 @@ type Visit = {
   priority: string;
   status: string;
   clinicallyClosedAt?: string | null;
+  triage?: ConsultationVisit["triage"];
   reason?: string;
   arrivedAt: string;
   patient: Patient;
@@ -628,21 +631,21 @@ function WorkflowSteps({ screen }: { screen: Screen }) {
     {
       keys: ["diagnostics", "imaging", "pharmacy", "billing"],
       number: 4,
-      label: "Complete visit",
-      detail: "Orders, medicines & billing",
+      label: "Services & closure",
+      detail: "Orders, discharge & settlement",
     },
   ];
   const current = stages.findIndex((stage) => stage.keys.includes(screen));
   return (
-    <ol className="workflowSteps" aria-label="Patient visit workflow">
+    <ol className="workflowSteps" aria-label="Workspace guide; current screen, not patient completion">
       {stages.map((stage, index) => (
         <li
           className={
-            index === current ? "current" : index < current ? "complete" : ""
+            index === current ? "current" : ""
           }
           key={stage.number}
         >
-          <b>{index < current ? "✓" : stage.number}</b>
+          <b>{stage.number}</b>
           <span>
             <strong>{stage.label}</strong>
             <small>{stage.detail}</small>
@@ -903,6 +906,7 @@ function PatientContextBar({ visit, permissions, showBalance, canCancel, onClear
       {active.filter(task => permissions.includes(pointPermission[task.point])).map(task => <button key={task.point} className="contextAction" onClick={() => onOpen(targets[task.point]!)}>{active.length === 1 ? "Open current task" : `Open ${servicePoints.find(item => item.code === task.point)?.label}`}</button>)}
       <button className="contextClose" onClick={onClear} aria-label="Clear patient context">×</button>
     </aside>
+    {permissions.includes("encounter.write") && <PatientJourney visit={visit} />}
     {canCancel && <VisitCancellationControl key={visit.id} visit={visit} onCancelled={onCancelled} />}
   </div>;
 }

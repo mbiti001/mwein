@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { workflowTransaction } from "@/lib/workflow-transaction";
+import { advanceAfterService } from "@/lib/visit-handoff";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
@@ -43,7 +44,7 @@ export async function POST(
     const user = await requirePermission("laboratory.write");
     const { id } = await context.params;
     const input = schema.parse(await request.json());
-    const result = await db.$transaction(async (tx) => {
+    const result = await workflowTransaction(async (tx) => {
       const order = await tx.clinicalOrder.findFirst({
         where: {
           id,
@@ -184,33 +185,7 @@ export async function POST(
           where: { id },
           data: { status: "COMPLETED", completedAt: new Date() },
         });
-        const remainingLaboratory = await tx.clinicalOrder.count({
-          where: { visitId: order.visitId, type: "LABORATORY", status: { in: ["REQUESTED", "IN_PROGRESS"] } },
-        });
-        if (remainingLaboratory === 0) await tx.queueEntry.updateMany({
-          where: { visitId: order.visitId, servicePoint: "LABORATORY", status: { in: ["WAITING", "CALLED", "IN_PROGRESS"] } },
-          data: { status: "COMPLETED", completedAt: new Date() },
-        });
-        const remainingDiagnostics = await tx.clinicalOrder.count({
-          where: {
-            visitId: order.visitId,
-            type: { in: ["LABORATORY", "IMAGING"] },
-            status: { in: ["REQUESTED", "IN_PROGRESS"] },
-          },
-        });
-        if (remainingDiagnostics === 0) {
-          await tx.queueEntry.create({
-            data: {
-              visitId: order.visitId,
-              servicePoint: "CONSULTATION",
-              priority: order.visit.priority,
-            },
-          });
-          await tx.visit.update({
-            where: { id: order.visitId },
-            data: { status: "AWAITING_CLINICIAN" },
-          });
-        }
+        await advanceAfterService(tx, user.facilityId, order.visitId, "LABORATORY");
       } else if (order.status === "REQUESTED")
         await tx.clinicalOrder.update({
           where: { id },
