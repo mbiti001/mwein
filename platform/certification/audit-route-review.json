@@ -294,11 +294,11 @@
       "methodExceptions": {}
     },
     "diagnostic-reviews": {
-      "sourceSha256": "9e512df451e8f39f4183fcfec6dd7d84f825a79280eb76871f109ad690eba975",
+      "sourceSha256": "0b36d98b88913401630e4920b6558ff6d02ec0b3870e2c0f6fd41677383f3ca5",
       "methodExceptions": {}
     },
     "orders/[id]/diagnostic-review": {
-      "sourceSha256": "b65c9a717cc3c5b633a8b9cfe3f3afff64bbb8e96195086f72584526cf1277b0",
+      "sourceSha256": "48aa522883be84fe081bf1b658cd61da22f03e15c37919b3bc91c7298b6f8f6e",
       "methodExceptions": {}
     }
   }

@@ -88,11 +88,15 @@ test("review recovery preserves the exact action, confirms saved work and render
   await expect(detail.getByRole("alert")).toContainText("unconfirmed");
   await expect(detail.getByLabel("Responsibility or handover reason")).toBeDisabled();
   await detail.getByRole("button", { name: "Retry same review action" }).click();
-  await expect(detail.getByRole("status")).toContainText("confirmed as saved");
+  await expect(detail.getByRole("status").filter({ hasText: "confirmed as saved" })).toBeVisible();
+  await expect(detail.getByRole("alert")).toContainText("Synthetic saved-review outage");
   expect(bodies[0]).toEqual(bodies[1]);
   failDetail = false; await detail.getByRole("button", { name: "Reload saved review" }).click();
   await expect(detail.getByRole("region", { name: "Diagnostic review history" })).toContainText("Synthetic handover accepted");
   await detail.getByLabel("Review findings and next steps").fill("Synthetic report reviewed; plan retained for follow-up");
+  page.once("dialog", dialog => dialog.dismiss());
+  await page.getByRole("button", { name: "Home", exact: true }).click();
+  await expect(detail.getByLabel("Review findings and next steps")).toHaveValue("Synthetic report reviewed; plan retained for follow-up");
   await detail.getByText("Read verified report · Synthetic blood test", { exact: true }).click();
   await expect(detail).toContainText("Not supplied");
   for (const width of [1440, 768, 390, 320]) {
@@ -119,7 +123,7 @@ test("review recovery preserves the exact action, confirms saved work and render
   await expect(page.getByRole("button", { name: /Synthetic Review Patient.*Synthetic blood test/ })).toHaveCount(0); expect(posts).toBe(3);
 });
 
-test("diagnostic navigation rejects stale reads, protects entered review text and respects read-only access", async ({ page }) => {
+test("diagnostic navigation rejects stale reads and respects read-only access", async ({ page }) => {
   let release!: () => void; const delayed = new Promise<void>(resolve => { release = resolve; });
   await page.route("**/api/diagnostic-reviews?*", route => route.fulfill({ json: { orders: [synthetic(), synthetic(otherId)], limit: 100, truncated: true } }));
   await page.route("**/api/orders/*/diagnostic-review", async route => {

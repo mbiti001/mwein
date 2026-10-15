@@ -22,7 +22,10 @@ export async function GET(request: Request) {
       orderBy: [{ requestedAt: "asc" }, { id: "asc" }], take: 101, select: diagnosticOrderSelect,
     });
     const orders = rows.slice(0, 100);
-    await recordClinicalAccess(user, "DIAGNOSTIC_REVIEW", orders.map(order => ({ type: "Visit", id: order.visit.id })));
+    await recordClinicalAccess(user, "DIAGNOSTIC_REVIEW", orders.flatMap(order => [
+      { type: "Visit" as const, id: order.visit.id }, { type: "ClinicalOrder" as const, id: order.id },
+      ...order.diagnosticReviews.map(event => ({ type: "DiagnosticReview" as const, id: event.id })),
+    ]));
     return privateJson({ orders, limit: 100, truncated: rows.length > 100 });
   } catch (error) { return apiError(error); }
 }

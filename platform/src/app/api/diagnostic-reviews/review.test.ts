@@ -87,7 +87,8 @@ describe("diagnostic review authorization, ownership and evidence", () => {
     const response = await GET(new Request("http://localhost"), context);
     const body = await response.json(); expect(body.order.diagnosticReviews).toHaveLength(50); expect(body.historyTruncated).toBe(true);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    expect(recordClinicalAccess).toHaveBeenCalledWith(actor, "DIAGNOSTIC_REVIEW", [{ type: "Visit", id: "visit" }]);
+    expect(recordClinicalAccess).toHaveBeenCalledWith(actor, "DIAGNOSTIC_REVIEW", expect.arrayContaining([{ type: "Visit", id: "visit" }, { type: "ClinicalOrder", id }, { type: "DiagnosticReview", id: eventId }]));
+    expect(vi.mocked(recordClinicalAccess).mock.calls[0][2]).toHaveLength(52);
     vi.mocked(recordClinicalAccess).mockRejectedValue(new Error("audit failed"));
     expect((await GET(new Request("http://localhost"), context)).status).toBe(500);
   });

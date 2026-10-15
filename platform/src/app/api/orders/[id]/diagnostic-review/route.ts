@@ -17,7 +17,10 @@ export async function GET(_request: Request, { params }: Context) {
       select: { ...diagnosticOrderSelect, diagnosticReviews: { orderBy: { sequence: "desc" }, take: 51, select: diagnosticEventSelect } },
     });
     if (!order) throw fail("Investigation not found", 404);
-    await recordClinicalAccess(user, "DIAGNOSTIC_REVIEW", [{ type: "Visit", id: order.visit.id }]);
+    await recordClinicalAccess(user, "DIAGNOSTIC_REVIEW", [
+      { type: "Visit", id: order.visit.id }, { type: "ClinicalOrder", id: order.id },
+      ...order.diagnosticReviews.slice(0, 50).map(event => ({ type: "DiagnosticReview" as const, id: event.id })),
+    ]);
     return privateJson({ order: { ...order, diagnosticReviews: order.diagnosticReviews.slice(0, 50) }, historyTruncated: order.diagnosticReviews.length > 50,
       canReview: user.permissions.includes("encounter.write"), actorId: user.id });
   } catch (error) { return apiError(error); }
