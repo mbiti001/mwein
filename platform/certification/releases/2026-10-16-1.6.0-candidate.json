@@ -87,7 +87,14 @@
     "baselineVersion": "1.5.0",
     "baselineSource": "fe310daf67b2f4ab8caf4aa297cac70906ac1ed2",
     "baselineDeploymentId": "dpl_5nckHZrUB5ev2HjXH8tPs5juNTTL",
-    "note": "Release coordinator owns exact-source promotion. Clinical/MFA/HIE/legal/backup/restore safeguards retained; no production workflow, seed or credential change."
+    "note": "Release coordinator owns exact-source promotion. Clinical/MFA/HIE/legal/backup/restore safeguards retained; no production workflow, seed or credential change.",
+    "confirmedRelease": {
+      "version": "1.6.0",
+      "source": "acd30b4b46042a910c1dcead64c944154212c7b6",
+      "deploymentId": "dpl_7dQC4aP5KLoWcwgDwboabjUGGV5c",
+      "healthCheckedAt": "2026-10-15T23:12:45.189Z",
+      "releasedBy": "release coordinator"
+    }
   },
   "references": "../TRIAGE_WORKFLOW_EVIDENCE.md",
   "limitations": [
@@ -113,5 +120,13 @@
     "productionDependencyVulnerabilities": 0,
     "hostedBuildId": "Not exposed in hosted logs; successful build and exact source retained"
   },
-  "verifiedAt": "2026-10-15T23:12:25.163Z"
+  "verifiedAt": "2026-10-15T23:12:25.163Z",
+  "knownFollowUp": {
+    "status": "correction-owned-by-main-reviewer",
+    "plannedVersion": "1.6.1",
+    "finding": "Inherited numeric observation abnormal flag uses any visit alert, so one abnormal/pain/consciousness alert flags unrelated normal values.",
+    "coverageGap": "The recorded per-value and source-link outcome audit did not validate each observation abnormal/critical flag. Passing counts and values does not establish this logic.",
+    "releaseTiming": "Coordinator reported 1.6 promotion immediately before the independent finding arrived. Do not silently relabel or overwrite frozen 1.6.",
+    "safeguards": "No retrospective production data edits authorized; preserve original assessment/audit history."
+  }
 }
