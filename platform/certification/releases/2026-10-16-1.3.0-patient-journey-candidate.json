@@ -1,0 +1,83 @@
+{
+  "application": "Mwein HMIS",
+  "version": "1.3.0",
+  "status": "verified-candidate-not-deployed",
+  "source": "65b66f8cf435b7f555c2e4e7705cddd7599e63e7",
+  "branch": "codex/mwein-platform",
+  "checkedAt": "2026-10-15T22:23:56.4989356Z",
+  "sourceArchive": {
+    "path": "work/patient-journey-65b66f8.tar",
+    "sha256": "6c4951f5b9d817fc044387b7eae584a1c94bdb7e9396e60c6c1c962bb4df7a50",
+    "lineEndings": "canonical; git -c core.autocrlf=false archive"
+  },
+  "ci": {
+    "runId": 38816014779,
+    "url": "https://github.com/mbiti001/mwein/actions/runs/38816014779",
+    "status": "completed",
+    "platformJob": 116700741767,
+    "legacyJob": 116700741407,
+    "conclusion": "success",
+    "unitTests": 651,
+    "testFiles": 108,
+    "migrations": 55,
+    "syntheticWorkflowChecks": 142,
+    "browserScenarios": 103,
+    "productionDependencyVulnerabilities": 0,
+    "hostedBuildId": "Not exposed by retained CI logs; source SHA and run identify the tested build"
+  },
+  "local": {
+    "unitTests": 651,
+    "testFiles": 108,
+    "migrations": 55,
+    "syntheticWorkflowChecks": 142,
+    "fullBrowserScenariosBeforeFinalPrintRefinement": 103,
+    "combinedFocusedBrowserScenarios": 7,
+    "finalPrintBrowserScenarios": 2,
+    "localPrecommitBuildId": "JdzEz5aiWU9M7BMSblv_Q",
+    "localBuildNote": "Final application content tested before committing; use exact-source hosted CI for frozen source provenance.",
+    "widths": [
+      1440,
+      768,
+      390,
+      320
+    ],
+    "print": "Isolated saved handover; author/time/identity retained; form and workspace controls excluded",
+    "screenshotsVisuallyReviewed": true
+  },
+  "auditInventory": {
+    "routes": 73,
+    "missingCalls": 0,
+    "remainingSourceClassifications": 8,
+    "unreviewedAliases": 0
+  },
+  "requiredMigration": "20261016010000_rights_identity_evidence",
+  "production": {
+    "version": "1.2.0",
+    "source": "601a591799461719678e082b31144ea41a918b56",
+    "deploymentId": "dpl_DeoV14bAxdDBqtqbrFDtdysANWob",
+    "unchanged": true,
+    "health": "ok/connected",
+    "readiness": "blocked",
+    "productionDatabaseChanged": false,
+    "authenticationRequired": false
+  },
+  "safeguards": {
+    "migrationInThisJourneyBatch": false,
+    "inheritedCandidateMigration": "Requires its own fresh verified retained backup and controlled release",
+    "nationalTransportEnabled": false,
+    "realPatientTesting": false,
+    "clinicalCertificationGranted": false
+  },
+  "documentation": [
+    "platform/certification/PATIENT_JOURNEY_EVIDENCE.md",
+    "platform/certification/assessment-pack/DHA-HIE-REQUIREMENTS.md"
+  ],
+  "remaining": [
+    "Combined candidate controlled release after fresh backup and exact-source checks",
+    "Eight audit source classifications",
+    "Diagnostic handover and escalation; pharmacy clarification ownership",
+    "Cashier reconciliation, refund/reversal and follow-up closure",
+    "Governed inpatient specifications",
+    "DHA sandbox contracts/testing, UAT and formal approval; independent restore/security/clinical acceptance"
+  ]
+}
