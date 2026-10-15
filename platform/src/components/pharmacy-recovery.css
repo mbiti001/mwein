@@ -1,0 +1,11 @@
+.pharmacyFields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.pharmacyFields > *, .pharmacyFields select, .pharmacyFields input { min-width: 0; max-width: 100%; }
+.pharmacyFields input[type="checkbox"] { width: auto; }
+.pharmacyFields .submitBar { flex-wrap: wrap; }
+.pharmacyHub > .pharmacyReviewHeader { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.pharmacyHub .patientBanner { flex-wrap: wrap; gap: 12px; }
+.pharmacyHub .patientBanner > * { min-width: 0; overflow-wrap: anywhere; }
+.pharmacyHub, .pharmacyHub .queue, .pharmacyHub .card { min-width: 0; }
+.pharmacyRecovery { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--accent-soft, #eff6ff); margin-bottom: 12px; overflow-wrap: anywhere; }
+.pharmacyRecovery h2, .pharmacyRecovery p { flex-basis: 100%; }
+@media (max-width: 600px) { .pharmacyFields { grid-template-columns: minmax(0, 1fr); } }

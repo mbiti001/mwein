@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { apiError, privateJson } from "@/lib/http";
-import { appendAudit } from "@/lib/audit";
+import { appendAudit, auditValueFingerprint } from "@/lib/audit";
 import {
   dispensingBalance,
   isEquivalentMedication,
@@ -160,19 +160,28 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const user = await requirePermission("pharmacy.dispense");
     const { id } = await params;
     const input = inputSchema.parse(await request.json());
-    const result = await db.$transaction(async (tx) => {
+    const requestFingerprint = auditValueFingerprint(input);
+    const transact = () => db.$transaction(async (tx) => {
       const replay = await tx.dispensation.findFirst({
         where: { idempotencyKey: input.idempotencyKey, prescription: { orderId: id, order: { visit: { facilityId: user.facilityId } } } },
         include: { prescription: true, catalogItem: true, items: { include: { batch: true } } },
       });
-      if (replay) return {
+      if (replay) {
+        const receipt = replay.dispensedById === user.id && await tx.auditEvent.findFirst({
+          where: { facilityId: user.facilityId, userId: user.id, action: "DISPENSING_REQUEST_RECORDED", entityType: "Dispensation", entityId: replay.id, afterHash: requestFingerprint },
+          select: { id: true },
+        });
+        if (!receipt) fail("This request key cannot confirm the submitted dispensing details. Review the saved supply before taking another action.", 409);
+        await appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: "DISPENSING_REPLAY_CONFIRMED", entityType: "Dispensation", entityId: replay.id, afterHash: requestFingerprint });
+        return {
         dispenseStatus: replay.status,
         remainingQuantity: Math.max(0, Number(replay.prescription.quantity) - Number(replay.prescription.dispensedQuantity || 0)),
         remainingOrders: -1,
         replayed: true,
         dispensedMedicine: replay.catalogItem ? { id: replay.catalogItem.id, code: replay.catalogItem.code, name: replay.catalogItem.name } : null,
         allocations: replay.items.map((value) => ({ id: value.batchId, batchNumber: value.batch.batchNumber, expiryDate: value.batch.expiryDate, quantity: Number(value.quantity), quantityAvailable: Number(value.batch.quantityAvailable) })),
-      };
+        };
+      }
       const order = await tx.clinicalOrder.findFirst({
         where: { id, visit: { facilityId: user.facilityId }, type: "MEDICATION", status: { in: ["REQUESTED", "IN_PROGRESS"] } },
         include: { prescription: true, visit: { include: { orders: true, invoice: true } } },
@@ -189,6 +198,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       let dispensedItem: Awaited<ReturnType<typeof tx.catalogItem.findFirst>> = null;
       let fefoOverridden = false;
       let substituted = false;
+      let dispensationId: string;
       if (input.action === "DISPENSE") {
         try { balance = dispensingBalance(prescribed, previouslyDispensed, quantity); }
         catch (error) { throw Object.assign(error as Error, { status: 422 }); }
@@ -259,6 +269,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           substitutionReason: substituted ? input.substitutionReason : undefined,
           fefoOverrideReason: fefoOverridden ? input.fefoOverrideReason : undefined,
         } });
+        dispensationId = dispensation.id;
         for (const allocation of allocations) {
           const batch = batches.find((candidate) => candidate.id === allocation.id)!;
           const batchBalance = Number(batch.quantityAvailable) - allocation.quantity;
@@ -298,8 +309,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           afterHash: allocations.map((item) => `${item.batchNumber}:${item.quantity}`).join("|"),
         });
       } else {
-        await tx.dispensation.create({ data: { prescriptionId: order.prescription.id, dispensedById: user.id, idempotencyKey: input.idempotencyKey, status: "NOT_DISPENSED", quantity: new Prisma.Decimal(0), notes: input.notes } });
+        const dispensation = await tx.dispensation.create({ data: { prescriptionId: order.prescription.id, dispensedById: user.id, idempotencyKey: input.idempotencyKey, status: "NOT_DISPENSED", quantity: new Prisma.Decimal(0), notes: input.notes } });
+        dispensationId = dispensation.id;
       }
+      await appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: "DISPENSING_REQUEST_RECORDED", entityType: "Dispensation", entityId: dispensationId, afterHash: requestFingerprint });
       const dispenseStatus = input.action === "NOT_DISPENSED" ? "NOT_DISPENSED" : balance!.complete ? "DISPENSED" : "PARTIALLY_DISPENSED";
       await tx.prescription.update({ where: { id: order.prescription.id }, data: {
         dispensedQuantity: new Prisma.Decimal(balance?.cumulativeDispensed || previouslyDispensed),
@@ -353,6 +366,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         dispensedMedicine: dispensedItem ? { id: dispensedItem.id, code: dispensedItem.code, name: dispensedItem.name } : null,
       };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    return privateJson(result);
+    for (let attempt = 0; ; attempt++) {
+      try { return privateJson(await transact()); }
+      catch (error) {
+        if (attempt >= 2 || !["P2034", "P2002"].includes((error as { code?: string }).code || "")) throw error;
+      }
+    }
   } catch (error) { return apiError(error); }
 }
