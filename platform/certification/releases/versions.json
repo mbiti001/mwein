@@ -1,0 +1,22 @@
+{
+  "application": "Mwein HMIS",
+  "releases": [
+    {
+      "version": "1.0.0",
+      "displayName": "1",
+      "status": "deployed",
+      "source": "1f9ce53871a81daeff1448b7b6fd04bc638d095c",
+      "deploymentId": "dpl_6at1exbSbP6ufqMSc64MvzzpNhkF",
+      "evidence": "2026-10-15-1f9ce53.json",
+      "note": "Retrospective designation requested by the owner; the historical source and deployment are unchanged."
+    },
+    {
+      "version": "1.1.0",
+      "displayName": "1.1.0",
+      "status": "candidate",
+      "branch": "codex/hosipoa-expiry-report",
+      "requiredMigration": "20261015193000_rights_response_delivery",
+      "note": "Reserved for the integrated consultation, pharmacy, patient-rights, release identity and search improvements. Live promotion requires retained backup evidence and controlled migration."
+    }
+  ]
+}

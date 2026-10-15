@@ -596,7 +596,7 @@ export default function ClinicalApp() {
 
 function GlobalPatientFinder({ onSelect }: { onSelect: (patient: Patient) => void }) {
   const [query, setQuery] = useState("");
-  const search = useWorklist<{ patients: Patient[] }>(query.trim().length >= 2 ? `/api/patients?q=${encodeURIComponent(query.trim())}` : null);
+  const search = useWorklist<{ patients: Patient[] }>(query.trim().length >= 2 ? `/api/patients?q=${encodeURIComponent(query.trim())}` : null, 0, 250);
   return <div className="globalPatientFinder noPrint"><label><span>Find a patient anywhere</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, patient number, phone, National ID or SHA number" autoComplete="off"/></label>{search.error && <small className="dangerText" role="alert">{search.error}</small>}{search.loading && <small role="status">Searching patients…</small>}{search.data && <div className="globalPatientResults">{search.data.patients.slice(0, 8).map(patient => <button type="button" key={patient.id} onClick={() => { onSelect(patient); setQuery(""); }}><strong>{patient.fullName}</strong><span>{patient.patientNumber} · {patientClinicalGroup(patient).label}</span></button>)}{!search.data.patients.length && <p>No matching patient. Check the identifier or use Registration.</p>}</div>}</div>;
 }
 
@@ -981,7 +981,7 @@ function PatientRegister({
   onStart: (patient: Patient) => void;
 }) {
   const [patientQuery, setPatientQuery] = useState("");
-  const patientSearch = useWorklist<{ patients: Patient[] }>(patientQuery.trim().length >= 2 ? `/api/patients?q=${encodeURIComponent(patientQuery.trim())}` : null);
+  const patientSearch = useWorklist<{ patients: Patient[] }>(patientQuery.trim().length >= 2 ? `/api/patients?q=${encodeURIComponent(patientQuery.trim())}` : null, 0, 250);
   const patients = patientSearch.data?.patients || [];
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -1174,7 +1174,7 @@ function StartVisit({
 }) {
   const [query, setQuery] = useState("");
   const [chosen, setChosen] = useState(patient);
-  const search = useWorklist<{ patients: Patient[] }>(!chosen && query.trim().length >= 2 ? `/api/patients?q=${encodeURIComponent(query.trim())}` : null);
+  const search = useWorklist<{ patients: Patient[] }>(!chosen && query.trim().length >= 2 ? `/api/patients?q=${encodeURIComponent(query.trim())}` : null, 0, 250);
   const matches = search.data?.patients || [];
   const [clinic, setClinic] = useState(appointment?.clinic || "Outpatient");
   const [error, setError] = useState("");

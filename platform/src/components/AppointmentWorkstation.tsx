@@ -29,7 +29,7 @@ export default function AppointmentWorkstation({ onCheckIn, initialPatient, init
   const [reminder, setReminder] = useState<{ contact: string; message: string } | null>(null);
   const [rescheduleId, setRescheduleId] = useState<string | null>(initialAppointmentId || null);
   const list = useWorklist<{ appointments: Appointment[]; truncated: boolean }>(`/api/appointments?scope=${scope}${patientFocus ? `&patientId=${patientFocus.id}` : ""}`);
-  const search = useWorklist<{ patients: Patient[] }>(!patient && patientQuery.trim().length >= 2 ? `/api/patients?q=${encodeURIComponent(patientQuery.trim())}` : null);
+  const search = useWorklist<{ patients: Patient[] }>(!patient && patientQuery.trim().length >= 2 ? `/api/patients?q=${encodeURIComponent(patientQuery.trim())}` : null, 0, 250);
   const appointments = list.data?.appointments || [];
   const term = query.trim().toLowerCase();
   const shown = appointments.filter(item => `${item.patient.fullName} ${item.patient.patientNumber} ${item.clinic} ${item.status}`.toLowerCase().includes(term));

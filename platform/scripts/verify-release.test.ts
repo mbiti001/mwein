@@ -3,6 +3,12 @@ import { verifyRelease } from "./verify-release.mjs";
 const config = { origin: "https://app.example", expectedCommit: "release-sha", expectedMigration: "migration-head", patientUse: true };
 const health = () => Response.json({ release: { commit: config.expectedCommit }, migration: config.expectedMigration });
 describe("patient-use release verification", () => {
+  it("checks numbered release identity independently of source and readiness", async () => {
+    const request = vi.fn().mockImplementation(async () => Response.json({ release: { commit: config.expectedCommit, version: "1.1.0" }, migration: config.expectedMigration }));
+    await expect(verifyRelease({ ...config, patientUse: false, expectedVersion: "1.1.0" }, request)).resolves.toMatchObject({ version: "1.1.0" });
+    await expect(verifyRelease({ ...config, expectedVersion: "1.2.0" }, request)).rejects.toThrow("Version drift");
+    await expect(verifyRelease({ ...config, expectedVersion: "1.1.0" }, vi.fn().mockResolvedValue(health()))).rejects.toThrow("Version drift");
+  });
   it("rejects a healthy release whose patient-use gate is blocked", async () => {
     const request = vi.fn().mockResolvedValueOnce(health()).mockResolvedValueOnce(Response.json({ status: "blocked" }, { status: 503 }));
     await expect(verifyRelease(config, request)).rejects.toThrow("Patient-use verification blocked");

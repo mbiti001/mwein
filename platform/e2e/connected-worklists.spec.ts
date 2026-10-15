@@ -95,6 +95,42 @@ test("failed appointment refresh removes actionable stale rows and supports retr
   await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
 });
 
+test("patient search waits for a typing pause and clears stale matches before the next read", async ({ page }) => {
+  await fixture(page);
+  const queries: string[] = [];
+  await page.route("**/api/patients?*", route => {
+    const query = new URL(route.request().url()).searchParams.get("q") || "";
+    queries.push(query);
+    return route.fulfill(query === "Failure" ? { status: 503, json: { error: "Search temporarily unavailable" } } : { json: { patients: [{ ...patient, fullName: `${query} Patient` }] } });
+  });
+  await page.goto("/");
+  const search = page.getByRole("searchbox", { name: "Find a patient anywhere" });
+  await page.clock.install();
+  await page.clock.pauseAt(new Date(Date.now() + 1_000));
+  await search.fill("Sy");
+  await page.clock.runFor(100);
+  await search.fill("Synt");
+  await page.clock.runFor(100);
+  await search.fill("Synthetic");
+  await page.clock.runFor(200);
+  expect(queries).toEqual([]);
+  await page.clock.runFor(60);
+  await expect(page.getByRole("button", { name: /Synthetic Patient/ })).toBeVisible();
+  expect(queries).toEqual(["Synthetic"]);
+  await search.fill("Failure");
+  await expect(page.getByRole("button", { name: /Synthetic Patient/ })).toHaveCount(0);
+  await page.clock.runFor(260);
+  await expect(page.locator(".globalPatientFinder").getByRole("alert")).toContainText("Search temporarily unavailable");
+  await search.fill("Recovery");
+  await page.clock.runFor(260);
+  await expect(page.getByRole("button", { name: /Recovery Patient/ })).toBeVisible();
+  await search.fill("Pending");
+  await search.fill("");
+  await page.clock.runFor(300);
+  expect(queries).toEqual(["Synthetic", "Failure", "Recovery"]);
+  await expect(page.getByRole("button", { name: /Recovery Patient/ })).toHaveCount(0);
+});
+
 test("superseded patient searches cannot replace the latest matches", async ({ page }) => {
   await fixture(page);
   let releaseOld!: () => void;
