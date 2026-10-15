@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { jsonRequest } from "@/lib/client-http";
 import { careServiceProfile } from "@/lib/care-service-points";
 import { FacilityLetterhead } from "@/components/FacilityBrand";
+import { useWorklist } from "@/lib/use-worklist";
 
 type Summary = any;
 const display = (value?: string | null) => value || "Not recorded";
@@ -25,33 +26,19 @@ function age(patient: Summary["patient"]) {
     : "Age not recorded";
 }
 
-export default function VisitSummaryWorkstation({ canAddendum = false }: { canAddendum?: boolean }) {
+export default function VisitSummaryWorkstation({ canAddendum = false, initialVisitId }: { canAddendum?: boolean; initialVisitId?: string | null }) {
   const paperRef = useRef<HTMLElement>(null);
-  const [summaries, setSummaries] = useState<Summary[]>([]);
+  const [query, setQuery] = useState("");
+  const [visitFocus, setVisitFocus] = useState(initialVisitId || null);
   const [active, setActive] = useState<Summary | null>(null);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
   const [savingAddendum, setSavingAddendum] = useState(false);
-  async function load(q = "") {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await fetch(
-        `/api/visit-summaries?q=${encodeURIComponent(q)}`,
-      );
-      const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.error || "Visit summaries could not be loaded");
-      setSummaries(data.summaries);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const list = useWorklist<{ summaries: Summary[] }>(`/api/visit-summaries?q=${encodeURIComponent(query)}${visitFocus ? `&visitId=${visitFocus}` : ""}`);
+  const summaries = list.data?.summaries || [];
+  const loading = list.loading;
   useEffect(() => {
-    load();
-  }, []);
+    if (visitFocus && list.data) setActive(list.data.summaries.find(item => item.id === visitFocus) || null);
+  }, [visitFocus, list.data]);
   useEffect(() => {
     let collapsed: HTMLDetailsElement[] = [];
     const expandForPrint = () => {
@@ -82,19 +69,15 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
             </p>
           </div>
         </header>
-        {error && <div className="alert">{error}</div>}
+        {(error || list.error) && <div className="alert" role="alert">{error || list.error}<button className="secondary" onClick={() => void list.refresh()}>Retry records</button></div>}
         <section className="card search">
           <label>
             Find by patient, patient number, visit number or phone
             <input
               placeholder="Start typing to find a visit"
+              value={query}
               onChange={(e) => {
-                const value = e.target.value;
-                window.clearTimeout((window as any).__visitSearch);
-                (window as any).__visitSearch = window.setTimeout(
-                  () => load(value),
-                  300,
-                );
+                setVisitFocus(null); setQuery(e.target.value);
               }}
             />
           </label>
@@ -125,7 +108,7 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
                 </button>
               ))}
             </div>
-          ) : (
+          ) : !list.error && (
             <div className="empty">
               <strong>No matching visits</strong>
               <p>Try a patient name, patient number or visit number.</p>
@@ -171,7 +154,7 @@ export default function VisitSummaryWorkstation({ canAddendum = false }: { canAd
           <h1>Clinical record</h1>
         </div>
         <div>
-          <button className="secondary" onClick={() => setActive(null)}>
+          <button className="secondary" onClick={() => { setActive(null); setVisitFocus(null); }}>
             ← Back
           </button>{" "}
           <button className="primary" onClick={() => window.print()}>

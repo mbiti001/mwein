@@ -18,6 +18,8 @@ import MfaWorkstation from "@/components/MfaWorkstation";
 import VisitClosurePanel from "@/components/VisitClosurePanel";
 import PatientIdentityPanel from "@/components/PatientIdentityPanel";
 import { shaCancellationOutcomes, visitCancellationReasons } from "@/lib/visit-cancellation";
+import { useWorklist } from "@/lib/use-worklist";
+import type { FollowUpPatient } from "@/lib/follow-ups";
 
 const ClinicForms = dynamic(() => import("@/components/ClinicForms"));
 
@@ -165,10 +167,21 @@ async function api<T>(url: string, options?: RequestInit): Promise<T> {
 export default function ClinicalApp() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [screen, setScreen] = useState<Screen>("dashboard");
+  const [screen, setScreenState] = useState<Screen>("dashboard");
+  const navigationVersion = useRef(0);
+  const setScreen = useCallback((next: Screen) => {
+    navigationVersion.current++;
+    setScreenState(next);
+  }, []);
+  // A completed request may refresh data, but must not undo later navigation.
+  const renderedNavigationVersion = navigationVersion.current;
+  const stillOnThisScreen = () => navigationVersion.current === renderedNavigationVersion;
   const [visits, setVisits] = useState<Visit[]>([]);
   const [selected, setSelected] = useState<Patient | null>(null);
   const [appointment, setAppointment] = useState<{ id: string; clinic: string } | null>(null);
+  const [appointmentFocus, setAppointmentFocus] = useState<{ patient: FollowUpPatient; appointmentId: string } | null>(null);
+  const [referralFocus, setReferralFocus] = useState<string | null>(null);
+  const [recordFocus, setRecordFocus] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [focusedVisitId, setFocusedVisitId] = useState<string | null>(null);
@@ -279,6 +292,8 @@ export default function ClinicalApp() {
     }} />;
 
   const openVisit = (patient?: Patient) => {
+    setAppointment(null);
+    setContextVisitId(null);
     setSelected(patient || null);
     setScreen("visit");
     setNotice("");
@@ -321,7 +336,7 @@ export default function ClinicalApp() {
           {nav.map(([key, label]) => (
             <button
               className={screen === key ? "active" : ""}
-              onClick={() => { setReturnToConsultation(false); setScreen(key); setFocusedVisitId(null); setStockFocus(null); setMobileNavOpen(false); }}
+              onClick={() => { setReturnToConsultation(false); setScreen(key); setFocusedVisitId(null); setContextVisitId(null); setStockFocus(null); setMobileNavOpen(false); setAppointmentFocus(null); setReferralFocus(null); setRecordFocus(null); setAppointment(null); setNotice(""); }}
               key={key}
             >
               {label}
@@ -365,7 +380,7 @@ export default function ClinicalApp() {
           }}/>
         )}
         {screen !== "dashboard" &&
-          !["forms", "summaries", "reports", "surveillance", "vitals", "security", "appointments", "admin"].includes(screen) && (
+          !["forms", "summaries", "reports", "surveillance", "vitals", "security", "appointments", "admin", "followUps"].includes(screen) && (
             <WorkflowSteps screen={screen} />
           )}{" "}
         {contextVisitId && (() => {
@@ -379,6 +394,7 @@ export default function ClinicalApp() {
             onOpen={(target) => { setFocusedVisitId(visit.id); setScreen(target); }}
             onCancelled={async () => {
               await loadVisits();
+              if (!stillOnThisScreen()) return;
               setContextVisitId(null);
               setFocusedVisitId(null);
               setScreen("dashboard");
@@ -393,6 +409,7 @@ export default function ClinicalApp() {
             onGovernance={() => setScreen("admin")}
             user={user}
             onStart={() => {
+              setContextVisitId(null); setAppointment(null);
               setScreen("registration");
               setNotice("");
             }}
@@ -404,6 +421,8 @@ export default function ClinicalApp() {
         {screen === "registration" && (
           <PatientRegister
             onRegistered={(patient) => {
+              if (!stillOnThisScreen()) return;
+              setContextVisitId(null); setAppointment(null);
               setSelected(patient);
               setNotice(
                 `${patient.fullName} registered as ${patient.patientNumber}.`,
@@ -415,7 +434,11 @@ export default function ClinicalApp() {
         )}
         {screen === "appointments" && (
           <AppointmentWorkstation
+            key={appointmentFocus?.appointmentId || "appointments"}
+            initialPatient={appointmentFocus?.patient}
+            initialAppointmentId={appointmentFocus?.appointmentId}
             onCheckIn={(booked) => {
+              setContextVisitId(null);
               setSelected(booked.patient);
               setAppointment({ id: booked.id, clinic: booked.clinic });
               setNotice(`Confirm check-in for ${booked.patient.fullName}.`);
@@ -425,11 +448,13 @@ export default function ClinicalApp() {
         )}
         {screen === "visit" && (
           <StartVisit
+            key={`${selected?.id || "search"}:${appointment?.id || "walk-in"}`}
             patient={selected}
             appointment={appointment}
             fromConsultation={returnToConsultation}
             onCreated={async (visit) => {
               await loadVisits();
+              if (!stillOnThisScreen()) return;
               setAppointment(null);
               setContextVisitId(visit.id);
               setFocusedVisitId(visit.id);
@@ -447,6 +472,7 @@ export default function ClinicalApp() {
             )}
             onCompleted={async (patientName, visitId) => {
               await loadVisits();
+              if (!stillOnThisScreen()) return;
               setNotice(
                 `Triage completed for ${patientName}; the patient is now awaiting consultation.`,
               );
@@ -462,6 +488,8 @@ export default function ClinicalApp() {
         )}
         {screen === "servicePoints" && (
           <ServicePointsWorkstation
+            key={referralFocus || "services"}
+            initialReferralNumber={referralFocus}
             visits={visits}
             facilityTimeZone={user.facility.timezone}
             initialVisitId={focusedVisitId}
@@ -490,6 +518,7 @@ export default function ClinicalApp() {
             )}
             onCompleted={async (patientName) => {
               await loadVisits();
+              if (!stillOnThisScreen()) return;
               setNotice(
                 `Consultation signed for ${patientName}; orders and billing have been updated.`,
               );
@@ -512,8 +541,12 @@ export default function ClinicalApp() {
         {screen === "billing" && (
           <BillingWorkstation visits={visits} permissions={user.permissions} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />
         )}
-        {screen === "summaries" && <VisitSummaryWorkstation canAddendum={user.permissions.includes("encounter.write")} />}
-        {screen === "followUps" && <FollowUpWorkstation/>}
+        {screen === "summaries" && <VisitSummaryWorkstation key={recordFocus || "records"} initialVisitId={recordFocus} canAddendum={user.permissions.includes("encounter.write")} />}
+        {screen === "followUps" && <FollowUpWorkstation permissions={user.permissions}
+          onAppointments={(patient, appointmentId) => { setAppointmentFocus({ patient, appointmentId }); setContextVisitId(null); setNotice(""); setScreen("appointments"); }}
+          onReferral={reference => { setReferralFocus(reference); setFocusedVisitId(null); setContextVisitId(null); setNotice(""); setScreen("servicePoints"); }}
+          onRecord={visitId => { setRecordFocus(visitId); setContextVisitId(null); setNotice(""); setScreen("summaries"); }}
+        />}
         {screen === "surveillance" && <SurveillanceWorkstation permissions={user.permissions} />}
         {screen === "reports" && <ReportingWorkstation permissions={user.permissions} />}
         {screen === "security" && <MfaWorkstation enrolled={user.mfaEnrolled} required={false} onCompleted={async () => {
@@ -527,10 +560,8 @@ export default function ClinicalApp() {
 
 function GlobalPatientFinder({ onSelect }: { onSelect: (patient: Patient) => void }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Patient[]>([]);
-  const [error, setError] = useState("");
-  useEffect(() => { if (query.trim().length < 2) { setResults([]); return; } const controller = new AbortController(); const timer = window.setTimeout(() => { api<{ patients: Patient[] }>(`/api/patients?q=${encodeURIComponent(query)}`, { signal: controller.signal }).then(data => { setResults(data.patients); setError(""); }).catch(reason => { if ((reason as Error).name !== "AbortError") setError("Patient search is temporarily unavailable"); }); }, 250); return () => { clearTimeout(timer); controller.abort(); }; }, [query]);
-  return <div className="globalPatientFinder noPrint"><label><span>Find a patient anywhere</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, patient number, phone, National ID or SHA number" autoComplete="off"/></label>{error && <small className="dangerText">{error}</small>}{results.length > 0 && <div className="globalPatientResults">{results.slice(0, 8).map(patient => <button type="button" key={patient.id} onClick={() => { onSelect(patient); setQuery(""); setResults([]); }}><strong>{patient.fullName}</strong><span>{patient.patientNumber} · {patientClinicalGroup(patient).label}</span></button>)}</div>}</div>;
+  const search = useWorklist<{ patients: Patient[] }>(query.trim().length >= 2 ? `/api/patients?q=${encodeURIComponent(query.trim())}` : null);
+  return <div className="globalPatientFinder noPrint"><label><span>Find a patient anywhere</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, patient number, phone, National ID or SHA number" autoComplete="off"/></label>{search.error && <small className="dangerText" role="alert">{search.error}</small>}{search.loading && <small role="status">Searching patients…</small>}{search.data && <div className="globalPatientResults">{search.data.patients.slice(0, 8).map(patient => <button type="button" key={patient.id} onClick={() => { onSelect(patient); setQuery(""); }}><strong>{patient.fullName}</strong><span>{patient.patientNumber} · {patientClinicalGroup(patient).label}</span></button>)}{!search.data.patients.length && <p>No matching patient. Check the identifier or use Registration.</p>}</div>}</div>;
 }
 
 function WorkflowSteps({ screen }: { screen: Screen }) {
@@ -912,25 +943,18 @@ function PatientRegister({
   onRegistered: (patient: Patient) => void;
   onStart: (patient: Patient) => void;
 }) {
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const [patientQuery, setPatientQuery] = useState("");
+  const patientSearch = useWorklist<{ patients: Patient[] }>(patientQuery.trim().length >= 2 ? `/api/patients?q=${encodeURIComponent(patientQuery.trim())}` : null);
+  const patients = patientSearch.data?.patients || [];
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [registrationMode, setRegistrationMode] = useState("STANDARD");
-  async function search(value: string) {
-    if (value.trim().length < 2) return setPatients([]);
-    try {
-      setPatients(
-        (
-          await api<{ patients: Patient[] }>(
-            `/api/patients?q=${encodeURIComponent(value)}`,
-          )
-        ).patients,
-      );
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }
+  function search(value: string) { setPatientQuery(value); }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (savingRef.current) return;
+    savingRef.current = true; setSaving(true);
     setError("");
     const f = new FormData(event.currentTarget);
     const body: Record<string, unknown> = Object.fromEntries(f.entries());
@@ -950,7 +974,7 @@ function PatientRegister({
       );
     } catch (e) {
       setError((e as Error).message);
-    }
+    } finally { savingRef.current = false; setSaving(false); }
   }
   return (
     <>
@@ -968,10 +992,13 @@ function PatientRegister({
         <label>
           Find an existing patient
           <input
+            value={patientQuery}
             onChange={(e) => search(e.target.value)}
             placeholder="Name, patient number, phone, National ID or SHA number"
           />
         </label>
+        {patientSearch.loading && <p role="status">Searching patients…</p>}
+        {patientSearch.error && <p role="alert">{patientSearch.error}</p>}
         {patients.map((p) => (
           <button
             className="patientResult"
@@ -1078,7 +1105,7 @@ function PatientRegister({
             appointment messages
           </label>
         </div>
-        <button className="primary wide">Register patient and continue</button>
+        <button className="primary wide" disabled={saving}>{saving ? "Registering patient…" : "Register patient and continue"}</button>
       </form>
     </>
   );
@@ -1093,19 +1120,25 @@ function StartVisit({
   patient: Patient | null;
   appointment?: { id: string; clinic: string } | null;
   fromConsultation?: boolean;
-  onCreated: (visit: Visit) => void;
+  onCreated: (visit: Visit) => void | Promise<void>;
 }) {
-  const [matches, setMatches] = useState<Patient[]>([]);
+  const [query, setQuery] = useState("");
   const [chosen, setChosen] = useState(patient);
+  const search = useWorklist<{ patients: Patient[] }>(!chosen && query.trim().length >= 2 ? `/api/patients?q=${encodeURIComponent(query.trim())}` : null);
+  const matches = search.data?.patients || [];
   const [clinic, setClinic] = useState(appointment?.clinic || "Outpatient");
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!chosen) return setError("Select a patient first");
+    if (savingRef.current) return;
+    savingRef.current = true; setSaving(true); setError("");
     const f = new FormData(event.currentTarget);
     const destinationClinic = appointment?.clinic || clinic;
     try {
-      onCreated(
+      await onCreated(
         (
           await api<{ visit: Visit }>("/api/visits", {
             method: "POST",
@@ -1129,7 +1162,7 @@ function StartVisit({
       );
     } catch (e) {
       setError((e as Error).message);
-    }
+    } finally { savingRef.current = false; setSaving(false); }
   }
   return (
     <>
@@ -1153,7 +1186,7 @@ function StartVisit({
                 {chosen.patientNumber} · {patientClinicalGroup(chosen).label}
               </span>
             </div>
-            <button type="button" onClick={() => setChosen(null)}>
+            <button type="button" disabled={saving || Boolean(appointment)} onClick={() => { setChosen(null); setQuery(""); }}>
               Change patient
             </button>
           </div>
@@ -1162,24 +1195,18 @@ function StartVisit({
             Search patient *
             <input
               placeholder="Name, patient number or phone"
-              onChange={async (e) => {
-                if (e.target.value.length >= 2)
-                  setMatches(
-                    (
-                      await api<{ patients: Patient[] }>(
-                        `/api/patients?q=${encodeURIComponent(e.target.value)}`,
-                      )
-                    ).patients,
-                  );
-              }}
+              value={query}
+              onChange={event => setQuery(event.target.value)}
             />
+            {search.loading && <span role="status">Searching patients…</span>}
+            {search.error && <span role="alert">{search.error}</span>}
             {matches.map((p) => (
               <button
                 type="button"
                 className="patientResult"
                 onClick={() => {
                   setChosen(p);
-                  setMatches([]);
+                  setQuery("");
                 }}
                 key={p.id}
               >
@@ -1222,7 +1249,7 @@ function StartVisit({
             obtain the complaint and history in the consultation room.
           </span>
         </div>
-        <button className="primary wide">Check in patient</button>
+        <button className="primary wide" disabled={saving || !chosen}>{saving ? "Checking in…" : "Check in patient"}</button>
       </form>
     </>
   );

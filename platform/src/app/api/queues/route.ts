@@ -29,14 +29,18 @@ function assertPointAccess(permissions: string[], point: OperationalServicePoint
     throw Object.assign(new Error(`Permission denied for ${point.toLowerCase().replaceAll("_", " ")}`), { status: 403 });
 }
 
+function activeVisitWhere(facilityId: string, point: OperationalServicePoint): Prisma.VisitWhereInput {
+  return { facilityId, status: { notIn: point === "BILLING" ? ["COMPLETED", "CANCELLED"] : ["COMPLETED", "CANCELLED", "DISCHARGED"] }, ...(point !== "BILLING" ? { clinicallyClosedAt: null } : {}) };
+}
+
 export async function GET() {
   try {
     const user = await requirePermission("visit.read");
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const [active, history, controls] = await Promise.all([
       db.queueEntry.findMany({
-        where: { visit: { facilityId: user.facilityId }, status: { in: ["WAITING", "CALLED", "IN_PROGRESS"] } },
-        include: { visit: { select: { id: true, visitNumber: true, clinic: true, status: true, patient: { select: { id: true, patientNumber: true, fullName: true } } } } },
+        where: { visit: { facilityId: user.facilityId, status: { notIn: ["COMPLETED", "CANCELLED"] } }, status: { in: ["WAITING", "CALLED", "IN_PROGRESS"] }, OR: [{ servicePoint: "BILLING" }, { visit: { clinicallyClosedAt: null, status: { not: "DISCHARGED" } } }] },
+        include: { visit: { select: { id: true, visitNumber: true, clinic: true, status: true, clinicallyClosedAt: true, patient: { select: { id: true, patientNumber: true, fullName: true } } } } },
       }),
       db.queueEntry.findMany({
         where: { visit: { facilityId: user.facilityId }, status: { in: ["TRANSFERRED", "COMPLETED", "CANCELLED"] }, completedAt: { gte: since } },
@@ -88,9 +92,9 @@ export async function POST(request: Request) {
         assertPointAccess(user.permissions, input.servicePoint);
         const paused = await tx.servicePointControl.findUnique({ where: { facilityId_servicePoint: { facilityId: user.facilityId, servicePoint: input.servicePoint } } });
         if (paused?.paused) throw Object.assign(new Error(`${input.servicePoint.replaceAll("_", " ")} is paused: ${paused.pauseReason}`), { status: 409 });
-        const busy = await tx.queueEntry.findFirst({ where: { visit: { facilityId: user.facilityId }, servicePoint: input.servicePoint, status: { in: ["CALLED", "IN_PROGRESS"] } } });
+        const busy = await tx.queueEntry.findFirst({ where: { visit: activeVisitWhere(user.facilityId, input.servicePoint), servicePoint: input.servicePoint, status: { in: ["CALLED", "IN_PROGRESS"] } } });
         if (busy) throw Object.assign(new Error("Finish or transfer the current patient before calling another"), { status: 409 });
-        const waiting = await tx.queueEntry.findMany({ where: { visit: { facilityId: user.facilityId }, servicePoint: input.servicePoint, status: "WAITING" }, include: { visit: { select: { patient: { select: { fullName: true } } } } } });
+        const waiting = await tx.queueEntry.findMany({ where: { visit: activeVisitWhere(user.facilityId, input.servicePoint), servicePoint: input.servicePoint, status: "WAITING" }, include: { visit: { select: { patient: { select: { fullName: true } } } } } });
         const next = waiting.sort((left, right) => queueSortValue(left.priority, left.enteredAt) - queueSortValue(right.priority, right.enteredAt))[0];
         if (!next) throw Object.assign(new Error("No patient is waiting at this service point"), { status: 409 });
         const entry = await tx.queueEntry.update({ where: { id: next.id }, data: { status: "CALLED", calledAt: new Date() } });
@@ -100,7 +104,8 @@ export async function POST(request: Request) {
 
       const entry = await tx.queueEntry.findFirst({ where: { id: input.queueEntryId, visit: { facilityId: user.facilityId } }, include: { visit: true } });
       if (!entry) throw Object.assign(new Error("Queue entry not found"), { status: 404 });
-      if (entry.visit.clinicallyClosedAt || ["DISCHARGED", "COMPLETED", "CANCELLED"].includes(entry.visit.status)) throw Object.assign(new Error("Closed visits cannot be restarted or transferred"), { status: 409 });
+      const clinicallyClosed = Boolean(entry.visit.clinicallyClosedAt) || entry.visit.status === "DISCHARGED";
+      if (["COMPLETED", "CANCELLED"].includes(entry.visit.status) || (clinicallyClosed && (entry.servicePoint !== "BILLING" || input.action === "TRANSFER"))) throw Object.assign(new Error("Closed visits cannot be restarted or transferred; outstanding billing can be handled separately"), { status: 409 });
       assertPointAccess(user.permissions, entry.servicePoint as OperationalServicePoint);
       if (!operationalServicePoints.includes(entry.servicePoint as OperationalServicePoint)) throw Object.assign(new Error("This queue is not managed from the operations panel"), { status: 422 });
 
@@ -112,6 +117,8 @@ export async function POST(request: Request) {
 
       if (input.action === "START") {
         if (!["WAITING", "CALLED"].includes(entry.status)) throw Object.assign(new Error("Only waiting or called patients can be started"), { status: 409 });
+        const control = await tx.servicePointControl.findUnique({ where: { facilityId_servicePoint: { facilityId: user.facilityId, servicePoint: entry.servicePoint } } });
+        if (control?.paused) throw Object.assign(new Error(`Resume the service before starting this patient: ${control.pauseReason}`), { status: 409 });
         const updated = await tx.queueEntry.update({ where: { id: entry.id }, data: { status: "IN_PROGRESS", calledAt: entry.calledAt || new Date(), startedAt: new Date() } });
         await appendAudit(tx, { userId: user.id, action: "QUEUE_SERVICE_STARTED", entityType: "QueueEntry", entityId: entry.id, afterHash: entry.servicePoint });
         return { entry: updated };
@@ -120,6 +127,8 @@ export async function POST(request: Request) {
       assertPointAccess(user.permissions, input.targetServicePoint);
       if (entry.servicePoint === input.targetServicePoint) throw Object.assign(new Error("Choose a different destination service point"), { status: 422 });
       if (!["WAITING", "CALLED", "IN_PROGRESS"].includes(entry.status)) throw Object.assign(new Error("Only active queue entries can be transferred"), { status: 409 });
+      const duplicate = await tx.queueEntry.findFirst({ where: { visitId: entry.visitId, servicePoint: input.targetServicePoint, status: { in: ["WAITING", "CALLED", "IN_PROGRESS"] } } });
+      if (duplicate) throw Object.assign(new Error("This patient already has an active task at the destination. Open that task instead."), { status: 409 });
       const now = new Date();
       await tx.queueEntry.update({ where: { id: entry.id }, data: { status: "TRANSFERRED", completedAt: now } });
       const transferred = await tx.queueEntry.create({ data: { visitId: entry.visitId, servicePoint: input.targetServicePoint, priority: entry.priority } });

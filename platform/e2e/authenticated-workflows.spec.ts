@@ -181,7 +181,7 @@ test("shows the new administration workbenches to an authorised administrator", 
   await expect(page.getByRole("heading", { name: "Potential duplicate patients" })).toBeVisible();
 });
 
-test("completes registration and triage through the browser and routes to consultation", async ({ page }) => {
+test("a delayed triage response updates consultation without undoing later navigation", async ({ page }) => {
   await login(page, "admin@mwein.local");
   await page.getByRole("button", { name: "Registration" }).click();
   await page.getByLabel("First name *").fill("Browser");
@@ -205,7 +205,20 @@ test("completes registration and triage through the browser and routes to consul
   await page.getByLabel("Pain /10").fill("2");
   await page.getByLabel("Consciousness").selectOption("ALERT");
   await page.getByLabel("Triage category *").selectOption("ROUTINE");
+  let releaseResponse!: () => void;
+  const responseGate = new Promise<void>(resolve => { releaseResponse = resolve; });
+  let requestStarted!: () => void;
+  const started = new Promise<void>(resolve => { requestStarted = resolve; });
+  await page.route("**/api/visits/*/triage", async route => {
+    requestStarted();
+    const response = await route.fetch();
+    await responseGate;
+    await route.fulfill({ response });
+  });
   await page.getByRole("button", { name: "Complete triage" }).click();
+  await started;
   await page.getByRole("button", { name: "Consultation", exact: true }).click();
+  releaseResponse();
   await expect(page.getByText("Browser Full Flow", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Waiting for triage", exact: true })).toHaveCount(0);
 });

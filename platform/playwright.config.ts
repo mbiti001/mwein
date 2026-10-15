@@ -1,7 +1,11 @@
 import { existsSync } from "node:fs";
 import { defineConfig } from "@playwright/test";
 
-const localChrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const localChrome = [
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  "C:/Program Files/Google/Chrome/Application/chrome.exe",
+  "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+].find(path => existsSync(path));
 
 export default defineConfig({
   testDir: "./e2e",
@@ -15,7 +19,7 @@ export default defineConfig({
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
     video: "retain-on-failure",
-    ...(existsSync(localChrome) ? { launchOptions: { executablePath: localChrome } } : {}),
+    ...(localChrome ? { launchOptions: { executablePath: localChrome } } : {}),
   },
   webServer: {
     command: "node node_modules/next/dist/bin/next build && node scripts/e2e-outpatient.mjs",

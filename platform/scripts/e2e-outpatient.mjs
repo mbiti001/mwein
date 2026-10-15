@@ -600,6 +600,10 @@ try {
   await api("reschedule follow-up appointment", `/api/appointments/${appointmentId}/status`, { method: "PATCH", body: JSON.stringify({ action: "RESCHEDULE", scheduledAt: rescheduledTime.toISOString(), reason: "Patient requested a different clinic day" }) });
   const appointments = await api("verify appointment reminder history", "/api/appointments?scope=all");
   assert(appointments.body.appointments.some(item => item.id === appointmentId && item.reminderDeliveries.length === 1), "Reminder delivery history was not retained after rescheduling");
+  const prematureNoShow = await requestWithCookie(`/api/appointments/${appointmentId}/status`, sessionCookie, { method: "PATCH", body: JSON.stringify({ status: "NO_SHOW" }) });
+  assert(prematureNoShow.response.status === 422, "A future appointment was marked missed");
+  await pg.query(`UPDATE "Appointment" SET "scheduledAt" = CURRENT_TIMESTAMP - INTERVAL '1 day' WHERE id = $1`, [appointmentId]);
+  steps.push("reject premature no-show before simulating a missed appointment");
   await api("mark missed follow-up appointment", `/api/appointments/${appointmentId}/status`, { method: "PATCH", body: JSON.stringify({ status: "NO_SHOW" }) });
 
   const visitResult = await api("open outpatient visit", "/api/visits", {

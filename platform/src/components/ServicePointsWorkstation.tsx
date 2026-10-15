@@ -159,6 +159,7 @@ export default function ServicePointsWorkstation({
   visits,
   facilityTimeZone,
   initialVisitId,
+  initialReferralNumber,
   onInitialVisitOpened,
   onOpenClinical,
   onUpdated,
@@ -166,13 +167,14 @@ export default function ServicePointsWorkstation({
   visits: Visit[];
   facilityTimeZone: string;
   initialVisitId?: string | null;
+  initialReferralNumber?: string | null;
   onInitialVisitOpened?: () => void;
   onOpenClinical: (visitId: string) => void;
   onUpdated: () => Promise<void>;
 }) {
   const initialVisit = visits.find((visit) => visit.id === initialVisitId);
   const initialProfile = initialVisit ? careServiceForClinic(initialVisit.clinic) : undefined;
-  const [selectedCode, setSelectedCode] = useState(initialVisit ? initialProfile?.code || "REFERRAL" : "ANC");
+  const [selectedCode, setSelectedCode] = useState(initialReferralNumber ? "REFERRAL" : initialVisit ? initialProfile?.code || "REFERRAL" : "ANC");
   const [activeVisit, setActiveVisit] = useState<Visit | null>(initialProfile ? initialVisit || null : null);
   const [referralVisitId, setReferralVisitId] = useState<string | null>(initialVisit && !initialProfile ? initialVisit.id : null);
   const [metrics, setMetrics] = useState<Record<string, Metric>>({});
@@ -257,6 +259,7 @@ export default function ServicePointsWorkstation({
 
       {selectedProfile.code === "REFERRAL" ? (
         <ReferralWorkspace
+          initialQuery={initialReferralNumber || ""}
           visits={visits}
           initialVisitId={referralVisitId}
           onInitialVisitOpened={() => setReferralVisitId(null)}
@@ -472,17 +475,19 @@ function PatientLinkPanel({ visit, relationships, onLinked }: { visit: Visit; re
 
 function ReferralWorkspace({
   visits,
+  initialQuery = "",
   initialVisitId,
   onInitialVisitOpened,
   onMetricsChanged,
 }: {
   visits: Visit[];
+  initialQuery?: string;
   initialVisitId?: string | null;
   onInitialVisitOpened?: () => void;
   onMetricsChanged: () => Promise<void>;
 }) {
   const [referrals, setReferrals] = useState<Referral[]>([]);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [visitQuery, setVisitQuery] = useState("");
   const [visit, setVisit] = useState<Visit | null>(null);
   const [key, setKey] = useState(() => crypto.randomUUID());

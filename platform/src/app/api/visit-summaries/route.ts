@@ -14,9 +14,12 @@ export async function GET(request: Request) {
     const user = await requirePermission("clinical.summary.read");
     const raw = new URL(request.url).searchParams.get("q") || "";
     const query = z.string().trim().max(120).parse(raw);
+    const visitIdParam = new URL(request.url).searchParams.get("visitId");
+    const visitId = visitIdParam ? z.uuid().parse(visitIdParam) : undefined;
     const visits = await db.visit.findMany({
       where: {
         facilityId: user.facilityId,
+        ...(visitId ? { id: visitId } : {}),
         ...(query ? { OR: [
           { visitNumber: { contains: query, mode: "insensitive" } },
           { patient: { fullName: { contains: query, mode: "insensitive" } } },

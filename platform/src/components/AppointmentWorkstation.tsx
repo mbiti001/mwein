@@ -1,152 +1,99 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { appointmentClinics } from "@/lib/appointments";
+import { FormEvent, useRef, useState } from "react";
+import { appointmentClinics, kenyaAppointmentInput, type AppointmentScope } from "@/lib/appointments";
 import { jsonRequest } from "@/lib/client-http";
+import { useWorklist } from "@/lib/use-worklist";
 
-type Patient = {
-  id: string;
-  patientNumber: string;
-  fullName: string;
-  sexAtBirth: "FEMALE" | "MALE" | "INTERSEX" | "UNKNOWN";
-  dateOfBirth?: string | null;
-  estimatedAgeYears?: number | null;
-  contacts: { value: string }[];
-  consents?: { id: string }[];
+export type AppointmentPatientFocus = { id: string; patientNumber: string; fullName: string };
+type Patient = AppointmentPatientFocus & { sexAtBirth: "FEMALE" | "MALE" | "INTERSEX" | "UNKNOWN"; dateOfBirth?: string | null; estimatedAgeYears?: number | null; contacts: { value: string }[]; consents?: { id: string }[] };
+type Appointment = { id: string; scheduledAt: string; clinic: string; status: string; notes?: string | null; reminderPreparedAt?: string | null; reminderDeliveries?: { id: string; status: string; destinationMasked: string }[]; patient: Patient };
+const views: Record<AppointmentScope, { label: string; description: string }> = {
+  today: { label: "Today", description: "All appointments for today in East Africa Time, including patients still waiting to check in." },
+  upcoming: { label: "Upcoming", description: "Tomorrow through the next 30 days." },
+  recall: { label: "Recall missed", description: "Missed appointments and scheduled times that have passed, from the last 90 days. Confirm attendance before marking a no-show." },
+  all: { label: "All appointments", description: "The last 90 days and all bookings in the next 90 days." },
 };
-type Appointment = {
-  id: string;
-  scheduledAt: string;
-  clinic: string;
-  status: string;
-  notes?: string | null;
-  reminderPreparedAt?: string | null;
-  reminderDeliveries?: { id: string; status: string; destinationMasked: string; preparedAt: string }[];
-  patient: Patient;
-};
+const dateTime = (value: string) => new Date(value).toLocaleString("en-KE", { timeZone: "Africa/Nairobi", dateStyle: "medium", timeStyle: "short" });
 
-async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  return jsonRequest<T>(url, options);
-}
-
-const kenyaInputTime = () => {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Nairobi", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(Date.now() + 60 * 60 * 1000));
-  const part = (type: string) => parts.find((item) => item.type === type)?.value;
-  return `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}`;
-};
-
-export default function AppointmentWorkstation({
-  onCheckIn,
-}: {
-  onCheckIn: (appointment: Appointment) => void;
-}) {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [matches, setMatches] = useState<Patient[]>([]);
+export default function AppointmentWorkstation({ onCheckIn, initialPatient, initialAppointmentId }: { onCheckIn: (appointment: Appointment) => void; initialPatient?: AppointmentPatientFocus | null; initialAppointmentId?: string | null }) {
+  const [patientFocus, setPatientFocus] = useState(initialPatient || null);
+  const [scope, setScope] = useState<AppointmentScope>(initialPatient ? "recall" : "today");
+  const [query, setQuery] = useState("");
+  const [patientQuery, setPatientQuery] = useState("");
   const [patient, setPatient] = useState<Patient | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const saving = useRef(false);
   const [reminder, setReminder] = useState<{ contact: string; message: string } | null>(null);
-  const [query, setQuery] = useState("");
-  const [scope, setScope] = useState<"upcoming" | "recall" | "all">("upcoming");
-  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
-  const visibleAppointments = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    return appointments.filter(item => !term || `${item.patient.fullName} ${item.patient.patientNumber} ${item.clinic} ${item.status}`.toLowerCase().includes(term)).slice(0, 50);
-  }, [appointments, query]);
+  const [rescheduleId, setRescheduleId] = useState<string | null>(initialAppointmentId || null);
+  const list = useWorklist<{ appointments: Appointment[]; truncated: boolean }>(`/api/appointments?scope=${scope}${patientFocus ? `&patientId=${patientFocus.id}` : ""}`);
+  const search = useWorklist<{ patients: Patient[] }>(!patient && patientQuery.trim().length >= 2 ? `/api/patients?q=${encodeURIComponent(patientQuery.trim())}` : null);
+  const appointments = list.data?.appointments || [];
+  const term = query.trim().toLowerCase();
+  const shown = appointments.filter(item => `${item.patient.fullName} ${item.patient.patientNumber} ${item.clinic} ${item.status}`.toLowerCase().includes(term));
 
-  async function load() {
-    setAppointments((await request<{ appointments: Appointment[] }>(`/api/appointments?scope=${scope}`)).appointments);
+  async function save(operation: () => Promise<void>) {
+    if (saving.current) return;
+    saving.current = true; setBusy(true); setError(""); setNotice(""); setReminder(null);
+    try { await operation(); }
+    catch (reason) { setError((reason as Error).message); }
+    finally { saving.current = false; setBusy(false); }
   }
-  useEffect(() => { void load().catch((reason) => setError(reason.message)); }, [scope]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  function book(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!patient) return setError("Select a patient first");
-    setBusy(true); setError(""); setNotice("");
-    const form = new FormData(event.currentTarget);
-    try {
-      const local = String(form.get("scheduledAt"));
-      await request("/api/appointments", {
-        method: "POST",
-        body: JSON.stringify({
-          patientId: patient.id,
-          scheduledAt: `${local}:00+03:00`,
-          clinic: form.get("clinic"),
-          notes: form.get("notes") || undefined,
-        }),
-      });
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    void save(async () => {
+      await jsonRequest("/api/appointments", { method: "POST", body: JSON.stringify({ patientId: patient.id, scheduledAt: `${form.get("scheduledAt")}:00+03:00`, clinic: form.get("clinic"), notes: form.get("notes") || undefined }) });
       setNotice(`Appointment booked for ${patient.fullName}.`);
-      setPatient(null); setMatches([]); event.currentTarget.reset(); await load();
-    } catch (reason) { setError((reason as Error).message); }
-    finally { setBusy(false); }
+      setPatient(null); setPatientQuery(""); setPatientFocus(null); setQuery(""); formElement.reset();
+      if (scope === "all" && !patientFocus) await list.refresh(); else setScope("all");
+    });
   }
-
-  async function update(id: string, status: "CANCELLED" | "NO_SHOW") {
-    setBusy(true); setError("");
-    try {
-      await request(`/api/appointments/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
-      await load();
-    } catch (reason) { setError((reason as Error).message); }
-    finally { setBusy(false); }
+  function reschedule(event: FormEvent<HTMLFormElement>, id: string) {
+    event.preventDefault(); const form = new FormData(event.currentTarget);
+    void save(async () => {
+      await jsonRequest(`/api/appointments/${id}/status`, { method: "PATCH", body: JSON.stringify({ action: "RESCHEDULE", scheduledAt: `${form.get("scheduledAt")}:00+03:00`, clinic: form.get("clinic"), reason: form.get("reason") }) });
+      setNotice("Appointment rescheduled. A fresh reminder can be prepared if consent is current."); setRescheduleId(null);
+      if (scope === "all") await list.refresh(); else setScope("all");
+    });
   }
-
-  async function prepareReminder(id: string) {
-    setBusy(true); setError(""); setReminder(null);
-    try {
-      const prepared = await request<{ contact: string; message: string }>(`/api/appointments/${id}/reminder`, { method: "POST" });
-      setReminder(prepared); await load();
-    } catch (reason) { setError((reason as Error).message); }
-    finally { setBusy(false); }
-  }
-
-  async function reschedule(event: FormEvent<HTMLFormElement>, id: string) {
-    event.preventDefault(); setBusy(true); setError("");
-    const form = new FormData(event.currentTarget);
-    try {
-      await request(`/api/appointments/${id}/status`, { method: "PATCH", body: JSON.stringify({ action: "RESCHEDULE", scheduledAt: `${form.get("scheduledAt")}:00+03:00`, clinic: form.get("clinic"), reason: form.get("reason") }) });
-      setNotice("Appointment rescheduled; prepare a fresh reminder if the patient has consented."); setRescheduleId(null); await load();
-    } catch (reason) { setError((reason as Error).message); }
-    finally { setBusy(false); }
-  }
-
-  return (
-    <>
-      <header><div><p className="eyebrow">Reception</p><h1>Appointments</h1><p>Book and manage upcoming clinic visits from one practical queue.</p></div></header>
-      {error && <div className="alert">{error}</div>}
-      {notice && <div className="alert success" role="status">{notice}</div>}
-      {reminder && <section className="card reminderPreview"><div className="cardHead"><div><h2>Reminder ready</h2><p>Send to {reminder.contact} using the facility&apos;s approved messaging channel.</p></div><button className="secondary" type="button" onClick={() => setReminder(null)}>Close</button></div><textarea value={reminder.message} rows={4} readOnly aria-label="Prepared appointment reminder" /><button className="primary" type="button" onClick={async () => { try { await navigator.clipboard.writeText(reminder.message); setNotice("Reminder copied."); } catch { setError("Copy failed; select the reminder text manually."); } }}>Copy reminder</button></section>}
-      <details className="card managementPanel"><summary><span><strong>Book appointment</strong><small>Open the booking form when needed</small></span><b>Open</b></summary><form className="dataForm managementBody" onSubmit={submit}>
-        <div className="wide"><h2>Book appointment</h2><p>Search the existing patient register before selecting a clinic and time.</p></div>
-        {patient ? (
-          <div className="patientBanner wide"><div><strong>{patient.fullName}</strong><span>{patient.patientNumber}</span></div><button type="button" onClick={() => setPatient(null)}>Change patient</button></div>
-        ) : (
-          <label className="wide">Patient *<input placeholder="Name, patient number or phone" onChange={async (event) => {
-            const query = event.target.value.trim();
-            if (query.length < 2) return setMatches([]);
-            try { setMatches((await request<{ patients: Patient[] }>(`/api/patients?q=${encodeURIComponent(query)}`)).patients); }
-            catch (reason) { setError((reason as Error).message); }
-          }} />
-          {matches.map((match) => <button type="button" className="patientResult" key={match.id} onClick={() => { setPatient(match); setMatches([]); }}><strong>{match.fullName}</strong><span>{match.patientNumber}</span></button>)}</label>
-        )}
-        <label>Clinic *<select name="clinic">{appointmentClinics.map((clinic) => <option key={clinic}>{clinic}</option>)}</select></label>
-        <label>Date and time *<input name="scheduledAt" type="datetime-local" min={kenyaInputTime()} defaultValue={kenyaInputTime()} required /></label>
-        <label className="wide">Reception note<textarea name="notes" rows={2} maxLength={300} placeholder="Optional administrative note; do not record clinical history here" /></label>
-        <button className="primary wide" disabled={busy}>{busy ? "Booking…" : "Book appointment"}</button>
-      </form></details>
-      <section className="card compact">
-        <div className="cardHead"><div><h2>Upcoming appointments</h2><p>Today and the next 30 days.</p></div></div>
-        <nav className="workspaceTabs" aria-label="Appointment lists"><button type="button" className={scope === "upcoming" ? "active" : ""} onClick={() => setScope("upcoming")}>Upcoming</button><button type="button" className={scope === "recall" ? "active" : ""} onClick={() => setScope("recall")}>Recall missed</button><button type="button" className={scope === "all" ? "active" : ""} onClick={() => setScope("all")}>All 90 days</button></nav>
-        <label className="listSearch">Search appointments<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Patient, number, clinic or status" /></label>
-        <p className="listCount">Showing {visibleAppointments.length} of {appointments.length} appointments</p>
-        {visibleAppointments.length ? <div className="queue">{visibleAppointments.map((appointment) => (
-          <div className={`row appointmentRow ${appointment.status === "SCHEDULED" ? "" : "mutedRow"}`} key={appointment.id}>
-            <span className="dot" /><div><strong>{appointment.patient.fullName}</strong><small>{appointment.patient.patientNumber} · {appointment.clinic}{appointment.notes ? ` · ${appointment.notes}` : ""}</small>{appointment.reminderDeliveries?.[0] && <small>Latest reminder: {appointment.reminderDeliveries[0].status.toLowerCase()} · {appointment.reminderDeliveries[0].destinationMasked}</small>}{rescheduleId === appointment.id && <form className="queueTransfer" onSubmit={(event) => void reschedule(event, appointment.id)}><select name="clinic" defaultValue={appointment.clinic}>{appointmentClinics.map((clinic) => <option key={clinic}>{clinic}</option>)}</select><input name="scheduledAt" type="datetime-local" min={kenyaInputTime()} defaultValue={kenyaInputTime()} required/><input name="reason" minLength={5} maxLength={300} placeholder="Reason for rescheduling" required/><button className="primary" disabled={busy}>Save new time</button></form>}</div>
-            <time>{new Date(appointment.scheduledAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</time>
-            <div className="appointmentActions">{appointment.status === "SCHEDULED" && <button className="primary" type="button" onClick={() => onCheckIn(appointment)}>Check in</button>}{appointment.patient.consents?.length ? <button className="secondary" type="button" disabled={busy} onClick={() => void prepareReminder(appointment.id)}>{appointment.reminderPreparedAt ? "Reminder again" : "Reminder"}</button> : null}<button className="secondary" type="button" disabled={busy} onClick={() => setRescheduleId(rescheduleId === appointment.id ? null : appointment.id)}>Reschedule</button>{appointment.status === "SCHEDULED" && <><button className="secondary" type="button" disabled={busy} onClick={() => void update(appointment.id, "NO_SHOW")}>Mark no-show</button><button className="secondary" type="button" disabled={busy} onClick={() => void update(appointment.id, "CANCELLED")}>Cancel</button></>}</div>
-          </div>
-        ))}</div> : <div className="empty"><strong>{query ? "No matching appointments" : "No upcoming appointments"}</strong><p>{query ? "Try a different patient or clinic." : "Booked patients will appear here."}</p></div>}
-      </section>
-    </>
-  );
+  const disabled = busy || list.loading || !list.data;
+  return <>
+    <header><div><p className="eyebrow">Reception</p><h1>Appointments</h1><p>Plan visits, check in arrivals and recall patients from one worklist. All times are EAT.</p></div><button className="secondary" disabled={busy || list.loading} onClick={() => void list.refresh()}>Refresh appointments</button></header>
+    {error && <div className="alert" role="alert">{error}</div>}
+    {notice && <div className="alert success" role="status">{notice}</div>}
+    {reminder && <section className="card reminderPreview"><div className="cardHead"><div><h2>Reminder ready</h2><p>Send to {reminder.contact} using the facility&apos;s approved messaging channel. Preparing does not send it.</p></div><button className="secondary" onClick={() => setReminder(null)}>Close</button></div><textarea value={reminder.message} rows={4} readOnly aria-label="Prepared appointment reminder" /><button className="primary" onClick={async () => { try { await navigator.clipboard.writeText(reminder.message); setNotice("Reminder copied."); } catch { setError("Copy failed; select the reminder text manually."); } }}>Copy reminder</button></section>}
+    <details className="card managementPanel"><summary><span><strong>Book appointment</strong><small>Find the patient, then choose a clinic and time</small></span><b>Open</b></summary><form onSubmit={book}><fieldset className="dataForm managementBody worklistFieldset" disabled={busy}>
+      <div className="wide"><h2>Book appointment</h2><p>Search the existing register to keep the visit linked to the correct patient.</p></div>
+      {patient ? <div className="patientBanner wide"><div><strong>{patient.fullName}</strong><span>{patient.patientNumber}</span></div><button type="button" onClick={() => { setPatient(null); setPatientQuery(""); }}>Change patient</button></div> : <div className="wide"><label>Patient *<input value={patientQuery} onChange={event => setPatientQuery(event.target.value)} placeholder="Name, patient number or phone" autoComplete="off" /></label>{search.loading && <p role="status">Searching patients…</p>}{search.error && <p role="alert">{search.error}</p>}{search.data?.patients.map(match => <button type="button" className="patientResult" key={match.id} onClick={() => setPatient(match)}><strong>{match.fullName}</strong><span>{match.patientNumber}</span></button>)}{search.data && !search.data.patients.length && <p>No matching patients. Check the identifier or register the patient first.</p>}</div>}
+      <label>Clinic *<select name="clinic">{appointmentClinics.map(clinic => <option key={clinic}>{clinic}</option>)}</select></label>
+      <label>Date and time (EAT) *<input name="scheduledAt" type="datetime-local" min={kenyaAppointmentInput(new Date(Date.now() + 60_000))} defaultValue={kenyaAppointmentInput(new Date(Date.now() + 3_600_000))} required /></label>
+      <label className="wide">Reception note<textarea name="notes" rows={2} maxLength={300} placeholder="Optional administrative note; do not record clinical history here" /></label>
+      <button className="primary wide" disabled={busy || !patient}>{busy ? "Saving…" : "Book appointment"}</button>
+    </fieldset></form></details>
+    <section className="card compact" aria-label="Appointment worklist">
+      <nav className="workspaceTabs" aria-label="Appointment lists">{Object.entries(views).map(([key, view]) => <button key={key} type="button" aria-pressed={scope === key} className={scope === key ? "active" : ""} disabled={busy} onClick={() => { setScope(key as AppointmentScope); setRescheduleId(null); setReminder(null); }}>{view.label}</button>)}</nav>
+      <div className="cardHead"><div><h2>{scope === "today" ? "Today's appointments" : views[scope].label}</h2><p>{views[scope].description}</p></div></div>
+      {patientFocus && <div className="patientBanner"><div><strong>{patientFocus.fullName}</strong><span>{patientFocus.patientNumber}</span></div><button className="secondary" disabled={busy} onClick={() => { setPatientFocus(null); setRescheduleId(null); }}>Show all patients</button></div>}
+      <label className="listSearch">Search appointments<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Patient, number, clinic or status" /></label>
+      {list.error && <div className="alert" role="alert">{list.error} Use Refresh appointments to try again.</div>}
+      {list.loading && <p role="status">Loading appointments…</p>}
+      {list.data && <><p className="listCount" role="status">Showing {shown.length} of {appointments.length} appointments{list.data.truncated ? ". The first 500 are shown; narrow the view to find more." : "."}{list.updatedAt && ` Updated ${dateTime(list.updatedAt.toISOString())} EAT.`}</p>
+        <div className="queue">{shown.map(item => {
+          const editable = ["SCHEDULED", "NO_SHOW"].includes(item.status);
+          return <article className={`row appointmentRow ${item.status === "SCHEDULED" ? "" : "mutedRow"}`} key={item.id}>
+            <span className="dot"/><div><strong>{item.patient.fullName}</strong><small>{item.patient.patientNumber} · {item.clinic}{item.notes ? ` · ${item.notes}` : ""}</small><span className="flowTaskState">{item.status === "COMPLETED" ? "Checked in" : item.status.replaceAll("_", " ")}</span>{item.reminderDeliveries?.[0] && <small>Latest reminder: {item.reminderDeliveries[0].status.toLowerCase()} · {item.reminderDeliveries[0].destinationMasked}</small>}
+              {rescheduleId === item.id && editable && <form className="queueTransfer" onSubmit={event => reschedule(event, item.id)}><label>New clinic<select name="clinic" defaultValue={item.clinic}>{appointmentClinics.map(clinic => <option key={clinic}>{clinic}</option>)}</select></label><label>New date and time (EAT)<input name="scheduledAt" type="datetime-local" min={kenyaAppointmentInput(new Date(Date.now() + 60_000))} defaultValue={kenyaAppointmentInput(new Date(Date.now() + 3_600_000))} required /></label><label>Reason for rescheduling<input name="reason" minLength={5} maxLength={300} required /></label><button className="primary" disabled={disabled}>Save new time</button><button type="button" className="secondary" disabled={busy} onClick={() => setRescheduleId(null)}>Keep current time</button></form>}
+            </div><time>{dateTime(item.scheduledAt)} EAT</time>
+            <div className="appointmentActions">{item.status === "SCHEDULED" && <button className="primary" disabled={disabled} onClick={() => onCheckIn(item)}>Check in</button>}{item.status === "SCHEDULED" && Boolean(item.patient.consents?.length) && <button className="secondary" disabled={disabled} onClick={() => void save(async () => { const prepared = await jsonRequest<{ contact: string; message: string }>(`/api/appointments/${item.id}/reminder`, { method: "POST" }); await list.refresh(); setReminder(prepared); })}>Prepare reminder</button>}{editable && <button className="secondary" disabled={disabled} onClick={() => setRescheduleId(rescheduleId === item.id ? null : item.id)}>Reschedule</button>}{item.status === "SCHEDULED" && <>{new Date(item.scheduledAt).getTime() <= Date.now() && <button className="secondary" disabled={disabled} onClick={() => void save(async () => { await jsonRequest(`/api/appointments/${item.id}/status`, { method: "PATCH", body: JSON.stringify({ status: "NO_SHOW" }) }); setNotice("Appointment marked as missed."); await list.refresh(); })}>Mark no-show</button>}<button className="secondary" disabled={disabled} onClick={() => void save(async () => { await jsonRequest(`/api/appointments/${item.id}/status`, { method: "PATCH", body: JSON.stringify({ status: "CANCELLED" }) }); setNotice("Appointment cancelled."); await list.refresh(); })}>Cancel</button></>}</div>
+          </article>;
+        })}</div>{!shown.length && <div className="empty"><strong>{query ? "No matching appointments" : "No appointments in this view"}</strong><p>{query ? "Try another patient, clinic or status." : "Choose another date view or book an appointment."}</p></div>}
+      </>}
+    </section>
+  </>;
 }
