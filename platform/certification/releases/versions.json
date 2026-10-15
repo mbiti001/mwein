@@ -46,9 +46,12 @@
     {
       "version": "1.4.0",
       "displayName": "1.4.0",
-      "status": "candidate",
+      "status": "deployed",
       "branch": "codex/mwein-platform",
-      "note": "Searchable, paginated diagnostic review table, retained review entries and current-search save recovery. No new migration. Separate from the release coordinator's frozen 1.3.0 source 65b66f8; not deployed."
+      "note": "Diagnostic table/search/paging deployed from exact successful CI source. Public desktop/tablet/phone and Vercel checks passed. No database changes. Clinical readiness remains blocked; later prescribing and unified vitals/triage work is separate.",
+      "source": "e21384455f78449a1fb4437a9836797baf52615b",
+      "deploymentId": "dpl_FouhRPioAV9Ak9YqdzdCGdkzTTwa",
+      "evidence": "2026-10-16-1.4.0.json"
     }
   ]
 }
