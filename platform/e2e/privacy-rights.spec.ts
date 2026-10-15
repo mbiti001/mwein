@@ -21,6 +21,47 @@ test("DPO records consent and fulfills an audited export without mixing patient 
 
   const row = page.locator(".row").filter({ hasText: "Browser verified portable record request" });
   await row.getByRole("button", { name: "Verify identity" }).click();
+  const identityForm = row.locator('.rightsIdentityForm');
+  await identityForm.getByLabel("Requester type").selectOption("AUTHORIZED_REPRESENTATIVE");
+  await identityForm.getByLabel("Requester reference", {exact:true}).fill("BROWSER-REPRESENTATIVE");
+  await identityForm.getByLabel("Identity check evidence", {exact:true}).fill("BROWSER-IDENTITY-CHECK");
+  await identityForm.getByLabel("Relationship or capacity", {exact:true}).fill("Authorized representative");
+  await identityForm.getByLabel("Authority check evidence", {exact:true}).fill("BROWSER-AUTHORITY-CHECK");
+  await identityForm.getByLabel("Verified scope", {exact:true}).selectOption("PATIENT_RECORD_EXPORT");
+  await identityForm.getByLabel("Scope and authority assessment").fill("Reviewed authority covers entire available patient-record export");
+  await identityForm.getByLabel(/I checked the requester/).check();
+  await page.emulateMedia({media:'print'}); await expect(identityForm).toBeHidden(); await page.emulateMedia({media:'screen'});
+  for(const width of [1440,768,390,320]) { await page.setViewportSize({width,height:1000}); expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true); }
+  await identityForm.screenshot({path:'../../outputs/mwein-rights-identity-form-320.png'});
+  const identityBodies: string[]=[];
+  await page.route(/\/api\/patients\/[^/]+\/privacy$/,async route=>{
+    if(route.request().method()==='POST' && route.request().postDataJSON().action==='VERIFY_IDENTITY') {
+      identityBodies.push(route.request().postData()!);
+      if(identityBodies.length===1) return route.fulfill({status:503,json:{error:'Synthetic identity save failure'}});
+      if(identityBodies.length===2) { const saved=await route.fetch(); expect(saved.status()).toBe(200);return route.fulfill({status:503,json:{error:'Synthetic lost verification response'}}); }
+    }
+    return route.continue();
+  });
+  await identityForm.getByRole('button',{name:'Save identity verification',exact:true}).click();
+  await expect(page.getByText('Synthetic identity save failure',{exact:false})).toBeVisible();
+  await expect(identityForm.getByLabel('Requester reference',{exact:true})).toHaveValue('BROWSER-REPRESENTATIVE');
+  await identityForm.getByRole('button',{name:'Save identity verification',exact:true}).click();
+  await expect(page.getByText('Synthetic lost verification response',{exact:false})).toBeVisible();
+  await identityForm.getByRole('button',{name:'Save identity verification',exact:true}).click();
+  await expect(row).toContainText('IDENTITY VERIFIED');expect(identityBodies.length).toBe(3);expect(new Set(identityBodies).size).toBe(1);
+  await expect(row).toContainText('MMS privacy officer');
+  for (const width of [1440, 768, 390, 320]) {
+    await page.setViewportSize({width,height:1000});
+    const columns=await row.locator('.recordFields').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length);
+    expect(columns).toBeGreaterThanOrEqual(width>=768 ? 2 : 1);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  }
+  await page.setViewportSize({width:1440,height:1000});
+  await row.screenshot({path:'../../outputs/mwein-rights-identity-saved-1440.png'});
+  await page.emulateMedia({media:'print'});
+  await expect(row.locator('.recordFields')).toBeVisible();
+  expect(await row.locator('.recordFields').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length)).toBe(2);
+  await page.emulateMedia({media:'screen'});
   await row.getByRole("button", { name: "Start review" }).click();
   const downloadPromise = page.waitForEvent("download");
   await row.getByRole("button", { name: "Generate export" }).click();
@@ -29,10 +70,10 @@ test("DPO records consent and fulfills an audited export without mixing patient 
   await expect(row).toContainText("IN REVIEW");
   await expect(row).toContainText("audit:");
   await row.getByRole("button", { name: "Record delivery" }).click();
-  await row.getByLabel("Recipient type").selectOption("AUTHORIZED_REPRESENTATIVE");
-  await row.getByLabel("Recipient reference", { exact: true }).fill("BROWSER-REPRESENTATIVE");
+  await expect(row.getByLabel("Recipient type")).toBeDisabled();
+  await expect(row.getByLabel("Recipient reference", { exact: true })).toHaveValue("BROWSER-REPRESENTATIVE");
   await row.getByLabel("Identity verification evidence").fill("BROWSER-IDENTITY-CHECK");
-  await row.getByLabel("Representative authority evidence").fill("BROWSER-AUTHORITY-CHECK");
+  await expect(row.getByLabel("Representative authority evidence")).toHaveValue("BROWSER-AUTHORITY-CHECK");
   await row.getByLabel("Delivery receipt reference").fill("BROWSER-DELIVERY-RECEIPT");
   await row.getByLabel("Response summary").fill("Reviewed record delivered through approved synthetic channel");
   await row.getByLabel(/I verified the recipient/).check();
@@ -117,6 +158,12 @@ test("rights intake retains original receipt, reports overdue work and recovers 
   await expect(row).toContainText("29 Jan 2020");
   await expect(row).toContainText("5 Feb 2020");
   await row.getByRole("button", { name: "Verify identity" }).click();
+  const identity = row.locator('.rightsIdentityForm');
+  await identity.getByLabel('Requester reference',{exact:true}).fill('SYNTHETIC-PATIENT');
+  await identity.getByLabel('Identity check evidence',{exact:true}).fill('SYNTHETIC-IDENTITY');
+  await identity.getByLabel('Scope and authority assessment').fill('Verify original overdue access request for review only');
+  await identity.getByLabel(/I checked the requester/).check();
+  await identity.getByRole('button',{name:'Save identity verification'}).click();
   await expect(row).toContainText("IDENTITY VERIFIED");
   await expect(row).toContainText("5 Feb 2020");
   expect(posts).toBe(2); // One intake, one identity transition; reload never repeats the intake.

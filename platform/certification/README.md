@@ -40,3 +40,7 @@ Never replace these documents with environment-variable screenshots or self-atte
 ## Latest review
 
 See [25 September DHA readiness and ODPC evidence](DHA-READINESS-20260925.md) and [verified production release](DEPLOYMENT-20260925.md) for the current position; older dated records describe their respective releases.
+
+## Current additional requirements
+
+See the [DHA HIE requirements register](assessment-pack/DHA-HIE-REQUIREMENTS.md), added 16 October 2026 from the owner’s reference, and the [1.3.0 rights identity controls](RIGHTS-IDENTITY-IMPLEMENTATION.md). The [release ledger](releases/versions.json) distinguishes current deployment from candidates; older dated reports retain their original scope.

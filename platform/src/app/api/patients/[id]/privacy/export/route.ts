@@ -3,6 +3,7 @@ import { appendAudit, auditValueFingerprint } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiError } from "@/lib/http";
+import { requireRightsIdentity } from "@/lib/privacy-identity";
 import { diagnosticEventSelect } from "@/lib/diagnostic-review";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -16,6 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       if (!rightsRequest) throw Object.assign(new Error("Data-subject request not found"), { status: 404 });
       if (!["ACCESS", "PORTABLE_EXPORT"].includes(rightsRequest.type) || rightsRequest.status !== "IN_REVIEW")
         throw Object.assign(new Error("Only an identity-verified, in-review access or portable-export request can generate an export"), { status: 409 });
+      requireRightsIdentity(rightsRequest, true);
       if (rightsRequest.responseEvidenceReference ? rightsRequest.responseEvidenceReference !== previousResponseReference || !regenerationReason : Boolean(previousResponseReference))
         throw Object.assign(new Error("An export may already be prepared. Reload the request; regenerating requires its current response reference and a reason"), { status: 409 });
       const patient = await tx.patient.findFirst({

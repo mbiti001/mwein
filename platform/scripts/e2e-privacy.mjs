@@ -1,4 +1,5 @@
-export async function verifyPrivacy({ api, requestWithCookie, authenticate, patient, assert, steps, origin }) {
+import { randomUUID } from "node:crypto";
+export async function verifyPrivacy({ api, requestWithCookie, authenticate, patient, assert, steps, origin, pg }) {
   const path = `/api/patients/${patient.id}/privacy`;
   const created = await api("create verified-export request", path, { method: "POST", body: JSON.stringify({ action: "CREATE_REQUEST", type: "PORTABLE_EXPORT", details: "Synthetic patient requests their portable record" }) });
   const requestId = created.body.record.id;
@@ -6,8 +7,32 @@ export async function verifyPrivacy({ api, requestWithCookie, authenticate, pati
   const dpo = await authenticate("MMS", "privacy@example.test");
   const exportRequest = () => requestWithCookie(`${path}/export`, dpo.cookie, { method: "POST", body: JSON.stringify({ requestId }) });
   assert((await exportRequest()).response.status === 409, "Export bypassed identity verification");
-  for (const status of ["IDENTITY_VERIFIED", "IN_REVIEW"]) {
-    await api(`move export request to ${status}`, path, { method: "POST", body: JSON.stringify({ action: "UPDATE_REQUEST", requestId, status }) });
+  const verify = { action: "VERIFY_IDENTITY", requestId, requestKey: randomUUID(), requesterKind: "AUTHORIZED_REPRESENTATIVE", requesterReference: "SYNTHETIC-RECIPIENT", identityEvidenceReference: "SYNTHETIC-ID-CHECK", relationship: "Authorized representative", authorityEvidenceReference: "SYNTHETIC-AUTHORITY", authorizationScope: "PATIENT_RECORD_EXPORT", scopeSummary: "Entire available synthetic patient record requested and authorized", attested: true };
+  const postIdentity = (body = verify, cookie = dpo.cookie) => requestWithCookie(path, cookie, { method: "POST", body: JSON.stringify(body) });
+  assert((await postIdentity({action:"UPDATE_REQUEST",requestId,status:"IDENTITY_VERIFIED"})).response.status===422,"Evidence-free identity verification remained possible");
+  const identityResults=await Promise.all([postIdentity(),postIdentity()]);
+  assert(identityResults.every(r=>r.response.ok),"Concurrent verification did not recover the same evidence");
+  assert(identityResults[0].body.record.identityVerification.verifiedAt===identityResults[1].body.record.identityVerification.verifiedAt,"Verification time changed on retry");
+  assert((await postIdentity({...verify,requesterReference:"DIFFERENT-PERSON"})).response.status===409,"Changed recipient reused retained verification");
+  await api("start review with retained identity evidence",path,{method:"POST",body:JSON.stringify({action:"UPDATE_REQUEST",requestId,status:"IN_REVIEW"})});
+  const restricted=await api("create limited-authority request",path,{method:"POST",body:JSON.stringify({action:"CREATE_REQUEST",type:"ACCESS",details:"Synthetic limited authority for review only"})});
+  const limitedId=restricted.body.record.id;
+  assert((await postIdentity({...verify,requestId:limitedId,requestKey:randomUUID(),authorizationScope:"REQUEST_REVIEW_ONLY"})).response.ok,"Limited-authority verification failed");
+  await api("start limited review",path,{method:"POST",body:JSON.stringify({action:"UPDATE_REQUEST",requestId:limitedId,status:"IN_REVIEW"})});
+  assert((await requestWithCookie(path+"/export",dpo.cookie,{method:"POST",body:JSON.stringify({requestId:limitedId})})).response.status===409,"Limited authority disclosed full patient record");
+  const pending=await api("create audit rollback identity fixture",path,{method:"POST",body:JSON.stringify({action:"CREATE_REQUEST",type:"ACCESS",details:"Synthetic audit-failure verification rollback"})});
+  await pg.exec(`CREATE FUNCTION reject_test_identity_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='RIGHTS_IDENTITY_VERIFIED' THEN RAISE EXCEPTION 'synthetic audit failure'; END IF; RETURN NEW; END; $$; CREATE TRIGGER reject_test_identity_audit BEFORE INSERT ON "AuditEvent" FOR EACH ROW EXECUTE FUNCTION reject_test_identity_audit();`);
+  try { assert((await postIdentity({...verify,requestId:pending.body.record.id,requestKey:randomUUID()})).response.status===500,"Identity verification ignored audit failure"); }
+  finally { await pg.exec('DROP TRIGGER reject_test_identity_audit ON "AuditEvent"; DROP FUNCTION reject_test_identity_audit();'); }
+  const unchanged=await pg.query('SELECT status, "identityVerification" FROM "DataSubjectRequest" WHERE id=$1',[pending.body.record.id]);
+  assert(unchanged.rows[0].status==='RECEIVED' && unchanged.rows[0].identityVerification===null,"Audit failure left verified evidence behind");
+  const legacyId=pending.body.record.id;
+  await pg.query(`UPDATE "DataSubjectRequest" SET status='IN_REVIEW', "responsePreparedAt"=CURRENT_TIMESTAMP, "responseEvidenceReference"='audit:legacy-synthetic' WHERE id=$1`,[legacyId]);
+  assert((await requestWithCookie(path+"/export",dpo.cookie,{method:"POST",body:JSON.stringify({requestId:legacyId,previousResponseReference:"audit:legacy-synthetic",regenerationReason:"Synthetic legacy export recovery"})})).response.status===409,"Legacy state bypassed retained identity evidence");
+  const reverified=await postIdentity({...verify,requestId:legacyId,requestKey:randomUUID()});
+  assert(reverified.response.ok && reverified.body.record.status==='IN_REVIEW' && reverified.body.record.responsePreparedAt===null && reverified.body.record.responseEvidenceReference===null && reverified.body.record.dueAt===pending.body.record.dueAt,"Legacy verification retained an unbound response or reset the clock");
+  for(const sql of [`UPDATE "DataSubjectRequest" SET "identityVerification"=NULL WHERE id=$1`,`UPDATE "DataSubjectRequest" SET "details"='changed authority scope' WHERE id=$1`,`DELETE FROM "DataSubjectRequest" WHERE id=$1`]) {
+    let rejected=false;try {await pg.query(sql,[requestId]);}catch(error){rejected=String(error).includes('immutable');}assert(rejected,"Retained identity evidence or bound request was mutable");
   }
   const reception = await authenticate("MMS", "shared.user@example.test");
   assert((await requestWithCookie(path, reception.cookie, { method: "POST", body: JSON.stringify({ action: "CREATE_REQUEST", type: "ACCESS", details: "Unauthorized intake attempt" }) })).response.status === 403, "Reception created a privacy request without permission");
@@ -15,6 +40,13 @@ export async function verifyPrivacy({ api, requestWithCookie, authenticate, pati
   const otherFacility = await authenticate("OTHER", "shared.user@example.test");
   assert(!(await requestWithCookie(path, otherFacility.cookie)).response.ok, "Other facility accessed privacy requests");
   assert(!(await requestWithCookie(path, otherFacility.cookie, { method: "POST", body: JSON.stringify({ action: "CREATE_REQUEST", type: "ACCESS", details: "Foreign facility intake attempt" }) })).response.ok, "Other facility created a privacy request");
+  assert((await postIdentity(verify,reception.cookie)).response.status===403,"Unauthorized staff verified identity");
+  const otherPrivacy = await authenticate("OTHER", "privacy@example.test");
+  assert((await requestWithCookie(path+"/export",otherPrivacy.cookie,{method:"POST",body:JSON.stringify({requestId})})).response.status===404,"Other-facility officer exported a patient");
+  assert((await postIdentity(verify,otherPrivacy.cookie)).response.status===404,"Other-facility officer verified identity");
+  const differentPatient=await pg.query('SELECT id FROM "Patient" WHERE "facilityId"=(SELECT "facilityId" FROM "Patient" WHERE id=$1) AND id<>$1 LIMIT 1',[patient.id]);
+  assert(differentPatient.rows.length===1,"Missing second synthetic patient");
+  assert((await requestWithCookie('/api/patients/'+differentPatient.rows[0].id+'/privacy',dpo.cookie,{method:'POST',body:JSON.stringify(verify)})).response.status===404,"Wrong-patient request accepted identity evidence");
   const legacyGet = await fetch(`${origin}${path}/export?requestId=${requestId}`, { headers: { cookie: dpo.cookie } });
   assert(legacyGet.status === 405, "GET still generated a state-changing export");
   const results = await Promise.all([exportRequest(), exportRequest()]);

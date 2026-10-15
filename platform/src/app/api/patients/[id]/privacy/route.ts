@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiError, privateJson } from "@/lib/http";
 import { normalizeName } from "@/lib/security";
+import { verifyIdentitySchema, identityFields, requireRightsIdentity } from "@/lib/privacy-identity";
 import { confirmDeliverySchema } from "@/lib/privacy-delivery";
 import {
   canTransitionDataSubjectRequest,
@@ -69,7 +70,7 @@ const correctionSchema = z.object({
     disabilityStatus: z.string().trim().max(160).nullable().optional(),
   }).refine((changes) => Object.keys(changes).length > 0, "At least one correction is required"),
 });
-const inputSchema = z.union([recordConsentSchema, withdrawConsentSchema, createRequestSchema, updateRequestSchema, correctionSchema, confirmDeliverySchema]);
+const inputSchema = z.union([recordConsentSchema, withdrawConsentSchema, createRequestSchema, updateRequestSchema, correctionSchema, confirmDeliverySchema, verifyIdentitySchema]);
 
 async function patientInFacility(id: string, facilityId: string) {
   const patient = await db.patient.findFirst({ where: { id, facilityId }, select: { id: true, patientNumber: true, fullName: true } });
@@ -129,12 +130,33 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         await appendAudit(tx, { userId: user.id, sessionId: user.sessionId, action: "DATA_SUBJECT_REQUEST_RECORDED", entityType: "DataSubjectRequest", entityId: dataRequest.id, afterHash: `${dataRequest.type}:${dataRequest.status}:${requestedAt.toISOString()}:${dueAt.toISOString()}` });
         return dataRequest;
       }
+      if (input.action === "VERIFY_IDENTITY") {
+        const current = await tx.dataSubjectRequest.findFirst({ where: { id: input.requestId, patientId: id, facilityId: user.facilityId } });
+        if (!current) throw Object.assign(new Error("Data-subject request not found"), { status: 404 });
+        const fields = identityFields.parse(input);
+        if (current.identityVerification) {
+          const prior = requireRightsIdentity(current);
+          if (prior.verifiedById !== user.id || auditValueFingerprint(identityFields.parse(prior)) !== auditValueFingerprint(fields))
+            throw Object.assign(new Error("Identity evidence is already retained. Reload this request; changed authority requires a separate reviewed request with the original receipt time"), { status: 409 });
+          await appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: "RIGHTS_IDENTITY_VERIFICATION_REPLAYED", entityType: "DataSubjectRequest", entityId: current.id });
+          return current;
+        }
+        if (!["RECEIVED", "IDENTITY_VERIFIED", "IN_REVIEW"].includes(current.status)) throw Object.assign(new Error("Closed requests cannot receive new identity evidence"), { status: 409 });
+        if (fields.authorizationScope === "PATIENT_RECORD_EXPORT" && !["ACCESS", "PORTABLE_EXPORT"].includes(current.type)) throw Object.assign(new Error("Full-record export authority is only relevant to access or portability requests"), { status: 422 });
+        const evidence = { ...fields, version: 1, requestId: current.id, patientId: id, facilityId: user.facilityId, requestType: current.type, verifiedAt: new Date().toISOString(), verifiedById: user.id, verifiedByName: user.displayName };
+        const updated = await tx.dataSubjectRequest.update({ where: { id: current.id }, data: { identityVerification: evidence, status: current.status === "RECEIVED" ? "IDENTITY_VERIFIED" : current.status, responsePreparedAt: null, responseEvidenceReference: null, updatedById: user.id } });
+        await appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: "RIGHTS_IDENTITY_VERIFIED", entityType: "DataSubjectRequest", entityId: current.id, beforeHash: current.responseEvidenceReference || undefined, afterHash: auditValueFingerprint(evidence) });
+        return updated;
+      }
       if (input.action === "CONFIRM_DELIVERY") {
         const current = await tx.dataSubjectRequest.findFirst({ where: { id: input.requestId, patientId: id, facilityId: user.facilityId } });
         if (!current) throw Object.assign(new Error("Data-subject request not found"), { status: 404 });
         if (!["ACCESS", "PORTABLE_EXPORT"].includes(current.type) || current.status !== "IN_REVIEW" || !current.responsePreparedAt || current.responseEvidenceReference !== input.responseEvidenceReference)
           throw Object.assign(new Error("Reload the request: delivery requires its current prepared export and an open review"), { status: 409 });
         const now = new Date();
+        const identity = requireRightsIdentity(current, true);
+        if (input.recipientKind !== identity.requesterKind || input.recipientReference !== identity.requesterReference || (input.authorityEvidenceReference || null) !== (identity.authorityEvidenceReference || null))
+          throw Object.assign(new Error("Delivery recipient or authority differs from the verified request"), { status: 409 });
         const deliveredAt = input.deliveredAt ? new Date(input.deliveredAt) : now;
         if (deliveredAt < current.responsePreparedAt) throw Object.assign(new Error("Delivery cannot precede preparation of this response"), { status: 422 });
         const { action: _action, requestId: _requestId, ...evidence } = input;
@@ -147,6 +169,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const dataRequest = await tx.dataSubjectRequest.findFirst({ where: { id: input.requestId, patientId: id, facilityId: user.facilityId } });
         if (!dataRequest) throw Object.assign(new Error("Data-subject request not found"), { status: 404 });
         if (dataRequest.type !== "CORRECTION" || dataRequest.status !== "IN_REVIEW") throw Object.assign(new Error("Only an in-review correction request can apply demographic changes"), { status: 409 });
+        requireRightsIdentity(dataRequest);
         const current = await tx.patient.findUniqueOrThrow({ where: { id }, select: { givenName: true, middleName: true, familyName: true, fullName: true, dateOfBirth: true, estimatedAgeYears: true, sexAtBirth: true, gender: true, preferredLanguage: true, bloodGroup: true, occupation: true, maritalStatus: true, disabilityStatus: true } });
         const changes = { ...input.changes };
         if (changes.dateOfBirth) changes.estimatedAgeYears = null;
@@ -163,6 +186,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
       const current = await tx.dataSubjectRequest.findFirst({ where: { id: input.requestId, patientId: id, facilityId: user.facilityId } });
       if (!current) throw Object.assign(new Error("Data-subject request not found"), { status: 404 });
+      if (input.status === "IDENTITY_VERIFIED") throw Object.assign(new Error("Use the identity evidence form before verifying this request"), { status: 422 });
+      if (["IN_REVIEW", "COMPLETED"].includes(input.status)) requireRightsIdentity(current);
       if (input.status === "COMPLETED" && ["ACCESS", "PORTABLE_EXPORT"].includes(current.type))
         throw Object.assign(new Error("Access and portability requests require confirmed delivery evidence before completion"), { status: 422 });
       if (!canTransitionDataSubjectRequest(current.status as DataSubjectRequestStatus, input.status))

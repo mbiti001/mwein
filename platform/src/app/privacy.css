@@ -18,3 +18,12 @@
   .privacyRightsWorkspace .row > button,
   .privacyRightsWorkspace .row > .statusPill { grid-column: 2; }
 }
+
+.privacyRightsWorkspace .rightsIdentityForm { grid-column: 1 / -1; overflow-wrap: anywhere; }
+@media print { .privacyRightsWorkspace .rightsIdentityForm { display: none !important; } }
+
+/* Keep the evidence grid wide; actions follow it instead of squeezing tablet records. */
+.privacyRightsWorkspace .rightsRequestRow { grid-template-columns: auto minmax(0, 1fr); }
+.privacyRightsWorkspace .rightsRequestRow > .workstationActions { grid-column: 2; }
+.privacyRightsWorkspace :is(.rightsIdentityForm, .rightsDeliveryForm) .check { display: flex; align-items: flex-start; gap: 10px; }
+.privacyRightsWorkspace :is(.rightsIdentityForm, .rightsDeliveryForm) .check input { flex: 0 0 18px; width: 18px; height: 18px; margin: 3px 0 0; }

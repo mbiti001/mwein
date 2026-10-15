@@ -4,25 +4,28 @@ vi.mock("@/lib/db", () => ({ db: { patient: { findFirst: vi.fn() }, $transaction
 vi.mock("@/lib/audit", () => ({ appendAudit: vi.fn(), auditValueFingerprint: vi.fn() }));
 import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { appendAudit } from "@/lib/audit";
+import { appendAudit, auditValueFingerprint } from "@/lib/audit";
 import { POST } from "./route";
-const user = { id: "dpo", facilityId: "facility-a", sessionId: "session" };
+const user = { displayName: "Synthetic DPO", id: "dpo", facilityId: "facility-a", sessionId: "session" };
 const params = { params: Promise.resolve({ id: "patient" }) };
 const create = vi.fn();
 const findFirst = vi.fn();
 const update = vi.fn();
 const lock = vi.fn();
 const requestId = "11111111-1111-4111-8111-111111111111";
+const identityInput = { requestKey: "33333333-3333-4333-8333-333333333333", requesterKind: "PATIENT", requesterReference: "patient-ref", identityEvidenceReference: "identity-check-ref", authorizationScope: "PATIENT_RECORD_EXPORT", scopeSummary: "Entire synthetic patient record requested", attested: true };
+const identityEvidence = { ...identityInput, version: 1, requestId, patientId: "patient", facilityId: user.facilityId, requestType: "ACCESS", verifiedAt: "2026-10-15T08:00:00.000Z", verifiedById: user.id, verifiedByName: "Synthetic DPO" };
 const responseReference = "audit:22222222-2222-4222-8222-222222222222";
 const deliver = { action: "CONFIRM_DELIVERY", requestId, responseEvidenceReference: responseReference, recipientKind: "PATIENT", recipientReference: "patient-ref", identityEvidenceReference: "identity-check-ref", method: "IN_PERSON", deliveryEvidenceReference: "receipt-ref", resolution: "Reviewed response delivered to patient", attested: true };
 const postBody = (body: object) => POST(new Request("http://localhost/api/patients/patient/privacy", { method: "POST", body: JSON.stringify(body) }), params);
 const post = (extra: object = {}) => POST(new Request("http://localhost/api/patients/patient/privacy", { method: "POST", body: JSON.stringify({ action: "CREATE_REQUEST", type: "ACCESS", details: "Patient requests access to their record", ...extra }) }), params);
 beforeEach(() => {
   vi.resetAllMocks(); vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-15T10:00:00Z"));
+  vi.mocked(auditValueFingerprint).mockImplementation((value: any) => JSON.stringify(value));
   vi.mocked(requirePermission).mockResolvedValue(user as any);
   vi.mocked(db.patient.findFirst).mockResolvedValue({ id: "patient" } as any);
   create.mockImplementation(async ({ data }) => ({ ...data, id: "request", status: "RECEIVED" }));
-  findFirst.mockResolvedValue({ id: requestId, type: "ACCESS", status: "IN_REVIEW", responsePreparedAt: new Date("2026-10-15T09:00:00Z"), responseEvidenceReference: responseReference });
+  findFirst.mockResolvedValue({ id: requestId, patientId: "patient", facilityId: user.facilityId, identityVerification: identityEvidence, type: "ACCESS", status: "IN_REVIEW", responsePreparedAt: new Date("2026-10-15T09:00:00Z"), responseEvidenceReference: responseReference });
   update.mockImplementation(async ({ data }) => ({ id: requestId, ...data }));
   vi.mocked(db.$transaction).mockImplementation(async (fn: any) => fn({ $queryRaw: lock, dataSubjectRequest: { create, findFirst, update } }));
 });
@@ -101,3 +104,39 @@ describe("rights intake deadlines and boundaries", () => {
     expect(db.$transaction).toHaveBeenCalledOnce();
   });
 });
+
+ describe("retained requester verification", () => {
+ const body = { action: "VERIFY_IDENTITY", requestId, ...identityInput };
+ it("rejects the former evidence-free status shortcut", async () => {
+  expect((await postBody({ action: "UPDATE_REQUEST", requestId, status: "IDENTITY_VERIFIED" })).status).toBe(422); expect(update).not.toHaveBeenCalled();
+ });
+ it("records evidence and clears a legacy prepared response without changing its deadline", async () => {
+  findFirst.mockResolvedValue({id: requestId, patientId: "patient", facilityId: user.facilityId, type: "ACCESS", status: "IN_REVIEW", responseEvidenceReference: responseReference});
+  expect((await postBody(body)).status).toBe(200);
+  expect(update).toHaveBeenCalledWith({where:{id:requestId},data:{status:"IN_REVIEW",identityVerification:expect.objectContaining({patientId:"patient",facilityId:user.facilityId,verifiedById:user.id,verifiedAt:"2026-10-15T10:00:00.000Z"}),responsePreparedAt:null,responseEvidenceReference:null,updatedById:user.id}});
+  expect(appendAudit).toHaveBeenCalledWith(expect.anything(),expect.objectContaining({action:"RIGHTS_IDENTITY_VERIFIED",sessionId:user.sessionId,beforeHash:responseReference}));
+ });
+ it("recovers an exact retry but rejects changed authority and actor",async()=>{
+  expect((await postBody(body)).status).toBe(200); expect(update).not.toHaveBeenCalled();
+  expect((await postBody({...body,scopeSummary:"Different authorization scope"})).status).toBe(409);
+  vi.mocked(requirePermission).mockResolvedValue({...user,id:"another-dpo"} as any);
+  expect((await postBody(body)).status).toBe(409);
+ });
+ it("withholds a successful verification response when audit fails", async()=>{
+  findFirst.mockResolvedValue({id:requestId,type:"ACCESS",status:"RECEIVED"});
+  vi.mocked(appendAudit).mockRejectedValue(new Error("audit failed"));
+  const result=await postBody(body); expect(result.status).toBe(500);expect(await result.json()).not.toHaveProperty("record");
+ });
+ it("rejects a different delivery recipient and incomplete representative authority",async()=>{
+  expect((await postBody({...deliver,recipientReference:"another-person"})).status).toBe(409);
+  expect((await postBody({...body,requesterKind:"AUTHORIZED_REPRESENTATIVE"})).status).toBe(422);
+  expect(update).not.toHaveBeenCalled();
+ });
+ it("does not allow legacy review status alone to complete or apply corrections",async()=>{
+  findFirst.mockResolvedValue({id:requestId,type:"DISCLOSURE",status:"IN_REVIEW"});
+  expect((await postBody({action:"UPDATE_REQUEST",requestId,status:"COMPLETED",resolution:"Reviewed response",evidenceReference:"retained-ref"})).status).toBe(409);
+  findFirst.mockResolvedValue({id:requestId,type:"CORRECTION",status:"IN_REVIEW"});
+  expect((await postBody({action:"APPLY_DEMOGRAPHIC_CORRECTION",requestId,reason:"Synthetic verification missing",changes:{givenName:"Changed"}})).status).toBe(409);
+  expect(update).not.toHaveBeenCalled();
+ });
+ });

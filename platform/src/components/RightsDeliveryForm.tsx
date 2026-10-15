@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { type FormEvent } from "react";
+import type { IdentityEvidence } from "@/lib/privacy-identity";
 import { deliveryMethods } from "@/lib/privacy-delivery";
 
-export default function RightsDeliveryForm({ requestId, responseReference, busy, onSave, onCancel }: {
-  requestId: string; responseReference: string; busy: boolean;
+export default function RightsDeliveryForm({ requestId, responseReference, identity, busy, onSave, onCancel }: {
+  requestId: string; responseReference: string; identity: IdentityEvidence; busy: boolean;
   onSave: (payload: object) => Promise<boolean>; onCancel: () => void;
 }) {
-  const [representative, setRepresentative] = useState(false);
+  const representative = identity.requesterKind === "AUTHORIZED_REPRESENTATIVE";
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -25,10 +26,10 @@ export default function RightsDeliveryForm({ requestId, responseReference, busy,
     <p>Record delivery only after the intended recipient has received the reviewed response through an approved channel. Use evidence references, not identity numbers or document copies. This form does not send the response.</p>
     <p>Prepared response: <span>{responseReference}</span></p>
     <form className="dataForm" onSubmit={submit} inert={busy}>
-      <label>Recipient type<select onChange={event => setRepresentative(event.target.value === "AUTHORIZED_REPRESENTATIVE")} value={representative ? "AUTHORIZED_REPRESENTATIVE" : "PATIENT"}><option value="PATIENT">Patient</option><option value="AUTHORIZED_REPRESENTATIVE">Authorized representative</option></select></label>
-      <label>Recipient reference<input name="recipientReference" required minLength={3} maxLength={300} /></label>
+      <label>Recipient type<select disabled value={representative ? "AUTHORIZED_REPRESENTATIVE" : "PATIENT"}><option value="PATIENT">Patient</option><option value="AUTHORIZED_REPRESENTATIVE">Authorized representative</option></select></label>
+      <label>Recipient reference<input name="recipientReference" value={identity.requesterReference} readOnly required minLength={3} maxLength={300} /></label>
       <label>Identity verification evidence<input name="identityEvidenceReference" required minLength={3} maxLength={500} /></label>
-      {representative && <label>Representative authority evidence<input name="authorityEvidenceReference" required minLength={3} maxLength={500} /></label>}
+      {representative && <label>Representative authority evidence<input name="authorityEvidenceReference" value={identity.authorityEvidenceReference || ""} readOnly required minLength={3} maxLength={500} /></label>}
       <label>Delivery channel<select name="method">{deliveryMethods.map(method => <option key={method} value={method}>{method.replaceAll("_", " ")}</option>)}</select></label>
       <label>Delivered at (Nairobi)<input name="deliveredAt" type="datetime-local" /><small>Leave blank only if delivery occurred now.</small></label>
       <label>Delivery receipt reference<input name="deliveryEvidenceReference" required minLength={3} maxLength={500} /></label>
