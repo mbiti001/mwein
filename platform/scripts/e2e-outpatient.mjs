@@ -246,6 +246,9 @@ try {
      ON CONFLICT DO NOTHING`,
     [admin.id],
   );
+  const otherPrivacyUserId = randomUUID();
+  await pg.query(`INSERT INTO "User" ("id", "facilityId", "email", "displayName", "passwordHash", "mustChangePassword", "updatedAt") VALUES ($1, $2, 'privacy@example.test', 'Other facility privacy officer', $3, false, CURRENT_TIMESTAMP)`, [otherPrivacyUserId, otherFacilityId, admin.passwordHash]);
+  await pg.query(`INSERT INTO "UserRole" ("userId", "roleId") SELECT $1, "id" FROM "Role" WHERE "code" = 'DATA_PROTECTION_OFFICER'`, [otherPrivacyUserId]);
   steps.push("seed duplicate-email tenants and least-privilege roles");
   const medicine = (
     await pg.query(
@@ -415,7 +418,7 @@ try {
   const historyIdentity = await api("read identity correction history", `/api/patients/${unknownId}/identity-reconciliation`);
   assert(historyIdentity.body.history[0].reversedAt && !historyIdentity.body.history[0].reversible, "Reversal history was not retained");
 
-  await verifyPrivacy({ api, requestWithCookie, authenticate, patient, assert, steps, origin });
+  await verifyPrivacy({ api, requestWithCookie, authenticate, patient, assert, steps, origin, pg });
   const retiredRights = await requestWithCookie("/api/admin/patient-rights", sessionCookie);
   const deniedRights = await requestWithCookie("/api/admin/patient-rights", systemOnlyLogin.cookie);
   const disabledExchange = await requestWithCookie("/api/admin/exchange", sessionCookie, { method: "POST", body: JSON.stringify({ action: "SEND", id: randomUUID() }) });

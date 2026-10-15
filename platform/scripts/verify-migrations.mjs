@@ -218,6 +218,8 @@ await db.exec(`INSERT INTO "DataSubjectRequest" ("id", "facilityId", "patientId"
 for (const [set, constraint] of [
   [`"responsePreparedAt" = CURRENT_TIMESTAMP`, "DataSubjectRequest_response_pair_check"],
   [`"deliveryEvidence" = '{}'::jsonb`, "DataSubjectRequest_delivery_check"],
+  [`"identityVerification" = '{}'::jsonb`, "DataSubjectRequest_identity_evidence_check"],
+  [`"identityVerification" = '[]'::jsonb`, "DataSubjectRequest_identity_evidence_check"],
   [`"status" = 'COMPLETED', "completedAt" = CURRENT_TIMESTAMP, "deliveryEvidence" = '[]'::jsonb`, "DataSubjectRequest_delivery_check"],
 ]) {
   let rejected = false;
@@ -225,6 +227,15 @@ for (const [set, constraint] of [
   if (!rejected) throw new Error(`Missing rights evidence constraint: ${constraint}`);
 }
 await db.exec(`UPDATE "DataSubjectRequest" SET "status" = 'COMPLETED', "completedAt" = CURRENT_TIMESTAMP WHERE id = 'dddddddd-dddd-4ddd-8ddd-ddddddddddd1'`);
+const rightsIdentity={version:1,requestId:'dddddddd-dddd-4ddd-8ddd-ddddddddddd1',patientId:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1',facilityId:'11111111-1111-4111-8111-111111111111',requestType:'ACCESS',requestKey:'dddddddd-dddd-4ddd-8ddd-ddddddddddd2',requesterKind:'AUTHORIZED_REPRESENTATIVE',requesterReference:'synthetic-representative',identityEvidenceReference:'synthetic-identity',relationship:'guardian',authorityEvidenceReference:'synthetic-authority',authorizationScope:'PATIENT_RECORD_EXPORT',scopeSummary:'Entire synthetic available patient record',attested:true,verifiedById:'22222222-2222-4222-8222-222222222222',verifiedByName:'Synthetic DPO',verifiedAt:new Date().toISOString()};
+for(const invalid of [{...rightsIdentity,patientId:'other'},{...rightsIdentity,authorityEvidenceReference:null},{...rightsIdentity,attested:false}]) {
+ let rejected=false;try{await db.query('UPDATE "DataSubjectRequest" SET "identityVerification"=$1::jsonb WHERE id=$2',[JSON.stringify(invalid),rightsIdentity.requestId]);}catch(error){rejected=String(error).includes('identity_evidence_check');}if(!rejected)throw new Error('Invalid identity evidence accepted');
+}
+await db.query('UPDATE "DataSubjectRequest" SET "identityVerification"=$1::jsonb WHERE id=$2',[JSON.stringify(rightsIdentity),rightsIdentity.requestId]);
+for(const statement of [`UPDATE "DataSubjectRequest" SET "identityVerification"=NULL WHERE id=$1`,`UPDATE "DataSubjectRequest" SET "dueAt"=CURRENT_TIMESTAMP+INTERVAL '1 day' WHERE id=$1`,`DELETE FROM "DataSubjectRequest" WHERE id=$1`]) {
+ let rejected=false;try{await db.query(statement,[rightsIdentity.requestId]);}catch(error){rejected=String(error).includes('immutable');}if(!rejected)throw new Error('Retained identity evidence or original deadline was mutable');
+}
+
 await db.exec(`
   INSERT INTO "ClinicalOrder" ("id", "visitId", "orderedById", "type", "displayName")
   VALUES ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2', '22222222-2222-4222-8222-222222222222', 'LABORATORY', 'Synthetic review');

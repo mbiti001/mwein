@@ -165,3 +165,7 @@ Migration `20260924120000_measured_vitals` adds append-only measurement history 
 Follow [MFA onboarding, key custody and recovery requirements](certification/WORKFORCE-MFA-IMPLEMENTATION.md) before rollout. Migration `20260924130000_workforce_mfa` is required before the new build. Explicitly configure `MFA_REQUIRED=true`, safeguard AUTH_SECRET and enroll separate recovery administrators. Password reset does not remove MFA. Lost-factor recovery requires another authorized administrator with a recent MFA sign-in and a protected identity-check record reference.
 
 Run `ENFORCE_AUDIT_COVERAGE=true npm run ops:audit-coverage`. Review changed routes before updating their hashes in `certification/audit-route-review.json`; do not automatically approve an exception after code changes. See [current remaining-work status](certification/assessment-pack/REMAINING-WORK-STATUS.md). App implementation and configuration are not substitutes for approved operational evidence.
+
+## Rights identity evidence — 1.3.0 candidate
+
+Apply the controlled migration `20261016010000_rights_identity_evidence` only after a fresh verified backup and exact-source checks. Follow the [identity verification procedure and legacy-request rules](certification/RIGHTS-IDENTITY-IMPLEMENTATION.md). No verification evidence is backfilled. Existing request deadlines remain unchanged; older prepared exports require fresh preparation after verification. National HIE consent is a separate workflow, tracked in the [DHA HIE register](certification/assessment-pack/DHA-HIE-REQUIREMENTS.md).

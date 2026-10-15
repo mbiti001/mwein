@@ -192,11 +192,11 @@
       "methodExceptions": {}
     },
     "patients/[id]/privacy/export": {
-      "sourceSha256": "f9bdf6b9a6db3a5d1ec9090a1dd209ae91f8593e3e94608997ef46c683483df1",
+      "sourceSha256": "53577ebe6529cbbb5a4efdc2d71ef9443d7e0d2c896ad2803bc82c7be10ed4dc",
       "methodExceptions": {}
     },
     "patients/[id]/privacy": {
-      "sourceSha256": "735851de082df86fcbf7db94151c3b130a0c5e30b535f8c8b38a422dbf98a586",
+      "sourceSha256": "8ec6a6977289945c526a4ad16c2f8b15931a096a9c53a4130503ff4ae50a1e01",
       "methodExceptions": {}
     },
     "patients/[id]/problems/[problemId]": {

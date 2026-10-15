@@ -578,6 +578,7 @@ model DataSubjectRequest {
   responsePreparedAt DateTime?
   responseEvidenceReference String?
   deliveryEvidence Json?
+  identityVerification Json?
   createdById       String    @db.Uuid
   updatedById       String    @db.Uuid
   createdAt         DateTime  @default(now())
