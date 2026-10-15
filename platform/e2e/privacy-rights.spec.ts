@@ -26,8 +26,40 @@ test("DPO records consent and fulfills an audited export without mixing patient 
   await row.getByRole("button", { name: "Generate export" }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/^mwein-patient-export-.*\.json$/);
-  await expect(row).toContainText("COMPLETED");
+  await expect(row).toContainText("IN REVIEW");
   await expect(row).toContainText("audit:");
+  await row.getByRole("button", { name: "Record delivery" }).click();
+  await row.getByLabel("Recipient type").selectOption("AUTHORIZED_REPRESENTATIVE");
+  await row.getByLabel("Recipient reference", { exact: true }).fill("BROWSER-REPRESENTATIVE");
+  await row.getByLabel("Identity verification evidence").fill("BROWSER-IDENTITY-CHECK");
+  await row.getByLabel("Representative authority evidence").fill("BROWSER-AUTHORITY-CHECK");
+  await row.getByLabel("Delivery receipt reference").fill("BROWSER-DELIVERY-RECEIPT");
+  await row.getByLabel("Response summary").fill("Reviewed record delivered through approved synthetic channel");
+  await row.getByLabel(/I verified the recipient/).check();
+  await page.emulateMedia({ media: "print" });
+  await expect(row.getByRole("heading", { name: "Confirm response delivery" })).not.toBeVisible();
+  await page.emulateMedia({ media: "screen" });
+  for (const width of [1440, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
+  await page.screenshot({ path: "../../outputs/mwein-rights-delivery-mobile.png", fullPage: true });
+  let rejectDelivery = true;
+  await page.route(/\/api\/patients\/[^/]+\/privacy$/, async route => {
+    if (route.request().method() === "POST" && route.request().postDataJSON().action === "CONFIRM_DELIVERY" && rejectDelivery) {
+      rejectDelivery = false;
+      return route.fulfill({ status: 503, json: { error: "Synthetic delivery-save failure" } });
+    }
+    return route.continue();
+  });
+  await row.getByRole("button", { name: "Confirm delivery and close" }).click();
+  await expect(page.getByText("Synthetic delivery-save failure", { exact: false })).toBeVisible();
+  await expect(row.getByLabel("Delivery receipt reference")).toHaveValue("BROWSER-DELIVERY-RECEIPT");
+  await expect(row).toContainText("IN REVIEW");
+  await row.getByRole("button", { name: "Confirm delivery and close" }).click();
+  await expect(row).toContainText("COMPLETED");
+  await expect(row).toContainText("BROWSER-DELIVERY-RECEIPT");
+  await expect(row).toContainText("BROWSER-AUTHORITY-CHECK");
   await page.getByLabel("Request details").fill("Draft for Amina must not follow another patient");
   await page.getByLabel("Find patient", { exact: true }).fill("Child");
   await page.getByRole("button", { name: /Child E2E Patient/ }).click();

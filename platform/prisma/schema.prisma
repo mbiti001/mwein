@@ -574,6 +574,9 @@ model DataSubjectRequest {
   resolution        String?
   denialReason      String?
   evidenceReference String?
+  responsePreparedAt DateTime?
+  responseEvidenceReference String?
+  deliveryEvidence Json?
   createdById       String    @db.Uuid
   updatedById       String    @db.Uuid
   createdAt         DateTime  @default(now())

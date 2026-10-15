@@ -52,3 +52,8 @@ Explain the verified controller identity and contact; purposes and bases; data c
 ## Processor and transfer evidence schedule
 
 For Vercel, Neon, WHO as applicable to the actual relationship, backup/audit custodians and any future AI provider, record legal entity/role, service and region, data categories, contract/version, subprocessors, transfer assessment, access controls, retention/deletion, incident assistance, audit rights and return/exit provisions. A provider marketing page cannot establish the project's configured controls. Attach executed terms or an accountable contract review; none is invented here.
+
+
+### Response preparation and delivery update — 15 October 2026
+
+Generating an access/portability export leaves the request in review. Review the prepared file and applicable third-party restrictions before release through the approved secure channel. Record the intended recipient reference, verification evidence, representative authority where relevant, delivery time/channel, retained receipt and attestation only after actual receipt. This screen sends no message or file. Regeneration requires the current preparation reference and a reason; retain prior preparation history and deliver the latest reviewed response. A failed/ambiguous confirmation must be reconciled against the saved request; do not infer delivery or resend patient data automatically. Earlier completed requests without delivery evidence remain explicitly unverified for delivery. Supplementary access information and refusal notices remain separately required and under development.

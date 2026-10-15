@@ -211,5 +211,18 @@ for (const statement of [
   if (!rejected) throw new Error("Signed clinic document could be changed");
 }
 
-console.log(`verified ${migrations.length} migrations, ${requiredTables.length} required tables, immutable triggers, stocktake and cashier-shift uniqueness, and balanced journal constraints`);
+// Delivery evidence cannot be attached to an open/unprepared request. Historical
+// completed requests remain valid without fabricated retrospective evidence.
+await db.exec(`INSERT INTO "DataSubjectRequest" ("id", "facilityId", "patientId", "type", "details", "dueAt", "createdById", "updatedById", "updatedAt") VALUES ('dddddddd-dddd-4ddd-8ddd-ddddddddddd1', '11111111-1111-4111-8111-111111111111', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1', 'ACCESS', 'Synthetic rights constraint check', CURRENT_TIMESTAMP, '22222222-2222-4222-8222-222222222222', '22222222-2222-4222-8222-222222222222', CURRENT_TIMESTAMP)`);
+for (const [set, constraint] of [
+  [`"responsePreparedAt" = CURRENT_TIMESTAMP`, "DataSubjectRequest_response_pair_check"],
+  [`"deliveryEvidence" = '{}'::jsonb`, "DataSubjectRequest_delivery_check"],
+  [`"status" = 'COMPLETED', "completedAt" = CURRENT_TIMESTAMP, "deliveryEvidence" = '[]'::jsonb`, "DataSubjectRequest_delivery_check"],
+]) {
+  let rejected = false;
+  try { await db.exec(`UPDATE "DataSubjectRequest" SET ${set} WHERE id = 'dddddddd-dddd-4ddd-8ddd-ddddddddddd1'`); } catch (error) { rejected = String(error).includes(constraint); }
+  if (!rejected) throw new Error(`Missing rights evidence constraint: ${constraint}`);
+}
+await db.exec(`UPDATE "DataSubjectRequest" SET "status" = 'COMPLETED', "completedAt" = CURRENT_TIMESTAMP WHERE id = 'dddddddd-dddd-4ddd-8ddd-ddddddddddd1'`);
+console.log(`verified ${migrations.length} migrations, ${requiredTables.length} required tables, immutable triggers, stocktake and cashier-shift uniqueness, rights evidence constraints, and balanced journal constraints`);
 await db.close();

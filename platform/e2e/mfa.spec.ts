@@ -50,7 +50,10 @@ async function enroll(page: Page, email: string) {
   return confirmViaApi(page, setup.body.secret);
 }
 async function relogin(page: Page, email: string) {
-  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  // Logout reloads the document. A second navigation before that reload finishes
+  // can abort login and leave this shared synthetic account enrolled on retries.
+  await Promise.all([page.waitForEvent("load"), page.getByRole("button", { name: "Sign out", exact: true }).click()]);
+  await expect(page.getByRole("button", { name: "Sign in securely" })).toBeVisible();
   await login(page, email);
   await expect(page.getByRole("heading", { name: "Verify your sign-in" })).toBeVisible();
 }

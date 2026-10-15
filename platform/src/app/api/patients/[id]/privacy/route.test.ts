@@ -9,13 +9,59 @@ import { POST } from "./route";
 const user = { id: "dpo", facilityId: "facility-a", sessionId: "session" };
 const params = { params: Promise.resolve({ id: "patient" }) };
 const create = vi.fn();
+const findFirst = vi.fn();
+const update = vi.fn();
+const lock = vi.fn();
+const requestId = "11111111-1111-4111-8111-111111111111";
+const responseReference = "audit:22222222-2222-4222-8222-222222222222";
+const deliver = { action: "CONFIRM_DELIVERY", requestId, responseEvidenceReference: responseReference, recipientKind: "PATIENT", recipientReference: "patient-ref", identityEvidenceReference: "identity-check-ref", method: "IN_PERSON", deliveryEvidenceReference: "receipt-ref", resolution: "Reviewed response delivered to patient", attested: true };
+const postBody = (body: object) => POST(new Request("http://localhost/api/patients/patient/privacy", { method: "POST", body: JSON.stringify(body) }), params);
 const post = (extra: object = {}) => POST(new Request("http://localhost/api/patients/patient/privacy", { method: "POST", body: JSON.stringify({ action: "CREATE_REQUEST", type: "ACCESS", details: "Patient requests access to their record", ...extra }) }), params);
 beforeEach(() => {
   vi.resetAllMocks(); vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-15T10:00:00Z"));
   vi.mocked(requirePermission).mockResolvedValue(user as any);
   vi.mocked(db.patient.findFirst).mockResolvedValue({ id: "patient" } as any);
   create.mockImplementation(async ({ data }) => ({ ...data, id: "request", status: "RECEIVED" }));
-  vi.mocked(db.$transaction).mockImplementation(async (fn: any) => fn({ dataSubjectRequest: { create } }));
+  findFirst.mockResolvedValue({ id: requestId, type: "ACCESS", status: "IN_REVIEW", responsePreparedAt: new Date("2026-10-15T09:00:00Z"), responseEvidenceReference: responseReference });
+  update.mockImplementation(async ({ data }) => ({ id: requestId, ...data }));
+  vi.mocked(db.$transaction).mockImplementation(async (fn: any) => fn({ $queryRaw: lock, dataSubjectRequest: { create, findFirst, update } }));
+});
+
+describe("confirmed response delivery", () => {
+  it("locks the scoped request, retains recipient evidence and appends attributed evidence atomically", async () => {
+    const response = await postBody(deliver);
+    expect(response.status).toBe(200);
+    expect(lock).toHaveBeenCalledOnce();
+    expect(lock.mock.calls[0].slice(1)).toEqual([requestId, "patient", user.facilityId]);
+    expect(findFirst).toHaveBeenCalledWith({ where: { id: requestId, patientId: "patient", facilityId: user.facilityId } });
+    expect(update).toHaveBeenCalledWith({ where: { id: requestId }, data: expect.objectContaining({ status: "COMPLETED", deliveryEvidence: expect.objectContaining({ recipientReference: "patient-ref", recordedById: user.id, deliveredAt: "2026-10-15T10:00:00.000Z", responseEvidenceReference: responseReference }) }) });
+    expect(appendAudit).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ userId: user.id, sessionId: user.sessionId, action: "DATA_SUBJECT_RESPONSE_DELIVERY_RECORDED", beforeHash: responseReference }));
+    expect(response.headers.get("cache-control")).toContain("no-store");
+  });
+  it.each([{ attested: false }, { identityEvidenceReference: "" }, { recipientKind: "AUTHORIZED_REPRESENTATIVE" }, { deliveryEvidenceReference: "" }, { deliveredAt: "2099-01-01T00:00:00Z" }])("rejects missing/invalid delivery evidence: %j", async extra => {
+    expect((await postBody({ ...deliver, ...extra })).status).toBe(422);
+    expect(update).not.toHaveBeenCalled();
+  });
+  it.each([{ status: "COMPLETED" }, { status: "CANCELLED" }, { status: "DENIED" }, { responsePreparedAt: null }, { responseEvidenceReference: "audit:different" }, { type: "CORRECTION" }])("rejects stale or invalid delivery state: %j", async extra => {
+    findFirst.mockResolvedValue({ id: requestId, type: "ACCESS", status: "IN_REVIEW", responsePreparedAt: new Date("2026-10-15T09:00:00Z"), responseEvidenceReference: responseReference, ...extra });
+    expect((await postBody(deliver)).status).toBe(409); expect(update).not.toHaveBeenCalled();
+  });
+  it("rejects delivery before preparation and generic completion bypass", async () => {
+    expect((await postBody({ ...deliver, deliveredAt: "2026-10-15T08:00:00Z" })).status).toBe(422);
+    expect((await postBody({ action: "UPDATE_REQUEST", requestId, status: "COMPLETED", resolution: "Bypass delivery", evidenceReference: "unrelated-evidence" })).status).toBe(422);
+    expect(update).not.toHaveBeenCalled();
+  });
+  it("does not confirm completion if the transactional audit fails", async () => {
+    vi.mocked(appendAudit).mockRejectedValue(new Error("audit unavailable"));
+    const response = await postBody(deliver);
+    expect(response.status).toBe(500); expect(await response.json()).not.toHaveProperty("record");
+  });
+  it("requires permission and hides a foreign request", async () => {
+    findFirst.mockResolvedValue(null);
+    expect((await postBody(deliver)).status).toBe(404); expect(update).not.toHaveBeenCalled();
+    vi.mocked(requirePermission).mockRejectedValue(Object.assign(new Error("Denied"), { status: 403 }));
+    lock.mockClear(); expect((await postBody(deliver)).status).toBe(403); expect(lock).not.toHaveBeenCalled();
+  });
 });
 afterEach(() => vi.useRealTimers());
 describe("rights intake deadlines and boundaries", () => {

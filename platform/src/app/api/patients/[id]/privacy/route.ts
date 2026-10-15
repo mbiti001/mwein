@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiError, privateJson } from "@/lib/http";
 import { normalizeName } from "@/lib/security";
+import { confirmDeliverySchema } from "@/lib/privacy-delivery";
 import {
   canTransitionDataSubjectRequest,
   consentMethods,
@@ -68,7 +69,7 @@ const correctionSchema = z.object({
     disabilityStatus: z.string().trim().max(160).nullable().optional(),
   }).refine((changes) => Object.keys(changes).length > 0, "At least one correction is required"),
 });
-const inputSchema = z.union([recordConsentSchema, withdrawConsentSchema, createRequestSchema, updateRequestSchema, correctionSchema]);
+const inputSchema = z.union([recordConsentSchema, withdrawConsentSchema, createRequestSchema, updateRequestSchema, correctionSchema, confirmDeliverySchema]);
 
 async function patientInFacility(id: string, facilityId: string) {
   const patient = await db.patient.findFirst({ where: { id, facilityId }, select: { id: true, patientNumber: true, fullName: true } });
@@ -100,6 +101,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await patientInFacility(id, user.facilityId);
     const input = inputSchema.parse(await request.json());
     const record = await db.$transaction(async (tx) => {
+      // All request-state changes share the export row lock. A denial/cancellation
+      // cannot race a preparation or delivery confirmation past a stale read.
+      if ("requestId" in input) {
+        await tx.$queryRaw`SELECT id FROM "DataSubjectRequest" WHERE id = ${input.requestId}::uuid AND "patientId" = ${id}::uuid AND "facilityId" = ${user.facilityId}::uuid FOR UPDATE`;
+      }
       if (input.action === "RECORD_CONSENT") {
         const now = new Date();
         if (input.expiresAt && new Date(input.expiresAt) <= now) throw Object.assign(new Error("Consent expiry must be in the future"), { status: 422 });
@@ -123,6 +129,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         await appendAudit(tx, { userId: user.id, sessionId: user.sessionId, action: "DATA_SUBJECT_REQUEST_RECORDED", entityType: "DataSubjectRequest", entityId: dataRequest.id, afterHash: `${dataRequest.type}:${dataRequest.status}:${requestedAt.toISOString()}:${dueAt.toISOString()}` });
         return dataRequest;
       }
+      if (input.action === "CONFIRM_DELIVERY") {
+        const current = await tx.dataSubjectRequest.findFirst({ where: { id: input.requestId, patientId: id, facilityId: user.facilityId } });
+        if (!current) throw Object.assign(new Error("Data-subject request not found"), { status: 404 });
+        if (!["ACCESS", "PORTABLE_EXPORT"].includes(current.type) || current.status !== "IN_REVIEW" || !current.responsePreparedAt || current.responseEvidenceReference !== input.responseEvidenceReference)
+          throw Object.assign(new Error("Reload the request: delivery requires its current prepared export and an open review"), { status: 409 });
+        const now = new Date();
+        const deliveredAt = input.deliveredAt ? new Date(input.deliveredAt) : now;
+        if (deliveredAt < current.responsePreparedAt) throw Object.assign(new Error("Delivery cannot precede preparation of this response"), { status: 422 });
+        const { action: _action, requestId: _requestId, ...evidence } = input;
+        const deliveryEvidence = { ...evidence, deliveredAt: deliveredAt.toISOString(), recordedAt: now.toISOString(), recordedById: user.id };
+        const updated = await tx.dataSubjectRequest.update({ where: { id: current.id }, data: { status: "COMPLETED", completedAt: now, resolution: input.resolution, evidenceReference: input.deliveryEvidenceReference, deliveryEvidence, updatedById: user.id } });
+        await appendAudit(tx, { userId: user.id, sessionId: user.sessionId, action: "DATA_SUBJECT_RESPONSE_DELIVERY_RECORDED", entityType: "DataSubjectRequest", entityId: current.id, beforeHash: current.responseEvidenceReference, afterHash: auditValueFingerprint(deliveryEvidence) });
+        return updated;
+      }
       if (input.action === "APPLY_DEMOGRAPHIC_CORRECTION") {
         const dataRequest = await tx.dataSubjectRequest.findFirst({ where: { id: input.requestId, patientId: id, facilityId: user.facilityId } });
         if (!dataRequest) throw Object.assign(new Error("Data-subject request not found"), { status: 404 });
@@ -143,6 +163,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
       const current = await tx.dataSubjectRequest.findFirst({ where: { id: input.requestId, patientId: id, facilityId: user.facilityId } });
       if (!current) throw Object.assign(new Error("Data-subject request not found"), { status: 404 });
+      if (input.status === "COMPLETED" && ["ACCESS", "PORTABLE_EXPORT"].includes(current.type))
+        throw Object.assign(new Error("Access and portability requests require confirmed delivery evidence before completion"), { status: 422 });
       if (!canTransitionDataSubjectRequest(current.status as DataSubjectRequestStatus, input.status))
         throw Object.assign(new Error(`Request cannot move from ${current.status} to ${input.status}`), { status: 409 });
       const updated = await tx.dataSubjectRequest.update({ where: { id: current.id }, data: { status: input.status, resolution: input.resolution, denialReason: input.denialReason, evidenceReference: input.evidenceReference, completedAt: ["COMPLETED", "DENIED", "CANCELLED"].includes(input.status) ? new Date() : null, updatedById: user.id } });

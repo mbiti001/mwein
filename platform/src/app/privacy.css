@@ -10,6 +10,8 @@
 .privacyRightsWorkspace .row { overflow-wrap: anywhere; }
 .privacyRightsWorkspace .workstationActions { display: flex; flex-wrap: wrap; gap: .5rem; }
 .privacyRightsWorkspace .row .alert { display: block; margin-top: .5rem; }
+.privacyRightsWorkspace .rightsDeliveryForm { grid-column: 1 / -1; overflow-wrap: anywhere; }
+@media print { .privacyRightsWorkspace .rightsDeliveryForm { display: none !important; } }
 @media (max-width: 760px) {
   .privacyRightsWorkspace .row { grid-template-columns: auto minmax(0, 1fr); }
   .privacyRightsWorkspace .row > .workstationActions,
