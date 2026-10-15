@@ -6,14 +6,13 @@ import { consultationRevision } from "@/lib/consultation-revision";
 import ConsultationRecovery from "@/components/ConsultationRecovery";
 import { patientClinicalGroup } from "@/lib/domain";
 import { jsonRequest } from "@/lib/client-http";
-import { calculateDispenseQuantity } from "@/lib/medication";
+import PrescriptionComposer from "@/components/PrescriptionComposer";
 import VisitVitalsPanel from "@/components/VisitVitalsPanel";
 import InvestigationReviewPanel from "@/components/InvestigationReviewPanel";
 import { isVerifiedResult } from "@/lib/verified-results";
 import PatientTrends, { type TrendVisit } from "@/components/PatientTrends";
 import {
   SearchableMultiPicker,
-  SearchablePicker,
 } from "@/components/SearchablePicker";
 
 export type ConsultationVisit = {
@@ -95,12 +94,6 @@ type CatalogItem = {
   therapeuticClass?: string | null;
   strength?: string | null;
   dosageForm?: string | null;
-};
-type DuplicateConflict = {
-  code: "EXACT_DUPLICATE" | "SAME_VISIT_DUPLICATE";
-  existingOrderId: string;
-  existingPrescriptionId: string;
-  existing: Record<string, unknown>;
 };
 type DiagnosisSearchResult = {
   code: string;
@@ -1164,17 +1157,6 @@ function ConsultationEditor({
 }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [medicine, setMedicine] = useState("");
-  const [doseQuantity, setDoseQuantity] = useState(1);
-  const [frequencyPerDay, setFrequencyPerDay] = useState(1);
-  const [durationDays, setDurationDays] = useState(1);
-  const [dispenseQuantity, setDispenseQuantity] = useState(1);
-  const [prescriptionKey, setPrescriptionKey] = useState(() =>
-    crypto.randomUUID(),
-  );
-  const [savingPrescription, setSavingPrescription] = useState(false);
-  const [duplicateConflict, setDuplicateConflict] =
-    useState<DuplicateConflict | null>(null);
   const [catalogue, setCatalogue] = useState<CatalogItem[]>([]);
   const [diagnosisQuery, setDiagnosisQuery] = useState("");
   const [diagnosisCode, setDiagnosisCode] = useState("");
@@ -1212,13 +1194,15 @@ function ConsultationEditor({
   const [problemDescription, setProblemDescription] = useState("");
   const [savingProblem, setSavingProblem] = useState(false);
   const changes = useUnsavedConsultation(problemDescription, savingAction || savingProblem);
-  useEffect(
-    () =>
-      setDispenseQuantity(
-        calculateDispenseQuantity(doseQuantity, frequencyPerDay, durationDays),
-      ),
-    [doseQuantity, frequencyPerDay, durationDays],
-  );
+  useEffect(() => {
+    const form = changes.form.current;
+    const bar = form?.querySelector(".consultationSaveBar");
+    if (!form || !bar) return;
+    const size = () => form.style.setProperty("--save-bar-height", bar.getBoundingClientRect().height+"px");
+    size();
+    const observer = new ResizeObserver(size); observer.observe(bar);
+    return () => observer.disconnect();
+  }, [changes.form]);
   useEffect(() => {
     fetch("/api/catalog")
       .then((response) => response.json())
@@ -1372,14 +1356,9 @@ function ConsultationEditor({
       return result;
     } catch (e) {
       if (!activeForm.current) return false;
-      const details = (e as Error & { details?: DuplicateConflict }).details;
-      if (
-        details?.code === "EXACT_DUPLICATE" ||
-        details?.code === "SAME_VISIT_DUPLICATE"
-      )
-        setDuplicateConflict(details);
       setError((e as Error).message);
       if (["SAVE_NOTES", "SAVE_DIAGNOSIS", "SIGN"].includes(action)) setShowRecovery(true);
+      if (action === "SAVE_PRESCRIPTION") return { failed: true, status: (e as Error & { status?: number }).status || 0 };
       return false;
     } finally {
       actionPending.current = false;
@@ -1439,7 +1418,6 @@ function ConsultationEditor({
       | "SUBMIT_INVESTIGATIONS"
       | "SAVE_PRESCRIPTION"
       | "SIGN",
-    submitPrescription = false,
   ) {
     const form = event.currentTarget.form!;
     const f = new FormData(form);
@@ -1497,58 +1475,6 @@ function ConsultationEditor({
       );
       if (result) changes.markSaved("investigations", submitted);
       return result;
-    }
-    if (action === "SAVE_PRESCRIPTION") {
-      if (savingPrescription) return false;
-      setSavingPrescription(true);
-      const prescriptions = medicine
-        ? [
-            {
-              medicineCode: medicine,
-              indication: f.get("medicineIndication"),
-              dose: f.get("dose"),
-              doseQuantity,
-              route: f.get("route"),
-              frequency: f.get("frequency"),
-              frequencyPerDay,
-              duration: f.get("duration") || undefined,
-              durationDays,
-              startDate: f.get("startDate"),
-              stopDate: f.get("stopDate") || undefined,
-              quantity: f.get("quantity"),
-              quantityConfirmed: f.get("quantityConfirmed") === "on",
-              instructions: f.get("medicineInstructions"),
-              doseTiming: f.get("doseTiming"),
-              sequenceNote: f.get("sequenceNote") || undefined,
-            },
-          ]
-        : [];
-      try {
-        const result = await run(
-          action,
-          {
-            submit: submitPrescription,
-            idempotencyKey: prescriptionKey,
-            duplicateAction: f.get("duplicateAction") || undefined,
-            duplicateReason: f.get("duplicateReason") || undefined,
-            prescriptions,
-          },
-          submitPrescription
-            ? "Prescription signed and sent to pharmacy. Billing will use the confirmed supplied quantity."
-            : "Prescription saved as a draft; it has not been billed.",
-        );
-        if (result) {
-          changes.markSaved("prescription", submitted);
-          setPrescriptionKey(crypto.randomUUID());
-          if (changes.snapshot().prescription === submitted.prescription) {
-            changes.resetAfterRender("prescription");
-            setDuplicateConflict(null);
-          }
-        }
-        return result;
-      } finally {
-        setSavingPrescription(false);
-      }
     }
     if (savingProblem || changes.changed().some(group => !["notes", "completion"].includes(group))) {
       setError("Save or clear the unfinished diagnosis, investigation, prescription or active problem before signing. Saving clinical notes does not submit these sections.");
@@ -1725,6 +1651,7 @@ function ConsultationEditor({
         className="consultForm"
         onSubmit={(event) => event.preventDefault()}
       >
+        <div className="consultationSaveBar noPrint"><span>Clinical notes and plan</span><button type="button" className="primary" disabled={savingAction || signing} onClick={event => void act(event, "SAVE_NOTES")}>Save notes</button><small>Medicines and investigations have their own save actions.</small></div>
         {error && <div className="alert">{error}</div>}
         {notice && <div className="alert success" role="status">{notice}</div>}
         {changes.description && <p className="alert noPrint" role="status" aria-label="Unsaved consultation changes">Unsaved: {changes.description}. Save each section before leaving. Changes stay in this open form until saved.</p>}
@@ -2244,255 +2171,7 @@ function ConsultationEditor({
           active={activeStep === 6}
           onOpen={() => setActiveStep(6)}
         >
-          {visit.orders?.some(order => order.type === "MEDICATION" && order.prescription && !["COMPLETED", "CANCELLED"].includes(order.status)) && <div className="span2 currentOrders"><strong>Current prescriptions</strong>{visit.orders.filter(order => order.type === "MEDICATION" && order.prescription && !["COMPLETED", "CANCELLED"].includes(order.status)).map(order => <div className="summaryLine" key={order.id}><span><b>{order.displayName}</b> · {order.prescription!.dose} · {order.prescription!.route} · {order.prescription!.frequency} · {order.prescription!.duration || "duration pending"} · Qty {Number(order.prescription!.quantity)}</span><button type="button" className="secondary" onClick={() => { const prescription = order.prescription!; setMedicine(prescription.medicineCode); setDuplicateConflict({ code: "SAME_VISIT_DUPLICATE", existingOrderId: order.id, existingPrescriptionId: prescription.id || "", existing: { genericName: prescription.genericName || order.displayName, strength: prescription.strength, dosageForm: prescription.dosageForm, dose: prescription.dose, route: prescription.route, frequency: prescription.frequency, duration: prescription.duration, quantity: prescription.quantity, instructions: prescription.instructions } }); }}>Correct</button></div>)}</div>}
-          <label className="span2">
-            Medicine
-            <SearchablePicker
-              name="medicineCode"
-              value={medicine}
-              onChange={(value) => {
-                setMedicine(value);
-                setDoseQuantity(1);
-                setFrequencyPerDay(1);
-                setDurationDays(1);
-                setPrescriptionKey(crypto.randomUUID());
-                setDuplicateConflict(null);
-              }}
-              placeholder="Search medicine by generic, brand or strength…"
-              options={catalogue
-                .filter((item) => item.category === "PHARMACEUTICAL")
-                .map((item) => ({
-                  value: item.code,
-                  label: `${item.genericName || item.name}${item.strength ? ` ${item.strength}` : ""}${item.dosageForm ? ` · ${item.dosageForm}` : ""}`,
-                  detail: `KES ${Number(item.unitPrice).toLocaleString()} each`,
-                }))}
-            />
-          </label>
-          {medicine && (
-            <>
-              <label className="span2">
-                Diagnosis / clinical indication *
-                <input
-                  name="medicineIndication"
-                  required
-                  defaultValue={
-                    savedDiagnoses.find((item) => item.primary)?.description ||
-                    ""
-                  }
-                />
-              </label>
-              <label>
-                Dose units per administration *
-                <input
-                  name="doseQuantity"
-                  type="number"
-                  min="0.001"
-                  step="0.001"
-                  value={doseQuantity}
-                  onChange={(event) =>
-                    setDoseQuantity(Number(event.target.value) || 0)
-                  }
-                  required
-                />
-              </label>
-              <label>
-                Dose instruction *
-                <input name="dose" required placeholder="e.g. 1 tablet" />
-              </label>
-              <label>
-                Route *
-                <select name="route">
-                  <option>Oral</option>
-                  <option>Topical</option>
-                  <option>Inhaled</option>
-                  <option>IM</option>
-                  <option>IV</option>
-                </select>
-              </label>
-              <label>
-                Frequency *
-                <select
-                  value={frequencyPerDay}
-                  onChange={(event) =>
-                    setFrequencyPerDay(Number(event.target.value))
-                  }
-                >
-                  <option value={1}>Once daily</option>
-                  <option value={2}>Twice daily</option>
-                  <option value={3}>Three times daily</option>
-                  <option value={4}>Four times daily</option>
-                </select>
-                <input
-                  name="frequency"
-                  type="hidden"
-                  value={
-                    frequencyPerDay === 1
-                      ? "Once daily"
-                      : frequencyPerDay === 2
-                        ? "Twice daily"
-                        : frequencyPerDay === 3
-                          ? "Three times daily"
-                          : "Four times daily"
-                  }
-                />
-              </label>
-              <label>
-                Duration in days *
-                <input
-                  name="durationDays"
-                  type="number"
-                  min="1"
-                  max="3650"
-                  value={durationDays}
-                  onChange={(event) =>
-                    setDurationDays(Number(event.target.value) || 0)
-                  }
-                  required
-                />
-                <input
-                  name="duration"
-                  type="hidden"
-                  value={`${durationDays} days`}
-                />
-              </label>
-              <label>
-                Start date *
-                <input
-                  name="startDate"
-                  type="date"
-                  required
-                  defaultValue={new Date().toISOString().slice(0, 10)}
-                />
-              </label>
-              <label>
-                Stop date
-                <input name="stopDate" type="date" />
-              </label>
-              <label>
-                Quantity *
-                <input
-                  name="quantity"
-                  type="number"
-                  min="0.1"
-                  step="0.1"
-                  required
-                  value={dispenseQuantity}
-                  onChange={(event) =>
-                    setDispenseQuantity(Number(event.target.value) || 0)
-                  }
-                />
-                <small>
-                  Calculated as dose units × administrations/day × days. Adjust
-                  only when pack size or clinical instructions require it.
-                </small>
-              </label>
-              <label className="span2">
-                <span>
-                  <input name="quantityConfirmed" type="checkbox" required /> I
-                  reviewed and confirm the dispensing quantity *
-                </span>
-              </label>
-              <label className="span2">
-                Patient instructions *
-                <input
-                  name="medicineInstructions"
-                  required
-                  placeholder="How and when the patient should take this medicine"
-                />
-              </label>
-              <label>
-                Dose timing
-                <select name="doseTiming">
-                  <option value="SCHEDULED">Scheduled course</option>
-                  <option value="STAT">STAT dose</option>
-                  <option value="STAT_THEN_SCHEDULED">
-                    STAT then scheduled course
-                  </option>
-                </select>
-              </label>
-              <label>
-                Sequence note
-                <input
-                  name="sequenceNote"
-                  placeholder="Document STAT-to-course sequence"
-                />
-              </label>
-              {duplicateConflict && (
-                <div className="span2 dangerPanel">
-                  <strong>
-                    {duplicateConflict.code === "SAME_VISIT_DUPLICATE"
-                      ? "Medicine already prescribed in this visit"
-                      : "Exact active duplicate detected"}
-                  </strong>
-                  <span>
-                    {String(
-                      duplicateConflict.existing.genericName || "Medicine",
-                    )}{" "}
-                    {String(duplicateConflict.existing.strength || "")} ·{" "}
-                    {String(duplicateConflict.existing.dosageForm || "")} ·{" "}
-                    {String(duplicateConflict.existing.route || "")} ·{" "}
-                    {String(duplicateConflict.existing.frequency || "")}
-                  </span>
-                  <span>
-                    {duplicateConflict.code === "SAME_VISIT_DUPLICATE"
-                      ? "A second order is not allowed. Edit the existing prescription or cancel."
-                      : "Choose what to do with the existing prescription. A clinical reason is mandatory."}
-                  </span>
-                  <label>
-                    Decision *
-                    <select name="duplicateAction" required defaultValue="">
-                      <option value="">Cancel and review</option>
-                      <option value="EDIT_EXISTING">
-                        Edit existing prescription
-                      </option>
-                      {duplicateConflict.code === "EXACT_DUPLICATE" && (
-                        <>
-                          <option value="REPLACE_EXISTING">
-                            Replace existing prescription
-                          </option>
-                          <option value="KEEP_BOTH">
-                            Override and keep both
-                          </option>
-                        </>
-                      )}
-                    </select>
-                  </label>
-                  <label>
-                    Clinical justification *
-                    <textarea
-                      name="duplicateReason"
-                      required
-                      minLength={10}
-                      rows={2}
-                    />
-                  </label>
-                </div>
-              )}
-            </>
-          )}
-          <div className="span2 submitBar">
-            <span>
-              Save a draft for review, or submit it to pharmacy and billing.
-            </span>
-            <div>
-              <button
-                type="button"
-                className="secondary"
-                disabled={savingPrescription}
-                onClick={(event) => act(event, "SAVE_PRESCRIPTION")}
-              >
-                Save for later
-              </button>{" "}
-              <button
-                type="button"
-                className="primary"
-                disabled={savingPrescription}
-                onClick={(event) => act(event, "SAVE_PRESCRIPTION", true)}
-              >
-                {savingPrescription ? "Sending…" : "Send to pharmacy"}
-              </button>
-            </div>
-          </div>
+          <PrescriptionComposer visitId={visit.id} catalogue={catalogue} orders={visit.orders || []} indication={savedDiagnoses.find(item => item.primary)?.description || ""} busy={savingAction || signing} onSave={data => run("SAVE_PRESCRIPTION", data, "Prescription list saved. Sent medicines are available to pharmacy; billing follows confirmed supply.")} onSaved={() => changes.resetAfterRender("prescription")} />
         </ClinicalSection>
         <ClinicalSection
           number="7"

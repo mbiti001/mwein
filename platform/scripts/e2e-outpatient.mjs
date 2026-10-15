@@ -967,6 +967,9 @@ try {
   const deathTasks = await pg.query(`SELECT "servicePoint" FROM "QueueEntry" WHERE "visitId"=$1 AND status IN ('WAITING','CALLED','IN_PROGRESS')`, [deathId]);
   assert(deathTasks.rows.every(task => task.servicePoint === "BILLING"), "Deceased patient remained in an ordinary care queue");
 
+  const { verifyPrescriptionList } = await import("./e2e-prescription-list.mjs");
+  await verifyPrescriptionList({ pg, api, requestWithCookie, authenticate, sessionCookie, facility, patient, admin, assert, steps });
+
   const { verifyPatientJourney } = await import("./e2e-patient-journey.mjs");
   await verifyPatientJourney({ pg, api, requestWithCookie, sessionCookie, facility, patient, admin, assert, steps });
 

@@ -164,7 +164,7 @@
       "methodExceptions": {}
     },
     "orders/[id]/dispense": {
-      "sourceSha256": "e30c1bcd95c7a1938e5e8dbab81715196d6da4a19af656385f2a190ddec41866",
+      "sourceSha256": "08cefcd161eeeb0d6e7ae8f3c81e8b722df53e4639dc1f8c8805623f51c0a48d",
       "methodExceptions": {}
     },
     "orders/[id]/imaging-result": {
@@ -270,7 +270,7 @@
       "methodExceptions": {}
     },
     "visits/[id]/consultation": {
-      "sourceSha256": "75acbb107b92a3db010407a84cb53a005c5d671d6fa7bd9d79a93e2254657539",
+      "sourceSha256": "64aed63869be1c8f46e4b37ed0f1d1bfdf8ddeef5293c5d8d405010614f4101c",
       "methodExceptions": {}
     },
     "visits/[id]/discharge": {

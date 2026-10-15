@@ -141,7 +141,8 @@ export default function VisitSummaryWorkstation({ canAddendum = false, initialVi
       o.type === "LABORATORY" && o.laboratory?.result?.status === "VERIFIED",
   );
   const meds = active.orders.filter(
-    (o: Summary) => o.type === "MEDICATION" && o.prescription,
+    (o: Summary) => o.type === "MEDICATION" && o.prescription &&
+      ["REQUESTED", "IN_PROGRESS", "COMPLETED"].includes(o.status),
   );
   const investigations = active.orders.filter((o: Summary) =>
     ["LABORATORY", "IMAGING"].includes(o.type),

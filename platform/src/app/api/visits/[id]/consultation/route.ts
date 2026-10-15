@@ -8,7 +8,7 @@ import { apiError, privateJson } from "@/lib/http";
 import { consultationRevision, consultationConflict, nextEncounterTime } from "@/lib/consultation-revision";
 import { recordClinicalAccess } from "@/lib/clinical-access";
 import { createHash } from "node:crypto";
-import { appendAudit } from "@/lib/audit";
+import { appendAudit, auditValueFingerprint } from "@/lib/audit";
 import { canonicalLaboratoryCode } from "@/lib/laboratory";
 import { verifyDiagnosisSelectionToken } from "@/lib/diagnosis-selection";
 import { normalizeMedicationConcept, periodsOverlap, prescriptionSnapshot, sameVisitMedicationKey, treatmentStopDate } from "@/lib/medication";
@@ -46,6 +46,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       where: { id, facilityId: user.facilityId },
       select: {
         id: true, status: true, clinicallyClosedAt: true,
+        orders: { where: { type: "MEDICATION" }, include: { prescription: true, orderedBy: { select: { displayName: true } } }, orderBy: { requestedAt: "asc" } },
         encounters: {
           orderBy: [{ createdAt: "desc" }, { id: "asc" }], take: 1,
           select: { id: true, status: true, subjective: true, objective: true, assessment: true, plan: true,
@@ -403,8 +404,14 @@ export async function POST(
             where: { idempotencyKey: input.data.idempotencyKey },
             include: { order: true },
           });
-          if (idempotent?.order.visitId === id)
-            return { stage: "PRESCRIPTION_ALREADY_SAVED", created: [idempotent.order.displayName], warnings: [] };
+          const requestHash = auditValueFingerprint(input.data);
+          if (idempotent) {
+            const receipt = idempotent.order.visitId === id && await tx.auditEvent.findFirst({ where: { facilityId: user.facilityId, userId: user.id, entityType: "Encounter", entityId: encounter.id, action: { in: ["PRESCRIPTION_SUBMITTED", "PRESCRIPTION_DRAFT_SAVED"] }, afterHash: requestHash } });
+            if (!receipt) throw Object.assign(new Error("This save key belongs to a different prescription request. Reload and review the saved list."), { status: 409 });
+            await appendAudit(tx, { userId: user.id, sessionId: user.sessionId, action: "PRESCRIPTION_SAVE_CONFIRMED", entityType: "Encounter", entityId: encounter.id, afterHash: requestHash });
+            const orders = await tx.clinicalOrder.findMany({ where: { visitId: id, type: "MEDICATION" }, include: { prescription: true, orderedBy: { select: { displayName: true } } }, orderBy: { requestedAt: "asc" } });
+            return { stage: "PRESCRIPTION_ALREADY_SAVED", created: [idempotent.order.displayName], orders, warnings: ["The original prescription was already saved. Review the saved list and medication safety findings before proceeding."] };
+          }
           const catalogue = await tx.catalogItem.findMany({
             where: {
               facilityId: user.facilityId,
@@ -420,10 +427,11 @@ export async function POST(
           });
           const [safetyRules, activePatientPrescriptions] = await Promise.all([
             tx.medicationSafetyRule.findMany({ where: { facilityId: user.facilityId, status: "APPROVED", OR: [{ activeFrom: null }, { activeFrom: { lte: now } }], AND: [{ OR: [{ activeTo: null }, { activeTo: { gt: now } }] }] } }),
-            tx.prescription.findMany({ where: { medicationConceptId: { not: null }, order: { visit: { patientId: visit.patientId }, status: { in: ["DRAFT", "REQUESTED", "IN_PROGRESS"] } } }, select: { medicationConceptId: true } }),
+            tx.prescription.findMany({ where: { medicationConceptId: { not: null }, order: { visit: { patientId: visit.patientId, facilityId: user.facilityId }, status: { in: ["DRAFT", "REQUESTED", "IN_PROGRESS"] } } }, select: { medicationConceptId: true } }),
           ]);
           const activeMedicationConcepts = activePatientPrescriptions.flatMap(item => item.medicationConceptId ? [item.medicationConceptId] : []);
-          for (const medicine of input.data.prescriptions) {
+          for (const [lineIndex, medicine] of input.data.prescriptions.entries()) {
+            const lineSaveKey = lineIndex === 0 ? input.data.idempotencyKey : `${input.data.idempotencyKey}:${lineIndex}`;
             const item = catalogue.find(
               (value) => value.code === medicine.medicineCode.toUpperCase(),
             );
@@ -440,7 +448,8 @@ export async function POST(
             const safetyContext = {
               medicationConceptId,
               patientAllergyConcepts: visit.patient.allergies.map(record => normalizeMedicationConcept(record.substance)),
-              activeMedicationConcepts,
+              // Check the complete proposed list, regardless of the order lines were entered.
+              activeMedicationConcepts: [...new Set([...activeMedicationConcepts, ...catalogue.map(candidate => candidate.medicationConceptId || normalizeMedicationConcept(candidate.genericName || "")).filter(concept => concept && concept !== medicationConceptId)])],
               dailyDoseQuantity: medicine.doseQuantity && medicine.frequencyPerDay ? medicine.doseQuantity * medicine.frequencyPerDay : undefined,
             };
             const safetyResults = evaluateMedicationSafety(safetyRules, safetyContext);
@@ -453,7 +462,7 @@ export async function POST(
             const activeCandidates = await tx.prescription.findMany({
               where: {
                 medicationConceptId,
-                order: { visit: { patientId: visit.patientId }, status: { in: ["DRAFT", "REQUESTED", "IN_PROGRESS"] } },
+                order: { visit: { patientId: visit.patientId, facilityId: user.facilityId }, status: { in: ["DRAFT", "REQUESTED", "IN_PROGRESS"] } },
               },
               include: { order: { include: { invoiceItems: true } }, catalogItem: true },
             });
@@ -470,23 +479,32 @@ export async function POST(
               dose: medicine.dose, route: medicine.route, frequency: medicine.frequency, duration: medicine.duration,
               startDate, stopDate, quantity: medicine.quantity, instructions: medicine.instructions,
             });
-            if (sameVisit && !input.data.duplicateAction)
+            const editing = medicine.existingOrderId ? activeCandidates.find(candidate => candidate.order.id === medicine.existingOrderId && candidate.order.visitId === id) : undefined;
+            if (medicine.existingOrderId && (!editing || editing.idempotencyKey !== medicine.expectedPrescriptionKey)) throw Object.assign(new Error("This prescription changed. Reload its saved details before editing."), { status: 409 });
+            if (editing && editing.medicineCode.toUpperCase() !== medicine.medicineCode.toUpperCase()) throw Object.assign(new Error("Use the saved medicine when revising a prescription; a different product needs a separate clinical review."), { status: 409 });
+            if (editing && (Number(editing.dispensedQuantity || 0) > 0 || editing.dispenseStatus !== "PENDING" || editing.order.status === "IN_PROGRESS")) throw Object.assign(new Error("A prescription already being supplied cannot be overwritten. Review it with pharmacy."), { status: 409 });
+            if (editing && editing.order.status !== "DRAFT" && !input.data.submit) throw Object.assign(new Error("A sent prescription cannot be returned to draft."), { status: 409 });
+            const draftEdit = editing?.order.status === "DRAFT";
+            const duplicateAction = editing ? "EDIT_EXISTING" : input.data.duplicateAction;
+            const duplicateReason = medicine.correctionReason || input.data.duplicateReason;
+            if (sameVisit && !duplicateAction)
               throw Object.assign(new Error(`${sameVisit.order.displayName} is already prescribed in this visit. Edit the existing prescription instead.`), {
                 status: 409,
                 details: { code: "SAME_VISIT_DUPLICATE", existingOrderId: sameVisit.order.id, existingPrescriptionId: sameVisit.id, existing: prescriptionSnapshot({ ...sameVisit, quantity: Number(sameVisit.quantity) }), options: ["EDIT_EXISTING", "CANCEL"] },
               });
-            if (sameVisit && input.data.duplicateAction && input.data.duplicateAction !== "EDIT_EXISTING")
+            if (sameVisit && duplicateAction && duplicateAction !== "EDIT_EXISTING")
               throw Object.assign(new Error("The same medicine cannot be prescribed twice in one visit. Edit the existing prescription instead."), { status: 409 });
             const duplicate = sameVisit || exact;
-            if (duplicate && !sameVisit && !input.data.duplicateAction)
+            if (duplicate && !sameVisit && !duplicateAction)
               throw Object.assign(new Error(`Active duplicate found: ${duplicate.order.displayName}`), {
                 status: 409,
                 details: { code: "EXACT_DUPLICATE", existingOrderId: duplicate.order.id, existingPrescriptionId: duplicate.id, existing: prescriptionSnapshot({ ...duplicate, quantity: Number(duplicate.quantity) }), options: ["EDIT_EXISTING", "REPLACE_EXISTING", "KEEP_BOTH", "CANCEL"] },
               });
-            if (duplicate && input.data.duplicateAction && !input.data.duplicateReason)
+            if (duplicate && duplicateAction && !draftEdit && !duplicateReason)
               throw Object.assign(new Error("Record a clinical reason for the duplicate decision"), { status: 422 });
 
-            if (duplicate && ["EDIT_EXISTING", "REPLACE_EXISTING"].includes(input.data.duplicateAction || "")) {
+            if (duplicate && ["EDIT_EXISTING", "REPLACE_EXISTING"].includes(duplicateAction || "")) {
+              if (duplicate.order.visitId !== id || Number(duplicate.dispensedQuantity || 0) > 0 || duplicate.dispenseStatus !== "PENDING") throw Object.assign(new Error("Review this existing prescription in its original visit; supplied medicines cannot be overwritten."), { status: 409 });
               const original = prescriptionSnapshot({ ...duplicate, quantity: Number(duplicate.quantity) });
               const updated = await tx.prescription.update({ where: { id: duplicate.id }, data: {
                 catalogItemId: item.id, medicationConceptId, genericName: item.genericName, strength: item.strength, dosageForm: item.dosageForm,
@@ -494,7 +512,7 @@ export async function POST(
                 doseQuantity: medicine.doseQuantity ? new Prisma.Decimal(medicine.doseQuantity) : undefined, frequencyPerDay: medicine.frequencyPerDay, durationDays: medicine.durationDays, quantityConfirmed: medicine.quantityConfirmed,
                 startDate, stopDate, quantity: new Prisma.Decimal(medicine.quantity), instructions: medicine.instructions,
                 isPrn: false, prnIndication: null, doseTiming: medicine.doseTiming, sequenceNote: medicine.sequenceNote,
-                encounterId: encounter.id, diagnosisId: primary.id, idempotencyKey: input.data.idempotencyKey,
+                encounterId: encounter.id, diagnosisId: primary.id, idempotencyKey: lineSaveKey,
                 ...(sameVisit ? { visitMedicationKey: sameVisitMedicationKey(id, medicationConceptId) } : {}),
               } });
               await tx.clinicalOrder.update({ where: { id: duplicate.order.id }, data: { orderedById: user.id, displayName: item.name, clinicalIndication: medicine.indication, status: input.data.submit ? "REQUESTED" : "DRAFT" } });
@@ -505,7 +523,7 @@ export async function POST(
                 if (alreadyDispensed === 0)
                   await tx.invoiceItem.deleteMany({ where: { orderId: duplicate.order.id } });
               }
-              await tx.medicationSafetyOverride.create({ data: { prescriptionId: updated.id, existingPrescriptionId: duplicate.id, prescriberId: user.id, warningCode: sameVisit ? "SAME_VISIT_EDIT" : input.data.duplicateAction!, justification: input.data.duplicateReason!, originalDetails: original, revisedDetails: revised } });
+              await tx.medicationSafetyOverride.create({ data: { prescriptionId: updated.id, existingPrescriptionId: duplicate.id, prescriberId: user.id, warningCode: draftEdit ? "DRAFT_REVISED" : sameVisit ? "SAME_VISIT_EDIT" : duplicateAction!, justification: draftEdit ? "Draft reviewed before pharmacy submission" : duplicateReason!, originalDetails: original, revisedDetails: revised } });
               if (safetyResults.length) await tx.medicationSafetyAssessment.createMany({ data: safetyResults.map(result => ({ prescriptionId: updated.id, ruleId: result.ruleId, warningCode: result.warningCode, severity: result.severity, outcome: result.outcome, message: result.message, ruleVersion: result.ruleVersion, contextHash })) });
               created.push(item.name);
               if (!activeMedicationConcepts.includes(medicationConceptId)) activeMedicationConcepts.push(medicationConceptId);
@@ -545,7 +563,7 @@ export async function POST(
                     instructions: medicine.instructions,
                     encounterId: encounter.id,
                     diagnosisId: primary.id,
-                    idempotencyKey: input.data.idempotencyKey,
+                    idempotencyKey: lineSaveKey,
                     visitMedicationKey: sameVisitMedicationKey(id, medicationConceptId),
                   },
                 },
@@ -555,9 +573,9 @@ export async function POST(
             created.push(item.name);
             if (safetyResults.length) await tx.medicationSafetyAssessment.createMany({ data: safetyResults.map(result => ({ prescriptionId: order.prescription!.id, ruleId: result.ruleId, warningCode: result.warningCode, severity: result.severity, outcome: result.outcome, message: result.message, ruleVersion: result.ruleVersion, contextHash })) });
             if (!activeMedicationConcepts.includes(medicationConceptId)) activeMedicationConcepts.push(medicationConceptId);
-            if (exact && input.data.duplicateAction === "KEEP_BOTH")
-              await tx.medicationSafetyOverride.create({ data: { prescriptionId: order.prescription!.id, existingPrescriptionId: exact.id, prescriberId: user.id, warningCode: "EXACT_DUPLICATE_OVERRIDDEN", justification: input.data.duplicateReason!, originalDetails: prescriptionSnapshot({ ...exact, quantity: Number(exact.quantity) }), revisedDetails: revised } });
-            const sameClass = item.therapeuticClass ? await tx.prescription.findFirst({ where: { id: { not: order.prescription!.id }, catalogItem: { therapeuticClass: item.therapeuticClass }, order: { visit: { patientId: visit.patientId }, status: { in: ["DRAFT", "REQUESTED", "IN_PROGRESS"] } } }, include: { order: true } }) : null;
+            if (exact && duplicateAction === "KEEP_BOTH")
+              await tx.medicationSafetyOverride.create({ data: { prescriptionId: order.prescription!.id, existingPrescriptionId: exact.id, prescriberId: user.id, warningCode: "EXACT_DUPLICATE_OVERRIDDEN", justification: duplicateReason!, originalDetails: prescriptionSnapshot({ ...exact, quantity: Number(exact.quantity) }), revisedDetails: revised } });
+            const sameClass = item.therapeuticClass ? await tx.prescription.findFirst({ where: { id: { not: order.prescription!.id }, catalogItem: { therapeuticClass: item.therapeuticClass }, order: { visit: { patientId: visit.patientId, facilityId: user.facilityId }, status: { in: ["DRAFT", "REQUESTED", "IN_PROGRESS"] } } }, include: { order: true } }) : null;
             if (sameClass) warnings.push(`Therapeutic duplication: ${item.name} and ${sameClass.order.displayName} are both ${item.therapeuticClass}.`);
             const allergy = visit.patient.allergies.find(record => normalizeMedicationConcept(record.substance).includes(medicationConceptId) || medicationConceptId.includes(normalizeMedicationConcept(record.substance)));
             if (allergy) warnings.push(`Allergy warning: ${item.genericName} may match recorded allergy ${allergy.substance}.`);
@@ -569,9 +587,11 @@ export async function POST(
               : "PRESCRIPTION_DRAFT_SAVED",
             entityType: "Encounter",
             entityId: encounter.id,
-            afterHash: created.join("|"),
+            afterHash: requestHash,
           });
+          const orders = await tx.clinicalOrder.findMany({ where: { visitId: id, type: "MEDICATION" }, include: { prescription: true, orderedBy: { select: { displayName: true } } }, orderBy: { requestedAt: "asc" } });
           return {
+            orders,
             stage: input.data.submit
               ? "PRESCRIPTION_SUBMITTED"
               : "PRESCRIPTION_SAVED",
@@ -653,7 +673,7 @@ export async function POST(
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       const target = String(error.meta?.target);
       if (target.includes("idempotencyKey"))
-        return NextResponse.json({ stage: "PRESCRIPTION_ALREADY_SAVED", created: [], warnings: [] });
+        return privateJson({ error: "Another save is being confirmed. Retry the unchanged prescription request to verify its result." }, { status: 409 });
       if (target.includes("visitMedicationKey"))
         return NextResponse.json({ error: "This medicine is already prescribed in this visit. Edit the existing prescription instead." }, { status: 409 });
     }

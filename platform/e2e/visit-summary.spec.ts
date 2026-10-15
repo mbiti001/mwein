@@ -29,8 +29,10 @@ test("summary omits untouched assessments and aligns only recorded history and f
   summary.encounter.objective.generalExamination = "General appearance: Well appearing\nHydration: Clinically hydrated\nPallor: Absent\nJaundice: Not assessed\nAdditional findings: Assessment completed with the patient seated.";
   summary.encounter.objective.systemicExamination = "Breath sounds: Vesicular bilaterally\nAdded sounds: None\nJVP: Not elevated\nMurmur: No murmur heard\nLowest MRC muscle power: 0/5\nGait: Not examined due to pain\nBowel sounds: Not auscultated\nAdditional findings: Follow-up examination planned.\nReason: mobility limited by pain.";
   summary.encounter.subjective.reviewOfSystems = "Fever: Denied\nCough: Not asked";
-  (summary as any).orders = [{ id: "med", type: "MEDICATION", displayName: "Synthetic medicine", prescription: { genericName: "Synthetic medicine", strength: "Test strength", dosageForm: "Tablet", dose: "Test dose", route: "Test route", frequency: "Test frequency", duration: "Test duration", dispenseStatus: "PENDING", instructions: "" } }];
+  (summary as any).orders = [{ id: "med", type: "MEDICATION", status: "REQUESTED", displayName: "Synthetic medicine", prescription: { genericName: "Synthetic medicine", strength: "Test strength", dosageForm: "Tablet", dose: "Test dose", route: "Test route", frequency: "Test frequency", duration: "Test duration", dispenseStatus: "PENDING", instructions: "" } }];
+  for (const status of ["DRAFT", "CANCELLED", "UNKNOWN"]) (summary as any).orders.push({ ...(summary as any).orders[0], id: status, status, displayName: `${status} medicine`, prescription: { ...(summary as any).orders[0].prescription, genericName: `${status} medicine` } });
   await openSummary();
+  for (const status of ["DRAFT", "CANCELLED", "UNKNOWN"]) await expect(paper.getByText(`${status} medicine`, { exact: false })).toHaveCount(0);
   await expect(paper.locator(".summaryMedicine").getByText("PENDING", { exact: true })).toBeVisible();
   await expect(paper.locator(".summaryMedicine").getByText("Instructions", { exact: true })).toHaveCount(0);
   const exam = paper.locator("section").filter({ has: page.getByRole("heading", { name: "Examination", exact: true }) });
@@ -48,6 +50,8 @@ test("summary omits untouched assessments and aligns only recorded history and f
   await page.evaluate(() => window.dispatchEvent(new Event("beforeprint")));
   await page.emulateMedia({ media: "print" });
   await expect(page.locator(".mobileNavToggle")).toBeHidden();
+  for (const status of ["DRAFT", "CANCELLED", "UNKNOWN"]) await expect(paper.getByText(`${status} medicine`, { exact: false })).toHaveCount(0);
+  await expect(paper.locator(".summaryMedicine")).toHaveCount(1);
   await expect(paper.getByText("Denied", { exact: true })).toBeVisible();
   await expect(paper.getByText("Follow-up examination planned.\nReason: mobility limited by pain.", { exact: true })).toBeVisible();
   await expect(exam.getByText("Not auscultated", { exact: true })).toHaveCount(0);

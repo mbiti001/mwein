@@ -74,7 +74,7 @@ describe("medicine substitution equivalence", () => {
     medicationConceptId: "paracetamol",
     genericName: "Paracetamol",
     strength: "500 mg",
-    dosageForm: "Tablet",
+    dosageForm: "Tablet", unitOfMeasure: "tablet",
   };
 
   it("allows a different product with the same concept, strength and form", () => {
@@ -82,8 +82,15 @@ describe("medicine substitution equivalence", () => {
       medicationConceptId: "PARACETAMOL",
       genericName: "Acetaminophen",
       strength: "500 MG",
-      dosageForm: " tablet ",
+      dosageForm: " tablet ", unitOfMeasure: "tablet",
     })).toBe(true);
+  });
+
+  it("rejects missing identity and different dispensing units", () => {
+    expect(isEquivalentMedication(prescribed, { ...prescribed, unitOfMeasure: "pack" })).toBe(false);
+    expect(isEquivalentMedication({ ...prescribed, strength: null }, { ...prescribed, strength: null })).toBe(false);
+    expect(isEquivalentMedication({ ...prescribed, dosageForm: null }, { ...prescribed, dosageForm: null })).toBe(false);
+    expect(isEquivalentMedication({ ...prescribed, unitOfMeasure: null }, { ...prescribed, unitOfMeasure: null })).toBe(false);
   });
 
   it("rejects a different strength or dosage form", () => {
@@ -93,8 +100,8 @@ describe("medicine substitution equivalence", () => {
 
   it("falls back to normalized generic name when concept IDs are absent", () => {
     expect(isEquivalentMedication(
-      { genericName: "Amoxicillin", strength: "500 mg", dosageForm: "Capsule" },
-      { genericName: " amoxicillin ", strength: "500 mg", dosageForm: "Capsule" },
+      { genericName: "Amoxicillin", strength: "500 mg", dosageForm: "Capsule", unitOfMeasure: "capsule" },
+      { genericName: " amoxicillin ", strength: "500 mg", dosageForm: "Capsule", unitOfMeasure: "capsule" },
     )).toBe(true);
   });
 });

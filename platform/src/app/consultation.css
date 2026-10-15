@@ -310,3 +310,39 @@ body .diagnosticReviewWorkspace .diagnosticReviewTable button.secondary { white-
 .investigationTable { overflow-x: auto; max-width: 100%; }
 .investigationTable table { min-width: 480px; }
 @media (max-width: 640px) { .investigationReviewHeading { flex-direction: column; } .investigationReview { padding: 12px; } }
+
+/* Accessible actions and compact prescription review. */
+.consultationSaveBar { position: sticky; top: 0; z-index: 12; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 10px 14px; background: #fff; border: 1px solid #bfdbfe; border-radius: 9px; box-shadow: 0 2px 7px #17313f14; }
+.consultationSaveBar small { color: var(--muted); }
+.prescriptionComposer { min-width: 0; display: grid; gap: 16px; }
+.rxHeading { display: flex; justify-content: space-between; gap: 12px; align-items: start; flex-wrap: wrap; }
+.rxHeading h3,.rxLine h4 { margin: 0 0 8px; }
+.rxHeading p { margin: 0; color: var(--muted); }
+.rxActions { position: sticky; top: 70px; z-index: 10; display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 9px; flex-wrap: wrap; }
+.rxActions > div,.rxLineActions,.rxEditorActions { display: flex; gap: 8px; flex-wrap: wrap; }
+.rxEditor { min-width: 0; margin: 0; padding: 16px; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; border: 1px solid var(--line); border-radius: 9px; scroll-margin-top: 150px; }
+.rxEditor legend { padding: 0 8px; font-weight: 700; }
+.rxEditor label,.rxEditor :is(input,select,textarea) { min-width: 0; max-width: 100%; }
+.rxEditor .wide { grid-column: 1 / -1; }
+.rxEditor .rxCheck { display: flex; align-items: start; gap: 10px; }
+.rxEditor .rxCheck input { flex: 0 0 18px; width: 18px; height: 18px; margin: 3px 0 0; }
+.rxSelected { margin: 0; color: var(--blue); font-weight: 650; }
+.rxList,.rxSaved { display: grid; gap: 12px; }
+.rxLine { min-width: 0; padding: 14px; background: #fff; border: 1px solid var(--line); border-radius: 9px; overflow-wrap: anywhere; }
+.rxLineActions,.rxLine > button { margin-top: 10px; }
+@media(max-width:1050px) { .rxEditor { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:650px) { .consultationSaveBar { top: 58px; } .consultationSaveBar small { display: none; } .rxActions { top: 126px; } .rxActions > span { display: none; } .rxActions > div { display: grid; grid-template-columns: 1fr 1fr; width: 100%; } .rxEditor { grid-template-columns: repeat(2,minmax(0,1fr)); padding: 10px; } .rxEditor label:has(textarea),.rxEditor label:has(.searchablePicker) { grid-column: 1 / -1; } }
+@media print { .prescriptionComposer .noPrint,.consultationSaveBar { display: none !important; } .rxLine { break-inside: avoid; } }
+
+.consultForm .consultNavigator { position: static; }
+@media(max-width:1050px) { .consultationSaveBar small { display: none; } }
+.kenyaMedicineReference { padding: 14px; border: 1px solid #bfdbfe; border-radius: 9px; background: #eff6ff; overflow-wrap: anywhere; }
+
+.consultForm { --consultation-top: 0px; }
+.consultationSaveBar { top: var(--consultation-top); flex-wrap: nowrap; }
+.consultationSaveBar > span { min-width: 0; flex: 1; }
+.consultationSaveBar button { flex-shrink: 0; }
+.rxActions { top: calc(var(--consultation-top) + var(--save-bar-height, 64px) + 8px); }
+.rxLine .recordFields { grid-template-columns: repeat(2,minmax(0,1fr)); }
+@media(min-width:1051px) { .rxLine .recordFields { grid-template-columns: repeat(4,minmax(0,1fr)); } }
+@media(max-width:650px) { .consultForm { --consultation-top: 74px; } .consultationSaveBar > span { font-size: 12px; } .rxLine { padding: 10px; } .rxLine .recordFields { gap: 8px; } .rxLine .recordFields > div { padding: 8px; } }

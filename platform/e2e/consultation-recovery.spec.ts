@@ -214,7 +214,7 @@ test("notes do not clear diagnosis, investigation or prescription drafts and sig
   const posts: any[] = [];
   await page.route("**/api/visits/*/consultation", route => {
     posts.push(route.request().postDataJSON());
-    return route.fulfill({ json: { stage: "SAVED", draftRevision: `${encounterId}:${updatedAt}` } });
+    return route.fulfill({ json: { stage: "SAVED", orders: [], draftRevision: `${encounterId}:${updatedAt}` } });
   });
   await page.route("**/api/visits/*/investigations", route => route.fulfill({ json: { visit: { ...visit(), clinicallyClosedAt: null }, truncated: false, limit: 100 } }));
   await page.route("**/api/diagnoses/search?*", route => route.fulfill({ json: { results: [] } }));
@@ -243,6 +243,15 @@ test("notes do not clear diagnosis, investigation or prescription drafts and sig
   await expect(status).not.toContainText("investigation requests");
   await expect(status).toContainText("prescription");
   await page.getByRole("button", { name: "Medicines", exact: true }).click();
+  await page.locator('[name="medicineIndication"]').fill("Synthetic indication");
+  await page.locator('[name="dose"]').fill("1 tablet");
+  await page.locator('[name="route"]').selectOption("Oral");
+  await page.locator('[name="frequencyPerDay"]').selectOption("1");
+  await page.locator('[name="durationDays"]').fill("2");
+  await page.locator('[name="doseQuantity"]').fill("1");
+  await page.locator('[name="quantity"]').fill("2");
+  await page.locator('[name="medicineInstructions"]').fill("Synthetic instructions");
+  await page.locator('[name="quantityConfirmed"]').check();
   await page.getByRole("button", { name: "Save for later", exact: true }).click();
   await expect(status).toContainText("diagnosis");
   await expect(status).not.toContainText("prescription");

@@ -52,6 +52,13 @@
       "source": "e21384455f78449a1fb4437a9836797baf52615b",
       "deploymentId": "dpl_FouhRPioAV9Ak9YqdzdCGdkzTTwa",
       "evidence": "2026-10-16-1.4.0.json"
+    },
+    {
+      "version": "1.5.0",
+      "displayName": "1.5.0",
+      "status": "candidate",
+      "branch": "codex/mwein-platform",
+      "note": "Multi-medicine prescription lists, draft revision and retry safety, source-backed inactive Kenya medicine references, and stricter dispensing-unit matching. No new migration. Separate from the release coordinator's frozen 1.4.0 diagnostic source e213844; not deployed."
     }
   ]
 }
