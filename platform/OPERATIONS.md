@@ -21,7 +21,7 @@ Run `npm run db:bootstrap` only for explicit first-time provisioning or a review
 
 ## Build identity and parallel contributors
 
-The **Build** footer on both public and authenticated screens identifies the loaded application. Expand it for the full source commit, hosting environment, branch and Vercel deployment ID. `/api/health` reports the same release identity; Administration uses its short commit. A production hosting label does not replace the clinical readiness check.
+The **Mwein version · Build** footer on both public and authenticated screens identifies the loaded application. Expand it for the full source commit, hosting environment, branch and Vercel deployment ID. `/api/health` reports the same release identity; Administration uses its short commit. Follow the [shared version ledger and allocation procedure](certification/releases/README.md); the initial release is 1 (canonical 1.0.0), followed by 1.1.0. For numbered releases, add `EXPECTED_RELEASE_VERSION` to the release-verification environment. A production hosting label or numbered version does not replace the clinical readiness check.
 
 For a CLI release, archive a clean, reviewed Git commit and set `DEPLOYMENT_VERSION` to that full SHA at build time and runtime, with `RELEASE_BRANCH` set to the source branch. Vercel Git deployments supply their corresponding Git variables automatically. Never substitute a mutable branch name for the source SHA or copy another deployment's ID; Vercel supplies its own ID. Keep deployment/job purpose in Vercel metadata and record the deployment URL, source SHA and migration in the release log. Git release tags must be unique and must never be moved to a different commit.
 

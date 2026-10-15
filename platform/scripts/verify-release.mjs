@@ -1,6 +1,6 @@
 import { pathToFileURL } from "node:url";
 
-export async function verifyRelease({ origin, expectedCommit, expectedMigration, patientUse = false }, request = fetch) {
+export async function verifyRelease({ origin, expectedCommit, expectedMigration, expectedVersion, patientUse = false }, request = fetch) {
   if (!origin || !expectedCommit || !expectedMigration)
     throw new Error("Set RELEASE_ORIGIN, EXPECTED_RELEASE_SHA and EXPECTED_MIGRATION");
   const base = new URL(origin);
@@ -11,6 +11,8 @@ export async function verifyRelease({ origin, expectedCommit, expectedMigration,
   if (!response.ok) throw new Error(`Health check failed with HTTP ${response.status}`);
   if (health.release?.commit !== expectedCommit)
     throw new Error(`Release drift: expected commit ${expectedCommit}, received ${health.release?.commit || "missing"}`);
+  if (expectedVersion && health.release?.version !== expectedVersion)
+    throw new Error(`Version drift: expected ${expectedVersion}, received ${health.release?.version || "missing"}`);
   if (health.migration !== expectedMigration)
     throw new Error(`Migration drift: expected ${expectedMigration}, received ${health.migration || "missing"}`);
   if (patientUse) {
@@ -19,12 +21,12 @@ export async function verifyRelease({ origin, expectedCommit, expectedMigration,
     if (!readiness.ok || body.status !== "ready")
       throw new Error("Patient-use verification blocked: production configuration or approval evidence is incomplete. Review Administration readiness with an authorised account.");
   }
-  return { commit: expectedCommit, migration: expectedMigration, patientReadinessChecked: patientUse };
+  return { commit: expectedCommit, ...(expectedVersion ? { version: expectedVersion } : {}), migration: expectedMigration, patientReadinessChecked: patientUse };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
-    const result = await verifyRelease({ origin: process.env.RELEASE_ORIGIN, expectedCommit: process.env.EXPECTED_RELEASE_SHA, expectedMigration: process.env.EXPECTED_MIGRATION, patientUse: process.argv.includes("--patient-use") });
+    const result = await verifyRelease({ origin: process.env.RELEASE_ORIGIN, expectedCommit: process.env.EXPECTED_RELEASE_SHA, expectedVersion: process.env.EXPECTED_RELEASE_VERSION, expectedMigration: process.env.EXPECTED_MIGRATION, patientUse: process.argv.includes("--patient-use") });
     console.log(JSON.stringify(result));
     if (!result.patientReadinessChecked) console.log("Release identity verified only. Run ops:patient-use-verify before patient-use approval.");
   } catch (error) {

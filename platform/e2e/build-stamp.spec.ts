@@ -5,6 +5,7 @@ test("staff can identify the running build on a phone without adding it to print
   await page.goto("/");
   const stamp = page.getByRole("contentinfo", { name: "Application build" });
   const summary = stamp.locator("summary");
+  await expect(summary).toContainText(`Mwein ${health.release.version}`);
   await expect(summary).toContainText(health.release.commit === "local" ? "local development" : health.release.shortCommit);
   await summary.focus();
   await page.keyboard.press("Enter");

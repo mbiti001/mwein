@@ -1,4 +1,4 @@
-# Additional module requirements — 15 October 2026
+# Mwein additional module requirements — 15 October 2026
 
 Reference: [HosiPoa module directory](https://www.hosipoa.co.ke/modules/), reviewed 15 October 2026. This supplements existing Mwein requirements. Source descriptions identify scope; the acceptance conditions below are Mwein engineering proposals, not claims about the reference product or clinical approval.
 
