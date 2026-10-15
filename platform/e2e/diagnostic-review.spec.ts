@@ -142,6 +142,10 @@ test("diagnostic paging reaches work beyond 100 and retains the selected review 
     await expect(table.getByRole("columnheader")).toHaveText(["Patient / visit", "Investigation", "Review status", "Responsibility / requested", "Action"]);
     const fields = await table.locator("tbody tr").first().evaluate(element => [...element.children].map(child => child.getBoundingClientRect().width));
     expect(fields.every(cellWidth => cellWidth > 90)).toBe(true);
+    expect(await table.getByRole("button").evaluateAll(buttons => buttons.every(button => {
+      const range = document.createRange(); range.selectNodeContents(button);
+      return range.getClientRects().length === 1 && button.scrollWidth <= button.clientWidth;
+    }))).toBe(true);
     const scroll = page.getByRole("region", { name: "Diagnostic requests table", exact: true });
     await scroll.evaluate(element => { element.scrollLeft = 0; });
     await page.screenshot({ path: testInfo.outputPath(`diagnostic-paging-${width}.png`), fullPage: true });

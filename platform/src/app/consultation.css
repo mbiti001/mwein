@@ -285,7 +285,8 @@
 .diagnosticReviewTable span { margin-top: 4px; color: #526784; font-weight: 400; }
 .diagnosticReviewTable tbody tr:nth-child(even) { background: #f8fbff; }
 .diagnosticReviewTable tbody tr.diagnosticSelectedRow { background: #eff6ff; box-shadow: inset 3px 0 #2563eb; }
-.diagnosticPatientColumn { width: 22%; } .diagnosticTestColumn { width: 24%; } .diagnosticStateColumn { width: 21%; } .diagnosticOwnerColumn { width: 22%; } .diagnosticActionColumn { width: 11%; }
+.diagnosticPatientColumn { width: 22%; } .diagnosticTestColumn { width: 23%; } .diagnosticStateColumn { width: 21%; } .diagnosticOwnerColumn { width: 21%; } .diagnosticActionColumn { width: 13%; }
+body .diagnosticReviewWorkspace .diagnosticReviewTable button.secondary { white-space: nowrap; }
 .diagnosticTableHint { font-size: 12px; color: var(--muted); }
 .diagnosticReviewDetail { border-top: 2px solid var(--line); padding-top: 16px; }
 .diagnosticReviewGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; }
