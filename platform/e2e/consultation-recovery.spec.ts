@@ -71,9 +71,11 @@ test("conflict review preserves typed notes, clears failed reads and requires ex
   await recovery.getByRole("button", { name: "Review latest saved notes" }).focus(); await page.keyboard.press("Enter");
   await expect(recovery).toContainText("Latest saved history");
   await expect(page.locator('[name="historyPresentingIllness"]')).toHaveValue("Keep my unsaved history");
-  for (const width of [1440, 768, 390, 320]) {
+  for (const [index, width] of [1440, 768, 390, 320, 320].entries()) {
     await page.setViewportSize({ width, height: 900 });
-    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    if (index === 4) await page.evaluate(() => { document.body.style.fontFamily = "Arial, sans-serif"; document.body.style.fontSize = "17px"; });
+    const overflow = await page.evaluate(() => Array.from(document.querySelectorAll("body *")).filter(el => el.getBoundingClientRect().right > innerWidth + 1).map(el => ({ tag: el.tagName, class: el.className, right: el.getBoundingClientRect().right, width: el.getBoundingClientRect().width, text: el.textContent?.slice(0, 90) })));
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), { message: `${width}px, font variant ${index}: ${JSON.stringify(overflow)}` }).toBe(true);
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: testInfo.outputPath(`consultation-recovery-${width}.png`), fullPage: true, animations: "disabled" });
     await recovery.screenshot({ path: testInfo.outputPath(`consultation-recovery-panel-${width}.png`), animations: "disabled" });
