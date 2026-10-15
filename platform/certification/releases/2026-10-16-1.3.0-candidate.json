@@ -1,0 +1,71 @@
+{
+  "application": "Mwein HMIS",
+  "version": "1.3.0",
+  "status": "verified-candidate-not-deployed",
+  "source": "8c30a2fc0e867dc826a7ee8f701cf611abcc93a2",
+  "branch": "codex/mwein-platform",
+  "verifiedAt": "2026-10-15T22:15:06.581Z",
+  "requiredMigration": "20261016010000_rights_identity_evidence",
+  "ci": {
+    "url": "https://github.com/mbiti001/mwein/actions/runs/38815100516",
+    "runId": 38815100516,
+    "conclusion": "success",
+    "platformJob": 116697669163,
+    "legacyJob": 116697669581,
+    "unitTests": 632,
+    "testFiles": 106,
+    "migrationScripts": 55,
+    "syntheticWorkflowChecks": 134,
+    "browserScenarios": 101,
+    "productionDependencyVulnerabilities": 0
+  },
+  "sourceArchive": {
+    "filename": "mwein-1.3.0-8c30a2f-source-lf.zip",
+    "canonicalGitLineEndings": true,
+    "bytes": 2738938,
+    "sha256": "03c9b10d0bebe66f02918e3cf9785777f3e43c33c6ba783457aacfad25c0614f"
+  },
+  "auditInventory": {
+    "source": "canonical Git archive; Windows working-copy CRLF differs",
+    "routes": 73,
+    "missingAuditCalls": 0,
+    "unclassifiedRoutes": 10,
+    "unreviewedAliases": 0,
+    "assurance": "Engineering inventory only"
+  },
+  "liveBaseline": {
+    "checkedAt": "2026-10-15T22:14:25.210Z",
+    "version": "1.2.0",
+    "commit": "601a591799461719678e082b31144ea41a918b56",
+    "shortCommit": "601a59179946",
+    "environment": "production",
+    "branch": "codex/mwein-platform",
+    "deployment": "dpl_DeoV14bAxdDBqtqbrFDtdysANWob",
+    "application": "mwein-hmis-platform",
+    "migration": "20261016001000_clinic_document_numbering",
+    "health": "200/connected"
+  },
+  "scope": [
+    "Retained identity and representative authority before review, correction and disclosure",
+    "Scoped full export and recipient-bound delivery",
+    "Audit rollback, exact retry and immutable history",
+    "Responsive saved records and print behavior",
+    "DHA HIE requirements and certification pipeline"
+  ],
+  "limitations": [
+    "Candidate migration has not run in production; fresh retained backup and controlled release required",
+    "No HIE transport or production credentials enabled",
+    "No legal, clinical or regulatory approval implied",
+    "Independent witnessed production restore and separate preview database remain dependencies",
+    "Other contributor patient-journey changes require combined-source verification"
+  ],
+  "localEvidence": [
+    "identity-unit-full.log",
+    "identity-migrations.log",
+    "identity-browser-final.log",
+    "identity-ci-38815100516.log",
+    "identity-audit-source-lf.json",
+    "outputs/mwein-rights-identity-saved-1440.png",
+    "outputs/mwein-rights-identity-form-320.png"
+  ]
+}

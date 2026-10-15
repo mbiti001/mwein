@@ -40,3 +40,9 @@ The old [user journey](https://hie-docs.dha.go.ke/docs/userJourney) redirects re
 5. Retain witnessed UAT/certification evidence before enabling national production transport. Keep MFA, legal/clinical/security reviews, backup/restore evidence and the distinct preview database requirement intact.
 
 Current source inspection: src/app/api/admin/exchange/route.ts remains a permission-protected 503; src/lib/integrations.ts reports national exchange on hold; src/lib/kenya-fhir.ts prepares a patient resource only. None of these is external acceptance. No national connection or readiness approval was enabled by adding this register.
+
+## Follow-up contract notes
+
+The [callback receiver guide](https://hie-docs.dha.go.ke/docs/claims/guides/status-callbacks) specifies durable acceptance before acknowledgement, duplicate and out-of-order delivery, and no replay of transitions occurring while callbacks are paused. Add reconciliation after pauses and mismatched prior state. Its suggested subject/state deduplication needs an explicit facility/entity namespace in Mwein and review of repeated legitimate transitions against the approved contract. A secret reference must already be arranged with HIE; do not fabricate one. These are next-batch design inputs, not an activated receiver.
+
+The catalogue's [authentication reference](https://hie-docs.dha.go.ke/auth) and [SHR reference](https://hie-docs.dha.go.ke/sharedhealthrecord) returned no extractable schema content to the text browser in this review. This is a documentation retrieval limitation, not evidence that credentials are required. Retrieve and version their actual contracts through the rendered documentation or an approved schema export before adapter implementation.
