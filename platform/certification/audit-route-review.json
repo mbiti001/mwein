@@ -196,7 +196,7 @@
       "methodExceptions": {}
     },
     "patients/[id]/privacy": {
-      "sourceSha256": "85ea61dcf08c98b7f4ac149500de96276f4eac2daa35da04fcb04d5fdb016448",
+      "sourceSha256": "4fc5d8f917f5fca140f40ae6d7389535795d52ab2b0e20d07ac028f97c3cca43",
       "methodExceptions": {}
     },
     "patients/[id]/problems/[problemId]": {
