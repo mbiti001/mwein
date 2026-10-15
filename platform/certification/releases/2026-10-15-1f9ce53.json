@@ -1,0 +1,47 @@
+{
+  "purpose": "Balanced sign-in and consistent saved/printed record layouts; not clinical approval",
+  "source": "1f9ce53871a81daeff1448b7b6fd04bc638d095c",
+  "branch": "codex/hosipoa-expiry-report",
+  "tag": "mwein-build-20261015-1f9ce53",
+  "sourceArchiveSha256": "f1e7f27428bbb40d9c1860caa42cf00a981e94152847b270ccfa3d189ed7812e",
+  "ci": {
+    "url": "https://github.com/mbiti001/mwein/actions/runs/38786312197",
+    "conclusion": "success",
+    "unitTests": 491,
+    "unitFiles": 99,
+    "browserScenarios": 79,
+    "isolatedOutpatientChecks": 123
+  },
+  "application": {
+    "deploymentId": "dpl_6at1exbSbP6ufqMSc64MvzzpNhkF",
+    "deploymentUrl": "https://mwein-hmis-platform-3j5d8gsx8-mbitis-projects.vercel.app",
+    "liveUrl": "https://mwein-hmis-platform.vercel.app",
+    "baselineBeforePromotion": "a5deb6288d496133fc9be3d12a2f93def7b8456b"
+  },
+  "databaseChangesPerformed": false,
+  "liveVerification": {
+    "verifiedAt": "2026-10-15T18:37:00.441Z",
+    "healthHttp": 200,
+    "database": "connected",
+    "latestMigration": "20261015090000_goods_receipt_documents",
+    "releaseIdentityCommand": "ops:release-verify passed",
+    "readinessHttp": 503,
+    "readinessStatus": "blocked",
+    "patientUseApproved": false,
+    "browser": "Chrome 155.0.8059.40",
+    "widths": [1440, 768, 390, 320],
+    "horizontalOverflow": false,
+    "careImageLoadedAndUnobscured": true,
+    "buildKeyboardExpansion": true,
+    "buildExcludedFromPrint": true,
+    "pageErrors": [],
+    "unauthenticatedReadChecks": {"/api/auth/me": 401, "/api/patients": 401, "/api/visits": 401},
+    "productionPatientDataUsedForTesting": false
+  },
+  "pdfReview": {
+    "syntheticDocuments": ["SICK", "MATERNITY", "DELIVERY", "GATE", "PURCHASE_ORDER", "GOODS_RECEIPT", "VISIT_SUMMARY"],
+    "renderedPagesReviewed": 8,
+    "format": "A4",
+    "physicalPrinterAcceptance": "Outstanding"
+  }
+}
