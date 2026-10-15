@@ -1,0 +1,152 @@
+{
+  "version": "1.6.1",
+  "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+  "status": "all-agent-test-and-retest-complete",
+  "archive": {
+    "sha256": "d380066ac2a8487ef4edce3234921143decdcbd7808913619f9b490d4d1bd111",
+    "bytes": 6236160
+  },
+  "requiredGate": "All available participating agents independently review and retest the frozen source before deployment",
+  "mainReviewers": [
+    {
+      "agent": "triage_logic_review",
+      "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+      "tests": 56,
+      "inputMatrix": 118,
+      "validInputAlertComparisons": 331776,
+      "result": "pass",
+      "limits": "Engineering equivalence, not clinical threshold approval; historical observations unchanged."
+    },
+    {
+      "agent": "triage_data_review",
+      "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+      "tests": 56,
+      "scriptSyntaxChecks": 3,
+      "result": "pass",
+      "scope": "Independent numeric/flag oracle and rejection/no-write/WAITING queue assertions; reuse and partial completion values/provenance.",
+      "limits": "Same-actor fixture attribution and separate cross-facility tests; no independent full database execution by this subagent."
+    },
+    {
+      "agent": "release_gate_review",
+      "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+      "tests": 86,
+      "result": "pass",
+      "migrations": 55,
+      "latestMigration": "20261016010000_rights_identity_evidence",
+      "outstandingAuditClassifications": 8,
+      "limits": "No global audit coverage or clinical readiness approval."
+    }
+  ],
+  "supersededSource": "684ebbe5aee3f10a3899cfca64682da87493596d",
+  "failuresRetained": [
+    "Regression fails on original blanket flags.",
+    "Input regressions fail on superseded coercing schema.",
+    "Initial strengthened SQL timestamp assertion used host timezone; exact SQL epoch assertion replaced it.",
+    "Concurrent full run had certification fixture timeouts and audit-trigger cleanup25P02; origin not established, not reproduced in clean isolated final-source retests; original cause not established.",
+    "Reviewer overlap with intentional RED source swap invalidated that working-tree run; all final frozen-source retests subsequently passed."
+  ],
+  "historicalRecordPolicy": "No retrospective rewrite; this patch corrects new observations and validates incoming raw numeric types.",
+  "coordinatorReviewers": [
+    {
+      "agent": "coordinator-threshold-review",
+      "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+      "result": "pass",
+      "tests": 71,
+      "invalidInputChecks": 108,
+      "numericCompatibilityComparisons": 594
+    },
+    {
+      "agent": "coordinator-test-validity-review",
+      "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+      "result": "pass",
+      "tests": 56,
+      "inputMatrix": 135
+    },
+    {
+      "agent": "coordinator-release-review",
+      "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+      "result": "pass",
+      "tests": 52
+    }
+  ],
+  "triageContributor": {
+    "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+    "inputMatrix": 157,
+    "types": "pass",
+    "unitTests": 727,
+    "unitFiles": 112,
+    "browser": "passed",
+    "browserScenarios": 10,
+    "fullSyntheticFixture": "passed readiness barrier",
+    "localBuildId": "bHOUvLx8B02fcurxbz8ew",
+    "priorCleanupFailure": "Did not recur on isolated final-source retest; original cause not established."
+  },
+  "root": {
+    "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+    "types": "passed",
+    "unitTests": 727,
+    "unitFiles": 112,
+    "browserScenarios": 119,
+    "browserResult": "passed",
+    "localBuildId": "cQTojP3sCyu1Wlcm8Cxlk",
+    "visualReview": [
+      "desktop saved-reading attribution and aligned fields",
+      "390px two-column vitals and unclipped inputs",
+      "print includes confirmed readings and omits unfinished assessment"
+    ],
+    "fullSyntheticFixture": "Passed browser readiness barrier; count not separately printed in root browser log"
+  },
+  "auditInventory": {
+    "routes": 73,
+    "gaps": 0,
+    "unclassified": 8,
+    "aliases": 0
+  },
+  "ci": {
+    "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+    "runId": 38823251519,
+    "url": "https://github.com/mbiti001/mwein/actions/runs/38823251519",
+    "platformJob": 116724606179,
+    "legacyJob": 116724605947,
+    "status": "success",
+    "unitTests": 727,
+    "unitFiles": 112,
+    "migrations": 55,
+    "syntheticWorkflowChecks": 159,
+    "browserScenarios": 119,
+    "productionDependencyVulnerabilities": 0
+  },
+  "coordinator": {
+    "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+    "result": "pass",
+    "browserScenarios": 10,
+    "browserSeconds": 55.2,
+    "syntheticWorkflowChecks": 158,
+    "fixtureMode": "browser hold mode; hosted standalone run has 159 including separate temporary-password assertion",
+    "localBuildId": "hgVlkrRIeMR49Xoz19FZq",
+    "healthIdentity": "version/source confirmed",
+    "visualReview": [
+      "320px saved vitals",
+      "print confirmed readings"
+    ]
+  },
+  "deploymentStatus": "not deployed",
+  "databaseChanges": false,
+  "remainingWork": [
+    "Clinical, legal, DHA/HIE, security and independent restore acceptance",
+    "Governed historical record correction if required",
+    "Broader raw numeric input audit",
+    "Later recall audit reduced branch classifications to five; frozen release inventory still has eight"
+  ],
+  "additionalActiveReviewer": {
+    "agent": "recall-access contributor 01a141db",
+    "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+    "result": "pass",
+    "tests": 81,
+    "files": 6,
+    "scope": "Independent triage flags/raw-input/provenance/authorization/atomicity and release safeguards",
+    "limits": "Lightweight review and unit retest; no separate database or browser run"
+  },
+  "verifiedAt": "2026-10-15T23:38:35.708Z",
+  "participantCount": 10
+}
