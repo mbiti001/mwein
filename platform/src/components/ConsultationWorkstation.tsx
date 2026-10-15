@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { confirmWorkspaceNavigation, useUnsavedConsultation } from "@/components/useUnsavedConsultation";
 import { consultationRevision } from "@/lib/consultation-revision";
 import ConsultationRecovery from "@/components/ConsultationRecovery";
 import { patientClinicalGroup } from "@/lib/domain";
@@ -1130,7 +1131,7 @@ export default function ConsultationWorkstation({
       key={active.id}
       visit={active}
       onBack={() => setActive(null)}
-      onCompleted={onCompleted}
+      onCompleted={(name) => { setActive(null); onCompleted(name); }}
       onOpenServicePoints={onOpenServicePoints}
     />
     </>
@@ -1199,6 +1200,7 @@ function ConsultationEditor({
   const activeForm = useRef(true);
   useEffect(() => { activeForm.current = true; return () => { activeForm.current = false; }; }, []);
   const [savingAction, setSavingAction] = useState(false);
+  const [signing, setSigning] = useState(false);
   const [showRecovery, setShowRecovery] = useState(false);
   const [complaints, setComplaints] = useState<ComplaintDraft[]>(() =>
     parseSavedComplaints(savedSubjective),
@@ -1208,6 +1210,8 @@ function ConsultationEditor({
   const [problems, setProblems] = useState<PatientProblem[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [problemDescription, setProblemDescription] = useState("");
+  const [savingProblem, setSavingProblem] = useState(false);
+  const changes = useUnsavedConsultation(problemDescription, savingAction || savingProblem);
   useEffect(
     () =>
       setDispenseQuantity(
@@ -1236,15 +1240,20 @@ function ConsultationEditor({
   }, [visit.id, visit.patient.id]);
   async function addProblem(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (savingProblem) return;
+    const submitted = problemDescription;
+    setSavingProblem(true);
     try {
       const result = await jsonRequest<{ problem: PatientProblem }>(`/api/patients/${visit.patient.id}/problems`, {
         method: "POST",
         body: JSON.stringify({ description: problemDescription }),
       });
+      if (!activeForm.current) return;
       setProblems((current) => [result.problem, ...current]);
-      setProblemDescription("");
+      setProblemDescription(current => current === submitted ? "" : current);
       setNotice("The problem was added to the longitudinal record.");
-    } catch (reason) { setError((reason as Error).message); }
+    } catch (reason) { if (activeForm.current) setError((reason as Error).message); }
+    finally { if (activeForm.current) setSavingProblem(false); }
   }
   async function resolveProblem(problem: PatientProblem) {
     const reason = window.prompt("Reason for resolving this problem");
@@ -1434,8 +1443,12 @@ function ConsultationEditor({
   ) {
     const form = event.currentTarget.form!;
     const f = new FormData(form);
-    if (action === "SAVE_NOTES")
-      return run(action, notes(f), "Clinical notes saved as a draft.");
+    const submitted = changes.snapshot();
+    if (action === "SAVE_NOTES") {
+      const result = await run(action, notes(f), "Clinical notes saved as a draft.");
+      if (result) changes.markSaved("notes", submitted);
+      return result;
+    }
     if (action === "SAVE_DIAGNOSIS") {
       const result = await run(
         action,
@@ -1458,17 +1471,21 @@ function ConsultationEditor({
           ),
           result.diagnosis,
         ]);
-        setDiagnosisQuery("");
-        setDiagnosisCode("");
-        setDiagnosisUri("");
-        setDiagnosisLinearizationUri("");
-        setDiagnosisCodingVersion("");
-        setDiagnosisSelectionToken("");
+        changes.markSaved("diagnosis", submitted);
+        if (changes.snapshot().diagnosis === submitted.diagnosis) {
+          changes.resetAfterRender("diagnosis");
+          setDiagnosisQuery("");
+          setDiagnosisCode("");
+          setDiagnosisUri("");
+          setDiagnosisLinearizationUri("");
+          setDiagnosisCodingVersion("");
+          setDiagnosisSelectionToken("");
+        }
       }
       return result;
     }
-    if (action === "SUBMIT_INVESTIGATIONS")
-      return run(
+    if (action === "SUBMIT_INVESTIGATIONS") {
+      const result = await run(
         action,
         {
           labs: f.getAll("labs"),
@@ -1478,6 +1495,9 @@ function ConsultationEditor({
         },
         "Investigation requests submitted and billing updated.",
       );
+      if (result) changes.markSaved("investigations", submitted);
+      return result;
+    }
     if (action === "SAVE_PRESCRIPTION") {
       if (savingPrescription) return false;
       setSavingPrescription(true);
@@ -1518,23 +1538,36 @@ function ConsultationEditor({
             : "Prescription saved as a draft; it has not been billed.",
         );
         if (result) {
+          changes.markSaved("prescription", submitted);
           setPrescriptionKey(crypto.randomUUID());
-          setDuplicateConflict(null);
+          if (changes.snapshot().prescription === submitted.prescription) {
+            changes.resetAfterRender("prescription");
+            setDuplicateConflict(null);
+          }
         }
         return result;
       } finally {
         setSavingPrescription(false);
       }
     }
+    if (savingProblem || changes.changed().some(group => !["notes", "completion"].includes(group))) {
+      setError("Save or clear the unfinished diagnosis, investigation, prescription or active problem before signing. Saving clinical notes does not submit these sections.");
+      return false;
+    }
     if (!await run("SAVE_NOTES", notes(f), "Clinical notes saved. Signing is not yet confirmed.")) return false;
-    if (
-      await run(
+    changes.markSaved("notes", submitted);
+    if (changes.changed().some(group => group !== "completion") || changes.snapshot().completion !== submitted.completion) {
+      setError("The form changed while notes were saving. Review the latest entries before signing again.");
+      return false;
+    }
+    setSigning(true);
+    const signed = await run(
         action,
         { disposition: f.get("disposition"), dispositionDetails: f.get("dispositionDetails") || undefined, cancelPendingOrders: f.get("cancelPendingOrders") === "on" },
         "Consultation signed.",
-      )
-    )
-      onCompleted(visit.patient.fullName);
+      );
+    if (activeForm.current) setSigning(false);
+    if (signed) onCompleted(visit.patient.fullName);
   }
   return (
     <>
@@ -1547,7 +1580,7 @@ function ConsultationEditor({
             {patientClinicalGroup(visit.patient).label} · {visit.visitNumber}
           </p>
         </div>
-        <button className="secondary" onClick={onBack}>
+        <button className="secondary" onClick={() => { if (confirmWorkspaceNavigation()) onBack(); }}>
           ← Back to queue
         </button>
       </header>
@@ -1636,8 +1669,8 @@ function ConsultationEditor({
         </article>)}
         {!problems.some((problem) => problem.clinicalStatus === "ACTIVE") && <p>No active problems recorded.</p>}
         <form className="inlineForm" onSubmit={addProblem}>
-          <label>New active problem<input value={problemDescription} onChange={(event) => setProblemDescription(event.target.value)} minLength={2} maxLength={500} required placeholder="Condition or persistent clinical concern" /></label>
-          <button className="secondary">Add problem</button>
+          <label>New active problem<input disabled={signing} value={problemDescription} onChange={(event) => setProblemDescription(event.target.value)} minLength={2} maxLength={500} required placeholder="Condition or persistent clinical concern" /></label>
+          <button className="secondary" disabled={savingProblem || signing}>Add problem</button>
         </form>
       </section>
       <details className="card historyPanel">
@@ -1686,13 +1719,20 @@ function ConsultationEditor({
         ))}
       </details>
       <form
+        ref={changes.form}
+        onChange={changes.refresh}
+        inert={signing}
         className="consultForm"
         onSubmit={(event) => event.preventDefault()}
       >
         {error && <div className="alert">{error}</div>}
         {notice && <div className="alert success" role="status">{notice}</div>}
+        {changes.description && <p className="alert noPrint" role="status" aria-label="Unsaved consultation changes">Unsaved: {changes.description}. Save each section before leaving. Changes stay in this open form until saved.</p>}
         {savingAction && <p role="status">Saving consultation. Wait for confirmation before another action.</p>}
-        {showRecovery && <ConsultationRecovery visitId={visit.id} onLoad={onRecover} />}
+        {showRecovery && <ConsultationRecovery visitId={visit.id} onLoad={snapshot => {
+          if (actionPending.current || savingProblem) { setError("Wait for the current request to finish before replacing this form."); return; }
+          onRecover(snapshot);
+        }} />}
         <nav id="consultation-work" className="consultNavigator" aria-label="Consultation sections">
           {[
             [1, "History"],
@@ -2156,7 +2196,7 @@ function ConsultationEditor({
               name="investigationIndication"
               required
               defaultValue={
-                savedDiagnoses.find((item) => item.primary)?.description || ""
+                draft?.diagnoses?.find((item) => item.primary)?.description || ""
               }
               placeholder="Why the investigation is needed"
             />
@@ -2208,6 +2248,7 @@ function ConsultationEditor({
           <label className="span2">
             Medicine
             <SearchablePicker
+              name="medicineCode"
               value={medicine}
               onChange={(value) => {
                 setMedicine(value);
@@ -2580,7 +2621,7 @@ function ClinicalSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className={`clinicalSection ${active ? "expanded" : "collapsed"}`}>
+    <section data-unsaved-group={({ "4": "diagnosis", "5": "investigations", "6": "prescription" } as Record<string, string>)[number] || "notes"} className={`clinicalSection ${active ? "expanded" : "collapsed"}`}>
       <button
         type="button"
         className="clinicalSectionHeader"

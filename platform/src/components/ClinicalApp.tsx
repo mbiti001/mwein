@@ -2,6 +2,8 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { flushSync } from "react-dom";
+import { confirmWorkspaceNavigation } from "@/components/useUnsavedConsultation";
 import { assessTriageVitals, patientClinicalGroup } from "@/lib/domain";
 import type { StockFocus } from "@/components/InventoryWorkstation";
 import VisitVitalsPanel from "@/components/VisitVitalsPanel";
@@ -184,6 +186,7 @@ export default function ClinicalApp() {
   const [referralFocus, setReferralFocus] = useState<string | null>(null);
   const [recordFocus, setRecordFocus] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
+  const [navigationError, setNavigationError] = useState("");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [focusedVisitId, setFocusedVisitId] = useState<string | null>(null);
   const [contextVisitId, setContextVisitId] = useState<string | null>(null);
@@ -337,7 +340,7 @@ export default function ClinicalApp() {
           {nav.map(([key, label]) => (
             <button
               className={screen === key ? "active" : ""}
-              onClick={() => { setReturnToConsultation(false); setScreen(key); setFocusedVisitId(null); setContextVisitId(null); setStockFocus(null); setMobileNavOpen(false); setAppointmentFocus(null); setReferralFocus(null); setRecordFocus(null); setAppointment(null); setNotice(""); }}
+              onClick={() => { if (!confirmWorkspaceNavigation()) return; setReturnToConsultation(false); setScreen(key); setFocusedVisitId(null); setContextVisitId(null); setStockFocus(null); setMobileNavOpen(false); setAppointmentFocus(null); setReferralFocus(null); setRecordFocus(null); setAppointment(null); setNotice(""); }}
               key={key}
             >
               {label}
@@ -350,8 +353,15 @@ export default function ClinicalApp() {
           <span>{user.facility.name}</span>
           <button
             onClick={async () => {
-              await api("/api/auth/logout", { method: "POST" });
-              location.reload();
+              if (!confirmWorkspaceNavigation()) return;
+              setNavigationError("");
+              try {
+                await api("/api/auth/logout", { method: "POST" });
+                flushSync(() => setUser(null));
+                location.reload();
+              } catch {
+                setNavigationError("Sign out could not be confirmed. Your open form is still here. Check the connection and try again.");
+              }
             }}
           >
             Sign out
@@ -359,6 +369,7 @@ export default function ClinicalApp() {
         </div>
       </aside>
       <section className="workspace">
+        {navigationError && <p className="alert" role="alert">{navigationError}</p>}
         {visitsRefreshFailed && user.permissions.includes("visit.read") && (
           <div className="alert syncWarning" role="status">
             <span>
@@ -372,6 +383,7 @@ export default function ClinicalApp() {
         )}
         {user.permissions.includes("patient.read") && (
           <GlobalPatientFinder onSelect={(patient) => {
+            if (!confirmWorkspaceNavigation()) return;
             const activeVisit = visits.find(visit => visit.patient.id === patient.id && isOpenClinicalVisit(visit));
             if (activeVisit) {
               setContextVisitId(activeVisit.id);
@@ -392,7 +404,7 @@ export default function ClinicalApp() {
             showBalance={user.permissions.includes("billing.read")}
             canCancel={user.permissions.includes("visit.cancel")}
             onClear={() => setContextVisitId(null)}
-            onOpen={(target) => { setFocusedVisitId(visit.id); setScreen(target); }}
+            onOpen={(target) => { if (!confirmWorkspaceNavigation()) return; setFocusedVisitId(visit.id); setScreen(target); }}
             onCancelled={async () => {
               await loadVisits();
               if (!stillOnThisScreen()) return;
@@ -528,10 +540,10 @@ export default function ClinicalApp() {
             <h2>Consultation room actions</h2>
             <p>Start a visit, record measured vitals, consult, then handle billing and clinical discharge as your assigned role permits.</p>
             <div className="actions">
-              {user.permissions.includes("visit.create") && <button className="primary" onClick={() => { setSelected(null); setAppointment(null); setFocusedVisitId(null); setContextVisitId(null); setReturnToConsultation(true); setNotice(""); setScreen("visit"); }}>Start visit from consultation</button>}
-              {user.permissions.includes("patient.create") && <button className="secondary" onClick={() => { setSelected(null); setAppointment(null); setReturnToConsultation(true); setNotice(""); setScreen("registration"); }}>Register new patient</button>}
-              {user.permissions.includes("vitals.write") && <button className="secondary" onClick={() => { setFocusedVisitId(null); setReturnToConsultation(true); setScreen(user.permissions.includes("triage.write") ? "triage" : "vitals"); }}>Take vitals</button>}
-              {user.permissions.includes("billing.read") && <button className="secondary" onClick={() => { setFocusedVisitId(null); setScreen("billing"); }}>Open billing</button>}
+              {user.permissions.includes("visit.create") && <button className="primary" onClick={() => { if (!confirmWorkspaceNavigation()) return; setSelected(null); setAppointment(null); setFocusedVisitId(null); setContextVisitId(null); setReturnToConsultation(true); setNotice(""); setScreen("visit"); }}>Start visit from consultation</button>}
+              {user.permissions.includes("patient.create") && <button className="secondary" onClick={() => { if (!confirmWorkspaceNavigation()) return; setSelected(null); setAppointment(null); setReturnToConsultation(true); setNotice(""); setScreen("registration"); }}>Register new patient</button>}
+              {user.permissions.includes("vitals.write") && <button className="secondary" onClick={() => { if (!confirmWorkspaceNavigation()) return; setFocusedVisitId(null); setReturnToConsultation(true); setScreen(user.permissions.includes("triage.write") ? "triage" : "vitals"); }}>Take vitals</button>}
+              {user.permissions.includes("billing.read") && <button className="secondary" onClick={() => { if (!confirmWorkspaceNavigation()) return; setFocusedVisitId(null); setScreen("billing"); }}>Open billing</button>}
             </div>
           </section>
           <ConsultationWorkstation
@@ -548,7 +560,7 @@ export default function ClinicalApp() {
               );
               setFocusedVisitId(null); setContextVisitId(null); setScreen("consultation");
             }}
-            onOpenServicePoints={(visitId) => { setFocusedVisitId(visitId); setContextVisitId(visitId); setScreen("servicePoints"); }}
+            onOpenServicePoints={(visitId) => { if (!confirmWorkspaceNavigation()) return; setFocusedVisitId(visitId); setContextVisitId(visitId); setScreen("servicePoints"); }}
             initialVisitId={focusedVisitId}
             onInitialVisitOpened={() => setFocusedVisitId(null)}
           />
@@ -904,6 +916,7 @@ function VisitCancellationControl({ visit, onCancelled }: { visit: Visit; onCanc
     event.preventDefault();
     setError("");
     if (emergencySha) return setError("Urgent and emergency care must not be cancelled because of a SHA benefit or eligibility outcome.");
+    if (!confirmWorkspaceNavigation()) return;
     setBusy(true);
     try {
       await api(`/api/visits/${visit.id}/cancel`, {
