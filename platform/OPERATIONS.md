@@ -8,13 +8,23 @@ Set the hosting project root to `platform/`, framework to Next.js, install comma
 
 Require the GitHub **Platform verification** check in branch protection/rulesets. It checks production dependency advisories (`npm audit --omit=dev --audit-level=high`), types, unit tests, migrations, the production build, the isolated outpatient flow and browser workflows. Resolve high/critical dependency findings with reviewed compatible updates before release; do not use forced major upgrades or suppress findings to pass CI. The audit depends on the registry and is not a complete security review. Merely adding the workflow does not configure branch protection. Build jobs need no live database credentials; database changes run in a separately authorised release context.
 
+## Mandatory independent test and retest gate
+
+Owner instruction, 16 October 2026: every release must complete a test run and retest using all available collaborating agents before deployment. This gate applies to patches as well as feature releases.
+
+- Freeze a full source SHA and unique version. Run types, unit tests, migrations/constraints, dependency checks, production build, isolated synthetic workflow tests and browser checks before staging or promotion. Never run synthetic fixtures against production.
+- Assign every available agent a recorded independent review or retest scope, including workflow logic, exact persisted outcomes, authorization/facility isolation, failure/retry/audit behavior and release evidence. Record the participating agents, source reviewed, tests/results, limitations and resolution of findings. A passing count or UI success response alone is insufficient.
+- Reproduce each reported defect with a failing regression where practical, then confirm the correction with independently specified expected outcomes. Check stored values, flags, attribution and handoff counts, not only response status.
+- After the final application change, retest the frozen source and obtain successful exact-source hosted CI plus each available reviewer's final result. Any substantive edit invalidates earlier approval for affected scope; unresolved findings block promotion. Document unavailable reviewers rather than silently counting them as a pass.
+- One named coordinator owns production changes. Check the live baseline before promotion, retain immutable source/deployment evidence, and perform read-only live verification afterwards. Preserve history; retrospective clinical-data corrections require separate governed review.
+
 ## Release order
 
-1. Take and externally retain a verified database backup.
-2. Run `npm run release:migrate` as a controlled release job with production `DATABASE_URL`.
+1. Classify the exact-source release against the currently deployed source. For any database/schema/data/provisioning change, take and externally retain a fresh verified database backup before the change. An application-only release must retain proof of no schema/migration/provisioning change and run no database mutation; prior backup evidence is historical, not a new backup.
+2. For a database release, run only the reviewed required migrations through `npm run release:migrate` as a controlled release job with production `DATABASE_URL`. Skip this step for a proven application-only release. Never reuse the October 15 one-release backup exception.
 3. Deploy the immutable application build (`npm run vercel-build`). The build never migrates or seeds a database.
 4. Check `/api/health` for liveness and `/api/ready` for production readiness. Do not direct clinical traffic while readiness is blocked.
-5. Run `npm test`, `npm run test:migrations`, `npm run test:e2e`, and `npm run test:browser`, then record the release evidence in Administration → Release gates. Browser runners without a system Chrome installation must first install Chromium with `npx playwright install chromium`.
+5. Record the pre-deployment test/retest evidence and read-only live checks in Administration → Release gates. The mandatory gate above must already have passed; production is not the test fixture. Browser runners without a system Chrome installation must first install Chromium with `npx playwright install chromium`.
 6. Verify the deployed source and database are the approved pair: `RELEASE_ORIGIN=https://... EXPECTED_RELEASE_SHA=<full commit> EXPECTED_MIGRATION=<migration name> npm run ops:release-verify`. Retain the output with the deployment approval. A mismatch is release drift and blocks clinical use.
 
 Run `npm run db:bootstrap` only for explicit first-time provisioning or a reviewed role/catalogue change. `BOOTSTRAP_ADMIN_PASSWORD` is required to create the initial administrator; reruns do not reactivate a disabled account or overwrite facility metadata.

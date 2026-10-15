@@ -117,16 +117,34 @@ export function patientClinicalGroup(patient: PatientDemographics, now = new Dat
 
 export type TriageVitals = Pick<z.infer<typeof triageSchema>, "temperatureC" | "pulseBpm" | "respiratoryRate" | "systolicBp" | "diastolicBp" | "oxygenSaturation" | "painScore" | "consciousness">;
 
+// Field-specific flags use the existing triage thresholds, not a new clinical policy.
+export function triageObservationFlags(vitals: TriageVitals) {
+  const flag = (abnormal: boolean, critical = false) => ({ abnormal, critical });
+  return {
+    TEMP: flag(vitals.temperatureC < 35 || vitals.temperatureC >= 39),
+    PULSE: flag(vitals.pulseBpm < 50 || vitals.pulseBpm > 130),
+    RESP_RATE: flag(vitals.respiratoryRate < 10 || vitals.respiratoryRate > 30),
+    BP_SYS: flag(vitals.systolicBp < 90 || vitals.systolicBp >= 180, vitals.systolicBp < 90 || vitals.systolicBp >= 180),
+    BP_DIA: flag(vitals.diastolicBp >= 120, vitals.diastolicBp >= 120),
+    SPO2: flag(vitals.oxygenSaturation < 90, vitals.oxygenSaturation < 90),
+    PAIN: flag(vitals.painScore >= 7),
+    CONSCIOUSNESS: flag(vitals.consciousness !== "ALERT", vitals.consciousness !== "ALERT"),
+    // No existing triage alert rule classifies weight or height in isolation.
+    WEIGHT: flag(false), HEIGHT: flag(false),
+  };
+}
+
 export function assessTriageVitals(vitals: TriageVitals) {
+  const flags = triageObservationFlags(vitals);
   const alerts: { severity: "CRITICAL" | "WARNING"; message: string }[] = [];
-  if (vitals.oxygenSaturation < 90) alerts.push({ severity: "CRITICAL", message: "Oxygen saturation below 90%" });
+  if (flags.SPO2.critical) alerts.push({ severity: "CRITICAL", message: "Oxygen saturation below 90%" });
   if (vitals.systolicBp < 90) alerts.push({ severity: "CRITICAL", message: "Systolic blood pressure below 90 mmHg" });
-  if (vitals.systolicBp >= 180 || vitals.diastolicBp >= 120) alerts.push({ severity: "CRITICAL", message: "Severely elevated blood pressure" });
-  if (vitals.temperatureC < 35 || vitals.temperatureC >= 39) alerts.push({ severity: "WARNING", message: "Temperature outside the expected range" });
-  if (vitals.respiratoryRate < 10 || vitals.respiratoryRate > 30) alerts.push({ severity: "WARNING", message: "Respiratory rate outside the expected range" });
-  if (vitals.pulseBpm < 50 || vitals.pulseBpm > 130) alerts.push({ severity: "WARNING", message: "Pulse outside the expected range" });
-  if (vitals.painScore >= 7) alerts.push({ severity: "WARNING", message: "Severe pain score reported" });
-  if (vitals.consciousness !== "ALERT") alerts.push({ severity: "CRITICAL", message: `Reduced consciousness: ${vitals.consciousness.toLowerCase()}` });
+  if ((flags.BP_SYS.critical && vitals.systolicBp >= 180) || flags.BP_DIA.critical) alerts.push({ severity: "CRITICAL", message: "Severely elevated blood pressure" });
+  if (flags.TEMP.abnormal) alerts.push({ severity: "WARNING", message: "Temperature outside the expected range" });
+  if (flags.RESP_RATE.abnormal) alerts.push({ severity: "WARNING", message: "Respiratory rate outside the expected range" });
+  if (flags.PULSE.abnormal) alerts.push({ severity: "WARNING", message: "Pulse outside the expected range" });
+  if (flags.PAIN.abnormal) alerts.push({ severity: "WARNING", message: "Severe pain score reported" });
+  if (flags.CONSCIOUSNESS.critical) alerts.push({ severity: "CRITICAL", message: `Reduced consciousness: ${vitals.consciousness.toLowerCase()}` });
   return alerts;
 }
 

@@ -72,6 +72,13 @@
       "source": "acd30b4b46042a910c1dcead64c944154212c7b6",
       "deploymentId": "dpl_7dQC4aP5KLoWcwgDwboabjUGGV5c",
       "evidence": "2026-10-16-1.6.0.json"
+    },
+    {
+      "version": "1.6.1",
+      "displayName": "1.6.1",
+      "status": "candidate",
+      "branch": "codex/mwein-platform",
+      "note": "Correct field-specific stored triage abnormal/critical flags without changing existing thresholds. No migration; preserves deployed1.6.0 source. Await exact-source verification and coordinated release."
     }
   ]
 }

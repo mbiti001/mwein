@@ -27,6 +27,18 @@ export async function verifyTriageReleaseReview({ pg, requestWithCookie, session
   assert((await submit(fresh, { ...body, chiefComplaint: "Changed request" })).response.status === 409, "Triage retry accepted changed clinical content");
   steps.push("verify triage audit failure rolls back shared readings and simultaneous retries retain one assessment/handoff");
 
+  for (const scenario of [{ suffix: "PAIN-FLAGS", patch: { painScore: 8 }, abnormal: ["PAIN"], critical: [] }, { suffix: "MIXED-FLAGS", patch: { temperatureC: 39, oxygenSaturation: 88, painScore: 8 }, abnormal: ["PAIN", "SPO2", "TEMP"], critical: ["SPO2"] }]) {
+    const id = await visit(scenario.suffix), assessment = { ...input(), ...scenario.patch };
+    const response = await submit(id, assessment);
+    assert(response.response.ok, "Mixed observation assessment did not save");
+    const observations = (await pg.query('SELECT o.code,o.abnormal,o.critical FROM "Observation" o JOIN "TriageRecord" t ON t.id=o."triageId" WHERE t."visitId"=$1 ORDER BY o.code', [id])).rows;
+    assert(observations.length === 10, "Missing persisted triage observations");
+    assert(JSON.stringify(observations.filter(row => row.abnormal).map(row => row.code)) === JSON.stringify(scenario.abnormal), "Unrelated observations were flagged abnormal");
+    assert(JSON.stringify(observations.filter(row => row.critical).map(row => row.code)) === JSON.stringify(scenario.critical), "Persisted critical flags do not match affected readings");
+    assert((await state(id)).consultation === 1, "Flag review changed consultation handoff count");
+    steps.push("verify persisted field-specific triage flags: " + scenario.suffix);
+  }
+
   for (const partial of [false, true]) {
     const id = await visit(partial ? "PARTIAL" : "COMPLETE");
     const measuredAt = "2026-01-01T07:00:00.000Z";
@@ -45,7 +57,11 @@ export async function verifyTriageReleaseReview({ pg, requestWithCookie, session
     assert(after.measurements === (partial ? 2 : 1) && after.assessments === 1 && after.consultation === 1, "Saved-set reuse or partial completion duplicated records");
     const unchanged = (await pg.query('SELECT values,"recordedById","measuredAt" FROM "MeasuredVitals" WHERE id=$1', [source.id])).rows[0];
     assert(JSON.stringify(before) === JSON.stringify(unchanged), "Completing triage overwrote the original measurement set");
-    const retained = (await pg.query(`SELECT m.id,m.values,m.note,m."measuredAt" FROM "TriageRecord" t JOIN "MeasuredVitals" m ON m.id=t."reviewedVitalsId" WHERE t."visitId"=$1`, [id])).rows[0];
+    const retained = (await pg.query(`SELECT m.id,m.values,m.note,m."measuredAt",m."recordedById",m."visitId",v."facilityId",(EXTRACT(EPOCH FROM m."measuredAt") * 1000)::double precision AS "measuredAtMs" FROM "TriageRecord" t JOIN "MeasuredVitals" m ON m.id=t."reviewedVitalsId" JOIN "Visit" v ON v.id=m."visitId" WHERE t."visitId"=$1`, [id])).rows[0];
+    for (const [key, value] of Object.entries(values)) assert(retained.values[key] === value, `Reused/completed set lost ${key}`);
+    assert(retained.visitId === id && retained.facilityId === facility.id, "Completed measurements have incorrect visit/facility ownership");
+    assert(retained.recordedById === before.recordedById, "Synthetic same-actor completion lost recorder attribution");
+    assert(Number(retained.measuredAtMs) === Date.parse(partial ? assessment.measuredAt : measuredAt), `Completed/reused measurement time is incorrect: ${JSON.stringify({ raw: retained.measuredAt, epoch: retained.measuredAtMs, expected: partial ? assessment.measuredAt : measuredAt })}`);
     assert(partial ? retained.id !== source.id : retained.id === source.id, "Assessment measurement reference does not match reuse/completion behavior");
     if (partial) {
       assert(retained.note.includes(source.id) && retained.note.includes(measuredAt), "Partial completion lost source identity/time");

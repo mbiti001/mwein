@@ -5,7 +5,7 @@ import { apiError, privateJson } from "@/lib/http";
 import { appendAudit, auditValueFingerprint } from "@/lib/audit";
 import { measuredVitalFields, type MeasuredValues } from "@/lib/measured-vitals";
 import { workflowTransaction } from "@/lib/workflow-transaction";
-import { assessTriageVitals, assertVisitTransition, triageSchema } from "@/lib/domain";
+import { assessTriageVitals, assertVisitTransition, triageObservationFlags, triageSchema } from "@/lib/domain";
 import { dateInTimeZone, pregnancyDatingFromLnmp } from "@/lib/pregnancy-dating";
 
 const observationDefinitions = [
@@ -26,6 +26,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (input.lastMenstrualPeriod && !dating)
       throw Object.assign(new Error("LNMP must be a valid date that is not in the future"), { status: 422 });
     const alerts = assessTriageVitals(input);
+    const observationFlags = triageObservationFlags(input);
     const criticalMessages = new Set(alerts.filter(alert => alert.severity === "CRITICAL").map(alert => alert.message));
     const result = await workflowTransaction(async tx => {
       const locked = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "Visit" WHERE "id" = ${id}::uuid AND "facilityId" = ${user.facilityId}::uuid FOR UPDATE`;
@@ -71,8 +72,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         gestationalAgeDays: dating?.gestationalAgeDays,
         pregnancyDatingMethod: dating?.method,
         completedAt: new Date(), observations: { create: [
-          ...observationDefinitions.filter(([, key]) => input[key] !== undefined).map(([code, key, unit]) => ({ code, unit, valueDecimal: new Prisma.Decimal(input[key] as number), abnormal: alerts.length > 0, critical: code === "SPO2" ? input.oxygenSaturation < 90 : code === "BP_SYS" ? input.systolicBp < 90 || input.systolicBp >= 180 : code === "BP_DIA" ? input.diastolicBp >= 120 : false })),
-          { code: "CONSCIOUSNESS", valueText: input.consciousness, abnormal: input.consciousness !== "ALERT", critical: input.consciousness !== "ALERT" }
+          ...observationDefinitions.filter(([, key]) => input[key] !== undefined).map(([code, key, unit]) => ({ code, unit, valueDecimal: new Prisma.Decimal(input[key] as number), ...observationFlags[code] })),
+          { code: "CONSCIOUSNESS", valueText: input.consciousness, ...observationFlags.CONSCIOUSNESS }
         ] }
       } });
       await tx.queueEntry.updateMany({ where: { id: { in: visit.queues.map(queue => queue.id) } }, data: { status: "COMPLETED", completedAt: new Date() } });

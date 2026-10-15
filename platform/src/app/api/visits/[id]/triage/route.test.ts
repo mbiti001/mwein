@@ -71,3 +71,14 @@ it("fails the transaction when measurement attribution cannot be audited", async
   vi.mocked(appendAudit).mockRejectedValue(new Error("Audit unavailable"));
   expect((await send()).status).toBe(500); expect(tx.triageRecord.create).not.toHaveBeenCalled();
 });
+
+it("persists only each observation's own abnormal and critical flags", async () => {
+  const response = await send({ ...input, heightCm: 172, painScore: 8, oxygenSaturation: 88 });
+  expect(response.status).toBe(200);
+  const observations = tx.triageRecord.create.mock.calls[0][0].data.observations.create;
+  expect(observations).toHaveLength(10);
+  expect(observations.filter((item: any) => item.abnormal).map((item: any) => item.code)).toEqual(["SPO2", "PAIN"]);
+  expect(observations.filter((item: any) => item.critical).map((item: any) => item.code)).toEqual(["SPO2"]);
+  expect(observations.find((item: any) => item.code === "WEIGHT")).toMatchObject({ abnormal: false, critical: false });
+  expect((await response.json()).alerts).toHaveLength(2);
+});
