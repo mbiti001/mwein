@@ -1,0 +1,67 @@
+{
+  "purpose": "Engineering release evidence; not clinical approval",
+  "source": "10983d9750789cc06be207e86503805c5a02623f",
+  "branch": "codex/hosipoa-expiry-report",
+  "tag": "mwein-build-20261015-10983d9",
+  "sourceArchiveSha256": "50ab1775fadc8e693b7e2e707f1dc883e29aba0f1d7ae8b0c049abc9be7af0f4",
+  "ci": {
+    "url": "https://github.com/mbiti001/mwein/actions/runs/38761268497",
+    "conclusion": "success",
+    "unitTests": 482,
+    "unitFiles": 97,
+    "browserScenarios": 72,
+    "isolatedOutpatientChecks": 123,
+    "migrationsVerified": 51,
+    "knownDependencyFindings": 0
+  },
+  "application": {
+    "deploymentId": "dpl_H94HyyGM5K55oKfpkaYhWXqoCXNC",
+    "deploymentUrl": "https://mwein-hmis-platform-dxmhdzhhb-mbitis-projects.vercel.app",
+    "liveUrl": "https://mwein-hmis-platform.vercel.app",
+    "baselineBeforePromotion": "ffe292fb0f83205fb9943237e0f27331cc816f87"
+  },
+  "databaseRelease": {
+    "deploymentId": "dpl_Hm7EVzcj3FzBgufpRdK4q7ioU3kQ",
+    "purpose": "Migration only; never promoted",
+    "completedAt": "2026-10-15T15:40:07.324Z",
+    "scriptSha256": "8fd277e76b971c0dfc85f890a0c5dcd28ac887d33e118555b8f512c07202806e",
+    "configSha256": "b41daa5bd626a785367f8d92a806b02f2e86a6570cfef3d78bda4f0b043b1c6e",
+    "appliedBefore": 49,
+    "appliedAfter": 51,
+    "pendingAfter": [],
+    "checksumMatchBeforeAndAfter": true,
+    "applied": [
+      "20261015090000_check_in_reliability",
+      "20261015090000_goods_receipt_documents"
+    ],
+    "backupEvidence": "Unverified; user explicitly instructed release after disclosure. Exception applies only to this release.",
+    "bootstrapPerformed": false,
+    "roleProvisioningPerformed": false,
+    "credentialChangesPerformed": false
+  },
+  "liveVerification": {
+    "verifiedAt": "2026-10-15T15:41:25.434Z",
+    "sourceRecheckedAt": "2026-10-15T17:13:01.807Z",
+    "healthHttp": 200,
+    "database": "connected",
+    "latestMigration": "20261015090000_goods_receipt_documents",
+    "releaseIdentityCommand": "ops:release-verify passed",
+    "readinessHttp": 503,
+    "readinessStatus": "blocked",
+    "patientUseApproved": false,
+    "browser": "Chrome 155.0.8059.40",
+    "widths": [1440, 768, 390, 320],
+    "horizontalOverflow": false,
+    "pageErrors": [],
+    "unauthenticatedReadChecks": {"/api/auth/me": 401, "/api/patients": 401, "/api/visits": 401},
+    "keyboardBuildExpansion": true,
+    "buildExcludedFromPrint": true,
+    "productionPatientDataUsedForTesting": false
+  },
+  "remainingDependencies": [
+    "Clinical and operational readiness evidence and configuration",
+    "Retained backup and witnessed restore evidence",
+    "Independent clinical, finance, security and physical-printer acceptance",
+    "Previously changed route source-inventory review and line-ending normalization"
+  ]
+}
