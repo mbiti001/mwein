@@ -972,6 +972,8 @@ try {
 
   const { verifyPatientJourney } = await import("./e2e-patient-journey.mjs");
   await verifyPatientJourney({ pg, api, requestWithCookie, sessionCookie, facility, patient, admin, assert, steps });
+  const { verifyTriageReleaseReview } = await import("./e2e-triage-release-review.mjs");
+  await verifyTriageReleaseReview({ pg, requestWithCookie, sessionCookie, facility, patient, assert, steps });
 
   await verifySupplyDocuments({ pg, api, requestWithCookie, authenticate, sessionCookie, facility, medicine, storeId, otherFacilityId, assert, steps });
 

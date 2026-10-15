@@ -49,24 +49,31 @@ function ClinicalTriage({ visits, canCapture, onCompleted, initialVisitId, onIni
   const [measuredAt, setMeasuredAt] = useState(() => new Date(Date.now() + 3 * 3600000).toISOString().slice(0,16));
   const draft = useVitalsDraftGuard();
   const attempt = useRef<string | null>(null), mounted = useRef(true);
+  const measurementTouched = useRef(false), activeId = useRef(active?.id); activeId.current = active?.id;
   const completedCallback = useRef(onCompleted); completedCallback.current = onCompleted;
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   function openVisit(visit: Visit) {
     if (!confirmWorkspaceNavigation()) return;
     setVitals(blankVitals()); setLnmp(""); setWeight(""); setHeight(""); setReviewedVitalsId(undefined); setSourceValues({});
-    setError(""); setRetry(false); attempt.current = null; draft.dirty.current = false;
+    setError(""); setRetry(false); attempt.current = null; draft.dirty.current = false; measurementTouched.current = false;
     setMeasuredAt(new Date(Date.now() + 3 * 3600000).toISOString().slice(0,16)); setActive(visit);
+  }
+  function leaveVisit() {
+    if (!confirmWorkspaceNavigation()) return;
+    draft.dirty.current = false; attempt.current = null; setRetry(false); setError(""); setActive(null);
   }
   const currentVisit = visits.find(visit => visit.id === active?.id);
   const retainingAssessment = active?.status === "AWAITING_TRIAGE" && (draft.dirty.current || busy || retry);
   const canTriage = retainingAssessment || (currentVisit?.status === "AWAITING_TRIAGE" && !currentVisit.triage);
   const locked = (key: keyof MeasuredValues) => reviewedVitalsId !== undefined && sourceValues[key] !== undefined;
   const needsMeasurements = !reviewedVitalsId || measuredVitalFields.some(field => sourceValues[field.key] === undefined);
-  function useMeasurements(values: MeasuredValues, id: string) {
+  function useMeasurements(values: MeasuredValues, id: string, automatic = false) {
     if (busy || retry) return;
+    if (automatic && measurementTouched.current) return;
+    if (reviewedVitalsId === id) return;
     if ((weight || height || Object.entries(vitals).some(([key,value]) => !["painScore","consciousness"].includes(key) && value)) && !window.confirm("Replace the measurements in this draft with the selected recorded set? Clinical assessment entries will be kept.")) return;
     setVitals(current => ({ ...current, ...Object.fromEntries(measuredVitalFields.filter(field => !["weightKg","heightCm"].includes(field.key)).map(field => [field.key, values[field.key]?.toString() ?? ""])) }));
-    setWeight(values.weightKg?.toString() ?? ""); setHeight(values.heightCm?.toString() ?? ""); setReviewedVitalsId(id); setSourceValues(values); draft.dirty.current = true;
+    setWeight(values.weightKg?.toString() ?? ""); setHeight(values.heightCm?.toString() ?? ""); setReviewedVitalsId(id); setSourceValues(values); measurementTouched.current = true; if (!automatic) draft.dirty.current = true;
   }
   const facilityToday = dateInTimeZone(new Date(), facilityTimeZone);
   const pregnancyDating = useMemo(
@@ -93,6 +100,7 @@ function ClinicalTriage({ visits, canCapture, onCompleted, initialVisitId, onIni
     if (visit && visit.id !== active?.id) { openVisit(visit); onInitialVisitOpened?.(); }
   }, [initialVisitId, visits, onInitialVisitOpened]);
   function vital(name: keyof TriageDraft, value: string) {
+    if (name !== "painScore" && name !== "consciousness") measurementTouched.current = true;
     setVitals((current) => ({
       ...current,
       [name]: value,
@@ -101,6 +109,7 @@ function ClinicalTriage({ visits, canCapture, onCompleted, initialVisitId, onIni
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!active || draft.pending.current) return;
+    const savingVisitId = active.id;
     const f = new FormData(event.currentTarget);
     const body = attempt.current || JSON.stringify({
       ...vitals, reviewedVitalsId, requestKey: crypto.randomUUID(),
@@ -112,14 +121,14 @@ function ClinicalTriage({ visits, canCapture, onCompleted, initialVisitId, onIni
     attempt.current = body; draft.pending.current = true; setBusy(true); setError("");
     try {
       const result = await api<{ visit: { status: string } }>(`/api/visits/${active.id}/triage`, { method: "POST", body });
+      if (!mounted.current || activeId.current !== savingVisitId) return;
       draft.dirty.current = false; attempt.current = null;
-      if (!mounted.current) return;
       const savedVisit = active;
       setActive(null); setRetry(false);
       try { await completedCallback.current(savedVisit.patient.fullName, savedVisit.id, result.visit.status); }
       catch { if (mounted.current) setError("Triage was saved, but the visit list could not refresh. Refresh the list before continuing."); }
     } catch (error) {
-      if (!mounted.current) return;
+      if (!mounted.current || activeId.current !== savingVisitId) return;
       const uncertain = !(error instanceof ApiRequestError) || error.status === 0 || error.status >= 500;
       setRetry(uncertain); if (!uncertain) attempt.current = null;
       setError((error as Error).message + (uncertain ? " Retry the same save to confirm its result; your entries are retained." : ""));
@@ -128,10 +137,10 @@ function ClinicalTriage({ visits, canCapture, onCompleted, initialVisitId, onIni
   if (!active)
     return (
       <>
-        <header>
+        <header className="triagePatientHeader">
           <div>
             <p className="eyebrow">Shared measurements and clinical assessment</p>
-            <h1>Vitals &amp; triage</h1>
+            <h1>Triage</h1>
             <p>
               Select an open visit. Record measurements, complete clinical triage, or add a repeat reading.
             </p>
@@ -152,11 +161,11 @@ function ClinicalTriage({ visits, canCapture, onCompleted, initialVisitId, onIni
         </section>
       </>
     );
-  if ((!currentVisit || !isOpenClinicalVisit(currentVisit)) && !retainingAssessment) return <section className="card"><p>This visit is no longer open in this worklist. No new measurements can be submitted here.</p><button onClick={() => { if (confirmWorkspaceNavigation()) setActive(null); }}>Back to queue</button></section>;
-  if (!canTriage) return <><header><div><p className="eyebrow">Vitals &amp; triage</p><h1>{active.patient.fullName}</h1><p>{active.patient.patientNumber} · {active.visitNumber}</p><p>Clinical triage is complete or not required for this visit. Earlier measurements remain in the history.</p></div><button className="secondary" onClick={() => { if (confirmWorkspaceNavigation()) setActive(null); }}>Back to queue</button></header><VisitVitalsPanel key={active.id} visitId={active.id} capture={canCapture} /></>;
+  if ((!currentVisit || !isOpenClinicalVisit(currentVisit)) && !retainingAssessment) return <section className="card"><p>This visit is no longer open in this worklist. No new measurements can be submitted here.</p><button onClick={leaveVisit}>Back to queue</button></section>;
+  if (!canTriage) return <><header className="triagePatientHeader"><div><p className="eyebrow">Triage</p><h1>{active.patient.fullName}</h1><p>{active.patient.patientNumber} · {active.visitNumber}</p><p>Clinical triage is complete or not required for this visit. Earlier measurements remain in the history.</p></div><button className="secondary" onClick={leaveVisit}>Back to queue</button></header><VisitVitalsPanel key={active.id} visitId={active.id} capture={canCapture} /></>;
   return (
     <>
-      <header>
+      <header className="triagePatientHeader">
         <div>
           <p className="eyebrow">Triage assessment</p>
           <h1>{active.patient.fullName}</h1>
@@ -165,7 +174,7 @@ function ClinicalTriage({ visits, canCapture, onCompleted, initialVisitId, onIni
             {active.clinic}
           </p>
         </div>
-        <button className="secondary" disabled={busy} onClick={() => { if (confirmWorkspaceNavigation()) setActive(null); }}>
+        <button className="secondary" disabled={busy} onClick={leaveVisit}>
           ← Back to queue
         </button>
       </header>
@@ -199,8 +208,8 @@ function ClinicalTriage({ visits, canCapture, onCompleted, initialVisitId, onIni
         <strong>Confidential safeguarding review required</strong>
         <span>This ANC client is under 15 with documented positive pregnancy confirmation. Provide private, respectful assessment, consider coercion or violence without judgement, and follow the facility child-protection pathway. Do not delay antenatal care.</span>
       </div>}
-      <VisitVitalsPanel key={active.id} visitId={active.id} onUse={useMeasurements} useDisabled={busy || retry} />
-      <form key={active.id} className="card dataForm triageForm" onSubmit={submit} onChange={() => { draft.dirty.current = true; }}>
+      <VisitVitalsPanel key={active.id} visitId={active.id} onUse={useMeasurements} onInitial={(values, id) => useMeasurements(values, id, true)} useDisabled={busy || retry} />
+      <form key={`assessment-${active.id}`} className="card dataForm triageForm" onSubmit={submit} onChange={() => { draft.dirty.current = true; }}>
         <fieldset className="triageEntryFields wide" disabled={busy || retry}><legend>Clinical triage assessment</legend>
         {error && <div role="alert" className="alert wide">{error}</div>}
         {retainingAssessment && currentVisit?.status !== "AWAITING_TRIAGE" && <p className="wide alert">The visit status changed while this assessment was open. Your entries are retained. Retry an uncertain save to confirm it, or return to the queue to review the current visit.</p>}
@@ -219,7 +228,7 @@ function ClinicalTriage({ visits, canCapture, onCompleted, initialVisitId, onIni
         <fieldset className="wide vitalGrid">
           <legend>{reviewedVitalsId ? "Review recorded measurements" : "New measurements"}</legend>
           <p className="wide listHint">{reviewedVitalsId ? "Recorded values are read-only. Fill only missing measurements actually taken; completing a partial set preserves the original readings, recorder and time in a linked history entry." : "Enter the values you measured. No normal observations are prefilled. These values will be saved once with this assessment."}</p>
-          {reviewedVitalsId && <button className="secondary wide" type="button" onClick={() => { if (!window.confirm("Start a new measurement set? The recorded history and your clinical assessment will be kept.")) return; setVitals(current => ({ ...blankVitals(), painScore: current.painScore, consciousness: current.consciousness })); setWeight(""); setHeight(""); setReviewedVitalsId(undefined); setSourceValues({}); draft.dirty.current = true; }}>Record a new set</button>}
+          {reviewedVitalsId && <button className="secondary wide" type="button" onClick={() => { if (!window.confirm("Start a new measurement set? The recorded history and your clinical assessment will be kept.")) return; setVitals(current => ({ ...blankVitals(), painScore: current.painScore, consciousness: current.consciousness })); setWeight(""); setHeight(""); setReviewedVitalsId(undefined); setSourceValues({}); draft.dirty.current = true; measurementTouched.current = true; }}>Record a new set</button>}
           <label>
             Temperature °C
             <input
@@ -291,7 +300,7 @@ function ClinicalTriage({ visits, canCapture, onCompleted, initialVisitId, onIni
             Weight kg
             <input
               name="weightKg"
-              readOnly={locked("weightKg")} value={weight} onChange={event => setWeight(event.target.value)}
+              readOnly={locked("weightKg")} value={weight} onChange={event => { measurementTouched.current = true; setWeight(event.target.value); }}
               type="number"
               step="0.1"
               min="0.1"
@@ -303,7 +312,7 @@ function ClinicalTriage({ visits, canCapture, onCompleted, initialVisitId, onIni
             Height cm
             <input
               name="heightCm"
-              readOnly={locked("heightCm")} value={height} onChange={event => setHeight(event.target.value)}
+              readOnly={locked("heightCm")} value={height} onChange={event => { measurementTouched.current = true; setHeight(event.target.value); }}
               type="number"
               step="0.1"
               min="20"
@@ -322,7 +331,7 @@ function ClinicalTriage({ visits, canCapture, onCompleted, initialVisitId, onIni
               required
             />
           </label>
-          <label>
+          <label className="triageConsciousness">
             Consciousness
             <select
               value={vitals.consciousness}

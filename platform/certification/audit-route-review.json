@@ -278,11 +278,11 @@
       "methodExceptions": {}
     },
     "visits/[id]/triage": {
-      "sourceSha256": "7dca72c1fb544e593290eb7107e64ef6bc74fbf64e0f32b6a52f14a802ce9a6a",
+      "sourceSha256": "837033f9cbb5b715ab22bdc5d79e287a1038fc9f407e28b9e176f05c8de83e5f",
       "methodExceptions": {}
     },
     "visits/[id]/vitals": {
-      "sourceSha256": "c1b7a44e1df921fdb6882e1d61dc2ee6902371e157b9b7328ebe820207acb1c2",
+      "sourceSha256": "61b550187df8503840235275420140fc6ea92b664521a46dab40d43a134dcc9f",
       "methodExceptions": {}
     },
     "visits": {

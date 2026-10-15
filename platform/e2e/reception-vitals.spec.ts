@@ -3,8 +3,8 @@ async function login(page: Page, email: string) { await page.goto("/"); await pa
 async function api(page: Page, url: string, method = "GET", body?: unknown) { return page.evaluate(async ({ url, method, body }) => { const response = await fetch(url, { method, ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}) }); return { status: response.status, data: await response.json() }; }, { url, method, body }); }
 for (const partial of [false, true]) test(`Reception ${partial ? "partial" : "complete"} measurements flow into clinical triage without re-entry`, async ({ page, browser }) => {
   await login(page, "shared.user@example.test");
-  await expect(page.getByRole("button", { name: "Triage", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Vitals & triage", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Vitals", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Triage", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Registration", exact: true }).click();
   await page.getByLabel("First name *").fill("Reception"); await page.getByLabel("Surname *").fill(partial ? "Partial Check" : "Vitals Check");
   await page.getByLabel("Estimated age").fill("32"); await page.getByLabel("Sex at birth *").selectOption("MALE");
@@ -25,8 +25,8 @@ for (const partial of [false, true]) test(`Reception ${partial ? "partial" : "co
   expect((await api(page, `/api/visits/${visit.id}/triage`, "POST", {})).status).toBe(403);
   expect((await api(page, `/api/visits/${visit.id}/vitals`, "POST", { measuredAt: new Date().toISOString(), values: { temperatureC: 37 }, triageCategory: "ROUTINE" })).status).toBe(422);
   const nurseContext = await browser.newContext(); const nurse = await nurseContext.newPage(); await login(nurse, "nurse@example.test");
-  await nurse.getByRole("button", { name: "Vitals & triage", exact: true }).click(); await nurse.getByRole("button", { name: partial ? /Reception Partial Check/ : /Reception Vitals Check/ }).click();
-  await expect(nurse.getByLabel("Temperature °C")).toHaveValue("");
+  await nurse.getByRole("button", { name: "Triage", exact: true }).click(); await nurse.getByRole("button", { name: partial ? /Reception Partial Check/ : /Reception Vitals Check/ }).click();
+  await expect(nurse.getByLabel("Temperature °C")).toHaveValue("37.2");
   await nurse.getByLabel("Pain /10").fill("1"); await nurse.getByLabel("Consciousness").selectOption("ALERT");
   await nurse.getByRole("button", { name: "Use recorded measurements in triage", exact: true }).click();
   await expect(nurse.getByLabel("Pain /10")).toHaveValue("1"); await expect(nurse.getByLabel("Consciousness")).toHaveValue("ALERT");
@@ -42,7 +42,21 @@ for (const partial of [false, true]) test(`Reception ${partial ? "partial" : "co
   });
   const completed = nurse.waitForResponse(r => r.url().endsWith(`/visits/${visit.id}/triage`) && r.request().method() === "POST");
   await nurse.getByRole("button", { name: "Complete triage", exact: true }).click();
-  const result = await (await completed).json(); expect(result.visit.status).toBe("AWAITING_CLINICIAN"); expect(result.visit.triage.reviewedVitalsId).toBe(measured.id);
-  expect((await api(page, `/api/visits/${visit.id}/vitals`)).data.measurements[0].id).toBe(measured.id);
+  if (partial) { await expect(nurse.getByRole("button", { name: "Retry same triage save" })).toBeVisible(); await nurse.getByRole("button", { name: "Retry same triage save" }).click(); }
+  const result = await (await completed).json(); expect(result.visit.status).toBe("AWAITING_CLINICIAN");
+  if (!partial) expect(result.visit.triage.reviewedVitalsId).toBe(measured.id);
+  if (partial) expect(result.replayed).toBe(true);
+  const history = (await api(page, `/api/visits/${visit.id}/vitals`)).data.measurements;
+  expect(history).toHaveLength(partial ? 2 : 1); expect(history.find((record: any) => record.id === measured.id)).toEqual(measured);
+  if (partial) { expect(history[0].note).toContain(measured.id); expect(history[0].note).toContain("Added at the completion time"); }
+  await nurse.getByRole("button", { name: partial ? /Open Reception Partial Check/ : /Open Reception Vitals Check/ }).click();
+  await expect(nurse.getByRole("button", { name: "Complete triage", exact: true })).toHaveCount(0);
+  await expect(nurse.getByRole("button", { name: "Save measured vitals", exact: true })).toBeVisible();
+  await nurse.getByLabel("Temperature °C").fill("37.3");
+  nurse.once("dialog", dialog => dialog.dismiss()); await nurse.getByRole("button", { name: "Back to queue" }).click();
+  await expect(nurse.getByLabel("Temperature °C")).toHaveValue("37.3");
+  await nurse.getByRole("button", { name: "Save measured vitals", exact: true }).click();
+  await expect(nurse.getByRole("status").filter({ hasText: "Vitals saved" })).toBeVisible();
+  expect((await api(nurse, `/api/visits/${visit.id}/vitals`)).data.measurements).toHaveLength(partial ? 3 : 2);
   await nurseContext.close();
 });

@@ -5,19 +5,23 @@ import { ApiRequestError, jsonRequest } from "@/lib/client-http";
 import { useVitalsDraftGuard } from "./useVitalsDraftGuard";
 type Measurement = { id: string; measuredAt: string; recordedAt: string; values: MeasuredValues; note: string | null; recordedBy: { displayName: string } };
 type History = { measurements: Measurement[]; truncated: boolean };
-export default function VisitVitalsPanel({ visitId, capture = false, onUse, useDisabled = false }: { visitId: string; capture?: boolean; onUse?: (values: MeasuredValues, measurementId: string) => void; useDisabled?: boolean }) {
+export default function VisitVitalsPanel({ visitId, capture = false, onUse, onInitial, useDisabled = false }: { visitId: string; capture?: boolean; onUse?: (values: MeasuredValues, measurementId: string) => void; onInitial?: (values: MeasuredValues, measurementId: string) => void; useDisabled?: boolean }) {
   const [records, setRecords] = useState<Measurement[]>([]), [error, setError] = useState("");
   const [busy, setBusy] = useState(false), [message, setMessage] = useState("");
   const [refresh, setRefresh] = useState(0), [truncated, setTruncated] = useState(false);
   const [loading, setLoading] = useState(true), [loadError, setLoadError] = useState("");
   const [retry, setRetry] = useState(false);
   const attempt = useRef<string | null>(null), mounted = useRef(true);
+  const initialLoaded = useRef(false), initialCallback = useRef(onInitial); initialCallback.current = onInitial;
   const draft = useVitalsDraftGuard();
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => {
     const controller = new AbortController(); setLoading(true); setLoadError("");
     jsonRequest<History>(`/api/visits/${visitId}/vitals`, { signal: controller.signal }).then(data => {
-      if (!controller.signal.aborted) { setRecords(data.measurements); setTruncated(data.truncated); }
+      if (!controller.signal.aborted) {
+        setRecords(data.measurements); setTruncated(data.truncated);
+        if (!initialLoaded.current) { initialLoaded.current = true; const latest = data.measurements[0]; if (latest) initialCallback.current?.(latest.values, latest.id); }
+      }
     }).catch(error => { if (!controller.signal.aborted) setLoadError(error.message); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [visitId, refresh]);
@@ -42,7 +46,7 @@ export default function VisitVitalsPanel({ visitId, capture = false, onUse, useD
       setError((error as Error).message + (uncertain ? " Retry the same save to confirm its result; your entries are retained." : ""));
     } finally { draft.pending.current = false; if (mounted.current) setBusy(false); }
   }
-  return <section className="card recordedVitals" aria-label="Recorded vital measurements"><h2>Recorded vital measurements</h2><p>Only enter measurements actually taken. Recording vitals does not complete clinical triage. Alert clinical staff promptly if the patient appears unwell.</p>
+  return <section className="card recordedVitals" aria-label="Recorded vital measurements"><h2>Vitals</h2><p>Only enter measurements actually taken. Recording vitals does not complete clinical triage. Alert clinical staff promptly if the patient appears unwell.</p>
     {error && <div role="alert" className="alert">{error}</div>}{message && <p role="status">{message}</p>}
     {capture && <form onSubmit={save} onChange={() => { draft.dirty.current = true; }} className="dataForm"><fieldset className="wide vitalGrid" disabled={busy || retry}><legend>Measured values</legend><p className="wide">Leave unmeasured values blank. Nothing is assumed normal.</p>{measuredVitalFields.map(field => <label key={field.key}>{field.label}<input name={field.key} type="number" min={field.min} max={field.max} step={field.step} /></label>)}</fieldset>
       <label>Measured at (Nairobi)<input type="datetime-local" name="measuredAt" required defaultValue={new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 16)} disabled={busy || retry} /></label>

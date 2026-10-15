@@ -59,6 +59,13 @@
       "status": "candidate",
       "branch": "codex/mwein-platform",
       "note": "Multi-medicine prescription lists, draft revision and retry safety, source-backed inactive Kenya medicine references, and stricter dispensing-unit matching. No new migration. Separate from the release coordinator's frozen 1.4.0 diagnostic source e213844; not deployed."
+    },
+    {
+      "version": "1.6.0",
+      "displayName": "1.6.0",
+      "status": "candidate",
+      "branch": "codex/mwein-platform",
+      "note": "Unified role-aware vitals and triage; saved reading reuse, partial completion provenance and recoverable measurement saves. Includes verified prescribing 1.5.0 source fe310da. No new migration; release coordinator owns deployment after combined verification."
     }
   ]
 }

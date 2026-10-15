@@ -2,6 +2,13 @@
 .triageEntryFields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;border:0;padding:0;min-width:0}
 .triageEntryFields>legend{font-weight:750;margin-bottom:12px}
 .triageEntryFields input[readonly]{background:#eef6ff;color:#194873}
+.triageForm{container-type:inline-size}
+.triageForm .wide{grid-column:1/-1}
+.triageForm .vitalGrid>label,.triageForm input,.triageForm select{min-width:0}
+.triageConsciousness{grid-column:span 2}
+.triageForm .vitalGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+@container(min-width:500px){.triageForm .vitalGrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container(min-width:900px){.triageForm .vitalGrid{grid-template-columns:repeat(8,minmax(0,1fr))}}
 .vitalsQueueScroll{max-width:100%;overflow:auto}
 .vitalsQueue{width:100%;min-width:620px;border-collapse:collapse;font-size:13px;text-align:left}
 .vitalsQueue th{background:#edf5ff;color:#194873}
@@ -10,3 +17,4 @@
 .vitalsQueue button{white-space:nowrap}
 @media(max-width:650px){.triageEntryFields{grid-template-columns:minmax(0,1fr)}}
 @media print{.vitalsQueueScroll{overflow:visible}.vitalsQueue{min-width:0;font-size:10px}.vitalsQueue button,.recordedVitals form,.recordedVitals button{display:none}.triageEntryFields{break-inside:auto}.vitalsQueue th,.vitalsQueue td{padding:5px}}
+@media print{.workspace>header.triagePatientHeader{display:block!important}.triagePatientHeader button,.triageForm{display:none!important}.recordedVitals{break-inside:auto}.recordedVitals .measurementSet{break-inside:avoid}}
