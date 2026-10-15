@@ -74,7 +74,9 @@ test("conflict review preserves typed notes, clears failed reads and requires ex
   for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: testInfo.outputPath(`consultation-recovery-${width}.png`), fullPage: true, animations: "disabled" });
+    await recovery.screenshot({ path: testInfo.outputPath(`consultation-recovery-panel-${width}.png`), animations: "disabled" });
   }
   await page.emulateMedia({ media: "print" }); await expect(recovery).toBeHidden(); await page.emulateMedia({ media: "screen" });
   failRead = true; await recovery.getByRole("button", { name: "Review latest saved notes" }).click();
