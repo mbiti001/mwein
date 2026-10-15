@@ -12,6 +12,7 @@ import { appointmentClinics } from "@/lib/appointments";
 import { assessAncAdmission } from "@/lib/clinic-admission";
 import { visitAccessProfile, visitOrderTypes } from "@/lib/visit-access";
 import { effectiveCatalogPrice } from "@/lib/catalog-pricing";
+import { verifiedResultWhere } from "@/lib/verified-results";
 
 const visitInput = z.object({
   idempotencyKey: z.uuid().optional(),
@@ -95,6 +96,7 @@ export async function GET() {
             ...(access.clinical || access.laboratory ? { laboratory: {
               include: {
                 result: {
+                  where: access.laboratory ? undefined : verifiedResultWhere,
                   include: {
                     items: true,
                     recordedBy: { select: { displayName: true } },
@@ -103,7 +105,7 @@ export async function GET() {
                 },
               },
             } } : {}),
-            ...(access.clinical || access.imaging ? { imaging: { include: { result: { include: { performedBy: { select: { displayName: true } }, verifiedBy: { select: { displayName: true } } } } } } } : {}),
+            ...(access.clinical || access.imaging ? { imaging: { include: { result: { where: access.imaging ? undefined : verifiedResultWhere, include: { performedBy: { select: { displayName: true } }, verifiedBy: { select: { displayName: true } } } } } } } : {}),
             ...(access.clinical || access.pharmacy ? { prescription: { include: {
               dispensedBy: { select: { displayName: true } },
               stockMovements: { where: { type: "DISPENSE" }, include: { batch: { select: { batchNumber: true, expiryDate: true } } }, orderBy: { occurredAt: "asc" } },

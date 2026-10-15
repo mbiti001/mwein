@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
 import { recordClinicalAccess } from "@/lib/clinical-access";
 import { visitCancellationReasonLabel } from "@/lib/visit-cancellation";
+import { verifiedResultWhere } from "@/lib/verified-results";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -13,7 +14,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const patient = await db.patient.findFirst({ where: { id, facilityId: user.facilityId }, select: { id: true, patientNumber: true, fullName: true, allergies: { where: { active: true }, select: { substance: true, reaction: true, severity: true } } } });
     if (!patient) throw Object.assign(new Error("Patient not found"), { status: 404 });
     const [visits, problems, appointments, referrals] = await Promise.all([db.visit.findMany({
-      where: { patientId: id, ...(currentVisitId ? { id: { not: currentVisitId } } : {}) },
+      where: { patientId: id, facilityId: user.facilityId, ...(currentVisitId ? { id: { not: currentVisitId } } : {}) },
       orderBy: { arrivedAt: "desc" },
       take: 20,
       select: {
@@ -24,8 +25,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         orders: { where: { status: { not: "CANCELLED" } }, orderBy: { requestedAt: "asc" }, select: {
           type: true, displayName: true,
           prescription: { select: { genericName: true, strength: true, dose: true, frequency: true, duration: true, dispenseStatus: true } },
-          laboratory: { select: { result: { select: { status: true, items: { select: { analyte: true, value: true, unit: true, flag: true } } } } } },
-          imaging: { select: { result: { select: { status: true, conclusion: true } } } },
+          laboratory: { select: { testCode: true, result: { where: verifiedResultWhere, select: { status: true, verifiedAt: true, items: { select: { analyte: true, value: true, unit: true, flag: true } } } } } },
+          imaging: { select: { result: { where: verifiedResultWhere, select: { status: true, verifiedAt: true, conclusion: true } } } },
         } },
       },
     }), db.patientProblem.findMany({

@@ -9,8 +9,13 @@ describe("patient measurement comparisons", () => {
     expect(rows[0].points.map(point => point.value)).toEqual([71, 70]);
   });
   it("excludes unverified and nonnumeric laboratory results", () => {
-    const lab = (id: string, status: string, value: string): TrendVisit => ({ id, arrivedAt: `2026-09-${id}T10:00:00Z`, orders: [{ displayName: "Glucose", laboratory: { result: { status, items: [{ analyte: "Glucose", unit: "mmol/L", value }] } } }] });
+    const lab = (id: string, status: string, value: string): TrendVisit => ({ id, arrivedAt: `2026-09-${id}T10:00:00Z`, orders: [{ displayName: "Glucose", laboratory: { result: { status, verifiedAt: `2026-09-${id}T11:00:00Z`, items: [{ analyte: "Glucose", unit: "mmol/L", value }] } } }] });
     const rows = patientTrendRows([lab("01", "VERIFIED", "4.5"), lab("02", "VERIFIED", "5.2"), lab("03", "DRAFT", "12"), lab("04", "VERIFIED", ">20")]);
     expect(rows[0].points.map(point => point.value)).toEqual([5.2, 4.5]);
+  });
+  it("dates lab trends by verification and excludes absent or invalid verification times", () => {
+    const lab = (value: string, verifiedAt: string | null): TrendVisit => ({ id: value, arrivedAt: "2026-09-01T10:00:00Z", orders: [{ displayName: "Glucose", laboratory: { result: { status: "VERIFIED", verifiedAt, items: [{ analyte: "Glucose", unit: "mmol/L", value }] } } }] });
+    const rows = patientTrendRows([lab("4.5", "2026-09-03T10:00:00Z"), lab("5.2", "2026-09-02T10:00:00Z"), lab("20", null), lab("30", "invalid")]);
+    expect(rows[0].points).toEqual([{ value: 4.5, date: "2026-09-03T10:00:00Z" }, { value: 5.2, date: "2026-09-02T10:00:00Z" }]);
   });
 });

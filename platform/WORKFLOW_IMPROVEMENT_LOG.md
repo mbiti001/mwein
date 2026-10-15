@@ -50,8 +50,6 @@ Validation evidence:
 
 Limits and release dependency: the browser retains an unconfirmed request while its form remains mounted; navigating away or reloading does not persist that form request in browser storage. Database protection still prevents simultaneous clinically open duplicates. Full HTTP replay requires clients to send the optional UUID. Deployment requires applying the migration before the new application, with an attributable review of any pre-existing duplicate open visits and the existing production release approvals. Local PostgreSQL-compatible migration/concurrency checks do not replace the production database rehearsal or clinician/finance acceptance.
 
-## Research basis
-
 ## Completed batch: blue-and-white screen theme — 15 October 2026
 
 The user requested a cleaner blue-and-white CSS design. Added a shared screen theme for the public entry, white navigation, blue selected areas and primary actions, pale blue patient/context panels, forms and departmental worklists. Shared action controls now consume theme variables instead of fixed green values. Status colors for errors, warnings and success remain distinct. The theme is scoped to screen media so printed clinical/supply document styles retain their existing presentation.
@@ -61,6 +59,26 @@ Validation: lint and production build passed; all **66 existing Chrome browser s
 Evidence: `outputs/mwein-blue-white-desktop.png`, `outputs/mwein-blue-white-mobile.png`, `outputs/mwein-blue-white-check-in.png` in the chat workspace. Interactive Chrome review was stopped by Computer Use because it could not determine the current browser URL confidently enough to enforce policy; no further Computer Use inputs were attempted. Verification used the already-running automated Chrome suite and its screenshots. Temporary review services were stopped. `git diff --check` passed.
 
 New user direction: also evaluate [opensource-emr/hospital-management-emr](https://github.com/opensource-emr/hospital-management-emr) as a reference for production-readiness improvements. Reference review and the diagnostics/consultation recovery audit remain next; the source repository is not evidence that Mwein is approved for production use.
+
+## Completed batch: verified investigation handoffs — 15 October 2026
+
+The user supplied Danphe EMR as an additional reference. Reviewed its MIT licence, module map, pending/final laboratory workflow and checked-in framework versions at commit `99638225ba0876261c2c16c3bd2f9b83f4abbc19`. No reference code, credentials, integrations or database content was executed or imported. `REFERENCE_REPOSITORY_REVIEW.md` records pinned source links, adaptations, prioritised follow-up work and external acceptance requirements. Rechecked HosiPoa, WHO laboratory quality-management material and Kenya MoH primary-source context; this remains engineering implementation, not clinical, regulatory or laboratory-accreditation approval.
+
+- Fixed clinical disclosure of preliminary diagnostic content: patient history, visit summaries and the clinician-only visit worklist now require verified results with a verification timestamp. Laboratory and imaging workbenches can still access their own drafts under the corresponding write permission. Governed privacy exports remain separate.
+- Added Consultation → Investigations → Investigations and results. Requests show specimen collection/acceptance/rejection, cancellation and release state. Released reports include laboratory values, supplied ranges/flags, imaging findings/conclusion, verifier/time and recorded critical-result communication. No new clinical thresholds or interpretation are inferred.
+- Added a read-only endpoint scoped by visit and current facility, requiring `clinical.results.read`. Before disclosure it audits the visit and returned report IDs under `VISIT_INVESTIGATIONS`. Audit failures block disclosure; responses are private and non-cacheable. A visible limit notice covers the latest 200 requests. Closed visits remain readable without reopening care.
+- Result refresh is independent of consultation notes, removes stale data during loading/failure and supports retry. Patient changes abort superseded reads. Newly submitted investigations refresh their panel. Removed the overview's stale initial pending-order count and directed staff to the current investigation list.
+- Clinical history now displays both laboratory and imaging results together. Numeric laboratory trends use verification time, require valid verification metadata, keep units separate and explicitly distinguish that time from specimen collection.
+
+Validation evidence:
+
+- `npm run lint`: passed. `npm test -- --maxWorkers=2`: **481 tests passed across 97 files**. New coverage checks the facility predicate, authorization before reads, missing/invalid visits, closed-visit reads, bounded disclosure/audit IDs, audit failure, clinical release filters and department-specific draft grants. Trend tests cover verification timestamps and missing/invalid metadata.
+- Final `npm run test:browser`: **69 scenarios passed** using installed Windows Chrome, including the production build and the isolated outpatient fixture's **123 existing workflow checks**. The new real-API scenario saves draft lab/imaging results through their own staff sessions, confirms absence from all four clinical readers, verifies each report and confirms release with attribution. Reception access and edits after verification are rejected. Earlier test setup errors (missing diagnosis and an unsupported diagnosis type) were corrected before this final successful full run.
+- New browser scenarios preserve unsaved consultation text across result refresh/failure/retry, remove stale reports after failure, reject a delayed previous-patient response and exercise keyboard report expansion and a 390 px layout without horizontal document overflow. The existing clinical/supply print scenarios remain passing.
+- Visually inspected desktop and mobile screenshots. Final artifacts are `outputs/mwein-investigation-review-desktop.png` and `outputs/mwein-investigation-review-mobile.png` in the chat workspace. Full-page captures start at the document top so fixed navigation does not obscure the report in the screenshot.
+- No schema or migration change. The browser fixture applies existing migrations to isolated synthetic storage; no production service or data was used. Temporary fixture listeners were confirmed stopped. `git diff --check` passed. This batch is verified for commit/push to `codex/hosipoa-expiry-report`; consult Git history/status for its commit.
+
+Limits: opening a report proves neither clinical acknowledgement nor successful handover. Explicit result ownership/escalation and clinician acceptance remain to be designed. Result freshness is checked when opening Investigations or pressing Refresh results; there is no background polling claim. The panel does not solve unsaved changes on navigation/reload or concurrent consultation draft overwrites; those remain the first actionable priority. Production release gates remain intact.
 
 ## Research basis
 
@@ -77,7 +95,7 @@ These are engineering adaptations. No new diagnosis, prescribing rule, national 
 
 ## Remaining audit order
 
-1. Audit diagnostic result review handoffs, outstanding investigations, consultation draft recovery, unsaved-change protection and closed-visit boundaries. Check Git status first and preserve any new user changes; the check-in race/recovery batch above is complete.
+1. Complete consultation draft recovery, concurrent draft revision protection and unsaved-change protection. Design explicit diagnostic acknowledgement and outstanding-result ownership, including closed-visit handover. The verified-results disclosure/panel batch is recorded above; opening a report is not acknowledgement. Check Git status first and preserve any new user changes.
 2. Audit pharmacy partial dispensing, stock shortages, substitutions and return-to-clinician actions; retain independent medication governance.
 3. Review cashier reconciliation, partial payment, refund/reversal and discharge views with synthetic scenarios. Keep clinical closure independent of financial settlement.
 4. Design an attributable follow-up resolution/contact-attempt register, linking subsequent care and preserving original signed plans. Current worklists do not prove outreach or follow-up completion.

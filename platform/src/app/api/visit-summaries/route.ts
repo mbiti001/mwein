@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
 import { recordClinicalAccess } from "@/lib/clinical-access";
+import { verifiedResultWhere } from "@/lib/verified-results";
 
 function parsed(value: string | null | undefined) {
   try { return value ? JSON.parse(value) : {}; } catch { return {}; }
@@ -34,8 +35,8 @@ export async function GET(request: Request) {
         triage: { include: { observations: true } },
         encounters: { include: { diagnoses: true, servicePointRecord: true, clinician: { select: { displayName: true } }, addenda: { include: { author: { select: { displayName: true } } }, orderBy: { createdAt: "asc" } } }, orderBy: { createdAt: "desc" } },
         orders: { include: {
-          laboratory: { include: { result: { include: { items: true, verifiedBy: { select: { displayName: true } } } } } },
-          imaging: { include: { result: { include: { performedBy: { select: { displayName: true } }, verifiedBy: { select: { displayName: true } } } } } },
+          laboratory: { include: { result: { where: verifiedResultWhere, include: { items: true, verifiedBy: { select: { displayName: true } } } } } },
+          imaging: { include: { result: { where: verifiedResultWhere, include: { performedBy: { select: { displayName: true } }, verifiedBy: { select: { displayName: true } } } } } },
           prescription: { include: {
             dispensedBy: { select: { displayName: true } },
             stockMovements: { where: { type: "DISPENSE" }, include: { batch: { select: { batchNumber: true, expiryDate: true } } }, orderBy: { occurredAt: "asc" } },

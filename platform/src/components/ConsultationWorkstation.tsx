@@ -5,6 +5,8 @@ import { patientClinicalGroup } from "@/lib/domain";
 import { jsonRequest } from "@/lib/client-http";
 import { calculateDispenseQuantity } from "@/lib/medication";
 import VisitVitalsPanel from "@/components/VisitVitalsPanel";
+import InvestigationReviewPanel from "@/components/InvestigationReviewPanel";
+import { isVerifiedResult } from "@/lib/verified-results";
 import PatientTrends, { type TrendVisit } from "@/components/PatientTrends";
 import {
   SearchableMultiPicker,
@@ -131,6 +133,7 @@ type HistoryVisit = {
     laboratory?: {
       result?: {
         status: string;
+        verifiedAt?: string | null;
         items: {
           analyte: string;
           value: string;
@@ -139,7 +142,7 @@ type HistoryVisit = {
         }[];
       } | null;
     } | null;
-    imaging?: { result?: { status: string; conclusion: string } | null } | null;
+    imaging?: { result?: { status: string; verifiedAt?: string | null; conclusion: string } | null } | null;
   }[];
 };
 type PatientProblem = {
@@ -1167,6 +1170,7 @@ export function ConsultationForm({
   const [diagnosisSearching, setDiagnosisSearching] = useState(false);
   const [diagnosisSourceWarning, setDiagnosisSourceWarning] = useState("");
   const [activeStep, setActiveStep] = useState(1);
+  const [investigationRevision, setInvestigationRevision] = useState(0);
   const draft =
     visit.encounters?.find((item) => item.status === "DRAFT") ||
     visit.encounters?.[0];
@@ -1321,6 +1325,7 @@ export function ConsultationForm({
         action,
         data,
       });
+      if (action === "SUBMIT_INVESTIGATIONS") setInvestigationRevision(value => value + 1);
       setNotice(
         result.warnings?.length
           ? `${message} ${result.warnings.join(" ")}`
@@ -1583,7 +1588,7 @@ export function ConsultationForm({
         </div>
       )}
       <section className="card historyPanel" aria-label="Clinical review overview">
-        <div className="cardHead"><div><h2>Clinical review at a glance</h2><p>{problems.filter(problem => problem.clinicalStatus === "ACTIVE").length} active problem(s) · {(visit.orders || []).filter(order => ["REQUESTED", "IN_PROGRESS"].includes(order.status)).length} pending order(s) · {savedDiagnoses.length} recorded diagnosis/diagnoses</p></div></div>
+        <div className="cardHead"><div><h2>Clinical review at a glance</h2><p>{problems.filter(problem => problem.clinicalStatus === "ACTIVE").length} active problem(s) · {savedDiagnoses.length} recorded diagnosis/diagnoses</p><p>Open Investigations to check current requests and verified reports.</p></div></div>
         <div className="actions">{[{ step: 1, label: "History" }, { step: 3, label: "Examination" }, { step: 4, label: "Diagnosis" }, { step: 5, label: "Investigations" }, { step: 6, label: "Medicines" }, { step: 7, label: "Plan & finish" }].map(item => <button type="button" className="secondary" key={item.step} onClick={() => { setActiveStep(item.step); document.getElementById("consultation-work")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>{item.label}</button>)}</div>
       </section>
       <PatientTrends visits={[visit, ...history]} />
@@ -1637,18 +1642,10 @@ export function ConsultationForm({
             </p>
             <p>
               <strong>Results:</strong>{" "}
-              {previous.orders
-                .flatMap((item) => item.laboratory?.result?.items || [])
-                .map(
-                  (item) =>
-                    `${item.analyte} ${item.value}${item.unit ? ` ${item.unit}` : ""}${item.flag ? ` (${item.flag})` : ""}`,
-                )
-                .join(" · ") ||
-                previous.orders
-                  .map((item) => item.imaging?.result?.conclusion)
-                  .filter(Boolean)
-                  .join(" · ") ||
-                "No verified results"}
+              {previous.orders.flatMap(item => [
+                ...(isVerifiedResult(item.laboratory?.result) ? item.laboratory.result.items.map(value => `${value.analyte} ${value.value}${value.unit ? ` ${value.unit}` : ""}${value.flag ? ` (${value.flag})` : ""}`) : []),
+                ...(isVerifiedResult(item.imaging?.result) ? [item.imaging.result.conclusion] : []),
+              ]).join(" · ") || "No verified results"}
             </p>
           </article>
         ))}
@@ -2105,6 +2102,7 @@ export function ConsultationForm({
           active={activeStep === 5}
           onOpen={() => setActiveStep(5)}
         >
+          {activeStep === 5 && <InvestigationReviewPanel key={`${visit.id}-${investigationRevision}`} visitId={visit.id} />}
           <label>
             Priority *
             <select name="investigationPriority" defaultValue={visit.priority}>

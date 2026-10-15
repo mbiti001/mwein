@@ -39,7 +39,7 @@ At the agreed cadence, create a disposable isolated PostgreSQL database, supply 
 
 ## Audit retention
 
-Patient searches, patient history, active visit worklists, visit summaries and verified diagnostic-result reads now append `CLINICAL_RECORDS_ACCESSED` before returning data. The event records the user, session, facility, fixed workflow context and resource references, without names, search text or clinical notes. A list produces one event containing its resource references; even an empty search is recorded. Responses use `private, no-store`. If the append fails, these endpoints return an error instead of disclosing records; use the approved downtime procedure during an audit-storage outage.
+Patient searches, patient history, active visit worklists, visit summaries and verified diagnostic-result reads now append `CLINICAL_RECORDS_ACCESSED` before returning data. The consultation investigation panel adds the `VISIT_INVESTIGATIONS` context with the visit and disclosed report IDs. The event records the user, session, facility, fixed workflow context and resource references, without names, search text or clinical notes. A list produces one event containing its resource references; even an empty search is recorded. Responses use `private, no-store`. If the append fails, these endpoints return an error instead of disclosing records; use the approved downtime procedure during an audit-storage outage.
 
 These events record authorised server disclosure, not proof of viewing, printing or external delivery. Other endpoints, denied-access monitoring and infrastructure log retention still require a complete coverage review. Audit exports themselves remain sensitive because resource references can identify records.
 
