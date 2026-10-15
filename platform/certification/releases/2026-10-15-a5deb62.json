@@ -1,0 +1,38 @@
+{
+  "purpose": "Recorded-findings summary presentation release; not clinical approval",
+  "source": "a5deb6288d496133fc9be3d12a2f93def7b8456b",
+  "branch": "codex/hosipoa-expiry-report",
+  "tag": "mwein-build-20261015-a5deb62",
+  "sourceArchiveSha256": "77aafa22b3bed503de71d7e2768d18430cc77f212917430d4c344ffe73ce92c5",
+  "ci": {
+    "url": "https://github.com/mbiti001/mwein/actions/runs/38780037554",
+    "conclusion": "success",
+    "unitTests": 486,
+    "unitFiles": 98,
+    "browserScenarios": 73,
+    "isolatedOutpatientChecks": 123
+  },
+  "application": {
+    "deploymentId": "dpl_GHF6HgBNJBe7rTeVAKtEbFbnX2an",
+    "deploymentUrl": "https://mwein-hmis-platform-lzw9n35yn-mbitis-projects.vercel.app",
+    "liveUrl": "https://mwein-hmis-platform.vercel.app",
+    "baselineBeforePromotion": "10983d9750789cc06be207e86503805c5a02623f"
+  },
+  "databaseChangesPerformed": false,
+  "liveVerification": {
+    "verifiedAt": "2026-10-15T17:50:48.293Z",
+    "healthHttp": 200,
+    "database": "connected",
+    "latestMigration": "20261015090000_goods_receipt_documents",
+    "releaseIdentityCommand": "ops:release-verify passed",
+    "readinessHttp": 503,
+    "readinessStatus": "blocked",
+    "patientUseApproved": false,
+    "browser": "Chrome 155.0.8059.40",
+    "widths": [1440, 768, 390, 320],
+    "horizontalOverflow": false,
+    "pageErrors": [],
+    "unauthenticatedReadChecks": {"/api/auth/me": 401, "/api/patients": 401, "/api/visits": 401},
+    "productionPatientDataUsedForTesting": false
+  }
+}

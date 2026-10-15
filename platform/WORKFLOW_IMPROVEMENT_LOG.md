@@ -144,6 +144,12 @@ Validation: types passed; **486 unit tests across 98 files** passed; the complet
 
 Evidence in the chat workspace: `outputs/mwein-recorded-summary-desktop.png`, `mwein-recorded-summary-mobile.png` and the synthetic `mwein-recorded-summary-example.pdf`; logs `work/summary-unit.log` and `work/summary-browser-full.log`. The release baseline remains `10983d9750789cc06be207e86503805c5a02623f`; publish only the exact verified application commit, after hosted CI, with no migration job. The consultation recovery backlog remains the next workflow priority after this user-directed presentation correction.
 
+### Summary release confirmation — 15 October 2026, 20:50 EAT
+
+Published source `a5deb6288d496133fc9be3d12a2f93def7b8456b` as application deployment `dpl_GHF6HgBNJBe7rTeVAKtEbFbnX2an` at [the live HMIS](https://mwein-hmis-platform.vercel.app), after both jobs in [GitHub run 38780037554](https://github.com/mbiti001/mwein/actions/runs/38780037554) passed. Archived source SHA-256: `77aafa22b3bed503de71d7e2768d18430cc77f212917430d4c344ffe73ce92c5`. Immutable tag: `mwein-build-20261015-a5deb62`. The prior live source was checked unchanged immediately before promotion. No migration, seed, role provisioning or configuration bypass was performed.
+
+At 20:50 EAT, live Chrome checks passed at 1440/768/390/320 px: source/branch/deployment footer correct, no overflow or page errors, print footer hidden, signed-out protected reads rejected with 401. Health is 200/connected with the expected unchanged goods-receipt migration; `ops:release-verify` passed. Existing readiness remains 503/blocked and requires the previously recorded operational evidence; no patient-use approval is claimed. No authentication action is needed from the user. Retained browser evidence is `outputs/mwein-live-release-a5deb62.json`; checked-in release metadata is `certification/releases/2026-10-15-a5deb62.json`. Subsequent evidence-only commits do not change the deployed application source.
+
 ## Research basis
 
 - [HosiPoa modules](https://www.hosipoa.co.ke/modules/), reviewed 15 October 2026: connected reception, appointment, queue, referral, diagnostic, pharmacy and cashier capabilities inform the backlog. Public scope descriptions are not implementation specifications.
