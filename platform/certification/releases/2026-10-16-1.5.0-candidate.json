@@ -1,0 +1,66 @@
+{
+  "application": "Mwein HMIS",
+  "version": "1.5.0",
+  "status": "verified-candidate",
+  "branch": "codex/mwein-platform",
+  "source": "fe310daf67b2f4ab8caf4aa297cac70906ac1ed2",
+  "canonicalSourceArchive": {
+    "format": "git archive tar with core.autocrlf=false from repository root",
+    "sha256": "d387ec586d2a10392f89957ae33db24bfafc565b9c054e43cd8e25ba2d437c2b",
+    "bytes": 6103040
+  },
+  "localValidation": {
+    "unitTests": 668,
+    "unitFiles": 109,
+    "migrationChecks": 55,
+    "fullBrowserScenarios": 111,
+    "finalFocusedBrowserScenarios": 7,
+    "finalLocalBuildId": "M6dMJOLkfZqp4Z38GMCjs",
+    "types": "passed",
+    "productionDependencyVulnerabilities": 0,
+    "visualReview": [
+      "Kenya reference picker at phone width",
+      "saved prescriptions at desktop and phone widths",
+      "patient summary print media and rendered two-page A4 PDF"
+    ],
+    "note": "Full suite preceded final draft/cancelled medicine print exclusions; final focused browser suite rebuilt and passed those changes. Hosted CI verifies exact source."
+  },
+  "auditInventory": {
+    "routes": 73,
+    "gaps": 0,
+    "unclassified": 8,
+    "unreviewedAliases": 0
+  },
+  "production": {
+    "deployedByThisBatch": false,
+    "newMigration": false,
+    "baselineVersion": "1.4.0",
+    "baselineSource": "e21384455f78449a1fb4437a9836797baf52615b",
+    "baselineDeploymentId": "dpl_FouhRPioAV9Ak9YqdzdCGdkzTTwa",
+    "note": "Release coordination remains with chat01a14169; unified triage contributor is preparing later integration. No production data workflows, seeds, credential changes or safeguard changes."
+  },
+  "references": "../KENYA-PHARMACY-REFERENCES.md",
+  "limitations": [
+    "Fourteen selected KEML formulations only; inactive until facility review.",
+    "No therapeutic substitution, dose conversion or invented clinical rules.",
+    "Dedicated prescription serial/export, professional registration/signature, approved clinical coverage and pharmacy clarification remain acceptance gaps.",
+    "No clinical, legal, regulatory or DHA certification is claimed."
+  ],
+  "ci": {
+    "runId": 38820111957,
+    "url": "https://github.com/mbiti001/mwein/actions/runs/38820111957",
+    "platformJobId": 116714357992,
+    "legacyJobId": 116714358213,
+    "status": "completed",
+    "conclusion": "success",
+    "platform": "success",
+    "legacy": "success",
+    "unitTests": 668,
+    "unitFiles": 109,
+    "migrationChecks": 55,
+    "syntheticWorkflowChecks": 143,
+    "browserScenarios": 111,
+    "productionDependencyVulnerabilities": 0
+  },
+  "verifiedAt": "2026-10-15T22:59:41.376Z"
+}
