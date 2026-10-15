@@ -1,0 +1,283 @@
+{
+  "purpose": "Owner-authorized combined Mwein 1.3.0 engineering release; not patient-use or regulatory approval",
+  "version": "1.3.0",
+  "status": "deployed-and-verified",
+  "source": "65b66f8cf435b7f555c2e4e7705cddd7599e63e7",
+  "branch": "codex/mwein-platform",
+  "tag": "mwein-v1.3.0",
+  "recordedAt": "2026-10-15T22:38:15.242Z",
+  "authorization": "Owner explicitly requested coordination with the other agent, a fresh backup, deployment of combined 1.3.0, and another live/Vercel error check.",
+  "sourceArchiveSha256": "6c4951f5b9d817fc044387b7eae584a1c94bdb7e9396e60c6c1c962bb4df7a50",
+  "deploymentArchiveSha256": "933495dd0e9f1af45b1ce413656d0640f9b74a81e22c660f0d966873dfb4ce8f",
+  "ci": {
+    "runId": 38816014779,
+    "url": "https://github.com/mbiti001/mwein/actions/runs/38816014779",
+    "status": "completed",
+    "platformJob": 116700741767,
+    "legacyJob": 116700741407,
+    "conclusion": "success",
+    "unitTests": 651,
+    "testFiles": 108,
+    "migrations": 55,
+    "syntheticWorkflowChecks": 142,
+    "browserScenarios": 103,
+    "productionDependencyVulnerabilities": 0,
+    "hostedBuildId": "Not exposed by retained CI logs; source SHA and run identify the tested build"
+  },
+  "backup": {
+    "purpose": "Pre-migration backup for Mwein 1.3.0",
+    "startedAt": "2026-10-15T22:31:33.068Z",
+    "completedAt": "2026-10-15T22:31:35.096Z",
+    "deploymentId": "dpl_6FNt93wSNozg6B6894QDfBEWau6V",
+    "sourceIdentitySha256": "39d78da16d096177c06dc35c0f0f1708d9b84f096eab4dd7ee81f7af0676a092",
+    "sourceMetadata": {
+      "serverVersion": "18.6 (653b019)",
+      "databaseBytes": 17891328,
+      "lastMigration": "20261016001000_clinic_document_numbering",
+      "unfinishedMigrations": 0
+    },
+    "sourceCommit": "65b66f8cf435b7f555c2e4e7705cddd7599e63e7",
+    "storeId": "store_AhDgcZhyGCFd935a",
+    "access": "private",
+    "region": "iad1",
+    "pathname": "releases/1.3.0/mwein-pre-1.3.0-2026-10-15T22-31-33.068Z-9fb0d547-e6dc-4966-acd4-57f4381e7559.dump",
+    "bytes": 604680,
+    "downloadedBytes": 604680,
+    "sha256": "857fe28d6a0e4f32261b0445a956065b8a7be023fcfe28199f626e18b036d0e0",
+    "downloadedSha256": "857fe28d6a0e4f32261b0445a956065b8a7be023fcfe28199f626e18b036d0e0",
+    "checksumPathname": "releases/1.3.0/mwein-pre-1.3.0-2026-10-15T22-31-33.068Z-9fb0d547-e6dc-4966-acd4-57f4381e7559.dump.sha256",
+    "etag": "\"b96ef08c371c3a7363aeb0f8abe3577f\"",
+    "uploadedAt": "2026-10-15T22:31:35Z",
+    "toolVersion": "pg_dump (PostgreSQL) 18.3",
+    "archiveEntries": 730,
+    "verification": {
+      "dumpExit": 0,
+      "listExit": 0,
+      "fullArchiveDecodeExit": 0,
+      "externalReadbackChecksumMatched": true,
+      "externalChecksumFileMatched": true,
+      "anonymousAccessHttp": 403
+    },
+    "actualRestorePerformed": false,
+    "independentRestoreAcceptance": false,
+    "automaticExpiryConfigured": false,
+    "temporaryProjectConnectionRemoved": true,
+    "remainingStoreConnections": 0,
+    "normalApplicationBackupEnvironmentVariables": 0,
+    "retention": "Private retained objects; no automatic expiry or immutable/WORM claim; independent witnessed production restore remains outstanding"
+  },
+  "migration": {
+    "source": "65b66f8cf435b7f555c2e4e7705cddd7599e63e7",
+    "backupSha256": "857fe28d6a0e4f32261b0445a956065b8a7be023fcfe28199f626e18b036d0e0",
+    "backupStoreId": "store_AhDgcZhyGCFd935a",
+    "backupPathname": "releases/1.3.0/mwein-pre-1.3.0-2026-10-15T22-31-33.068Z-9fb0d547-e6dc-4966-acd4-57f4381e7559.dump",
+    "baseline": "20261016001000_clinic_document_numbering",
+    "appliedMigrations": [
+      "20261016010000_rights_identity_evidence"
+    ],
+    "previousAppliedCount": 54,
+    "lineEndingEquivalentCount": 3,
+    "lineEndingEquivalentMigrations": [
+      "20261015090000_check_in_reliability",
+      "20261015090000_goods_receipt_documents",
+      "20261015193000_rights_response_delivery"
+    ],
+    "constraints": [
+      {
+        "conname": "DataSubjectRequest_identity_evidence_check",
+        "convalidated": true
+      }
+    ],
+    "triggers": [
+      {
+        "tgname": "rights_identity_evidence_immutable",
+        "tgenabled": "O"
+      }
+    ],
+    "verifiedAt": "2026-10-15T22:33:51.383Z",
+    "deploymentId": "dpl_7mFvxUsjNWA21xkJt1tV1PHwvJcX",
+    "productionSeeded": false,
+    "sqlSha256": {
+      "20261016010000_rights_identity_evidence": "71e8ab0cfb09b47e1dcd2c7c584f29cb58d522e07175ca7019f79cf77fc68216"
+    }
+  },
+  "deployment": {
+    "id": "dpl_Trb7SALM7hMdjL8YZrzDcpHYWudv",
+    "url": "https://mwein-hmis-platform-1q9gu0v6s-mbitis-projects.vercel.app",
+    "origin": "https://mwein-hmis-platform.vercel.app",
+    "readyState": "READY",
+    "builds": [
+      {
+        "id": "bld_7mgpdj6fs",
+        "readyState": "READY",
+        "use": "@vercel/vc-build"
+      }
+    ],
+    "promoted": true,
+    "applicationBuildMigrationFree": true,
+    "nextBuildId": "Not exposed in retained build logs; Vercel build/deployment identifiers and immutable source retained"
+  },
+  "prePromotionBaseline": {
+    "status": "ok",
+    "database": "connected",
+    "migration": "20261016010000_rights_identity_evidence",
+    "release": {
+      "version": "1.2.0",
+      "commit": "601a591799461719678e082b31144ea41a918b56",
+      "shortCommit": "601a59179946",
+      "environment": "production",
+      "branch": "codex/mwein-platform",
+      "deployment": "dpl_DeoV14bAxdDBqtqbrFDtdysANWob",
+      "application": "mwein-hmis-platform"
+    },
+    "time": "2026-10-15T22:36:03.122Z"
+  },
+  "stagedHealth": {
+    "status": "ok",
+    "database": "connected",
+    "migration": "20261016010000_rights_identity_evidence",
+    "release": {
+      "version": "1.3.0",
+      "commit": "65b66f8cf435b7f555c2e4e7705cddd7599e63e7",
+      "shortCommit": "65b66f8cf435",
+      "environment": "production",
+      "branch": "codex/mwein-platform",
+      "deployment": "dpl_Trb7SALM7hMdjL8YZrzDcpHYWudv",
+      "application": "mwein-hmis-platform"
+    },
+    "time": "2026-10-15T22:35:51.758Z"
+  },
+  "liveVerification": {
+    "verifiedAt": "2026-10-15T22:36:26.631Z",
+    "origin": "https://mwein-hmis-platform.vercel.app",
+    "health": {
+      "status": "ok",
+      "database": "connected",
+      "migration": "20261016010000_rights_identity_evidence",
+      "release": {
+        "version": "1.3.0",
+        "commit": "65b66f8cf435b7f555c2e4e7705cddd7599e63e7",
+        "shortCommit": "65b66f8cf435",
+        "environment": "production",
+        "branch": "codex/mwein-platform",
+        "deployment": "dpl_Trb7SALM7hMdjL8YZrzDcpHYWudv",
+        "application": "mwein-hmis-platform"
+      },
+      "time": "2026-10-15T22:36:19.622Z"
+    },
+    "readiness": {
+      "http": 503,
+      "status": "blocked"
+    },
+    "unauthenticatedReadChecks": 3,
+    "browser": "155.0.8059.40",
+    "widths": [
+      1440,
+      768,
+      390,
+      320
+    ],
+    "buildKeyboardExpansion": true,
+    "buildExcludedFromPrint": true,
+    "pageErrors": [],
+    "failedRequests": [],
+    "serverErrors": [],
+    "protectedReads": [
+      {
+        "route": "/api/auth/me",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/patients",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/visits",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      }
+    ],
+    "productionPatientDataUsed": false
+  },
+  "vercelAudit": {
+    "runtime": {
+      "query": "level:error OR level:warning OR level:fatal",
+      "type": "summary",
+      "recordsReturned": 0,
+      "timeRange": {
+        "start": "2026-10-15T22:06:43.419Z",
+        "end": "2026-10-15T22:36:43.419Z"
+      },
+      "pagination": {
+        "hasMore": false,
+        "next": null
+      },
+      "excludedIntervals": []
+    },
+    "serverRequests": {
+      "deploymentId": "dpl_Trb7SALM7hMdjL8YZrzDcpHYWudv",
+      "query": "httpStatus >= 500",
+      "type": "summary",
+      "recordsReturned": 1,
+      "timeRange": {
+        "start": "2026-10-15T22:06:43.000Z",
+        "end": "2026-10-15T22:36:43.000Z"
+      },
+      "pagination": {
+        "hasMore": false,
+        "next": null
+      },
+      "excludedIntervals": [],
+      "records": [
+        {
+          "time": "2026-10-15T22:36:19.886Z",
+          "path": "/api/ready",
+          "status": 503
+        }
+      ],
+      "interpretation": "Only intentional blocked readiness response; no application server error found"
+    },
+    "build": {
+      "completed": true,
+      "productionDependencyVulnerabilities": 0,
+      "notes": "Transitive deprecation/npm configuration notices remain; no build failure. Older failed deployment records are retained, not deleted."
+    },
+    "limitation": "Recent project runtime window and this deployment request window, not proof of every authenticated clinical flow in production"
+  },
+  "auditInventory": {
+    "routes": 73,
+    "missingCalls": 0,
+    "remainingSourceClassifications": 8,
+    "unreviewedAliases": 0
+  },
+  "productionSeeded": false,
+  "productionClinicalWorkflowsUsed": false,
+  "credentialsChanged": false,
+  "userAuthenticationRequired": false,
+  "coordination": {
+    "frozenSourcePreserved": true,
+    "newerSourceNotDeployed": "e213844 diagnostic candidate reserved as 1.4.0; main-chat prescribing work remains separate",
+    "previousReleaseRetained": "dpl_DeoV14bAxdDBqtqbrFDtdysANWob"
+  },
+  "recovery": {
+    "coordinator": "Current owner-authorized release chat 01a14169-4f35-7311-bc6c-50c958c1f476",
+    "procedure": "Retain the prior application deployment and additive identity evidence. Prefer reviewed fix-forward or restricted access if a material defect occurs; do not automatically restore older disclosure behavior or overwrite newer clinical writes with the backup. Any database recovery requires a separately reconciled recovery decision. No rollback or restore ran."
+  },
+  "safeguards": [
+    "Fresh backup exception was not reused",
+    "MFA and clinical-readiness gates retained",
+    "No national transport or certification activation",
+    "Automatic Git deployment guard preserved",
+    "Only the application deployment was promoted"
+  ],
+  "remaining": [
+    "Separate 1.4.0 diagnostic table candidate verification/release",
+    "Main-agent multi-medicine prescription save/list corrections and governed catalogue review",
+    "Diagnostic handover/escalation and pharmacy clarification ownership",
+    "Cashier refund/reversal reconciliation and attributable follow-up closure",
+    "Eight frozen-source audit classifications",
+    "Independent restore, separate preview database and clinical/legal/security/DHA acceptance"
+  ]
+}

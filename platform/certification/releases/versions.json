@@ -35,10 +35,13 @@
     {
       "version": "1.3.0",
       "displayName": "1.3.0",
-      "status": "candidate",
+      "status": "deployed",
       "branch": "codex/mwein-platform",
-      "note": "Retained rights identity and representative authority, scope-bound export/delivery, and patient-journey handoffs with reviewed clinical discharge and separate financial completion. Candidate pending fresh-backup controlled release; not deployed.",
-      "requiredMigration": "20261016010000_rights_identity_evidence"
+      "note": "Combined rights identity and patient-journey release verified after fresh private backup, controlled rights migration, exact-source CI and live desktop/tablet/phone checks. Clinical readiness remains blocked. Later 1.4.0 work is not included.",
+      "requiredMigration": "20261016010000_rights_identity_evidence",
+      "source": "65b66f8cf435b7f555c2e4e7705cddd7599e63e7",
+      "deploymentId": "dpl_Trb7SALM7hMdjL8YZrzDcpHYWudv",
+      "evidence": "2026-10-16-1.3.0.json"
     },
     {
       "version": "1.4.0",
