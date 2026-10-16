@@ -4,8 +4,20 @@ export async function verifySupplyDocuments({ pg, api, requestWithCookie, authen
   const post = body => ({ method: "POST", body: JSON.stringify(body) });
   const supplier = (await api("create supplier for document verification", "/api/supply", post({ action: "SUPPLIER", code: "DOC-TEST", name: "Synthetic Medical Supplies", email: "supplier@example.test" }))).body.result;
   const orderInput = { action: "PURCHASE_ORDER", idempotencyKey: randomUUID(), supplierId: supplier.id, catalogItemId: medicine.id, quantity: 3, unitCost: 3.35, notes: "Synthetic purchase order for document verification" };
+  const counterBefore = (await pg.query(`SELECT "year", "nextValue"::text FROM "ReferenceSequence" WHERE "facilityId"=$1 AND "kind"='PURCHASE_ORDER' ORDER BY "year"`, [facility.id])).rows;
   const concurrentOrders = await Promise.all([0,1].map(() => requestWithCookie("/api/supply", sessionCookie, post(orderInput))));
-  assert(concurrentOrders.map(r=>r.response.status).sort().join(',') === '200,201', `Concurrent order retries did not resolve to one document: ${JSON.stringify(concurrentOrders.map(({ response, body }) => ({ status: response.status, error: typeof body?.error === "string" ? body.error.slice(0, 240) : undefined, reason: typeof body?.reason === "string" ? body.reason.slice(0, 240) : undefined })))}`);
+  if (concurrentOrders.map(r=>r.response.status).sort().join(',') !== '200,201') {
+    // Synthetic-only evidence; retain the failed outcome before fixture teardown.
+    console.error("Synthetic concurrent purchase-order responses", JSON.stringify(concurrentOrders.map(r=>({status:r.response.status,body:r.body}))));
+    try {
+    const orders = (await pg.query('SELECT "id", "orderNumber", "idempotencyKey" FROM "PurchaseOrder" WHERE "idempotencyKey"=$1', [orderInput.idempotencyKey])).rows;
+    const operations = (await pg.query('SELECT "id", "entityId", "action" FROM "SupplyOperation" WHERE "idempotencyKey"=$1', [orderInput.idempotencyKey])).rows;
+    const events = (await pg.query(`SELECT "id", "action", "entityId" FROM "AuditEvent" WHERE "action"='PURCHASE_ORDER_DRAFTED' AND "entityId" IN (SELECT "id"::text FROM "PurchaseOrder" WHERE "idempotencyKey"=$1)`, [orderInput.idempotencyKey])).rows;
+    const counterAfter = (await pg.query(`SELECT "year", "nextValue"::text FROM "ReferenceSequence" WHERE "facilityId"=$1 AND "kind"='PURCHASE_ORDER' ORDER BY "year"`, [facility.id])).rows;
+    console.error("Synthetic concurrent purchase-order failure evidence", JSON.stringify({ responses: concurrentOrders.map(r=>({status:r.response.status,body:r.body})), orders, operations, events, counterBefore, counterAfter }));
+    } catch (error) { console.error("Purchase-order diagnostic query failed", error instanceof Error ? error.message : String(error)); }
+  }
+  assert(concurrentOrders.map(r=>r.response.status).sort().join(',') === '200,201', "Concurrent order retries did not resolve to one document");
   const order = concurrentOrders.find(r=>r.response.status===201).body.result;
   assert(/^.+-PO-\d{4}-\d{6,}$/.test(order.orderNumber) && concurrentOrders.every(r=>r.body.result.orderNumber===order.orderNumber), "Purchase order numbering or replay reference changed");
   assert((await requestWithCookie("/api/supply", sessionCookie, post({ ...orderInput, quantity:4 }))).response.status===409, "Order replay accepted different contents");
@@ -57,7 +69,19 @@ export async function verifySupplyDocuments({ pg, api, requestWithCookie, authen
   }
   steps.push("verify receipt retention failure rolls back inventory and order updates");
   const concurrentReceipts = await Promise.all([0,1].map(() => requestWithCookie("/api/supply", sessionCookie, post(receiptInput))));
-  assert(concurrentReceipts.map(r=>r.response.status).sort().join(',') === '200,201', `Concurrent receipt retries did not resolve to one document: ${JSON.stringify(concurrentReceipts.map(({ response, body }) => ({ status: response.status, error: typeof body?.error === "string" ? body.error.slice(0, 240) : undefined, reason: typeof body?.reason === "string" ? body.reason.slice(0, 240) : undefined })))}`);
+  if (concurrentReceipts.map(r=>r.response.status).sort().join(',') !== '200,201') {
+    console.error("Synthetic concurrent goods-receipt responses", JSON.stringify(concurrentReceipts.map(r=>({status:r.response.status,body:r.body}))));
+    try {
+    const receipts = (await pg.query('SELECT "id", "receiptNumber", "movementId" FROM "GoodsReceipt" WHERE "purchaseOrderId"=$1', [order.id])).rows;
+    const operations = (await pg.query('SELECT "id", "entityId", "action" FROM "SupplyOperation" WHERE "idempotencyKey"=$1', [receiptInput.idempotencyKey])).rows;
+    const batches = (await pg.query('SELECT "id", "quantityAvailable"::text FROM "InventoryBatch" WHERE "batchNumber"=$1', [receiptInput.batchNumber])).rows;
+    const line = (await pg.query('SELECT "quantityReceived"::text FROM "PurchaseOrderLine" WHERE "id"=$1', [receiptInput.lineId])).rows;
+    const events = (await pg.query(`SELECT "id", "action", "entityId" FROM "AuditEvent" WHERE "action"='GOODS_RECEIPT_POSTED' AND "entityId" IN (SELECT "id"::text FROM "GoodsReceipt" WHERE "purchaseOrderId"=$1)`, [order.id])).rows;
+    const counterAfter = (await pg.query(`SELECT "nextValue"::text FROM "ReferenceSequence" WHERE "facilityId"=$1 AND "kind"='GOODS_RECEIPT' ORDER BY "year"`, [facility.id])).rows;
+    console.error("Synthetic concurrent goods-receipt failure evidence", JSON.stringify({ responses: concurrentReceipts.map(r=>({status:r.response.status,body:r.body})), receipts, operations, batches, line, events, counterBefore: JSON.parse(receiptCounter), counterAfter }));
+    } catch (error) { console.error("Goods-receipt diagnostic query failed", error instanceof Error ? error.message : String(error)); }
+  }
+  assert(concurrentReceipts.map(r=>r.response.status).sort().join(',') === '200,201', "Concurrent receipt retries did not resolve to one document");
   const first = concurrentReceipts.find(r=>r.response.status===201).body.result;
   assert(first.goodsReceiptId && /^.+-GRN-\d{4}-\d{6,}$/.test(first.receiptNumber) && concurrentReceipts.every(r=>r.body.result.receiptNumber===first.receiptNumber), "Receipt response omitted or changed its printable serial");
   steps.push("verify numbered goods-receipt concurrent retry without duplicate stock");

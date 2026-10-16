@@ -1082,8 +1082,8 @@ function PatientRegister({
           <input name="estimatedAgeYears" type="number" min="0" max="120" />
         </label>
         <label>
-          Sex at birth *
-          <select name="sexAtBirth" required defaultValue="">
+          Sex at birth {registrationMode === "EMERGENCY_UNKNOWN" ? "" : "*"}
+          <select name="sexAtBirth" required={registrationMode !== "EMERGENCY_UNKNOWN"} defaultValue="">
             <option value="" disabled>
               Select
             </option>

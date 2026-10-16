@@ -12,6 +12,7 @@ export function registrationFormPayload(form: FormData): Record<string, FormData
     const value = body[field];
     if (typeof value === "string" && value.trim() === "") delete body[field];
   }
+  if (body.registrationMode === "EMERGENCY_UNKNOWN" && body.sexAtBirth === "") delete body.sexAtBirth;
   for (const field of ["treatmentConsent", "electronicRecordConsent", "messagingConsent"]) {
     body[field] = form.get(field) === "on";
   }

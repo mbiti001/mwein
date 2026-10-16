@@ -80,24 +80,25 @@ test("emergency registration saves genuinely missing identity and location with 
   for (const name of ["givenName", "middleName", "familyName", "phone", "dateOfBirth", "estimatedAgeYears", "county", "subcounty", "ward", "village"]) {
     await expect.soft(form.locator(`[name="${name}"]`), `${name} starts unrecorded`).toHaveValue("");
   }
-  await form.getByLabel("Sex at birth *").selectOption("UNKNOWN");
   const reason = `Synthetic unidentified emergency with identity unavailable ${randomUUID().slice(0, 8)}`;
+  await expect(form.getByRole("combobox", { name: "Sex at birth", exact: true })).not.toHaveAttribute("required", "");
+  await expect(form.locator('[name="sexAtBirth"]')).toHaveValue("");
   await form.getByLabel("Emergency registration reason *").fill(reason);
   const saved = await submit(page, form);
   await testInfo.attach("emergency-registration-response", { body: await saved.text(), contentType: "application/json" });
   expect(saved.status(), await saved.text()).toBe(201);
   const payload = saved.request().postDataJSON();
-  for (const name of ["givenName", "familyName", "phone", "dateOfBirth", "estimatedAgeYears", "county", "subcounty"]) expect(payload).not.toHaveProperty(name);
+  for (const name of ["givenName", "familyName", "phone", "dateOfBirth", "estimatedAgeYears", "county", "subcounty", "sexAtBirth"]) expect(payload).not.toHaveProperty(name);
   expect(payload).toMatchObject({ registrationMode: "EMERGENCY_UNKNOWN", lawfulBasis: "VITAL_INTERESTS", treatmentConsent: false, electronicRecordConsent: false, messagingConsent: false });
   const { patient } = await saved.json();
-  expect(patient).toMatchObject({ facilityId: actor.facilityId, estimatedAgeYears: null, dateOfBirth: null, givenName: null, familyName: null, identityStatus: "UNIDENTIFIED", restricted: true, contacts: [], addresses: [] });
+  expect(patient).toMatchObject({ facilityId: actor.facilityId, estimatedAgeYears: null, dateOfBirth: null, givenName: null, familyName: null, sexAtBirth: "UNKNOWN", identityStatus: "UNIDENTIFIED", restricted: true, contacts: [], addresses: [] });
   expect(patient.fullName).toBe(`Unidentified patient ${patient.patientNumber}`);
   await expect(page.getByRole("heading", { name: "Clinic check-in" })).toBeVisible();
   await expect(page.locator(".patientBanner")).toContainText(patient.patientNumber);
   await expect(page.locator(".patientBanner")).toContainText("age unknown");
   const reread = await read<{ patients: Patient[] }>(page, `/api/patients?q=${encodeURIComponent(patient.patientNumber)}`);
   expect(reread.patients).toHaveLength(1);
-  expect(reread.patients[0]).toMatchObject({ id: patient.id, estimatedAgeYears: null, dateOfBirth: null, givenName: null, familyName: null, contacts: [], addresses: [] });
+  expect(reread.patients[0]).toMatchObject({ id: patient.id, estimatedAgeYears: null, dateOfBirth: null, givenName: null, familyName: null, sexAtBirth: "UNKNOWN", contacts: [], addresses: [] });
 
   const reviewContext = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
   try {

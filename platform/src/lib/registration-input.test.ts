@@ -18,6 +18,16 @@ const known = {
 };
 
 describe("registration form serialization", () => {
+  it("leaves unselected emergency sex unknown without weakening other routes", () => {
+    const payload = registrationFormPayload(form({ ...emergency, sexAtBirth: "" }));
+    expect(payload).not.toHaveProperty("sexAtBirth");
+    expect(patientRegistrationSchema.parse(payload).sexAtBirth).toBe("UNKNOWN");
+    for (const registrationMode of ["STANDARD", "GUARDIAN_ASSISTED"]) {
+      const invalid = registrationFormPayload(form({ ...known, registrationMode, estimatedAgeYears: "30", sexAtBirth: "" }));
+      expect(invalid.sexAtBirth).toBe("");
+      expect(patientRegistrationSchema.safeParse(invalid).success).toBe(false);
+    }
+  });
   it.each(["", "   ", "\t\n"])("omits unavailable emergency demographics represented by %j", blank => {
     const payload = registrationFormPayload(form({ ...emergency,
       givenName: blank, middleName: blank, familyName: blank, fullName: blank,
