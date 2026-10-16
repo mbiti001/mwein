@@ -53,7 +53,12 @@ test("shortage-cover clinician starts in consultation, records vitals, bills and
   for (const [label, value] of [["Temperature °C", "36.8"], ["Pulse /min", "80"], ["Respirations /min", "18"], ["BP systolic", "118"], ["BP diastolic", "76"], ["SpO₂ %", "98"], ["Weight kg", "70"], ["Pain /10", "2"]]) await page.getByLabel(label).fill(value);
   await page.getByLabel("Consciousness").selectOption("ALERT");
   await page.getByLabel("Triage category *").selectOption("ROUTINE");
+  const triaged = page.waitForResponse(response => response.url().endsWith(`/api/visits/${visit.id}/triage`) && response.request().method() === "POST");
   await page.getByRole("button", { name: "Complete triage" }).click();
+  const triageResponse = await triaged;
+  expect(triageResponse.status()).toBe(200);
+  await triageResponse.finished();
+  await expect(page.getByText("Private consultation", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Browser Shortage Cover", exact: true })).toBeVisible();
 
   // Exercise the real consultation endpoint under this same clinician's session.
@@ -61,7 +66,6 @@ test("shortage-cover clinician starts in consultation, records vitals, bills and
   async function consultation(data: object) {
     const response = await request(page, `/api/visits/${visit.id}/consultation`, { ...data, expectedRevision });
     expect(response.ok, JSON.stringify(response.body)).toBeTruthy();
-    if (response.body.draftRevision) expectedRevision = response.body.draftRevision;
     if (response.body.draftRevision) expectedRevision = response.body.draftRevision;
   }
   await consultation({ action: "SAVE_NOTES", data: {

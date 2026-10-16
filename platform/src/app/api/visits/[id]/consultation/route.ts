@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { workflowTransaction } from "@/lib/workflow-transaction";
 import { requirePermission } from "@/lib/auth";
 import { apiError, privateJson } from "@/lib/http";
 import { consultationRevision, consultationConflict, nextEncounterTime } from "@/lib/consultation-revision";
@@ -68,7 +69,7 @@ export async function POST(
     const user = await requirePermission("encounter.write");
     const id = z.uuid().parse((await context.params).id);
     const input = requestSchema.parse(await request.json());
-    const result = await db.$transaction(
+    const result = await workflowTransaction(
       async (tx) => {
         const visit = await tx.visit.findFirst({
           where: { id, facilityId: user.facilityId },
@@ -666,7 +667,6 @@ export async function POST(
         });
         return { stage: "SIGNED", target };
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
     return privateJson(result);
   } catch (error) {
