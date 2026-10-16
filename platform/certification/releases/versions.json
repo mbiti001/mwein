@@ -88,7 +88,7 @@
       "displayName": "1.6.2",
       "status": "reserved",
       "branch": "codex/mwein-platform",
-      "note": "Demographic input safety: reject fabricated estimated ages and prevent unintended corrections or clears; all-agent frozen-source testing and retesting required before coordinated deployment."
+      "note": "Combined candidate explicitly includes demographic input and emergency form corrections, compact responsive queue/history/follow-up tables, bounded native transaction-conflict handling, and isolated PostgreSQL CI fixtures. Exact frozen-source CI, native concurrency, phone/browser checks and all available independent reviews remain required before coordinated deployment."
     }
   ]
 }
