@@ -21,7 +21,7 @@ test("queue and supply access retains facility boundaries and persisted audit ev
     expect(response.ok(), JSON.stringify(body)).toBe(true); return body;
   }
   const me = (await get("/api/auth/me")).user;
-  expect((await get("/api/auth/me", foreign)).user.permissions).toContain("triage.write");
+  expect((await get("/api/auth/me", foreign)).user.permissions).toContain("encounter.write");
   expect((await get("/api/auth/me", foreignSupply)).user.permissions).toContain("inventory.view");
   for (const path of ["/api/queues", "/api/supply/documents"]) expect((await request.get(path, { headers: { cookie: "" } })).status()).toBe(401);
   const { patient } = await post("/api/patients", { givenName: "Operations", familyName: `Synthetic-${randomUUID().slice(0,8)}`, estimatedAgeYears: 31, sexAtBirth: "UNKNOWN", county: "Nairobi", subcounty: "Westlands", treatmentConsent: true, electronicRecordConsent: true, messagingConsent: false });
@@ -40,6 +40,9 @@ test("queue and supply access retains facility boundaries and persisted audit ev
   const after = await get("/api/queues");
   const destinations = after.entries.filter((row: any) => row.visit.id === visit.id);
   expect(destinations).toHaveLength(1); expect(destinations[0]).toMatchObject({ servicePoint: "CONSULTATION", status: "WAITING", priority: "ROUTINE" });
+  // The foreign clinician has permission for this destination service, so this
+  // rejection exercises facility isolation independently of service permission.
+  expect((await request.post("/api/queues", { headers: foreign, data: { action: "START", queueEntryId: destinations[0].id } })).status()).toBe(404);
   expect(after.history.find((row: any) => row.id === queue.id)?.status).toBe("TRANSFERRED");
   expect((await request.post("/api/queues", { headers: admin, data: { action: "TRANSFER", queueEntryId: queue.id, targetServicePoint: "CONSULTATION", reason } })).status()).toBe(409);
   const documents = (await get("/api/supply/documents")).documents;
@@ -85,11 +88,11 @@ test("failed supply refresh or print removes stale content and never prints afte
   await expect(page.locator(".supplyDocumentPaper")).toBeVisible();
   await page.evaluate(() => { (window as any).printCalls = 0; window.print = () => { (window as any).printCalls++; }; });
   failPrint = true; await page.getByRole("button", { name: "Print / Save PDF" }).click();
-  await expect(page.getByRole("alert")).toContainText("Synthetic print audit unavailable");
+  await expect(page.locator("main").getByRole("alert")).toContainText("Synthetic print audit unavailable");
   await expect(page.locator(".supplyDocumentPaper")).toHaveCount(0);
   expect(await page.evaluate(() => (window as any).printCalls)).toBe(0);
   failList = true; await page.getByRole("button", { name: "Refresh documents" }).click();
-  await expect(page.getByRole("alert")).toContainText("Synthetic register unavailable");
+  await expect(page.locator("main").getByRole("alert")).toContainText("Synthetic register unavailable");
   await expect(page.getByRole("button", { name: `View ${record.reference}` })).toHaveCount(0);
   failList = false; await page.getByRole("button", { name: "Refresh documents" }).click();
   await expect(page.getByLabel("Search documents")).toHaveValue("TEST-PO");
