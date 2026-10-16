@@ -29,6 +29,7 @@ function fixture(change = {}, mode = "success") {
     fs.appendFileSync(process.env.TEST_CALLS, JSON.stringify({ binary, args, host: process.env.PGHOST, database: process.env.PGDATABASE, sslmode: process.env.PGSSLMODE, channelBinding: process.env.PGCHANNELBINDING, secretCorrect, forbidden, published: fs.readdirSync(path.dirname(path.dirname(output))).filter(n => n.startsWith('mwein-')) }) + '\\n');
     console.log('Synthetic confidential stdout: synthetic@secret');
     if (phase === 'dump' && mode !== 'missing') fs.writeFileSync(output, mode === 'empty' ? '' : 'synthetic archive');
+    if (mode === 'interrupt' && process.send) process.send({ ready: true });
     if (mode === phase + '-fail') { console.error('postgresql://backup:synthetic@secret@source.example/clinic'); process.exitCode = 2; }
     if (mode === phase + '-warn') console.error('Synthetic secret warning synthetic@secret');
     if (mode === 'hang' || mode === 'interrupt') setTimeout(() => {}, 60000);
@@ -42,8 +43,11 @@ function fixture(change = {}, mode = "success") {
     childProcess.spawn = (binary, args, options) => {
       if (!['pg_dump', 'pg_restore'].includes(binary)) throw new Error('Unexpected test command');
       if (process.env.TEST_BACKUP_MODE === 'unavailable') return spawn('missing-mwein-pg-dump-test', args, options);
-      const child = spawn(process.execPath, [${JSON.stringify(tool)}, binary, ...args], options);
-      if (process.env.TEST_BACKUP_MODE === 'interrupt') setTimeout(() => process.emit('SIGTERM'), 150);
+      const interrupt = process.env.TEST_BACKUP_MODE === 'interrupt';
+      const child = spawn(process.execPath, [${JSON.stringify(tool)}, binary, ...args], interrupt ? { ...options, stdio: ['ignore', 'ignore', 'pipe', 'ipc'] } : options);
+      // Interrupt the running fake tool after its trace is complete. A fixed
+      // startup timer can kill appendFileSync mid-record under host contention.
+      if (interrupt) child.once('message', message => { if (message?.ready === true) process.emit('SIGTERM'); });
       return child;
     };
     syncBuiltinESMExports();
@@ -111,7 +115,10 @@ describe("backup process boundary using simulated PostgreSQL tools", () => {
     expect(r.status, r.stderr).toBe(1);
     expect(r.stdout).toBe("");
     expect(JSON.parse(r.stderr)).toMatchObject({ status: "refused_or_failed", cleanupFailed: false });
-    if (mode === "interrupt") expect(JSON.parse(r.stderr).interrupted).toBe(true);
+    if (mode === "interrupt") {
+      expect(JSON.parse(r.stderr).interrupted).toBe(true);
+      expect(r.calls.map(call => call.binary)).toEqual(["pg_dump"]);
+    }
     if (mode === "hang") expect(JSON.parse(r.stderr).failure).toBe("tool_timeout");
     if (mode === "unavailable") expect(JSON.parse(r.stderr).failure).toBe("tool_start_failed");
     if (mode.endsWith("-warn")) expect(JSON.parse(r.stderr).failure).toBe("tool_diagnostics_require_review");
