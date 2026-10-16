@@ -1,9 +1,9 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
-async function authenticate(request: APIRequestContext, email: string) {
+async function authenticate(request: APIRequestContext, email: string, facilityCode = "MMS") {
   const origin = `http://127.0.0.1:${process.env.E2E_APP_PORT || "3210"}`;
-  const response = await request.post("/api/auth/login", { headers: { origin }, data: { facilityCode: "MMS", email, password: "Mwein-E2E-Password-2026!" } });
+  const response = await request.post("/api/auth/login", { headers: { origin }, data: { facilityCode, email, password: "Mwein-E2E-Password-2026!" } });
   expect(response.status()).toBe(200);
   return { origin, cookie: response.headers()["set-cookie"].split(";")[0] };
 }
@@ -57,6 +57,53 @@ test("draft diagnostics stay in their workbenches until verification releases th
   const released = (await get(`/api/visits/${visit.id}/investigations`)).visit.orders;
   expect(released.find((order: any) => order.laboratory)?.laboratory.result).toMatchObject({ status: "VERIFIED", verifiedAt: expect.any(String), verifiedBy: { displayName: "MMS laboratory" } });
   expect((await request.post(`/api/orders/${labOrder.id}/laboratory-result`, { headers: laboratory, data: { action: "SAVE_DRAFT", ...labData } })).status()).toBe(409);
+
+  // Exercise real authorization and facility predicates, not mocked query arguments.
+  const other = await authenticate(request, "shared.user@example.test", "OTHER");
+  for (const path of reads.slice(0, 3)) {
+    for (const [headers, status] of [[{ cookie: "" }, 401], [reception, 403]] as const) {
+      const denied = await request.get(path, { headers });
+      expect(denied.status(), path).toBe(status);
+      expect(denied.headers()["cache-control"]).toBe("private, no-store");
+      expect(await denied.text()).not.toContain(patient.fullName);
+    }
+    const foreign = await request.get(path, { headers: other });
+    expect(foreign.status(), path).toBe(path.startsWith("/api/visit-summaries") ? 200 : 404);
+    expect(foreign.headers()["cache-control"]).toBe("private, no-store");
+    const body = await foreign.json();
+    if (foreign.status() === 200) expect(body).toEqual({ summaries: [] });
+    expect(JSON.stringify(body)).not.toContain("released-lab-value");
+    expect(JSON.stringify(body)).not.toContain(patient.id);
+  }
+  const me = (await get("/api/auth/me")).user;
+  const audit = await get("/api/admin/audit/export", admin);
+  expect(audit.chain.valid).toBe(true);
+  for (const [context, type, resourceId] of [
+    ["PATIENT_HISTORY", "Patient", patient.id],
+    ["VISIT_SUMMARIES", "Visit", visit.id],
+    ["VISIT_INVESTIGATIONS", "Visit", visit.id],
+  ]) {
+    const disclosures = audit.events.filter((event: any) => {
+      if (event.action !== "CLINICAL_RECORDS_ACCESSED") return false;
+      const reason = JSON.parse(event.reason);
+      return reason.context === context && reason.resources.some((resource: any) => resource.type === type && resource.id === resourceId);
+    });
+    expect(disclosures.length, context).toBeGreaterThanOrEqual(2);
+    for (const event of disclosures) {
+      expect(event).toMatchObject({ userId: me.id, facilityId: me.facilityId, sessionId: expect.any(String) });
+      expect(event.reason).not.toContain("released-lab-value");
+      expect(event.reason).not.toContain(patient.fullName);
+    }
+    if (context === "VISIT_INVESTIGATIONS") {
+      const labId = released.find((order: any) => order.laboratory)?.laboratory.result.id;
+      const imageId = released.find((order: any) => order.imaging)?.imaging.result.id;
+      expect(disclosures.some((event: any) => {
+        const resources = JSON.parse(event.reason).resources;
+        return resources.some((resource: any) => resource.type === "LaboratoryResult" && resource.id === labId)
+          && resources.some((resource: any) => resource.type === "ImagingResult" && resource.id === imageId);
+      })).toBe(true);
+    }
+  }
 });
 
 const firstId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", secondId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -100,11 +147,13 @@ test("results refresh preserves notes, clears failed data and supports keyboard 
   await expect(panel.getByText("Synthetic imaging conclusion", { exact: false })).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: testInfo.outputPath("investigation-review-desktop.png"), fullPage: true });
-  await page.setViewportSize({ width: 390, height: 844 });
-  await expect.poll(() => page.locator("#main-navigation").evaluate(element => element.getBoundingClientRect().right)).toBeLessThanOrEqual(0);
-  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({ path: testInfo.outputPath("investigation-review-mobile.png"), fullPage: true });
+  for (const width of [1440, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
+    await expect(panel.getByText("Synthetic laboratory verifier", { exact: false })).toBeVisible();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: testInfo.outputPath(`investigation-review-${width}.png`), fullPage: true });
+  }
   fail = true; await panel.getByRole("button", { name: "Refresh results" }).click();
   await expect(panel.getByRole("alert")).toContainText("Synthetic results outage");
   await expect(panel.getByText("Synthetic imaging conclusion", { exact: false })).toHaveCount(0);

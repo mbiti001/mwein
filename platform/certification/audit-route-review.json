@@ -184,7 +184,7 @@
       "methodExceptions": {}
     },
     "patients/[id]/history": {
-      "sourceSha256": "48a610226ea1fa15cd63f956941100eb319084c214c646da7963d3b214fffd1a",
+      "sourceSha256": "330cbabde19c14b62bdc7c516a3659da60943f2bb864ffc0b6999d4547480778",
       "methodExceptions": {}
     },
     "patients/[id]/identity-reconciliation": {
@@ -258,7 +258,7 @@
       "methodExceptions": {}
     },
     "visit-summaries": {
-      "sourceSha256": "0e6fafcf0029b88636b9c152c20c4be66626d26ec0ec54a9c338acfa4c5869d2",
+      "sourceSha256": "e0a11bdd956a1277cce3d9a3d8eeb6d94d85f4349eed25e8ce1f2cb97493eabc",
       "methodExceptions": {}
     },
     "visits/[id]/cancel": {
@@ -299,6 +299,10 @@
     },
     "orders/[id]/diagnostic-review": {
       "sourceSha256": "48aa522883be84fe081bf1b658cd61da22f03e15c37919b3bc91c7298b6f8f6e",
+      "methodExceptions": {}
+    },
+    "visits/[id]/investigations": {
+      "sourceSha256": "ce8ac4a66db868ab9651d9e1b7a7f79a60aa6b5b90a07a5946e9d7e8323c5d0c",
       "methodExceptions": {}
     }
   }
