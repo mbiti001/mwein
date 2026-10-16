@@ -42,7 +42,8 @@ test("queue tables preserve identity, labelled phone actions, history limits and
   await table.getByLabel("Transfer destination").selectOption("CONSULTATION");
   await table.getByLabel("Transfer reason").fill("Synthetic handover reason");
   await table.getByRole("button", { name: "Confirm transfer" }).click();
-  await expect(panel.getByRole("status")).toContainText("transferred");
+  await expect(panel.getByRole("status").filter({ hasText: "transferred" })).toContainText("transferred");
+  await expect(panel.getByText("Updating queue…", { exact: true })).toBeHidden();
   expect(writes).toEqual([{ action: "TRANSFER", queueEntryId: "queue-one", targetServicePoint: "CONSULTATION", reason: "Synthetic handover reason" }]);
   await panel.locator(".queueHistory > summary").click();
   const history = panel.getByRole("table").nth(1);
