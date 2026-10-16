@@ -1,0 +1,75 @@
+{
+  "recordedAt": "2026-10-16T21:13:19.961Z",
+  "status": "verified-layout-candidate-not-deployed",
+  "testedSource": "bf123b1b103390dc360a9f36640ac517cbe70a6e",
+  "integratedSource": "31ffcdc0aa5d4a9b13892748648068790991f046",
+  "implementationCommit": "bf123b1b103390dc360a9f36640ac517cbe70a6e",
+  "testedSourceArchiveSha256": "f06299d2c6f98555a877b8a66870f0004f95157c85801857dbd2faecc4d102d6",
+  "integration": "Normal merges preserve main registration and concurrency fixes through 2a48660. All four table files are unchanged from the build/browser-tested source. Integrated typecheck and 48 focused tests passed. Full build/browser/native release verification of this later combined source is still required; no inherited release clearance.",
+  "buildId": "C_UGpt31ku03sOhyd51I5",
+  "scope": [
+    "Queue control active table",
+    "Queue history table",
+    "Follow-up table and compact category controls"
+  ],
+  "validation": {
+    "typecheck": "passed",
+    "scopedUnitTests": 48,
+    "scopedUnitFiles": 5,
+    "productionBuild": "passed",
+    "chromeScenarios": 10,
+    "widths": [
+      1440,
+      768,
+      390,
+      320
+    ],
+    "printMedia": "passed; not physical printer or multipage PDF acceptance",
+    "browserBoundary": "Actual production-mode React browser UI with synthetic intercepted API responses; no real patient records or production writes",
+    "checks": [
+      "no page overflow",
+      "long identifiers and details wrap",
+      "labelled mobile cells and table header semantics",
+      "44px mobile action height",
+      "keyboard transfer and unchanged request payload",
+      "permission-limited actions",
+      "refresh failure removes stale actions and preserves filters on recovery",
+      "history 20-row display limit explicitly labelled",
+      "zero duration distinct from missing",
+      "print hides controls and retains filtered snapshot context"
+    ],
+    "apiBoundary": "Existing queue/follow-up unit suites exercise permissions, facility filters, auditing and error handling using mocked dependencies; no new real-database audit/rollback claim"
+  },
+  "retainedFailures": [
+    "Port49710 Windows EACCES; used42710",
+    "First development browser run: extra StrictMode GET failed existing exact-count expectation; production check passed unchanged",
+    "Initial new browser test expected CSS label absent from accessible cell name; corrected to require visible labelled cell"
+  ],
+  "sourceFiles": {
+    "platform/src/components/QueueOperationsPanel.tsx": "6ec6936540349f278b8af51e84f051fceec23b8c9a041f243cc66e5b35f24d7a",
+    "platform/src/components/FollowUpWorkstation.tsx": "6aae5873ab1c97572f2ca60c591fd6cae91a7754b506f22c5a8b78fa9227944b",
+    "platform/src/app/worklists.css": "853bd0c6a004b5a3bc6d7fc9efb348a56b13e2f29ccb8aa94523d1db000fe3b7",
+    "platform/e2e/workflow-tables.spec.ts": "52df22edd2d35ea5a0072d946a98c48c23d466015bf40f303fa7281b59a6c579"
+  },
+  "release": {
+    "liveVersion": "1.6.1",
+    "liveSource": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+    "liveDeployment": "dpl_4XsM4VZuihAG9BFNiHzjDD7WR335",
+    "canonical": "https://mwein-hmis-platform.vercel.app/",
+    "changed": false,
+    "note": "Presentation batch remains separate from held 1.6.2 source. Exact-source release gates and sole coordinator promotion still apply."
+  },
+  "safeguards": [
+    "No API/schema/migration/version change by this batch",
+    "No production seeding, credentials or patient workflow",
+    "No clinical or regulatory approval",
+    "Preserve MFA and clinical readiness gates",
+    "No reuse of October15 backup exception"
+  ],
+  "remaining": [
+    "Main dashboard task rows and supply index compact layout",
+    "Diagnostic handover/escalation and accepted ownership",
+    "Pharmacy clarification, cashier/refunds and attributable follow-up resolution",
+    "Existing session-attribution, retry/concurrency and external acceptance gates"
+  ]
+}
