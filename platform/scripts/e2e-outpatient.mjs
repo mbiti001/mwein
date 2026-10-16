@@ -163,6 +163,7 @@ const socketServer = new PGLiteSocketServer({
   maxConnections: 20,
 });
 let nextProcess;
+let nextOutput = "";
 
 try {
   await socketServer.start();
@@ -294,7 +295,6 @@ try {
   });
   childProcesses.add(nextProcess);
   console.log("E2E: waiting for application health (60-second deadline)");
-  let nextOutput = "";
   nextProcess.stdout.on("data", (chunk) => (nextOutput += chunk));
   nextProcess.stderr.on("data", (chunk) => (nextOutput += chunk));
   await waitForServer(origin, nextProcess).catch((error) => {
@@ -1041,6 +1041,9 @@ try {
 } catch (error) {
   // Print before cleanup: a broken socket shutdown must not hide the original failure.
   console.error(error);
+  // Preserve bounded diagnostic codes without dumping credentials or server payloads.
+  const diagnosticCodes = [...new Set(nextOutput.match(/\b(?:P\d{4}|ECONNRESET|ECONNREFUSED|ETIMEDOUT|40P01|40001|25P02)\b/g) || [])];
+  console.error("Isolated application diagnostic codes", JSON.stringify(diagnosticCodes));
   process.exitCode = 1;
 } finally {
   const cleanupDeadline = setTimeout(() => {

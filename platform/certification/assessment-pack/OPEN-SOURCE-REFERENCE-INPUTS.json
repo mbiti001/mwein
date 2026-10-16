@@ -1,0 +1,74 @@
+{
+  "reference": "Owner-supplied hospital-management-emr-master extracted archive",
+  "upstream": "https://github.com/opensource-emr/hospital-management-emr",
+  "upstreamCommit": null,
+  "reviewedOn": "2026-10-16",
+  "applicationCodeCopied": false,
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 280,
+      "sha256": "f03e65ea874df0a8c1d4f077128d0bf364ff0e670221910147785d816ca7bbba"
+    },
+    {
+      "path": "bitbucket-pipelines.yml",
+      "bytes": 549,
+      "sha256": "6380707745cefce8330278b9b1cae64c9a5e86c02638e072e83a07d6f1302797"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 1063,
+      "sha256": "d970d3a20b96919ce838c23dc5b4b02177324c846eab83a0178c3401bc399101"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3731,
+      "sha256": "b47c8e2701540cea39dd89fb07713c57070aa828895d2ca374077ea7302244ee"
+    },
+    {
+      "path": "status",
+      "bytes": 5282,
+      "sha256": "bc2aa667be966649b47955ee57a315986760254f4a6649a4a2c8c28b64c220b2"
+    },
+    {
+      "path": "Code/Websites/DanpheEMR/Services/DispensaryTransfer/DispensaryTransferService.cs",
+      "bytes": 26156,
+      "sha256": "b97916af1ca45427f6bbf92d22bd3cf5056a2e5bfcfd48b71daedea134dc67ce"
+    },
+    {
+      "path": "Code/Websites/DanpheEMR/Services/Inventory/InventoryGoodReceiptService.cs",
+      "bytes": 30720,
+      "sha256": "b7351e73a76e6651358909af8699f08cc856255972b5492321e5904af025d603"
+    },
+    {
+      "path": "Code/Websites/DanpheEMR/Services/Inventory/InventoryReceiptNumberService.cs",
+      "bytes": 7290,
+      "sha256": "b9314b2b2bb6c3cda9ed4fe756bb1582e793f16c1a0ca244723b71595f985e7b"
+    },
+    {
+      "path": "Code/Websites/DanpheEMR/Controllers/Pharmacy/PharmacySalesController.cs",
+      "bytes": 141210,
+      "sha256": "b973e4f68aa721261d143e1e54af5bff32f5ad482f6cc631776e31b970ebedfa"
+    },
+    {
+      "path": "Code/Websites/DanpheEMR/Controllers/Pharmacy/PharmacyPrescriptionController.cs",
+      "bytes": 7140,
+      "sha256": "e1e04ec3f26e03c7c8f3859409efbf4bb67460cf02313536de2298eccd599a7b"
+    },
+    {
+      "path": "Code/Websites/DanpheEMR/Controllers/Admission/AdmissionController.cs",
+      "bytes": 334511,
+      "sha256": "6a63cc0fb02b2cbe8fa61c926dd704d9c1d262b06cd350ac07be9d739cbf8b4c"
+    },
+    {
+      "path": "Code/Websites/DanpheEMR/Controllers/Nursing/NursingController.cs",
+      "bytes": 71812,
+      "sha256": "7be30da9cda29598b90bc80cd4ac216fb1cb9eabe42e815173b40421288902a9"
+    },
+    {
+      "path": "Code/Websites/DanpheEMR/wwwroot/DanpheApp/src/app/adt/shared/discharge-summary.model.ts",
+      "bytes": 7667,
+      "sha256": "484048ecfc6aa42711159f2ddc220917af955e9b430143fc995f1121bcbbe22c"
+    }
+  ]
+}

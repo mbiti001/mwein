@@ -51,6 +51,7 @@ test("starts triage with blank measured observations and an explicit concern", a
   await page.getByLabel("Estimated age").fill("30");
   await page.getByLabel("Sex at birth *").selectOption("FEMALE");
   await page.getByLabel("Phone *").fill("+254700654321");
+  await page.getByLabel("County *", { exact: true }).fill("Busia");
   await page.getByLabel("Subcounty *").fill("Teso North");
   await page.getByLabel("Consent to treatment *").check();
   await page.getByLabel("Consent to electronic record *").check();
@@ -76,6 +77,7 @@ test("cancels an undelivered visit with a documented SHA benefit outcome", async
   await page.getByLabel("Estimated age").fill("41");
   await page.getByLabel("Sex at birth *").selectOption("MALE");
   await page.getByLabel("Phone *").fill("+254700654399");
+  await page.getByLabel("County *", { exact: true }).fill("Busia");
   await page.getByLabel("Subcounty *").fill("Teso North");
   await page.getByLabel("Consent to treatment *").check();
   await page.getByLabel("Consent to electronic record *").check();
@@ -112,6 +114,7 @@ test("shows WHO-aligned ANC confirmation and adolescent safeguarding controls", 
   await page.getByLabel("Estimated age").fill("14");
   await page.getByLabel("Sex at birth *").selectOption("FEMALE");
   await page.getByLabel("Phone *").fill("+254711000014");
+  await page.getByLabel("County *", { exact: true }).fill("Busia");
   await page.getByLabel("Subcounty *").fill("Teso North");
   await page.getByLabel("Consent to treatment *").check();
   await page.getByLabel("Consent to electronic record *").check();
@@ -189,6 +192,7 @@ test("a pending triage save prevents navigation until its result is confirmed", 
   await page.getByLabel("Estimated age").fill("32");
   await page.getByLabel("Sex at birth *").selectOption("MALE");
   await page.getByLabel("Phone *").fill("+254711654322");
+  await page.getByLabel("County *", { exact: true }).fill("Busia");
   await page.getByLabel("Subcounty *").fill("Teso North");
   await page.getByLabel("Consent to treatment *").check();
   await page.getByLabel("Consent to electronic record *").check();
