@@ -1,0 +1,526 @@
+{
+  "recordedAt": "2026-10-16T21:02:23.656Z",
+  "localDate": "2026-10-17",
+  "type": "production-routing-and-release-policy",
+  "status": "verified",
+  "authorization": {
+    "thread": "01a141a2-8b25-7b90-92f3-9891a1067b6b",
+    "userMessage": "01a1467b-2e68-70b2-9668-e7f16a4eca17",
+    "request": "there are issues with vercel hmis links lets fix all to one serious production"
+  },
+  "canonical": "https://mwein-hmis-platform.vercel.app",
+  "projectId": "prj_dhuD47K8aNRoAteqQnSK3mu9j4DS",
+  "teamId": "team_cLGnYT9Z7jo4xZtFNkQTF7Ms",
+  "releaseUnchanged": {
+    "version": "1.6.1",
+    "commit": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+    "shortCommit": "a0a0909bf61d",
+    "environment": "production",
+    "branch": "codex/mwein-platform",
+    "deployment": "dpl_4XsM4VZuihAG9BFNiHzjDD7WR335",
+    "application": "mwein-hmis-platform"
+  },
+  "beforeAliases": [
+    {
+      "host": "mwein-hmis-platform-git-codex-mwein-platform-mbitis-projects.vercel.app",
+      "deploymentId": "dpl_8NNL2b1WtqdAtSe37PUTSs1hSnbc",
+      "redirect": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-codex-hosipoa-ex-d842c5-mbitis-projects.vercel.app",
+      "deploymentId": "dpl_AAaonXCrqEW2LS4fRTDB9mX4J8MQ",
+      "redirect": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-codex-public-web-c9c718-mbitis-projects.vercel.app",
+      "deploymentId": "dpl_GUaitaPpAwL33tfB7v7ZMhVP4zDx",
+      "redirect": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-codex-main-action-fixes-mbitis-projects.vercel.app",
+      "deploymentId": "dpl_HN64mPCxwNfP2az1dRukvvtfdDWi",
+      "redirect": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-codex-clinic-flo-f3d343-mbitis-projects.vercel.app",
+      "deploymentId": "dpl_2JwrnAzh5puiJpKXrVD9v8pQ82uw",
+      "redirect": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-codex-dpia-opera-b56687-mbitis-projects.vercel.app",
+      "deploymentId": "dpl_Fj8hsX7QaBVkNCjxQ6e6KpFjFmpf",
+      "redirect": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-codex-outpatient-649e81-mbitis-projects.vercel.app",
+      "deploymentId": "dpl_sdW8skDxr9aKXkb4oRDQqvHFKvjC",
+      "redirect": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-codex-unified-pa-cfc62a-mbitis-projects.vercel.app",
+      "deploymentId": "dpl_3tbdfcVzaXkxAjyCqHkycaEG2Ydi",
+      "redirect": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-codex-dha-readin-634c91-mbitis-projects.vercel.app",
+      "deploymentId": "dpl_J8KCGiWADYdJUstsBKcfo7jrXD8P",
+      "redirect": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-fix-platform-rel-34c208-mbitis-projects.vercel.app",
+      "deploymentId": "dpl_3ptpcQvoPav9H2GB7LR41mVZuBxA",
+      "redirect": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-feat-sha-benefit-engine-mbitis-projects.vercel.app",
+      "deploymentId": "dpl_5L7paa536U6L2CSAhay7Moj4HAzE",
+      "redirect": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-main-mbitis-projects.vercel.app",
+      "deploymentId": "dpl_G3oUb3aTXYwNpr3UGYzkiF9Sfp6d",
+      "redirect": null
+    },
+    {
+      "host": "mwein-hmis-platform-mbitis-projects.vercel.app",
+      "deploymentId": "dpl_4XsM4VZuihAG9BFNiHzjDD7WR335",
+      "redirect": null
+    },
+    {
+      "host": "mwein-hmis-platform.vercel.app",
+      "deploymentId": "dpl_4XsM4VZuihAG9BFNiHzjDD7WR335",
+      "redirect": null
+    }
+  ],
+  "afterDomains": [
+    {
+      "host": "mwein-hmis-platform-mbitis-projects.vercel.app",
+      "redirect": "mwein-hmis-platform.vercel.app",
+      "status": 307,
+      "verified": true,
+      "gitBranch": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-main-mbitis-projects.vercel.app",
+      "redirect": "mwein-hmis-platform.vercel.app",
+      "status": 307,
+      "verified": true,
+      "gitBranch": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-feat-sha-benefit-engine-mbitis-projects.vercel.app",
+      "redirect": "mwein-hmis-platform.vercel.app",
+      "status": 307,
+      "verified": true,
+      "gitBranch": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-fix-platform-rel-34c208-mbitis-projects.vercel.app",
+      "redirect": "mwein-hmis-platform.vercel.app",
+      "status": 307,
+      "verified": true,
+      "gitBranch": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-codex-dha-readin-634c91-mbitis-projects.vercel.app",
+      "redirect": "mwein-hmis-platform.vercel.app",
+      "status": 307,
+      "verified": true,
+      "gitBranch": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-codex-unified-pa-cfc62a-mbitis-projects.vercel.app",
+      "redirect": "mwein-hmis-platform.vercel.app",
+      "status": 307,
+      "verified": true,
+      "gitBranch": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-codex-outpatient-649e81-mbitis-projects.vercel.app",
+      "redirect": "mwein-hmis-platform.vercel.app",
+      "status": 307,
+      "verified": true,
+      "gitBranch": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-codex-dpia-opera-b56687-mbitis-projects.vercel.app",
+      "redirect": "mwein-hmis-platform.vercel.app",
+      "status": 307,
+      "verified": true,
+      "gitBranch": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-codex-clinic-flo-f3d343-mbitis-projects.vercel.app",
+      "redirect": "mwein-hmis-platform.vercel.app",
+      "status": 307,
+      "verified": true,
+      "gitBranch": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-codex-main-action-fixes-mbitis-projects.vercel.app",
+      "redirect": "mwein-hmis-platform.vercel.app",
+      "status": 307,
+      "verified": true,
+      "gitBranch": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-codex-public-web-c9c718-mbitis-projects.vercel.app",
+      "redirect": "mwein-hmis-platform.vercel.app",
+      "status": 307,
+      "verified": true,
+      "gitBranch": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-codex-mwein-platform-mbitis-projects.vercel.app",
+      "redirect": "mwein-hmis-platform.vercel.app",
+      "status": 307,
+      "verified": true,
+      "gitBranch": null
+    },
+    {
+      "host": "mwein-hmis-platform-git-codex-hosipoa-ex-d842c5-mbitis-projects.vercel.app",
+      "redirect": "mwein-hmis-platform.vercel.app",
+      "status": 307,
+      "verified": true,
+      "gitBranch": null
+    },
+    {
+      "host": "mwein-hmis-platform.vercel.app",
+      "redirect": null,
+      "status": null,
+      "verified": true,
+      "gitBranch": null
+    }
+  ],
+  "canary": {
+    "directAliasRedirect": "API accepted but public requests still reached Vercel SSO; restored original mapping and null redirect",
+    "projectDomainRedirect": "Verified 307 preserving root, path and query; POST to health path also returned307 without following or mutating patient data"
+  },
+  "policy": {
+    "before": {
+      "autoAssignCustomDomains": true,
+      "previewDeploymentsDisabled": null
+    },
+    "after": {
+      "autoAssignCustomDomains": false,
+      "previewDeploymentsDisabled": true
+    },
+    "protectionUnchanged": {
+      "deploymentType": "all_except_custom_domains"
+    },
+    "productionBranch": "main",
+    "note": "Production branch still main; automatic custom-domain assignment disabled and preview creation disabled. Manual staged production and explicit promotion remain required. gitProviderOptions.createDeployments concerns GitHub deployment-status events, not disabling Git-triggered builds."
+  },
+  "verification": {
+    "public": {
+      "at": "2026-10-16T21:01:14.432Z",
+      "canonical": "https://mwein-hmis-platform.vercel.app",
+      "checks": 28,
+      "failed": 0,
+      "records": [
+        {
+          "alias": "mwein-hmis-platform-git-codex-mwein-platform-mbitis-projects.vercel.app",
+          "path": "/",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/",
+          "expected": "https://mwein-hmis-platform.vercel.app/",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-codex-mwein-platform-mbitis-projects.vercel.app",
+          "path": "/api/health?verification=canonical-link&source=independent",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-codex-hosipoa-ex-d842c5-mbitis-projects.vercel.app",
+          "path": "/",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/",
+          "expected": "https://mwein-hmis-platform.vercel.app/",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-codex-hosipoa-ex-d842c5-mbitis-projects.vercel.app",
+          "path": "/api/health?verification=canonical-link&source=independent",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-codex-public-web-c9c718-mbitis-projects.vercel.app",
+          "path": "/",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/",
+          "expected": "https://mwein-hmis-platform.vercel.app/",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-codex-public-web-c9c718-mbitis-projects.vercel.app",
+          "path": "/api/health?verification=canonical-link&source=independent",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-codex-main-action-fixes-mbitis-projects.vercel.app",
+          "path": "/",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/",
+          "expected": "https://mwein-hmis-platform.vercel.app/",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-codex-main-action-fixes-mbitis-projects.vercel.app",
+          "path": "/api/health?verification=canonical-link&source=independent",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-codex-clinic-flo-f3d343-mbitis-projects.vercel.app",
+          "path": "/",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/",
+          "expected": "https://mwein-hmis-platform.vercel.app/",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-codex-clinic-flo-f3d343-mbitis-projects.vercel.app",
+          "path": "/api/health?verification=canonical-link&source=independent",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-codex-dpia-opera-b56687-mbitis-projects.vercel.app",
+          "path": "/",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/",
+          "expected": "https://mwein-hmis-platform.vercel.app/",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-codex-dpia-opera-b56687-mbitis-projects.vercel.app",
+          "path": "/api/health?verification=canonical-link&source=independent",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-codex-outpatient-649e81-mbitis-projects.vercel.app",
+          "path": "/",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/",
+          "expected": "https://mwein-hmis-platform.vercel.app/",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-codex-outpatient-649e81-mbitis-projects.vercel.app",
+          "path": "/api/health?verification=canonical-link&source=independent",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-codex-unified-pa-cfc62a-mbitis-projects.vercel.app",
+          "path": "/",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/",
+          "expected": "https://mwein-hmis-platform.vercel.app/",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-codex-unified-pa-cfc62a-mbitis-projects.vercel.app",
+          "path": "/api/health?verification=canonical-link&source=independent",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-codex-dha-readin-634c91-mbitis-projects.vercel.app",
+          "path": "/",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/",
+          "expected": "https://mwein-hmis-platform.vercel.app/",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-codex-dha-readin-634c91-mbitis-projects.vercel.app",
+          "path": "/api/health?verification=canonical-link&source=independent",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-fix-platform-rel-34c208-mbitis-projects.vercel.app",
+          "path": "/",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/",
+          "expected": "https://mwein-hmis-platform.vercel.app/",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-fix-platform-rel-34c208-mbitis-projects.vercel.app",
+          "path": "/api/health?verification=canonical-link&source=independent",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-feat-sha-benefit-engine-mbitis-projects.vercel.app",
+          "path": "/",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/",
+          "expected": "https://mwein-hmis-platform.vercel.app/",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-feat-sha-benefit-engine-mbitis-projects.vercel.app",
+          "path": "/api/health?verification=canonical-link&source=independent",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-main-mbitis-projects.vercel.app",
+          "path": "/",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/",
+          "expected": "https://mwein-hmis-platform.vercel.app/",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-git-main-mbitis-projects.vercel.app",
+          "path": "/api/health?verification=canonical-link&source=independent",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-mbitis-projects.vercel.app",
+          "path": "/",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/",
+          "expected": "https://mwein-hmis-platform.vercel.app/",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform-mbitis-projects.vercel.app",
+          "path": "/api/health?verification=canonical-link&source=independent",
+          "status": 307,
+          "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform.vercel.app",
+          "path": "/",
+          "status": 200,
+          "location": null,
+          "expected": null,
+          "passed": true
+        },
+        {
+          "alias": "mwein-hmis-platform.vercel.app",
+          "path": "/api/health?verification=canonical-link&source=independent",
+          "status": 200,
+          "location": null,
+          "expected": null,
+          "passed": true
+        }
+      ],
+      "health": {
+        "status": "ok",
+        "database": "connected",
+        "migration": "20261016010000_rights_identity_evidence",
+        "release": {
+          "version": "1.6.1",
+          "commit": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+          "shortCommit": "a0a0909bf61d",
+          "environment": "production",
+          "branch": "codex/mwein-platform",
+          "deployment": "dpl_4XsM4VZuihAG9BFNiHzjDD7WR335",
+          "application": "mwein-hmis-platform"
+        },
+        "time": "2026-10-16T21:01:15.195Z"
+      }
+    },
+    "browser": {
+      "at": "2026-10-16T20:59:19.728Z",
+      "visits": [
+        {
+          "width": 1440,
+          "url": "https://mwein-hmis-platform.vercel.app/?verification=canonical-browser",
+          "noOverflow": true,
+          "signInVisible": true
+        },
+        {
+          "width": 768,
+          "url": "https://mwein-hmis-platform.vercel.app/?verification=canonical-browser",
+          "noOverflow": true,
+          "signInVisible": true
+        },
+        {
+          "width": 390,
+          "url": "https://mwein-hmis-platform.vercel.app/?verification=canonical-browser",
+          "noOverflow": true,
+          "signInVisible": true
+        },
+        {
+          "width": 320,
+          "url": "https://mwein-hmis-platform.vercel.app/?verification=canonical-browser",
+          "noOverflow": true,
+          "signInVisible": true
+        }
+      ],
+      "errors": [],
+      "usedPatientData": false
+    },
+    "historicalDeploymentProtection": {
+      "at": "2026-10-16T20:59:29.507Z",
+      "results": [
+        {
+          "host": "mwein-hmis-platform-9wsdio051-mbitis-projects.vercel.app",
+          "status": 302,
+          "redirectHost": "vercel.com"
+        },
+        {
+          "host": "mwein-hmis-platform-dbjhjuuj4-mbitis-projects.vercel.app",
+          "status": 302,
+          "redirectHost": "vercel.com"
+        }
+      ]
+    },
+    "postPromotionRequirement": "Recheck all redirects and canonical source after every promotion; independently read and restore autoAssignCustomDomains=false if promotion resets it."
+  },
+  "recovery": "Before undo, recheck current live release and newer contributor changes. Remove only explicitly added redirect domains and restore each recorded alias mapping if required; never delete historical deployments or weaken protection.",
+  "safeguards": {
+    "applicationDeployed": false,
+    "sourceChanged": false,
+    "databaseChanged": false,
+    "credentialsChanged": false,
+    "productionPatientDataUsed": false,
+    "mfaChanged": false,
+    "clinicalReadiness": "blocked",
+    "authenticationRequired": false
+  },
+  "remaining": [
+    "Corrected1.6.2 source awaits final all-agent/CI/browser verification and diagnosis of isolated supply retry transport failures.",
+    "Production branch main remains to be aligned through a supported control; current automatic domain assignment is disabled.",
+    "No native PostgreSQL concurrency, clinical, legal, DHA or restore acceptance is implied."
+  ]
+}
