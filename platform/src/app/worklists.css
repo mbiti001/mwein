@@ -1,18 +1,60 @@
 .worklistFieldset{border:0;padding:0;min-width:0;margin:0}
 .worklistFieldset.managementBody{padding:20px}
 .followUpCategories{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:0 0 24px}
-.followUpCategories button{display:flex;flex-direction:column;align-items:flex-start;gap:12px;border:1px solid var(--line);border-radius:12px;padding:18px;background:white;color:var(--ink);text-align:left}
-.followUpCategories button strong{font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
-.followUpCategories button[aria-pressed=true]{background:#e9f7f5;border-color:#0f766e;box-shadow:inset 0 3px #0f766e}
-.followUpRow{grid-template-columns:12px minmax(0,1fr) auto auto}
-.followUpRow time{display:flex;flex-direction:column;gap:4px;white-space:nowrap}
-.followUpRow .flowTaskState,.appointmentRow .flowTaskState{display:inline-block;margin-top:6px;font-size:12px}
-.followUpRow>div{min-width:0}
-.followUpRow small{overflow-wrap:anywhere}
+.followUpCategories button{display:flex;flex-direction:column;align-items:flex-start;gap:8px;border:1px solid var(--line);border-radius:8px;padding:12px;background:white;color:var(--ink);text-align:left}
+.followUpCategories button strong{font-size:22px;line-height:1;font-variant-numeric:tabular-nums}
+.followUpCategories button[aria-pressed=true]{background:#eff6ff;border-color:var(--blue);box-shadow:inset 0 3px var(--blue)}
+.appointmentRow .flowTaskState{display:inline-block;margin-top:6px;font-size:12px}
 .queueOperations .queueControlActions{margin:16px 0}
 .queueOperations .cardHead{flex-wrap:wrap}
 .queueOperations .cardHead>div{flex:1 1 220px;min-width:0;overflow-wrap:anywhere}
 .queueOperations .queueControlActions:disabled{opacity:.65}
 .queueTransfer label{display:flex;flex-direction:column;gap:5px;font-size:12px;min-width:0}
 @media(max-width:1000px){.followUpCategories{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:650px){.followUpCategories{grid-template-columns:repeat(2,minmax(0,1fr))}.followUpCategories button:first-child{grid-column:1/-1}.followUpRow{grid-template-columns:12px minmax(0,1fr)}.followUpRow time,.followUpRow>button{grid-column:2;justify-self:start}.followUpRow time{white-space:normal}}
+@media(max-width:650px){.followUpCategories{grid-template-columns:repeat(2,minmax(0,1fr))}.followUpCategories button:first-child{grid-column:1/-1}}
+
+/* One record and action set: columns on wide screens, labelled rows on phones. */
+.workflowTable{width:100%;table-layout:fixed;border-collapse:collapse;font-size:13px;text-align:left;color:var(--ink);background:#fff}
+.workflowTable caption{text-align:left;font-size:12px;color:var(--muted);padding:8px 0;overflow-wrap:anywhere}
+.workflowTable th,.workflowTable td{padding:10px 12px;vertical-align:top;border-bottom:1px solid var(--line);white-space:normal;overflow-wrap:anywhere;text-align:left}
+.workflowTable thead th{background:#eff6ff;color:#17436d;font-size:12px;font-weight:700;border-top:1px solid #cbddeb}
+.workflowTable tbody th{font-weight:400}
+.workflowTable tbody tr:nth-child(even){background:#f8fbfe}
+.workflowTable strong{font-weight:700}
+.workflowTable .workflowCellMeta{display:block;margin-top:3px;font-size:12px;line-height:1.45;color:var(--muted)}
+.workflowTable tbody tr:focus-within{background:#eff6ff;outline:2px solid #2563eb;outline-offset:-2px}
+.workflowTable button{min-height:40px;max-width:100%;white-space:normal;text-align:left;padding:8px 10px}
+.queueWorkTable thead th:nth-child(1){width:27%}.queueWorkTable thead th:nth-child(2){width:20%}.queueWorkTable thead th:nth-child(3){width:15%}.queueWorkTable thead th:nth-child(4){width:38%}
+.followUpTable thead th:nth-child(1){width:25%}.followUpTable thead th:nth-child(2){width:34%}.followUpTable thead th:nth-child(3){width:19%}.followUpTable thead th:nth-child(4){width:22%}
+.workflowOverdue>th{border-left:3px solid #b45309}
+.workflowRowActions{display:flex;flex-wrap:wrap;gap:6px}
+.workflowRowDetail{margin-top:8px}.workflowRowDetail summary{cursor:pointer;font-size:12px;padding:5px 0;color:#17436d}
+.workflowRowForm{display:grid;gap:8px;margin-top:10px;padding:10px;border:1px solid #cbddeb;border-radius:6px;background:#fff}
+.workflowRowForm label{display:grid;gap:4px;min-width:0;font-size:12px}
+.workflowRowForm input,.workflowRowForm select{width:100%;min-width:0;box-sizing:border-box}
+.queueHistory .managementBody{padding:12px}
+@media screen and (max-width:900px){
+  .workflowTable,.workflowTable tbody{display:block}
+  .workflowTable caption{display:block}
+  .workflowTable thead{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .workflowTable tbody tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid var(--line);border-radius:8px;margin-bottom:10px;overflow:hidden}
+  .workflowTable th,.workflowTable td{display:block;min-width:0;padding:9px 12px;border:0}
+  .workflowTable tbody th{grid-column:1/-1;background:#eff6ff;border-bottom:1px solid #dbe7f1}
+  .workflowTable td:last-child{grid-column:1/-1;border-top:1px solid #e2e8f0}
+  .workflowTable [data-label]::before{content:attr(data-label);display:block;margin-bottom:4px;color:#526b7a;font-size:11px;font-weight:600}
+  .workflowTable tbody th[data-label]::before{display:none}
+  .workflowTable button,.workflowRowDetail summary{min-height:44px}
+  .workflowRowDetail summary{display:list-item;box-sizing:border-box;padding:12px 0}
+  .workflowRowForm input,.workflowRowForm select{font-size:16px}
+  .workflowTable .workflowOverdue>th{border-left:3px solid #b45309}
+}
+@media screen and (max-width:380px){.followUpTable tbody tr{grid-template-columns:minmax(0,1fr)}}
+@media print{
+  .followUpCategories,.queueOperations .workspaceTabs,.queueOperations .queueControlActions,.queueOperations button,.workflowTable .noPrint{display:none!important}
+  .workflowTable{font-size:10px;table-layout:auto}
+  .workflowTable th,.workflowTable td{padding:5px 7px}
+  .workflowTable .workflowCellMeta{font-size:9px;color:#333}
+  .workflowTable tr{break-inside:avoid}
+  .workflowTable thead{display:table-header-group}
+  .queueOperations .cardHead{break-inside:avoid}
+}
