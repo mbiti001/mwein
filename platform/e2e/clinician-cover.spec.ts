@@ -40,6 +40,7 @@ test("shortage-cover clinician starts in consultation, records vitals, bills and
   await page.getByLabel("Estimated age").fill("32");
   await page.getByLabel("Sex at birth *").selectOption("MALE");
   await page.getByLabel("Phone *").fill("+254711654399");
+  await page.getByLabel("County *", { exact: true }).fill("Busia");
   await page.getByLabel("Subcounty *").fill("Teso North");
   await page.getByLabel("Consent to treatment *").check();
   await page.getByLabel("Consent to electronic record *").check();

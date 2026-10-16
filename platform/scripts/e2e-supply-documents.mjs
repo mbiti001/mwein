@@ -5,7 +5,7 @@ export async function verifySupplyDocuments({ pg, api, requestWithCookie, authen
   const supplier = (await api("create supplier for document verification", "/api/supply", post({ action: "SUPPLIER", code: "DOC-TEST", name: "Synthetic Medical Supplies", email: "supplier@example.test" }))).body.result;
   const orderInput = { action: "PURCHASE_ORDER", idempotencyKey: randomUUID(), supplierId: supplier.id, catalogItemId: medicine.id, quantity: 3, unitCost: 3.35, notes: "Synthetic purchase order for document verification" };
   const concurrentOrders = await Promise.all([0,1].map(() => requestWithCookie("/api/supply", sessionCookie, post(orderInput))));
-  assert(concurrentOrders.map(r=>r.response.status).sort().join(',') === '200,201', "Concurrent order retries did not resolve to one document");
+  assert(concurrentOrders.map(r=>r.response.status).sort().join(',') === '200,201', `Concurrent order retries did not resolve to one document: ${JSON.stringify(concurrentOrders.map(({ response, body }) => ({ status: response.status, error: typeof body?.error === "string" ? body.error.slice(0, 240) : undefined, reason: typeof body?.reason === "string" ? body.reason.slice(0, 240) : undefined })))}`);
   const order = concurrentOrders.find(r=>r.response.status===201).body.result;
   assert(/^.+-PO-\d{4}-\d{6,}$/.test(order.orderNumber) && concurrentOrders.every(r=>r.body.result.orderNumber===order.orderNumber), "Purchase order numbering or replay reference changed");
   assert((await requestWithCookie("/api/supply", sessionCookie, post({ ...orderInput, quantity:4 }))).response.status===409, "Order replay accepted different contents");
@@ -57,7 +57,7 @@ export async function verifySupplyDocuments({ pg, api, requestWithCookie, authen
   }
   steps.push("verify receipt retention failure rolls back inventory and order updates");
   const concurrentReceipts = await Promise.all([0,1].map(() => requestWithCookie("/api/supply", sessionCookie, post(receiptInput))));
-  assert(concurrentReceipts.map(r=>r.response.status).sort().join(',') === '200,201', "Concurrent receipt retries did not resolve to one document");
+  assert(concurrentReceipts.map(r=>r.response.status).sort().join(',') === '200,201', `Concurrent receipt retries did not resolve to one document: ${JSON.stringify(concurrentReceipts.map(({ response, body }) => ({ status: response.status, error: typeof body?.error === "string" ? body.error.slice(0, 240) : undefined, reason: typeof body?.reason === "string" ? body.reason.slice(0, 240) : undefined })))}`);
   const first = concurrentReceipts.find(r=>r.response.status===201).body.result;
   assert(first.goodsReceiptId && /^.+-GRN-\d{4}-\d{6,}$/.test(first.receiptNumber) && concurrentReceipts.every(r=>r.body.result.receiptNumber===first.receiptNumber), "Receipt response omitted or changed its printable serial");
   steps.push("verify numbered goods-receipt concurrent retry without duplicate stock");

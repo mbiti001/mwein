@@ -8,7 +8,7 @@ for (const partial of [false, true]) test(`Reception ${partial ? "partial" : "co
   await page.getByRole("button", { name: "Registration", exact: true }).click();
   await page.getByLabel("First name *").fill("Reception"); await page.getByLabel("Surname *").fill(partial ? "Partial Check" : "Vitals Check");
   await page.getByLabel("Estimated age").fill("32"); await page.getByLabel("Sex at birth *").selectOption("MALE");
-  await page.getByLabel("Phone *").fill("+254711777222"); await page.getByLabel("Subcounty *").fill("Nambale");
+  await page.getByLabel("Phone *").fill("+254711777222"); await page.getByLabel("County *", { exact: true }).fill("Busia"); await page.getByLabel("Subcounty *").fill("Nambale");
   await page.getByLabel("Consent to treatment *").check(); await page.getByLabel("Consent to electronic record *").check();
   await page.getByRole("button", { name: "Register patient and continue" }).click();
   const savedVisit = page.waitForResponse(r => r.url().endsWith("/api/visits") && r.request().method() === "POST");

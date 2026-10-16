@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { flushSync } from "react-dom";
 import { confirmWorkspaceNavigation } from "@/components/useUnsavedConsultation";
 import { patientClinicalGroup } from "@/lib/domain";
+import { registrationFormPayload } from "@/lib/registration-input";
 import type { StockFocus } from "@/components/InventoryWorkstation";
 import { Button } from "@/components/ui/Button";
 import { PatientJourney } from "./PatientJourney";
@@ -997,13 +998,7 @@ function PatientRegister({
     if (savingRef.current) return;
     savingRef.current = true; setSaving(true);
     setError("");
-    const f = new FormData(event.currentTarget);
-    const body: Record<string, unknown> = Object.fromEntries(f.entries());
-    body.treatmentConsent = f.get("treatmentConsent") === "on";
-    body.electronicRecordConsent = f.get("electronicRecordConsent") === "on";
-    body.messagingConsent = f.get("messagingConsent") === "on";
-    if (!body.dateOfBirth) delete body.dateOfBirth;
-    if (!body.estimatedAgeYears) delete body.estimatedAgeYears;
+    const body = registrationFormPayload(new FormData(event.currentTarget));
     try {
       onRegistered(
         (
@@ -1119,7 +1114,7 @@ function PatientRegister({
         <fieldset className="registrationSection"><legend>Location</legend>
         <div className="registrationFields registrationLocation">
         <label>
-          County {registrationMode !== "EMERGENCY_UNKNOWN" ? "*" : ""}<input name="county" defaultValue={registrationMode === "EMERGENCY_UNKNOWN" ? "" : "Busia"} required={registrationMode !== "EMERGENCY_UNKNOWN"} />
+          County {registrationMode !== "EMERGENCY_UNKNOWN" ? "*" : ""}<input name="county" required={registrationMode !== "EMERGENCY_UNKNOWN"} />
         </label>
         <label>
           Subcounty {registrationMode !== "EMERGENCY_UNKNOWN" ? "*" : ""}<input name="subcounty" required={registrationMode !== "EMERGENCY_UNKNOWN"} />

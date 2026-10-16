@@ -74,7 +74,7 @@ async function registerInBrowser(page: Page) {
   const surname = `Checkin-${randomUUID().slice(0, 8)}`;
   await page.getByLabel("First name *").fill("Synthetic"); await page.getByLabel("Surname *").fill(surname);
   await page.getByLabel("Estimated age").fill("32"); await page.getByLabel("Sex at birth *").selectOption("UNKNOWN");
-  await page.getByLabel("Phone *").fill("+254711777222"); await page.getByLabel("Subcounty *").fill("Westlands");
+  await page.getByLabel("Phone *").fill("+254711777222"); await page.getByLabel("County *", { exact: true }).fill("Nairobi"); await page.getByLabel("Subcounty *").fill("Westlands");
   await page.getByLabel("Consent to treatment *").check(); await page.getByLabel("Consent to electronic record *").check();
   const response = page.waitForResponse(response => response.url().endsWith("/api/patients") && response.request().method() === "POST");
   await page.getByRole("button", { name: "Register patient and continue" }).click();
