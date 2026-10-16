@@ -68,7 +68,7 @@
       "displayName": "1.6.0",
       "status": "deployed",
       "branch": "codex/mwein-platform",
-      "note": "One Triage navigation destination with Vitals inside, automatic reuse, partial-set completion with original provenance, atomic measurement/assessment/handoff and safe retries. Exact-source CI and live browser/Vercel checks passed. Application-only release; clinical readiness remains blocked. Known inherited observation-flag defect discovered as promotion completed; values/handoffs pass but logical completeness is not claimed. Separate 1.6.1 correction in progress.",
+      "note": "One Triage navigation destination with Vitals inside, automatic reuse, partial-set completion with original provenance, atomic measurement/assessment/handoff and safe retries. Exact-source CI and live browser/Vercel checks passed. Application-only release; clinical readiness remains blocked. Known inherited observation-flag defect discovered as promotion completed; values/handoffs pass but logical completeness is not claimed. Separate 1.6.1 correction deployed for future writes; historical observations remain unchanged.",
       "source": "acd30b4b46042a910c1dcead64c944154212c7b6",
       "deploymentId": "dpl_7dQC4aP5KLoWcwgDwboabjUGGV5c",
       "evidence": "2026-10-16-1.6.0.json"
@@ -76,9 +76,12 @@
     {
       "version": "1.6.1",
       "displayName": "1.6.1",
-      "status": "candidate",
+      "status": "deployed",
       "branch": "codex/mwein-platform",
-      "note": "Correct field-specific stored triage flags and reject missing/non-numeric measurement inputs before conversion, preserving valid-input thresholds. No migration or historical record rewrite. Final-source all-agent retests and coordinated release required."
+      "note": "Correct per-observation abnormal and critical flags and reject blank or invalid numeric triage inputs before writes, preserving existing thresholds, original observations, shared Triage/Vitals workflow and all prior release work. Exact-source CI and live browser/Vercel checks passed. Application-only release; clinical readiness remains blocked.",
+      "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+      "deploymentId": "dpl_4XsM4VZuihAG9BFNiHzjDD7WR335",
+      "evidence": "2026-10-16-1.6.1.json"
     }
   ]
 }
