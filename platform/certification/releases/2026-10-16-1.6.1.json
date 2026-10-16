@@ -1,0 +1,304 @@
+{
+  "version": "1.6.1",
+  "status": "deployed-and-verified",
+  "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+  "branch": "codex/mwein-platform",
+  "tag": "mwein-v1.6.1",
+  "recordedAt": "2026-10-16T16:00:38.918Z",
+  "authorization": "Owner explicitly authorized coordinated implementation, verification and Vercel deployment in the collaborating chats",
+  "scope": "Correct per-observation abnormal and critical flags and reject blank or invalid numeric triage inputs before writes, preserving existing thresholds, original observations, shared Triage/Vitals workflow and all prior release work",
+  "sourceArchiveSha256": "d380066ac2a8487ef4edce3234921143decdcbd7808913619f9b490d4d1bd111",
+  "deploymentArchiveSha256": "8a31902fa41fb8bcc249dd313c65c941e1096cae33fad71d792523e84d18dabd",
+  "ci": {
+    "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+    "runId": 38823251519,
+    "url": "https://github.com/mbiti001/mwein/actions/runs/38823251519",
+    "platformJob": 116724606179,
+    "legacyJob": 116724605947,
+    "status": "success",
+    "unitTests": 727,
+    "unitFiles": 112,
+    "migrations": 55,
+    "syntheticWorkflowChecks": 159,
+    "browserScenarios": 119,
+    "productionDependencyVulnerabilities": 0
+  },
+  "candidateEvidence": "2026-10-16-1.6.1-candidate.json",
+  "database": {
+    "changed": false,
+    "migrationsRun": 0,
+    "latestMigration": "20261016010000_rights_identity_evidence",
+    "newBackupTaken": false,
+    "existingBackupEvidence": "2026-10-16-1.3.0.json",
+    "note": "No schema or migration change from prior live release. Historical backup retained; no new database-release backup or October 15 exception claimed."
+  },
+  "deployment": {
+    "id": "dpl_4XsM4VZuihAG9BFNiHzjDD7WR335",
+    "url": "https://mwein-hmis-platform-9wsdio051-mbitis-projects.vercel.app",
+    "origin": "https://mwein-hmis-platform.vercel.app",
+    "readyState": "READY",
+    "builds": [
+      {
+        "id": "bld_9zn3rktwq",
+        "readyState": "READY",
+        "use": "@vercel/vc-build"
+      }
+    ],
+    "promoted": true,
+    "buildMigrationFree": true
+  },
+  "prePromotionBaseline": {
+    "status": "ok",
+    "database": "connected",
+    "migration": "20261016010000_rights_identity_evidence",
+    "release": {
+      "version": "1.6.0",
+      "commit": "acd30b4b46042a910c1dcead64c944154212c7b6",
+      "shortCommit": "acd30b4b4604",
+      "environment": "production",
+      "branch": "codex/mwein-platform",
+      "deployment": "dpl_7dQC4aP5KLoWcwgDwboabjUGGV5c",
+      "application": "mwein-hmis-platform"
+    },
+    "time": "2026-10-16T15:48:30.676Z"
+  },
+  "stagedHealth": {
+    "status": "ok",
+    "database": "connected",
+    "migration": "20261016010000_rights_identity_evidence",
+    "release": {
+      "version": "1.6.1",
+      "commit": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+      "shortCommit": "a0a0909bf61d",
+      "environment": "production",
+      "branch": "codex/mwein-platform",
+      "deployment": "dpl_4XsM4VZuihAG9BFNiHzjDD7WR335",
+      "application": "mwein-hmis-platform"
+    },
+    "time": "2026-10-15T23:40:18.503Z"
+  },
+  "liveVerification": {
+    "verifiedAt": "2026-10-16T15:51:17.496Z",
+    "origin": "https://mwein-hmis-platform.vercel.app",
+    "health": {
+      "status": "ok",
+      "database": "connected",
+      "migration": "20261016010000_rights_identity_evidence",
+      "release": {
+        "version": "1.6.1",
+        "commit": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+        "shortCommit": "a0a0909bf61d",
+        "environment": "production",
+        "branch": "codex/mwein-platform",
+        "deployment": "dpl_4XsM4VZuihAG9BFNiHzjDD7WR335",
+        "application": "mwein-hmis-platform"
+      },
+      "time": "2026-10-16T15:51:05.161Z"
+    },
+    "readiness": {
+      "http": 503,
+      "status": "blocked"
+    },
+    "unauthenticatedReadChecks": 4,
+    "browser": "155.0.8059.40",
+    "widths": [
+      1440,
+      768,
+      390,
+      320
+    ],
+    "buildKeyboardExpansion": true,
+    "buildExcludedFromPrint": true,
+    "pageErrors": [],
+    "failedRequests": [],
+    "serverErrors": [],
+    "protectedReads": [
+      {
+        "route": "/api/auth/me",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/patients",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/visits",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/visits/00000000-0000-4000-8000-000000000001/vitals",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      }
+    ],
+    "productionPatientDataUsed": false
+  },
+  "vercelAudit": {
+    "runtime": {
+      "type": "summary",
+      "recordsReturned": 0,
+      "timeRange": {
+        "start": "2026-10-16T15:23:16.782Z",
+        "end": "2026-10-16T15:53:16.782Z"
+      },
+      "pagination": {
+        "hasMore": false,
+        "next": null
+      },
+      "excludedIntervals": []
+    },
+    "serverRequests": {
+      "summary": {
+        "type": "summary",
+        "recordsReturned": 2,
+        "timeRange": {
+          "start": "2026-10-16T15:23:38.000Z",
+          "end": "2026-10-16T15:53:38.000Z"
+        },
+        "pagination": {
+          "hasMore": false,
+          "next": null
+        },
+        "excludedIntervals": []
+      },
+      "records": [
+        {
+          "time": "2026-10-16T15:51:05.432Z",
+          "path": "/api/ready",
+          "status": 503
+        },
+        {
+          "time": "2026-10-16T15:49:25.430Z",
+          "path": "/api/ready",
+          "status": 503
+        }
+      ],
+      "interpretation": "Only expected readiness 503; no unexpected server failure found"
+    },
+    "limitation": "Recent 30-minute logs and signed-out public checks; authenticated workflows exercised only against synthetic local/CI data.",
+    "timingNote": "A tool-host pause separated deployment work and final public/log checks. Original staged/baseline timestamps and later check timestamps are retained. Recent log queries do not claim continuous coverage during the pause.",
+    "build": {
+      "status": "passed",
+      "productionDependencyVulnerabilities": 0,
+      "retainedLog": "work/release-1.6.1-build.log",
+      "notices": "Existing transitive package deprecation and npm configuration notices retained; no dependency upgrade or safeguard relaxation."
+    }
+  },
+  "safeguards": {
+    "productionSeeded": false,
+    "credentialsChanged": false,
+    "realPatientWorkflowsUsed": false,
+    "userSignInRequired": false,
+    "clinicalReadiness": "blocked",
+    "nationalTransportEnabled": false,
+    "gitDeploymentGuardPreserved": true
+  },
+  "recovery": {
+    "previousDeployment": "dpl_7dQC4aP5KLoWcwgDwboabjUGGV5c",
+    "previousSource": "acd30b4b46042a910c1dcead64c944154212c7b6",
+    "procedure": "Reconcile any later live release before an application rollback. Keep all database records; do not restore an old database over subsequent writes.",
+    "previousKnownDefects": "Retained 1.6.0 has the documented blanket observation flags and raw-input coercion defects. Any application rollback needs explicit assessment of these known defects and later live state; no database restore is implied."
+  },
+  "coordination": {
+    "releaseOwner": "01a14169-4f35-7311-bc6c-50c958c1f476",
+    "otherAgents": "01a13c99 prescribing; 01a141a2 unified triage; all contributor work retained through normal integration"
+  },
+  "limitations": [
+    "Clinical, legal, DHA/HIE, security and independent restore acceptance",
+    "Governed historical record correction if required",
+    "Broader raw numeric input audit",
+    "Later recall audit reduced branch classifications to five; frozen release inventory still has eight"
+  ],
+  "allAgentGate": {
+    "requirement": "All available participating agents independently review and retest the frozen source before deployment",
+    "participantCount": 10,
+    "status": "passed before deployment",
+    "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+    "details": "2026-10-16-1.6.1-candidate.json",
+    "coordinatorRetainedGate": {
+      "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+      "status": "passed",
+      "ownerRequirement": "All releases must go through test run and retest using all available agents before deployment.",
+      "coordinatorReviewers": {
+        "threshold_review": {
+          "finalSourceRetest": "passed",
+          "focusedTests": 71,
+          "invalidInputCases": 108,
+          "numericCompatibilityCases": 594,
+          "evidence": "triage-threshold-independent-review-a0a0909.json"
+        },
+        "test_validity": {
+          "finalSourceRetest": "passed",
+          "focusedTests": 56,
+          "independentRawInputCases": 135,
+          "scope": "Independent persisted flags oracle, exact timestamp assertion, no null-to-zero assertion, singleton arrays, omitted pain and unchanged waiting queue"
+        },
+        "release_review": {
+          "finalSourceRetest": "passed",
+          "focusedTests": 52,
+          "scope": "No database/auth/deployment changes; immutable prior release; fresh backup required for any future DB change; application-only evidence and owner retest gate"
+        }
+      },
+      "mainReviewers": {
+        "logic": {
+          "reportedFinalSourceRetest": "passed",
+          "focusedTests": 56,
+          "inputCases": 118,
+          "validAlertDifferentialCases": 331776
+        },
+        "data": {
+          "reportedFinalSourceRetest": "passed",
+          "focusedTests": 56,
+          "scope": "Script syntax and independent persisted-data oracle"
+        },
+        "release": {
+          "reportedFinalSourceRetest": "passed",
+          "focusedTests": 86,
+          "scope": "Preflight, version, source hashes and no database diff; outstanding audit classifications retained"
+        }
+      },
+      "triageContributor": {
+        "finalUnitTests": 727,
+        "unitFiles": 112,
+        "unitResult": "passed",
+        "independentRawInputCases": 157,
+        "affectedBrowserRetest": "passed: 10 scenarios, fresh identified production build bHOUvLx8B02fcurxbz8ew, full database fixture readiness barrier, exit 0"
+      },
+      "mainFullRegression": "passed: 727 unit tests / 112 files and all 119 browser scenarios on exact source; hosted CI confirms 159 synthetic checks",
+      "coordinatorBrowserRetest": "passed: fresh exact-source build hgVlkrRIeMR49Xoz19FZq, 158 explicitly logged browser-hold fixture checks and 10 browser scenarios, exit 0",
+      "exactSourceCi": {
+        "runId": 38823251519,
+        "status": "completed-success"
+      },
+      "failureHistory": [
+        "1.6.0 values/links/count checks missed per-observation flags; defect recorded at promotion and new patch required.",
+        "684ebbe candidate passed narrow checks but raw numeric coercion gap was subsequently found; never deployed and superseded.",
+        "Raw SQL timestamp comparison used host timezone; replaced with exact SQL epoch comparison, retaining failed startup log.",
+        "A reviewer unit run overlapped intentional RED source swap at 02:21:33-02:21:38 EAT; invalidated and retested frozen source.",
+        "Superseded concurrent local runs had two filesystem-test timeouts and a fixture cleanup 25P02 masking its first error. Retained as failures; no safeguard relaxed. Final heavy runs are serialized."
+      ],
+      "limits": [
+        "Synthetic clinical tests only; no production patient workflow",
+        "Threshold regression is not clinical approval",
+        "Existing historical observations and retry receipts remain unchanged",
+        "Raw numeric validation audit beyond triage remains separate backlog"
+      ],
+      "additionalActiveRecallContributor": {
+        "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+        "tests": 81,
+        "files": 6,
+        "result": "passed",
+        "scope": "Independent clean-checkout source review and focused release/triage tests; no production mutation"
+      }
+    }
+  },
+  "independentPublicVerification": "2026-10-16-1.6.1-independent-live.json",
+  "correctedIssues": [
+    "Unrelated normal observations incorrectly marked abnormal when any alert fired",
+    "Blank, null, boolean or array triage inputs coerced into apparent measurements"
+  ],
+  "historicalRecordPolicy": "No retrospective rewrite; this patch corrects new observations and validates incoming raw numeric types."
+}
