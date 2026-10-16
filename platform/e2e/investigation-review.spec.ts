@@ -59,7 +59,10 @@ test("draft diagnostics stay in their workbenches until verification releases th
   expect((await request.post(`/api/orders/${labOrder.id}/laboratory-result`, { headers: laboratory, data: { action: "SAVE_DRAFT", ...labData } })).status()).toBe(409);
 
   // Exercise real authorization and facility predicates, not mocked query arguments.
-  const other = await authenticate(request, "shared.user@example.test", "OTHER");
+  const other = await authenticate(request, "diagnostic.other@example.test", "OTHER");
+  const otherUser = (await get("/api/auth/me", other)).user;
+  expect(otherUser.facility.code).toBe("OTHER");
+  expect(otherUser.permissions).toEqual(expect.arrayContaining(["clinical.history.read", "clinical.summary.read", "clinical.results.read"]));
   for (const path of reads.slice(0, 3)) {
     for (const [headers, status] of [[{ cookie: "" }, 401], [reception, 403]] as const) {
       const denied = await request.get(path, { headers });
