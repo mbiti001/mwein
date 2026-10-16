@@ -7,13 +7,15 @@ The supported Vercel project is `mwein-hmis-platform` (`prj_dhuD47K8aNRoAteqQnSK
 ## Link inventory and release controls
 
 - The canonical host is the public HMIS entry. HMIS sign-in, facility permissions, MFA and clinical readiness gates remain applicable.
-- Generated branch aliases and the team-qualified alias are not staff links. A link audit on 16 October 2026 found 13 alternate aliases returning Vercel sign-in; 12 pointed to older deployments. The canonical host alone returned the current public application.
+- Generated branch aliases and the team-qualified alias are not staff links. The initial audit found 13 alternate aliases returning Vercel sign-in; 12 pointed to older deployments. All 13 are now explicit redirect-only project domains pointing to the canonical host, verified independently on 16 October 2026.
 - Unique deployment URLs and deployment IDs in release records identify historical builds. Preserve them for provenance and reviewed recovery; do not rewrite historical evidence to imply those builds were the current release.
 - Preview deployment protection must remain enabled. Do not make old builds public to solve a broken bookmark. Any alternate-host redirect must be verified publicly without changing protection on the underlying deployment.
 
 One release coordinator owns alias and production changes. Before changing an alias, retain its exact project, host, old deployment ID and redirect, and recheck the canonical live identity. Verify the result from an unauthenticated client, including the destination, path and query preservation, absence of loops, and unchanged canonical release. Retain a concrete undo operation. An API success alone is not proof that users can follow a link.
 
-The initial direct-alias redirect canary was accepted by Vercel but still led to Vercel SSO because protection ran first. It was restored to its old mapping. This document does not claim that all alternate links have been redirected; completed live changes belong in the workflow log and routing evidence.
+The initial direct-alias redirect canary was accepted by Vercel but still led to Vercel SSO because protection ran first. It was restored to its old mapping. The coordinator then used explicit project-domain redirects with status 307; independent public checks passed for all 13 alternate hosts, retaining exact paths and query strings. The project protection policy was not relaxed. Two historical unique deployment URLs still required Vercel authentication.
+
+Independent verification at `2026-10-16T20:59:26Z` passed 28 root/health-path checks across all 14 hosts. Actual Chrome navigation from an old branch address reached the canonical HMIS sign-in at desktop, tablet and 390/320 px, with no horizontal overflow or page errors. The canonical health response remained version **1.6.1**, source `a0a0909bf61d2b0e382689a523b3b126d40d9eb6`, deployment `dpl_4XsM4VZuihAG9BFNiHzjDD7WR335`. This was a routing correction, not an application release. No patient workflows were run.
 
 ## Prevent recurrence
 
