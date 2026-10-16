@@ -2,6 +2,8 @@
 
 > **Canonical application:** the supported product is the Next.js/PostgreSQL application in [`platform/`](platform/). The root Node/SQLite application is retained as a legacy compatibility pilot only; do not use its deployment files for a new clinical deployment.
 
+**Production entry point:** [Open Mwein HMIS](https://mwein-hmis-platform.vercel.app/). Use this address for staff bookmarks and shared HMIS links. Branch previews and unique deployment URLs are engineering/release evidence, not alternate staff entry points. See the [production link policy](platform/PRODUCTION_LINKS.md). Hosting in production does not replace the clinical readiness and acceptance gates.
+
 ## Supported platform development and release
 
 Start in `platform/`: run `npm ci`, `npm run db:generate`, then `npm test` and `npm run build`. Database configuration and the controlled release sequence are documented in [`platform/OPERATIONS.md`](platform/OPERATIONS.md).
