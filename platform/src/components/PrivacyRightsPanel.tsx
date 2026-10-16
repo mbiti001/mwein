@@ -8,6 +8,7 @@ import RightsIdentityForm from "./RightsIdentityForm";
 import type { IdentityEvidence } from "@/lib/privacy-identity";
 import RightsDeliveryForm from "./RightsDeliveryForm";
 import type { DeliveryEvidence } from "@/lib/privacy-delivery";
+import { demographicCorrectionValue } from "@/lib/demographic-correction-input";
 
 const rightsDate = (value: string) => new Date(value).toLocaleString("en-GB", { timeZone: "Africa/Nairobi", dateStyle: "medium", timeStyle: "short" });
 
@@ -153,10 +154,11 @@ export default function PrivacyRightsPanel() {
     if (!allowed.has(field)) { setError("That field is not available for controlled demographic correction."); return; }
     const raw = window.prompt("Corrected value (use YYYY-MM-DD for date of birth, or NULL to clear an optional field):");
     if (raw === null) return;
+    let value: string | number | null;
+    try { value = demographicCorrectionValue(field, raw); }
+    catch (reason) { setError((reason as Error).message); return; }
     const reason = window.prompt("Correction reason and verification evidence:");
     if (!reason) return;
-    let value: string | number | null = raw === "NULL" ? null : raw;
-    if (field === "estimatedAgeYears" && value !== null) value = Number(value);
     await act({ action: "APPLY_DEMOGRAPHIC_CORRECTION", requestId: item.id, reason, changes: { [field]: value } }, "Verified demographic correction applied and request completed.");
   }
 

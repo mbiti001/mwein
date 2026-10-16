@@ -1,5 +1,7 @@
 # DHA app audit and implementation backlog
 
+> Status clarification, 16 October 2026: dated implementation and deployment statements below retain their original assessment baseline. Current deployed versions are recorded in the [release ledger](../releases/versions.json); verified live 1.6.1 and later 73-route source-classification completion are documented in the [workflow log](../../WORKFLOW_IMPROVEMENT_LOG.md). Versioning is implemented. Source classification is not complete action/session coverage or external acceptance. See [current remaining-work status](REMAINING-WORK-STATUS.md).
+
 22 September 2026 • Accountable owner: Edwin Mbiti Chavulimu • Status: not certification-ready
 
 ## Implementation update

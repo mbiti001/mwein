@@ -1,5 +1,7 @@
 # Mwein legal assessment baseline and control backlog
 
+> Status clarification, 16 October 2026: dated implementation and deployment statements below retain their original assessment baseline. Current deployed versions are recorded in the [release ledger](../releases/versions.json); verified live 1.6.1 and later 73-route source-classification completion are documented in the [workflow log](../../WORKFLOW_IMPROVEMENT_LOG.md). Versioning is implemented. Source classification is not complete action/session coverage or external acceptance. See [current remaining-work status](REMAINING-WORK-STATUS.md).
+
 Baseline 1 · 15 October 2026 · Engineering assessment, pending accountable legal and operational review.
 
 The seven documents supplied by the user are assessment inputs for Mwein. This register adds requirements to the existing workflow and numbered-release pipeline. It does not replace completed evidence or confer certification. Read alongside the [workflow log](../../WORKFLOW_IMPROVEMENT_LOG.md), [DPIA draft](PRIVACY-DPIA-AND-PROCEDURES-DRAFT.md), [evidence register](EVIDENCE-REGISTER.md) and [sign-off checklist](DOCUMENT-CHECKLIST-AND-SIGNOFF.md). Older pack documents describe their dated baseline, not today's deployment.

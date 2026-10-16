@@ -1,6 +1,8 @@
 # Remaining DHA work — current implementation status
 
-22 September 2026. Accountable owner: Edwin Mbiti Chavulimu. **Not yet certification-ready or deployed.** This is the current engineering status; older dated audit evidence remains a baseline.
+Accountable owner: Edwin Mbiti Chavulimu. **Engineering deployment is verified; certification and clinical acceptance remain outstanding.** Updated 16 October 2026. The deployed identity and verification are in the [release ledger](../releases/versions.json) and [1.6.1 release evidence](../releases/2026-10-16-1.6.1.json). The table and implementation-round notes below retain the 22 September baseline; they are not a current deployment checklist. Later verified work and outstanding priorities are maintained in the [workflow log](../../WORKFLOW_IMPROVEMENT_LOG.md).
+
+The later 73-route classification is complete for its reviewed source; action/session coverage, independent security review, operational custody and acceptance still require evidence. The 1.6.2 demographic correction is reserved and under review, not deployed.
 
 | Checklist item | Current result | Remaining exit condition |
 |---|---|---|

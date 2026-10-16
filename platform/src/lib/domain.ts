@@ -35,7 +35,7 @@ export const patientRegistrationSchema = z.object({
   familyName: z.string().trim().min(1).max(60).optional(),
   fullName: z.string().trim().min(3).max(160).optional(),
   dateOfBirth: z.iso.date().optional(),
-  estimatedAgeYears: z.coerce.number().int().min(0).max(120).optional(),
+  estimatedAgeYears: z.union([z.number(), z.string().trim().min(1)]).pipe(z.coerce.number()).pipe(z.number().int().min(0).max(120)).optional(),
   sexAtBirth: z.enum(["FEMALE", "MALE", "INTERSEX", "UNKNOWN"]).default("UNKNOWN"),
   phone: z.string().trim().min(7).max(30).optional(),
   alternativePhone: z.string().trim().max(30).optional(),
