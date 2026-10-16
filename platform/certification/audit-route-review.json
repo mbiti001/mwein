@@ -216,7 +216,7 @@
       "methodExceptions": {}
     },
     "queues": {
-      "sourceSha256": "5f6716c4d39e8859d42436ac68bb7231c29c02464c0195f9d0b097d223d6764e",
+      "sourceSha256": "026bb169d613218f2e8214af578ed1caa6d8d9824858e83cba85d2acc7104db8",
       "methodExceptions": {}
     },
     "ready": {
@@ -303,6 +303,10 @@
     },
     "visits/[id]/investigations": {
       "sourceSha256": "ce8ac4a66db868ab9651d9e1b7a7f79a60aa6b5b90a07a5946e9d7e8323c5d0c",
+      "methodExceptions": {}
+    },
+    "supply/documents": {
+      "sourceSha256": "6bbc42a2ecb3a35abc94d352443d20638f2dd649ad56713325ab8e4d948bbdf7",
       "methodExceptions": {}
     }
   }

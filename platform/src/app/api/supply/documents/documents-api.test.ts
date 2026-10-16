@@ -73,6 +73,8 @@ describe("supply document disclosure", () => {
     expect(response.status).toBe(200);
     expect((await response.json()).document).toMatchObject({ status: "CANCELLED", cancellationReason: "Supplier unable to deliver", total: "25.50", lines: [{ quantity: "10", receivedQuantity: "3" }], actors: [{ label: "Prepared by", name: "Maker" }, { label: "Cancelled by", name: "Checker" }] });
     expect(db.purchaseOrder.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id, facilityId: actor.facilityId } }));
+    expect(db.catalogItem.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { facilityId: actor.facilityId, id: { in: ["item"] } } }));
+    expect(db.user.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { facilityId: actor.facilityId, id: { in: ["maker", "checker"] } } }));
     expect(recordDisclosure).toHaveBeenCalledWith(actor, "OPERATIONS_READ:supply-document-print", [id], expect.objectContaining({ status: "CANCELLED" }));
   });
   it("bounds each facility-scoped document list and reports truncation", async () => {
@@ -85,5 +87,46 @@ describe("supply document disclosure", () => {
     expect(body.documents.filter((item: { kind: string }) => item.kind === "PURCHASE_ORDER")).toHaveLength(100);
     expect(db.goodsReceipt.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { facilityId: actor.facilityId }, take: 101 }));
     expect(recordDisclosure).toHaveBeenCalledWith(actor, "OPERATIONS_READ:supply-documents", expect.any(Array), body);
+  });
+  it.each(["PURCHASE_ORDER", "GOODS_RECEIPT"])("rejects anonymous %s printing before reads", async kind => {
+    vi.mocked(requirePermission).mockRejectedValue(Object.assign(new Error("Unauthenticated"), { status: 401 }));
+    expect((await POST(request(kind, "PRINT"))).status).toBe(401);
+    expect(db.purchaseOrder.findFirst).not.toHaveBeenCalled(); expect(db.goodsReceipt.findFirst).not.toHaveBeenCalled();
+  });
+  it("rejects foreign orders before catalogue and staff lookups", async () => {
+    vi.mocked(db.purchaseOrder.findFirst).mockResolvedValue(null);
+    expect((await POST(request("PURCHASE_ORDER", "PRINT"))).status).toBe(404);
+    expect(db.purchaseOrder.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id, facilityId: actor.facilityId } }));
+    expect(db.catalogItem.findMany).not.toHaveBeenCalled(); expect(db.user.findMany).not.toHaveBeenCalled();
+    expect(recordDisclosure).not.toHaveBeenCalled();
+  });
+  it.each([{ kind: "INVALID", id, intent: "PREVIEW" }, { kind: "GOODS_RECEIPT", id: "invalid", intent: "PRINT" }, { kind: "GOODS_RECEIPT", id, intent: "SEND" }])("rejects malformed document requests before reads: %j", async input => {
+    expect((await POST(new Request("http://localhost/api/supply/documents", { method: "POST", body: JSON.stringify(input) }))).status).toBe(422);
+    expect(db.goodsReceipt.findFirst).not.toHaveBeenCalled(); expect(db.purchaseOrder.findFirst).not.toHaveBeenCalled();
+  });
+  it("waits for preview disclosure auditing before returning contents", async () => {
+    let release!: () => void;
+    vi.mocked(recordDisclosure).mockImplementation(() => new Promise<void>(resolve => { release = resolve; }));
+    let returned = false; const pending = POST(request()).then(response => { returned = true; return response; });
+    await vi.waitFor(() => expect(recordDisclosure).toHaveBeenCalled()); expect(returned).toBe(false);
+    release(); expect((await pending).status).toBe(200);
+  });
+  it("withholds the document index on audit failure", async () => {
+    vi.mocked(db.purchaseOrder.findMany).mockResolvedValue([]); vi.mocked(db.goodsReceipt.findMany).mockResolvedValue([]);
+    vi.mocked(recordDisclosure).mockRejectedValue(new Error("Synthetic audit outage"));
+    const response = await GET(); expect(response.status).toBe(500); expect(await response.json()).not.toHaveProperty("documents");
+  });
+  it("audits only the disclosed receipts, never the extra truncation sentinel", async () => {
+    vi.mocked(db.purchaseOrder.findMany).mockResolvedValue([]);
+    vi.mocked(db.goodsReceipt.findMany).mockResolvedValue(Array.from({ length: 101 }, (_, i) => ({ id: `receipt-${i}`, receiptNumber: `GRN-${i}`, receivedAt: new Date(snapshot.date), snapshot })) as never);
+    const response = await GET(); const body = await response.json();
+    expect(body.documents).toHaveLength(100); expect(body.truncated).toBe(true);
+    expect(recordDisclosure).toHaveBeenCalledWith(actor, "OPERATIONS_READ:supply-documents", Array.from({ length: 100 }, (_, i) => `receipt-${i}`), body);
+    expect(db.purchaseOrder.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { facilityId: actor.facilityId }, take: 101 }));
+  });
+  it("fails closed for malformed retained receipt evidence", async () => {
+    vi.mocked(db.goodsReceipt.findFirst).mockResolvedValue({ snapshot: { ...snapshot, actors: "corrupt" } } as never);
+    const response = await POST(request()); expect(response.status).toBe(422);
+    expect(await response.json()).not.toHaveProperty("document"); expect(recordDisclosure).not.toHaveBeenCalled();
   });
 });
