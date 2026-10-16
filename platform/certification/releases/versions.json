@@ -82,6 +82,13 @@
       "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
       "deploymentId": "dpl_4XsM4VZuihAG9BFNiHzjDD7WR335",
       "evidence": "2026-10-16-1.6.1.json"
+    },
+    {
+      "version": "1.6.2",
+      "displayName": "1.6.2",
+      "status": "reserved",
+      "branch": "codex/mwein-platform",
+      "note": "Demographic input safety: reject fabricated estimated ages and prevent unintended corrections or clears; all-agent frozen-source testing and retesting required before coordinated deployment."
     }
   ]
 }
