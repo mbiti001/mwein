@@ -1,0 +1,72 @@
+{
+  "checkedAt": "2026-10-16T15:49:23.972Z",
+  "health": {
+    "status": "ok",
+    "database": "connected",
+    "migration": "20261016010000_rights_identity_evidence",
+    "release": {
+      "version": "1.6.1",
+      "commit": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+      "shortCommit": "a0a0909bf61d",
+      "environment": "production",
+      "branch": "codex/mwein-platform",
+      "deployment": "dpl_4XsM4VZuihAG9BFNiHzjDD7WR335",
+      "application": "mwein-hmis-platform"
+    },
+    "time": "2026-10-16T15:49:25.129Z"
+  },
+  "access": [
+    {
+      "path": "/api/auth/me",
+      "status": 401,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "path": "/api/catalog",
+      "status": 401,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "path": "/api/visits/00000000-0000-4000-8000-000000000001/vitals",
+      "status": 401,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "path": "/api/orders/00000000-0000-4000-8000-000000000001/dispense",
+      "status": 401,
+      "cacheControl": "private, no-store"
+    }
+  ],
+  "viewports": [
+    {
+      "width": 1440,
+      "scrollWidth": 1440,
+      "buildText": "Mwein 1.6.1 · Build a0a0909bf61d"
+    },
+    {
+      "width": 768,
+      "scrollWidth": 768,
+      "buildText": "Mwein 1.6.1 · Build a0a0909bf61d"
+    },
+    {
+      "width": 390,
+      "scrollWidth": 390,
+      "buildText": "Mwein 1.6.1 · Build a0a0909bf61d"
+    },
+    {
+      "width": 320,
+      "scrollWidth": 320,
+      "buildText": "Mwein 1.6.1 · Build a0a0909bf61d"
+    }
+  ],
+  "readiness": {
+    "status": 503
+  },
+  "pageErrors": [],
+  "keyboardDisclosure": true,
+  "printBuildHidden": true,
+  "visualReview": "390px screenshot reviewed: clinician/patient image visible; sign-in fields, buttons, content and version fit; no overlap",
+  "reviewer": "main chat independent verification",
+  "scope": "Read-only public endpoints and signed-out installed Chrome; no patient records or clinical workflow executed",
+  "clinicalReadiness": "Blocked; engineering deployment is not patient-use approval"
+}
