@@ -1,13 +1,16 @@
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { appendAudit } from "@/lib/audit";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, SESSION_IDLE_MS } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { recordDisclosure } from "@/lib/disclosure-audit";
 import { apiError, privateJson } from "@/lib/http";
 import { hashPassword } from "@/lib/security";
 import { staffChangeIsSafe } from "@/lib/staff";
 import { canAssignRole, canManageStaff } from "@/lib/staff-access";
+import { MFA_CHALLENGE_MS, sessionNeedsMfa } from "@/lib/mfa-policy";
+import { roleScopedPermissions } from "@/lib/role-permissions";
+import { workflowTransaction } from "@/lib/workflow-transaction";
 
 const roleCode = z.enum(["SYSTEM_ADMIN", "FACILITY_ADMIN", "MEDICAL_DIRECTOR", "FINANCE_MANAGER", "HR_ADMIN", "AUDITOR", "DATA_PROTECTION_OFFICER", "RECEPTION", "NURSE", "CLINICIAN", "CLINICIAN_COVER", "LABORATORY", "IMAGING", "PHARMACY", "PHARMACY_MANAGER", "BILLING"]);
 const createSchema = z.object({
@@ -24,6 +27,30 @@ const updateSchema = z.object({
 }).refine((value) => value.roleCode || value.status || value.temporaryPassword, "Choose a staff change");
 
 const staffInclude = { mfaCredential: { select: { enabledAt: true } }, roles: { include: { role: true } } } as const;
+
+async function currentStaffActor(tx: Prisma.TransactionClient, actor: { id: string; sessionId: string; facilityId: string }) {
+  // A retry must not reuse authority that was revoked while its first attempt aborted.
+  const session = await tx.session.findUnique({ where: { id: actor.sessionId }, include: { user: { include: {
+    mfaCredential: { select: { enabledAt: true, recoveryRequired: true } },
+    roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } },
+  } } } });
+  const now = new Date();
+  if (!session || session.userId !== actor.id || session.user.id !== actor.id || session.user.facilityId !== actor.facilityId || session.user.status !== "ACTIVE" || session.expiresAt <= now || session.lastSeenAt.getTime() <= now.getTime() - SESSION_IDLE_MS)
+    throw Object.assign(new Error("Authentication required"), { status: 401 });
+  const mfaRequired = sessionNeedsMfa(Boolean(session.user.mfaCredential?.enabledAt || session.user.mfaCredential?.recoveryRequired), session.mfaVerifiedAt);
+  if (mfaRequired && session.createdAt.getTime() < now.getTime() - MFA_CHALLENGE_MS)
+    throw Object.assign(new Error("Authentication required"), { status: 401 });
+  if (session.user.mustChangePassword)
+    throw Object.assign(new Error("Change your temporary password before continuing"), { status: 403, code: "PASSWORD_CHANGE_REQUIRED" });
+  if (mfaRequired)
+    throw Object.assign(new Error("Complete multi-factor authentication before continuing"), { status: 403, code: "MFA_REQUIRED" });
+  const roles = session.user.roles.map(item => item.role.code);
+  const permissions = roleScopedPermissions(session.user.roles.map(item => ({
+    code: item.role.code, permissions: item.role.permissions.map(value => value.permission.code),
+  })));
+  if (!permissions.includes("admin.users")) throw Object.assign(new Error("Permission denied"), { status: 403 });
+  return { id: session.user.id, sessionId: session.id, facilityId: session.user.facilityId, roles, permissions };
+}
 
 export async function GET() {
   try {
@@ -72,9 +99,10 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const user = await requirePermission("admin.users");
+    const actor = await requirePermission("admin.users");
     const input = updateSchema.parse(await request.json());
-    const updated = await db.$transaction(async (tx) => {
+    const updated = await workflowTransaction(async (tx) => {
+      const user = await currentStaffActor(tx, actor);
       const target = await tx.user.findFirst({ where: { id: input.id, facilityId: user.facilityId }, include: staffInclude });
       if (!target) throw Object.assign(new Error("Staff account not found"), { status: 404 });
       const access = { actorRoles: user.roles, canAssignGovernance: user.permissions.includes("admin.assign_governance") };
@@ -103,7 +131,7 @@ export async function PATCH(request: Request) {
         await tx.session.deleteMany({ where: { userId: target.id } });
       await appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: input.temporaryPassword ? "STAFF_PASSWORD_RESET" : "STAFF_ACCESS_UPDATED", entityType: "User", entityId: target.id, beforeHash: `${target.status}:${target.roles.map((item) => item.role.code).join(",")}`, afterHash: `${staff.status}:${staff.roles.map((item) => item.role.code).join(",")}` });
       return staff;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    });
     const { passwordHash: _passwordHash, ...safeStaff } = updated;
     return privateJson({ user: safeStaff });
   } catch (error) { return apiError(error); }
