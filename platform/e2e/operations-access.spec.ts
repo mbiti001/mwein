@@ -24,7 +24,7 @@ test("queue and supply access retains facility boundaries and persisted audit ev
   expect((await get("/api/auth/me", foreign)).user.permissions).toContain("encounter.write");
   expect((await get("/api/auth/me", foreignSupply)).user.permissions).toContain("inventory.view");
   for (const path of ["/api/queues", "/api/supply/documents"]) expect((await request.get(path, { headers: { cookie: "" } })).status()).toBe(401);
-  const { patient } = await post("/api/patients", { givenName: "Operations", familyName: `Synthetic-${randomUUID().slice(0,8)}`, estimatedAgeYears: 31, sexAtBirth: "UNKNOWN", county: "Nairobi", subcounty: "Westlands", treatmentConsent: true, electronicRecordConsent: true, messagingConsent: false });
+  const { patient } = await post("/api/patients", { givenName: "Operations", familyName: `Synthetic-${randomUUID().slice(0,8)}`, phone: "+254700000007", estimatedAgeYears: 31, sexAtBirth: "UNKNOWN", county: "Nairobi", subcounty: "Westlands", treatmentConsent: true, electronicRecordConsent: true, messagingConsent: false });
   const { visit } = await post("/api/visits", { patientId: patient.id, clinic: "Outpatient", priority: "ROUTINE", visitType: "WALK_IN", idempotencyKey: randomUUID() });
   const queue = (await get("/api/queues")).entries.find((row: any) => row.visit.id === visit.id);
   expect(queue?.servicePoint).toBe("TRIAGE");
