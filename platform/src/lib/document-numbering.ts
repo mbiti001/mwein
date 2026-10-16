@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import type { DocumentKind } from "./clinic-documents";
+import { isRetryableTransactionConflict } from "./transaction-conflict";
 type NumberedDocumentKind = DocumentKind | "PO" | "GRN";
 
 export function documentYear(timezone: string, now = new Date()): number {
@@ -27,8 +28,8 @@ export async function retryDocumentTransaction<T>(operation: () => Promise<T>): 
   for (let attempt = 0; ; attempt++) {
     try { return await operation(); }
     catch (error) {
-      const code = (error as { code?: string }).code;
-      if (attempt >= 3 || !["P2034", "P2002"].includes(code || "")) throw error;
+      const code = error && typeof error === "object" ? (error as { code?: unknown }).code : undefined;
+      if (attempt >= 3 || !(isRetryableTransactionConflict(error) || code === "P2002")) throw error;
     }
   }
 }

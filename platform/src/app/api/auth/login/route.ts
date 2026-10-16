@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { appendAudit } from "@/lib/audit";
 import { db } from "@/lib/db";
@@ -14,6 +13,7 @@ import {
 import { hashPassword, hashToken, newSessionToken, verifyPassword } from "@/lib/security";
 import { currentUser, SESSION_COOKIE } from "@/lib/auth";
 import { workforceMfaRequired, MFA_CHALLENGE_MS } from "@/lib/mfa";
+import { workflowTransaction } from "@/lib/workflow-transaction";
 
 const inputSchema = z.object({
   facilityCode: z.string().trim().min(2).max(30).transform((value) => value.toUpperCase()),
@@ -28,21 +28,15 @@ async function recordFailure(input: {
   emailHash: string;
   ipHash: string;
 }) {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      return await db.$transaction(async (tx) => {
-        const current = await tx.loginThrottle.findUnique({ where: { key: input.key } });
-        const next = nextLoginFailure(current);
-        return tx.loginThrottle.upsert({
-          where: { key: input.key },
-          update: { ...next, facilityId: input.facilityId, emailHash: input.emailHash, ipHash: input.ipHash },
-          create: { ...input, ...next, facilityId: input.facilityId },
-        });
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    } catch (error) {
-      if ((error as { code?: string }).code !== "P2034" || attempt === 2) throw error;
-    }
-  }
+  return workflowTransaction(async (tx) => {
+    const current = await tx.loginThrottle.findUnique({ where: { key: input.key } });
+    const next = nextLoginFailure(current);
+    return tx.loginThrottle.upsert({
+      where: { key: input.key },
+      update: { ...next, facilityId: input.facilityId, emailHash: input.emailHash, ipHash: input.ipHash },
+      create: { ...input, ...next, facilityId: input.facilityId },
+    });
+  });
 }
 
 export async function POST(request: Request) {
@@ -94,7 +88,7 @@ export async function POST(request: Request) {
     const token = newSessionToken();
     const mfaRequired = workforceMfaRequired() || Boolean(user.mfaCredential?.enabledAt || user.mfaCredential?.recoveryRequired);
     const expiresAt = new Date(Date.now() + (mfaRequired ? MFA_CHALLENGE_MS : 8 * 60 * 60 * 1000));
-    await db.$transaction(async (tx) => {
+    await workflowTransaction(async (tx) => {
       const created = await tx.session.create({
         data: { userId: user.id, tokenHash: hashToken(token), expiresAt, ipHash, userAgent: request.headers.get("user-agent")?.slice(0, 300) },
       });
@@ -107,9 +101,9 @@ export async function POST(request: Request) {
         entityType: "Session",
         entityId: created.id,
       });
+      await tx.loginThrottle.deleteMany({ where: { key: identity.key } });
       return created;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    await db.loginThrottle.deleteMany({ where: { key: identity.key } });
+    });
     (await cookies()).set(SESSION_COOKIE, token, { httpOnly: true, secure: true, sameSite: "strict", path: "/", expires: expiresAt });
     return NextResponse.json({ user: await currentUser(), expiresAt }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { return apiError(error); }
