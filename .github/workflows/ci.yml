@@ -13,6 +13,29 @@ jobs:
     name: Platform verification
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      workflow-postgres:
+        image: postgres:18.3
+        env:
+          POSTGRES_USER: mwein_e2e_fixture
+          POSTGRES_PASSWORD: synthetic-ci-password
+          POSTGRES_DB: mwein_e2e_workflow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mwein_e2e_fixture -d mwein_e2e_workflow"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+      browser-postgres:
+        image: postgres:18.3
+        env:
+          POSTGRES_USER: mwein_e2e_fixture
+          POSTGRES_PASSWORD: synthetic-ci-password
+          POSTGRES_DB: mwein_e2e_browser
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U mwein_e2e_fixture -d mwein_e2e_browser"
+          --health-interval 5s --health-timeout 5s --health-retries 12
     defaults:
       run:
         working-directory: platform
@@ -43,10 +66,13 @@ jobs:
         run: npm run test:e2e
         env:
           E2E_PRODUCTION: "1"
+          E2E_TEST_DATABASE_URL: postgresql://mwein_e2e_fixture:synthetic-ci-password@127.0.0.1:5432/mwein_e2e_workflow
       - name: Install browser
         run: npx playwright install --with-deps chromium
       - name: Verify browser workflows
         run: npm run test:browser
+        env:
+          E2E_TEST_DATABASE_URL: postgresql://mwein_e2e_fixture:synthetic-ci-password@127.0.0.1:5433/mwein_e2e_browser
       - name: Build certification evidence index
         run: node scripts/certification-evidence.mjs --commit "$GITHUB_SHA" > certification/evidence-index.json
       - name: Retain certification evidence index

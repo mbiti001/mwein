@@ -8,8 +8,7 @@ import { readdir } from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { PGlite } from "@electric-sql/pglite";
-import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
+import { createE2eDatabase } from "./e2e-database.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const nextCli = path.join(root, "node_modules/next/dist/bin/next");
@@ -150,25 +149,22 @@ async function authenticate(facilityCode, email) {
   return { ...result, cookie };
 }
 
-const pg = new PGlite();
-await pg.waitReady;
+let pg;
+let databaseBackend;
 const configuredDbPort = Number(process.env.E2E_DB_PORT || 0);
 const configuredAppPort = Number(process.env.E2E_APP_PORT || 0);
 const dbPort = configuredDbPort > 0 ? configuredDbPort : await availablePort();
 const appPort = configuredAppPort > 0 ? configuredAppPort : await availablePort();
-const socketServer = new PGLiteSocketServer({
-  db: pg,
-  host: "127.0.0.1",
-  port: dbPort,
-  maxConnections: 20,
-});
+
 let nextProcess;
 let nextOutput = "";
 
 try {
-  await socketServer.start();
-  const baseDatabaseUrl = `postgresql://postgres:postgres@127.0.0.1:${dbPort}/postgres?sslmode=disable&connection_limit=1`;
-  const applicationDatabaseUrl = `${baseDatabaseUrl}&pgbouncer=true`;
+  databaseBackend = await createE2eDatabase({ pglitePort: dbPort });
+  pg = databaseBackend.pg;
+  console.log(`E2E test database: ${databaseBackend.kind}`);
+  const baseDatabaseUrl = databaseBackend.databaseUrl;
+  const applicationDatabaseUrl = databaseBackend.applicationDatabaseUrl;
   const commonEnvironment = {
     DATABASE_URL: baseDatabaseUrl,
     BOOTSTRAP_ADMIN_PASSWORD: adminPassword,
@@ -1052,10 +1048,6 @@ try {
   }, 10_000);
   cleanupDeadline.unref();
   for (const child of childProcesses) await stopChild(child);
-  await socketServer.stop();
-  // pglite-socket defers socket-close handling with setImmediate; let it detach
-  // while the database is still alive, before destroying the WASM instance.
-  await new Promise((resolve) => setImmediate(resolve));
-  await pg.close();
+  await databaseBackend?.close();
   clearTimeout(cleanupDeadline);
 }
