@@ -1,0 +1,48 @@
+{
+  "recordedAtUtc": "2026-10-16T21:50:35.1636986Z",
+  "reviewedSource": "b9ea4059cc8acab6aaea98dd21be8e26370a319a",
+  "buildId": "Hz-ik2Bp40grHxahF2-vy",
+  "runtimeChanges": false,
+  "databaseChanges": false,
+  "unitTests": 56,
+  "addedTests": 21,
+  "unitFiles": 2,
+  "typecheck": "passed",
+  "browserAssertions": 15,
+  "browserPassed": true,
+  "browserData": "intercepted synthetic API responses; unreachable placeholder database",
+  "viewports": [
+    1440,
+    768,
+    390,
+    320
+  ],
+  "print": "media emulation; not physical printer or multipage pagination",
+  "browserEvidenceSha256": "6bbef555f03f0eca83e8298b41be9d85ccc4333d2fceea41a32eb0e09dea0c3f",
+  "sourceGitBlobs": [
+    {
+      "path": "platform/src/app/api/orders/[id]/diagnostic-review/route.ts",
+      "gitBlob": "97c389979d7788b7f533baceb3e34f501cffdbbf"
+    },
+    {
+      "path": "platform/src/app/api/diagnostic-reviews/route.ts",
+      "gitBlob": "3a4436a649c2621983e64470a3b6d267d75d0e89"
+    },
+    {
+      "path": "platform/src/lib/diagnostic-review.ts",
+      "gitBlob": "17a1a81f4343a7ab0d7f65798846c13b74d281f9"
+    },
+    {
+      "path": "platform/src/lib/auth.ts",
+      "gitBlob": "019bc27034fa408e37a92a9badc79679593d11c2"
+    },
+    {
+      "path": "platform/src/components/DiagnosticReviewWorkstation.tsx",
+      "gitBlob": "bf008fe70d031b4fe51b3b839ab3122b4927438b"
+    },
+    {
+      "path": "platform/prisma/migrations/20261015210000_diagnostic_review/migration.sql",
+      "gitBlob": "bcb95d1e3681bef4fe9ab6aefa2d06bcf55f07d2"
+    }
+  ]
+}

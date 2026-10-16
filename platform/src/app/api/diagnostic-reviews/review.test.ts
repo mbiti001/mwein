@@ -138,4 +138,99 @@ describe("diagnostic review authorization, ownership and evidence", () => {
     expect((await list(new Request("http://localhost/api/diagnostic-reviews?cursor=invalid"))).status).toBe(403);
     expect(db.clinicalOrder.findMany).not.toHaveBeenCalled();
   });
+
+  it.each([GET, POST])("authorizes detail access before parsing an invalid order ID", async handler => {
+    vi.mocked(requirePermission).mockRejectedValue(Object.assign(new Error("denied"), { status: 403 }));
+    expect((await handler(request(claim), { params: Promise.resolve({ id: "invalid" }) })).status).toBe(403);
+    expect(db.clinicalOrder.findFirst).not.toHaveBeenCalled();
+    expect(db.$transaction).not.toHaveBeenCalled();
+    expect(recordClinicalAccess).not.toHaveBeenCalled();
+  });
+
+  it("does not disclose or audit a missing or foreign-facility detail", async () => {
+    vi.mocked(db.clinicalOrder.findFirst).mockResolvedValue(null);
+    expect((await GET(new Request("http://localhost"), context)).status).toBe(404);
+    expect(db.clinicalOrder.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id, visit: { facilityId: actor.facilityId }, type: { in: ["LABORATORY", "IMAGING"] } },
+    }));
+    expect(recordClinicalAccess).not.toHaveBeenCalled();
+  });
+
+  it("allows an authorized reader to see saved ownership without offering write access", async () => {
+    vi.mocked(requirePermission).mockResolvedValue({ ...actor, permissions: ["clinical.results.read"] } as never);
+    vi.mocked(db.clinicalOrder.findFirst).mockResolvedValue(order([owner]) as never);
+    const response = await GET(new Request("http://localhost"), context);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ actorId, canReview: false, order: { diagnosticReviews: [owner] } });
+    expect(db.diagnosticReview.create).not.toHaveBeenCalled();
+  });
+
+  it("appends a new owner event and audits the previous event when another clinician takes responsibility", async () => {
+    const previous = { ...owner, actor: { id: resultId, displayName: "Previous clinician" } };
+    vi.mocked(db.clinicalOrder.findFirst).mockResolvedValue(order([previous]) as never);
+    expect((await POST(request({ ...claim, expectedEventId: eventId }), context)).status).toBe(201);
+    expect(db.diagnosticReview.create).toHaveBeenCalledWith({ data: expect.objectContaining({ actorId, sequence: 2, action: "CLAIM" }) });
+    expect(appendAudit).toHaveBeenCalledWith(db, expect.objectContaining({ beforeHash: auditValueFingerprint(eventId), sessionId: actor.sessionId }));
+  });
+
+  it("rejects a second claim by the current owner even with a fresh request key", async () => {
+    vi.mocked(db.clinicalOrder.findFirst).mockResolvedValue(order([owner]) as never);
+    expect((await POST(request({ ...claim, expectedEventId: eventId }), context)).status).toBe(409);
+    expect(db.diagnosticReview.create).not.toHaveBeenCalled();
+    expect(appendAudit).not.toHaveBeenCalled();
+  });
+
+  it.each(["CANCELLED", "ACKNOWLEDGED", "REASSIGNED"])("confirms a historical exact replay after %s without taking responsibility again", async state => {
+    const changed = order([{ ...owner, id: resultId, sequence: 2, action: state === "ACKNOWLEDGED" ? "ACKNOWLEDGE" : "CLAIM", actor: { id: resultId } }]);
+    if (state === "CANCELLED") changed.status = "CANCELLED";
+    vi.mocked(db.clinicalOrder.findFirst).mockResolvedValue(changed as never);
+    vi.mocked(db.diagnosticReview.findUnique).mockResolvedValue({ id: eventId, orderId: id, actorId, requestHash: auditValueFingerprint({ orderId: id, actorId, input: claim }) } as never);
+    const response = await POST(request(claim), context);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ eventId, replayed: true });
+    expect(db.diagnosticReview.create).not.toHaveBeenCalled();
+    expect(appendAudit).toHaveBeenCalledWith(db, expect.objectContaining({ action: "DIAGNOSTIC_REVIEW_REPLAYED", entityId: eventId, sessionId: actor.sessionId }));
+  });
+
+  it("requires current permissions even for a previously successful exact request", async () => {
+    vi.mocked(db.diagnosticReview.findUnique).mockResolvedValue({ id: eventId, orderId: id, actorId, requestHash: auditValueFingerprint({ orderId: id, actorId, input: claim }) } as never);
+    vi.mocked(requirePermission).mockResolvedValue({ ...actor, permissions: ["encounter.write"] } as never);
+    expect((await POST(request(claim), context)).status).toBe(403);
+    expect(db.diagnosticReview.findUnique).not.toHaveBeenCalled();
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("does not confirm replay when its audit append fails", async () => {
+    vi.mocked(db.diagnosticReview.findUnique).mockResolvedValue({ id: eventId, orderId: id, actorId, requestHash: auditValueFingerprint({ orderId: id, actorId, input: claim }) } as never);
+    vi.mocked(appendAudit).mockRejectedValue(new Error("synthetic replay audit failure"));
+    expect((await POST(request(claim), context)).status).toBe(500);
+    expect(db.diagnosticReview.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a request key previously used on another order without exposing that event", async () => {
+    vi.mocked(db.diagnosticReview.findUnique).mockResolvedValue({ id: eventId, orderId: resultId, actorId, requestHash: auditValueFingerprint({ orderId: id, actorId, input: claim }) } as never);
+    const response = await POST(request(claim), context);
+    expect(response.status).toBe(409);
+    expect(JSON.stringify(await response.json())).not.toContain(eventId);
+    expect(db.diagnosticReview.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects changed verification time even when the report ID still matches", async () => {
+    vi.mocked(db.clinicalOrder.findFirst).mockResolvedValue(order([owner]) as never);
+    expect((await POST(request({ ...ack, verifiedAt: "2026-10-15T10:01:00.000Z" }), context)).status).toBe(409);
+    expect(db.diagnosticReview.create).not.toHaveBeenCalled();
+  });
+
+  it("binds imaging acknowledgement to the verified imaging report", async () => {
+    const imagingOrder = order([owner]);
+    vi.mocked(db.clinicalOrder.findFirst).mockResolvedValue({ ...imagingOrder, laboratory: null, imaging: imagingOrder.laboratory } as never);
+    expect((await POST(request(ack), context)).status).toBe(201);
+    expect(db.diagnosticReview.create).toHaveBeenCalledWith({ data: expect.objectContaining({ action: "ACKNOWLEDGE", resultId, verifiedAt: new Date(verifiedAt), sequence: 2 }) });
+    expect(appendAudit).toHaveBeenCalledWith(db, expect.objectContaining({ action: "DIAGNOSTIC_REPORT_ACKNOWLEDGED", sessionId: actor.sessionId }));
+  });
+
+  it.each(["OFFER", "ACCEPT", "DECLINE", "ESCALATE", "ADDENDUM"])("does not claim support for the unimplemented %s workflow", async action => {
+    expect((await POST(request({ ...claim, action }), context)).status).toBe(422);
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
 });

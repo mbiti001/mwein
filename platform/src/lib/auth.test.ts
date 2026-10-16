@@ -14,6 +14,15 @@ function session(verified: boolean, enrolled: boolean) {
   };
 }
 describe("MFA access boundary", () => {
+  it.each(["DISABLED", "LOCKED"])("rejects a %s review owner even with a verified MFA session", async status => {
+    const inactive = session(true, true);
+    inactive.user.status = status;
+    mocks.findUnique.mockResolvedValue(inactive);
+    expect(await currentUser()).toBeNull();
+    await expect(requirePermission("clinical.results.read")).rejects.toMatchObject({ status: 401 });
+    await expect(requirePermission("encounter.write")).rejects.toMatchObject({ status: 401 });
+  });
+
   it("withholds every operational permission before mandatory enrollment", async () => {
     mocks.findUnique.mockResolvedValue(session(false, false));
     expect(await currentUser()).toMatchObject({ mfaRequired: true, mfaEnrolled: false, permissions: [] });
