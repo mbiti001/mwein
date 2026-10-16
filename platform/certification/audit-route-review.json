@@ -94,7 +94,7 @@
       }
     },
     "auth/mfa": {
-      "sourceSha256": "3e42fe7abe613bc256c7348540cb526370b9895b41d4236709653b9d142f3b4c",
+      "sourceSha256": "5ccd1f477a08a5395d3c7a2ebd19a45a9e7c8dd1fbfe7c411323b0624917b1e2",
       "methodExceptions": {
         "GET": "Current user factor enrollment status and remaining recovery-code count only; no seeds, hashes or other users."
       }
@@ -270,7 +270,7 @@
       "methodExceptions": {}
     },
     "visits/[id]/consultation": {
-      "sourceSha256": "64aed63869be1c8f46e4b37ed0f1d1bfdf8ddeef5293c5d8d405010614f4101c",
+      "sourceSha256": "f0f5055828eb4b2df77dc9500116a8de5f96427621aaf9891154856991cd7f2b",
       "methodExceptions": {}
     },
     "visits/[id]/discharge": {

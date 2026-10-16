@@ -1,6 +1,5 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import QRCode from "qrcode";
 import { currentUser, SESSION_COOKIE } from "@/lib/auth";
@@ -9,6 +8,7 @@ import { db } from "@/lib/db";
 import { apiError } from "@/lib/http";
 import { hashToken, newSessionToken, verifyPassword } from "@/lib/security";
 import { acceptedMfaStep, authenticator, decryptMfaSecret, encryptMfaSecret, mfaFailure, MFA_CHALLENGE_MS, newMfaSecret, newRecoveryCodes, recoveryHash } from "@/lib/mfa";
+import { workflowTransaction } from "@/lib/workflow-transaction";
 
 const inputSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("START"), password: z.string().min(1).max(256) }),
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     if (!actor) throw Object.assign(new Error("Sign in again to continue MFA"), { status: 401 });
     const input = inputSchema.parse(await request.json());
     const token = newSessionToken();
-    const run = () => db.$transaction(async tx => {
+    const result = await workflowTransaction(async tx => {
       const now = new Date();
       // Recheck the session in the same serializable transaction as factor use.
       const session = await tx.session.findUnique({ where: { id: actor.sessionId }, include: { user: true } });
@@ -95,13 +95,7 @@ export async function POST(request: Request) {
       const verified = await tx.session.create({ data: { userId: actor.id, tokenHash: hashToken(token), expiresAt, mfaVerifiedAt: now, ipHash: session.ipHash, userAgent: session.userAgent } });
       await appendAudit(tx, { facilityId: actor.facilityId, userId: actor.id, sessionId: verified.id, action: input.action === "CONFIRM" ? "MFA_ENROLLED" : input.action === "RECOVERY_CODES" ? "MFA_RECOVERY_CODES_REGENERATED" : "MFA_VERIFIED", entityType: "User", entityId: actor.id, reason: usedRecovery ? "RECOVERY_CODE" : "AUTHENTICATOR" });
       return { verified: true, expiresAt, recoveryCodes };
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    let result: Awaited<ReturnType<typeof run>> | undefined;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try { result = await run(); break; }
-      catch (error) { if ((error as { code?: string }).code !== "P2034" || attempt === 2) throw error; }
-    }
-    if (!result) throw new Error("MFA transaction did not complete");
+    });
     if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.status, headers: noStore });
     if ("setup" in result && result.setup) return NextResponse.json({ secret: result.setup.secret, qrCode: await QRCode.toDataURL(result.setup.uri, { width: 240, margin: 2 }) }, { headers: noStore });
     if ("verified" in result && result.verified) {

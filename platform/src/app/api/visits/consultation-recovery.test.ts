@@ -33,11 +33,102 @@ beforeEach(() => {
 });
 
 describe("consultation recovery and revision boundary", () => {
+  it.each([{ code: "P2034" }, { code: "P2010", meta: { code: "40001" } }, { code: "P2010", meta: { code: "40P01" } }])("retries a known-aborted first encounter insert using a fresh scoped visit read: %j", async conflict => {
+    const first = { ...tx, visit: { findFirst: vi.fn().mockResolvedValue({ ...visit, status: "AWAITING_CLINICIAN", encounters: [] }) }, encounter: { create: vi.fn().mockRejectedValue(conflict) } };
+    const second = { ...tx, visit: { findFirst: vi.fn().mockResolvedValue({ ...visit, encounters: [] }) }, encounter: { create: vi.fn(async ({ data }) => ({ id: encounterId, updatedAt: new Date(), ...data })) } };
+    vi.mocked(db.$transaction).mockImplementationOnce(async (work: any) => work(first)).mockImplementationOnce(async (work: any) => work(second));
+    const result = await save(null);
+    expect(result.status).toBe(200);
+    expect(await result.json()).toMatchObject({ stage: "NOTES_SAVED", draftRevision: expect.any(String) });
+    expect(db.$transaction).toHaveBeenCalledTimes(2);
+    for (const attempt of [first, second]) {
+      expect(attempt.visit.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id, facilityId: actor.facilityId } }));
+      expect(attempt.encounter.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ visitId: id, clinicianId: actor.id, status: "DRAFT" }) }));
+    }
+    for (const call of vi.mocked(db.$transaction).mock.calls) expect(call[1]).toEqual({ isolationLevel: "Serializable" });
+    expect(appendAudit).toHaveBeenCalledTimes(1);
+    expect(appendAudit).toHaveBeenCalledWith(second, expect.objectContaining({ userId: actor.id, sessionId: actor.sessionId, action: "CONSULTATION_DRAFT_SAVED" }));
+  });
+  it.each([{ code: "P2034" }, { code: "P2010", meta: { code: "40001" } }, { code: "P2010", meta: { code: "40P01" } }])("stops after three aborted consultation attempts without confirming a save: %j", async conflict => {
+    visit.encounters = [];
+    tx.encounter.create.mockRejectedValue(conflict);
+    const response = await save(null);
+    expect(response.status).toBe(409);
+    expect(await response.json()).not.toHaveProperty("draftRevision");
+    expect(db.$transaction).toHaveBeenCalledTimes(3);
+    expect(tx.visit.findFirst).toHaveBeenCalledTimes(3);
+    expect(appendAudit).not.toHaveBeenCalled();
+  });
+  it.each(["changed revision", "closed visit", "signed encounter", "unavailable facility visit"])("rechecks %s after the aborted transaction instead of blindly replaying writes", async condition => {
+    visit.encounters = [];
+    const first = { ...tx, encounter: { create: vi.fn().mockRejectedValue({ code: "P2034" }) } };
+    const changed = condition === "unavailable facility visit" ? null : {
+      ...visit, status: condition === "closed visit" ? "DISCHARGED" : "UNDER_CONSULTATION",
+      encounters: condition === "closed visit" ? [] : [{ ...encounter, status: condition === "signed encounter" ? "SIGNED" : "DRAFT" }],
+    };
+    const second = { ...tx, visit: { findFirst: vi.fn().mockResolvedValue(changed) }, encounter: { create: vi.fn(), update: vi.fn() } };
+    vi.mocked(db.$transaction).mockImplementationOnce(async (work: any) => work(first)).mockImplementationOnce(async (work: any) => work(second));
+    const response = await save(null);
+    expect(response.status).toBe(condition === "unavailable facility visit" ? 404 : 409);
+    if (condition === "changed revision") expect(await response.json()).toMatchObject({ details: { code: "CONSULTATION_REVISION_CONFLICT" } });
+    expect(db.$transaction).toHaveBeenCalledTimes(2);
+    expect(second.visit.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id, facilityId: actor.facilityId } }));
+    expect(second.encounter.create).not.toHaveBeenCalled(); expect(second.encounter.update).not.toHaveBeenCalled();
+    expect(appendAudit).not.toHaveBeenCalled();
+  });
+  it("reruns the complete consultation after an aborted audit, not just the audit append", async () => {
+    visit.encounters = [];
+    vi.mocked(appendAudit).mockRejectedValueOnce({ code: "P2010", meta: { code: "40001" } }).mockResolvedValueOnce(undefined as never);
+    const response = await save(null);
+    expect(response.status).toBe(200);
+    expect(db.$transaction).toHaveBeenCalledTimes(2);
+    expect(tx.visit.findFirst).toHaveBeenCalledTimes(2);
+    expect(tx.encounter.create).toHaveBeenCalledTimes(2);
+    expect(appendAudit).toHaveBeenCalledTimes(2);
+    // This mock checks retry scope; native PostgreSQL verification must prove rollback.
+  });
+  it("retries a known-aborted commit and responds only with the successful attempt's revision", async () => {
+    visit.encounters = [];
+    const firstRecord = { ...encounter, id: "aborted-encounter" };
+    const savedRecord = { ...encounter, id: "committed-encounter" };
+    tx.encounter.create.mockResolvedValueOnce(firstRecord).mockResolvedValueOnce(savedRecord);
+    vi.mocked(db.$transaction).mockImplementationOnce(async (work: any) => {
+      await work(tx);
+      throw { code: "P2034" };
+    }).mockImplementationOnce(async (work: any) => work(tx));
+    const response = await save(null);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ stage: "NOTES_SAVED", draftRevision: consultationRevision(savedRecord) });
+    expect(db.$transaction).toHaveBeenCalledTimes(2);
+    expect(tx.visit.findFirst).toHaveBeenCalledTimes(2);
+    expect(tx.encounter.create).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(appendAudit).mock.calls.map(([, event]) => event.entityId)).toEqual([firstRecord.id, savedRecord.id]);
+    // Call counts include the simulated aborted attempt; they are not durable row counts.
+  });
+  it.each([{ code: "ECONNRESET" }, { code: "P2010", meta: { code: "08006" } }, { code: "P2010", meta: { code: "P0001" } }])("does not replay consultation writes after an ambiguous connection or arbitrary audit failure: %j", async error => {
+    visit.encounters = [];
+    vi.mocked(appendAudit).mockRejectedValue(error);
+    const response = await save(null);
+    expect(response.status).toBe(500);
+    expect(await response.json()).not.toHaveProperty("draftRevision");
+    expect(db.$transaction).toHaveBeenCalledTimes(1);
+    expect(tx.encounter.create).toHaveBeenCalledTimes(1);
+    expect(appendAudit).toHaveBeenCalledTimes(1);
+  });
   it("requires permission before reading or saving", async () => {
     vi.mocked(requirePermission).mockRejectedValue(Object.assign(new Error("Forbidden"), { status: 403 }));
     expect((await GET(new Request("http://localhost"), context)).status).toBe(403);
     expect((await save()).status).toBe(403);
     expect(db.visit.findFirst).not.toHaveBeenCalled(); expect(db.$transaction).not.toHaveBeenCalled();
+  });
+  it.each(["P2002", "P2003"])("does not retry an integrity conflict: %s", async code => {
+    visit.encounters = [];
+    vi.mocked(appendAudit).mockRejectedValue({ code });
+    const response = await save(null);
+    expect(response.status).toBe(409);
+    expect(await response.json()).not.toHaveProperty("draftRevision");
+    expect(db.$transaction).toHaveBeenCalledTimes(1);
+    expect(tx.encounter.create).toHaveBeenCalledTimes(1);
   });
   it("scopes recovery to facility and audits disclosed identifiers before responding", async () => {
     const result = await GET(new Request("http://localhost"), context);
