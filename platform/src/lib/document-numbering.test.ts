@@ -30,4 +30,27 @@ describe("document serial allocation", () => {
     const auditFailure = vi.fn().mockRejectedValue(new Error("audit failed"));
     await expect(retryDocumentTransaction(auditFailure)).rejects.toThrow("audit failed"); expect(auditFailure).toHaveBeenCalledTimes(1);
   });
+  it.each(["40001", "40P01"])("retries the complete document operation after raw SQL conflict %s", async sqlState => {
+    const completeAttempts: number[] = [];
+    const allocation = vi.fn(); const documentWrite = vi.fn(); const audit = vi.fn();
+    const operation = vi.fn(async () => {
+      const attempt = completeAttempts.length + 1; completeAttempts.push(attempt);
+      allocation(attempt); documentWrite(attempt); audit(attempt);
+      if (attempt === 1) throw { code: "P2010", meta: { code: sqlState } };
+      return "saved document";
+    });
+    expect(await retryDocumentTransaction(operation)).toBe("saved document");
+    for (const step of [allocation, documentWrite, audit]) expect(step.mock.calls).toEqual([[1], [2]]);
+    expect(operation).toHaveBeenCalledTimes(2);
+  });
+  it.each([{ code: "P2010", meta: { code: "40001" } }, { code: "P2010", meta: { code: "40P01" } }, { code: "P2002" }])("retains the four-attempt bound and final error identity for %j", async error => {
+    const operation = vi.fn().mockRejectedValue(error);
+    await expect(retryDocumentTransaction(operation)).rejects.toBe(error);
+    expect(operation).toHaveBeenCalledTimes(4);
+  });
+  it.each([{ code: "P2010", meta: { code: "P0001" } }, { code: "P2010", meta: { code: "unknown" } }, { code: "P1001" }, { code: "ECONNRESET" }, new Error("serialization failure 40001"), null])("does not retry failed audits, unknown errors or uncertain connection outcomes: %j", async error => {
+    const operation = vi.fn().mockRejectedValue(error);
+    await expect(retryDocumentTransaction(operation)).rejects.toBe(error);
+    expect(operation).toHaveBeenCalledTimes(1);
+  });
 });

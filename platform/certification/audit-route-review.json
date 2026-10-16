@@ -80,7 +80,7 @@
       "methodExceptions": {}
     },
     "auth/login": {
-      "sourceSha256": "27db34ebc7943a9ea478ba1638d06e1d6caa7df0bab4f802a95251ee6e9f8322",
+      "sourceSha256": "353e3877ee0f27abef3e2ac5dadd36029512244e4e0660309c17246a5d1d69d6",
       "methodExceptions": {}
     },
     "auth/logout": {
