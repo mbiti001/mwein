@@ -11,7 +11,7 @@ import {
   type CareServiceProfile,
 } from "@/lib/care-service-points";
 import { validateCareAssessment } from "@/lib/care-assessment-validation";
-import { jsonRequest } from "@/lib/client-http";
+import { ApiRequestError, jsonRequest } from "@/lib/client-http";
 import { applyLnmpDating, dateInTimeZone, gestationalAgeLabel, pregnancyDatingFromLnmp } from "@/lib/pregnancy-dating";
 import { FacilityLetterhead } from "@/components/FacilityBrand";
 
@@ -323,13 +323,17 @@ function AssessmentWorkspace({
   const [visitStatus, setVisitStatus] = useState(visit.status);
   const loadController = useRef<AbortController | null>(null);
   const draftLoaded = useRef(false);
+  const revision = useRef<string | null | undefined>(undefined);
+  const [latestRevision, setLatestRevision] = useState<string | null | undefined>(undefined);
+  const [reviewRequired, setReviewRequired] = useState(false);
+  const [reviewLoaded, setReviewLoaded] = useState(false);
   const facilityToday = dateInTimeZone(new Date(), facilityTimeZone);
   const ancDating = profile.code === "ANC" && typeof values.lmp === "string"
     ? pregnancyDatingFromLnmp(values.lmp, facilityToday)
     : null;
   const assessmentValidation = useMemo(() => validateCareAssessment(profile, values), [profile, values]);
 
-  async function load(preserveDraft = false) {
+  async function load(preserveDraft = false, reviewing = false) {
     loadController.current?.abort();
     const controller = new AbortController();
     loadController.current = controller;
@@ -337,19 +341,24 @@ function AssessmentWorkspace({
     setLoaded(false);
     setError("");
     try {
-      const response = await api<{ record: ServiceRecord | null; relationships: Relationship[]; encounterStatus: string | null; readOnly: boolean; visitStatus: string }>(`/api/service-points?visitId=${visit.id}`, { signal: controller.signal });
+      const response = await api<{ record: ServiceRecord | null; assessmentRevision: string | null; relationships: Relationship[]; encounterStatus: string | null; readOnly: boolean; visitStatus: string }>(`/api/service-points?visitId=${visit.id}`, { signal: controller.signal });
       if (controller.signal.aborted) return;
+      if (response.assessmentRevision !== null && !/^[a-f0-9]{64}$/.test(response.assessmentRevision || "")) throw new Error("The assessment revision is unavailable. Reload before editing.");
+      setLatestRevision(response.assessmentRevision);
       setRecord(response.record);
       setEncounterStatus(response.encounterStatus);
       setReadOnly(response.readOnly !== false || ["SIGNED", "CORRECTED"].includes(response.encounterStatus || ""));
       setVisitStatus(response.visitStatus);
       const loadedValues = response.record?.data || {};
       if (!preserveDraft || !draftLoaded.current) {
+        revision.current = response.assessmentRevision;
         setValues(profile.code === "ANC" ? applyLnmpDating(loadedValues, facilityToday).data : loadedValues);
         setRiskLevel(response.record?.riskLevel || "ROUTINE");
         setFollowUpAt(response.record?.followUpAt?.slice(0, 10) || "");
         setSaved(Boolean(response.record));
       }
+      if (preserveDraft && draftLoaded.current && revision.current !== response.assessmentRevision) { setReviewRequired(true); setSaved(false); }
+      if (reviewing) setReviewLoaded(true);
       draftLoaded.current = true;
       setRelationships(response.relationships);
       setLoaded(true);
@@ -378,31 +387,40 @@ function AssessmentWorkspace({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy || !loaded || readOnly) return;
+    if (busy || !loaded || readOnly || reviewRequired || revision.current === undefined) return;
     if (assessmentValidation.errors.length) {
       setError("Resolve the highlighted clinical data errors before saving.");
       return;
     }
     setBusy(true); setError(""); setNotice("");
     try {
-      const response = await api<{ record: ServiceRecord; warnings?: string[] }>("/api/service-points", {
+      const response = await api<{ record: ServiceRecord; assessmentRevision: string; warnings?: string[] }>("/api/service-points", {
         method: "POST",
         body: JSON.stringify({
           action: "SAVE_ASSESSMENT",
           visitId: visit.id,
           servicePoint: profile.code,
           templateVersion: profile.templateVersion,
+          expectedRevision: revision.current,
           data: values,
           riskLevel,
           followUpAt: followUpAt || undefined,
         }),
       });
+      revision.current = response.assessmentRevision;
+      setLatestRevision(response.assessmentRevision);
+      setEncounterStatus("DRAFT");
       setRecord(response.record);
       setSaved(true);
       setNotice(`${profile.label} assessment saved in this patient's encounter.${response.warnings?.length ? " Clinical-range alerts remain visible for review." : ""}`);
       try { await onSaved(); }
       catch (reason) { setError(`The assessment was saved, but the worklist could not refresh. ${(reason as Error).message}`); }
-    } catch (reason) { setError((reason as Error).message); }
+    } catch (reason) {
+      setError((reason as Error).message);
+      if (reason instanceof ApiRequestError && [0, 409, 428, 500, 502, 503, 504].includes(reason.status)) {
+        setReviewRequired(true); setReviewLoaded(false);
+      }
+    }
     finally { setBusy(false); }
   }
 
@@ -428,6 +446,17 @@ function AssessmentWorkspace({
         {!busy && !loaded && <div role="status">Assessment unavailable. Editing is disabled until the saved record loads. <button type="button" className="secondary" onClick={() => void load(true)}>Retry assessment load</button></div>}
         {loaded && readOnly && <p role="status">Read-only assessment: this visit is closed or its encounter is signed/corrected. Retained saved data is shown below.</p>}
         {notice && <div className="inlineSaveConfirmation" role="status">✓ {notice}</div>}
+        {reviewRequired && <div className="clinicalBoundary assessmentRevisionReview" role="status">
+          <strong>Review required before saving</strong><span>Your entries are retained. Load the latest saved snapshot below before replacing your entries and editing again.</span>
+          <button className="secondary" type="button" disabled={busy} onClick={() => void load(true, true)}>Review latest saved assessment</button>
+          {reviewLoaded && loaded && !readOnly && <button className="secondary" type="button" onClick={() => {
+            if (!window.confirm("Replace your unsaved entries with the latest saved assessment?")) return;
+            const current = record?.data || {};
+            setValues(profile.code === "ANC" ? applyLnmpDating(current, facilityToday).data : current);
+            setRiskLevel(record?.riskLevel || "ROUTINE"); setFollowUpAt(record?.followUpAt?.slice(0, 10) || "");
+            revision.current = latestRevision; setSaved(Boolean(record)); setReviewRequired(false); setReviewLoaded(false); setError("");
+          }}>Replace my entries with saved assessment</button>}
+        </div>}
         <fieldset className="assessmentInputs" disabled={busy || !loaded || readOnly}>
         <legend>{profile.label} assessment entries</legend>
         {assessmentValidation.errors.length > 0 && <div className="alert clinicalEntryAlert" role="alert" aria-live="assertive">
@@ -455,7 +484,7 @@ function AssessmentWorkspace({
         <section className="card servicePlanBar">
           <label>Clinical risk *<select value={riskLevel} onChange={(event) => { setRiskLevel(event.target.value); setSaved(false); }}><option value="ROUTINE">Routine</option><option value="INCREASED">Increased</option><option value="HIGH">High risk</option><option value="EMERGENCY">Emergency action</option></select></label>
           <label>Next follow-up<input type="date" value={followUpAt} onChange={(event) => { setFollowUpAt(event.target.value); setSaved(false); }} /></label>
-          <div className="serviceSave">{saved ? <span className="inlineSaveConfirmation">✓ Saved {record?.updatedAt ? new Date(record.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</span> : <button className="primary" disabled={busy || assessmentValidation.errors.length > 0}>{busy ? "Saving…" : assessmentValidation.errors.length ? "Resolve entry errors" : `Save ${profile.label} assessment`}</button>}</div>
+          <div className="serviceSave">{saved ? <span className="inlineSaveConfirmation">✓ Saved {record?.updatedAt ? new Date(record.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</span> : <button className="primary" disabled={busy || reviewRequired || assessmentValidation.errors.length > 0}>{busy ? "Saving…" : assessmentValidation.errors.length ? "Resolve entry errors" : `Save ${profile.label} assessment`}</button>}</div>
         </section>
         </fieldset>
       </form>

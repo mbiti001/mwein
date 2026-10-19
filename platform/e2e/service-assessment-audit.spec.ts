@@ -1,14 +1,14 @@
 import { test, expect, type Page } from "@playwright/test";
 
 // API-intercepted UI regressions. Native lifecycle checks run separately in
-// e2e-assessment-lifecycle.mjs; revision enforcement remains a recorded gap.
+// e2e-assessment-lifecycle.mjs; revision races run separately in the native fixture.
 const visitId = "11111111-1111-4111-8111-111111111111";
 const data = { serviceRequested: "Screening", requestDetails: "Synthetic request", safetyScreen: "Synthetic checks", carePlan: "Saved synthetic plan" };
 const record = { id: "record-a", servicePoint: "WALK_IN", templateVersion: "KE-WALKIN-1.0", data, riskLevel: "ROUTINE", followUpAt: null, updatedAt: "2026-10-19T20:00:00Z", updatedById: "synthetic-author", updatedBy: { displayName: "Synthetic Recorder" } };
 const visit = { id: visitId, visitNumber: "V-AUDIT-001", clinic: "Walk-in", priority: "ROUTINE", status: "UNDER_CONSULTATION", arrivedAt: "2026-10-19T18:00:00Z", patient: { id: "patient-a", patientNumber: "P-AUDIT-001", fullName: "Synthetic Assessment Patient", sexAtBirth: "UNKNOWN", allergies: [] }, encounters: [], orders: [] };
-type State = { saved: typeof record | null; readFailure: boolean; saveStatus: number; refreshFailure: boolean; encounterStatus: string; readOnly: boolean; posts: any[] };
+type State = { saved: typeof record | null; readFailure: boolean; saveStatus: number; refreshFailure: boolean; encounterStatus: string; readOnly: boolean; revision: string | null; posts: any[] };
 async function fixture(page: Page, options: Partial<State> = {}, authorized = true) {
-  const state: State = { saved: structuredClone(record), readFailure: false, saveStatus: 200, refreshFailure: false, encounterStatus: "DRAFT", readOnly: false, posts: [], ...options };
+  const state: State = { saved: structuredClone(record), readFailure: false, saveStatus: 200, refreshFailure: false, encounterStatus: "DRAFT", readOnly: false, revision: "a".repeat(64), posts: [], ...options };
   await page.route("**/api/auth/me", route => route.fulfill({ json: { user: { displayName: "Audit operator", email: "audit@example.test", facility: { name: "Synthetic clinic", timezone: "Africa/Nairobi" }, permissions: authorized ? ["visit.read", "patient.read", "encounter.write", "admin.dashboard"] : ["visit.read", "patient.read"], roles: ["TEST"], mustChangePassword: false, mfaRequired: false } } }));
   await page.route("**/api/visits", route => route.fulfill({ json: { visits: [visit] } }));
   await page.route("**/api/queues", route => route.fulfill({ json: { entries: [], controls: [], history: [] } }));
@@ -18,9 +18,10 @@ async function fixture(page: Page, options: Partial<State> = {}, authorized = tr
       const body = request.postDataJSON(); state.posts.push(body);
       if (state.saveStatus !== 200) return route.fulfill({ status: state.saveStatus, json: { error: "Synthetic save conflict" } });
       state.saved = { ...record, data: body.data, riskLevel: body.riskLevel, updatedAt: "2026-10-19T20:10:00Z" };
-      return route.fulfill({ json: { record: state.saved } });
+      state.revision = "b".repeat(64);
+      return route.fulfill({ json: { record: state.saved, assessmentRevision: state.revision } });
     }
-    if (request.url().includes("visitId=")) return route.fulfill(state.readFailure ? { status: 503, json: { error: "Synthetic assessment load failed" } } : { json: { record: state.saved, encounterStatus: state.encounterStatus, readOnly: state.readOnly, visitStatus: visit.status, relationships: [] } });
+    if (request.url().includes("visitId=")) return route.fulfill(state.readFailure ? { status: 503, json: { error: "Synthetic assessment load failed" } } : { json: { record: state.saved, assessmentRevision: state.revision, encounterStatus: state.encounterStatus, readOnly: state.readOnly, visitStatus: visit.status, relationships: [] } });
     return route.fulfill(state.refreshFailure && state.posts.length ? { status: 503, json: { error: "Synthetic metrics refresh failed" } } : { json: { metrics: {} } });
   });
   await page.goto("/");
@@ -35,7 +36,7 @@ async function fixture(page: Page, options: Partial<State> = {}, authorized = tr
 const plan = (page: Page) => page.getByLabel("Follow-up, escalation or referral plan");
 const save = (page: Page) => page.getByRole("button", { name: "Save Walk-in assessment", exact: true });
 
-test("saved snapshot stays separate from edits; current save payload lacks a record revision", async ({ page }) => {
+test("saved snapshot stays separate from edits; save binds to the original record revision", async ({ page }) => {
   const state = await fixture(page);
   await plan(page).fill("Unsaved synthetic plan");
   await expect(page.locator(".savedAssessment")).toContainText("Saved synthetic plan");
@@ -43,7 +44,7 @@ test("saved snapshot stays separate from edits; current save payload lacks a rec
   await save(page).click();
   await expect(page.locator(".savedAssessment")).toContainText("Unsaved synthetic plan");
   expect(state.posts).toHaveLength(1);
-  expect(state.posts[0]).toEqual({ action: "SAVE_ASSESSMENT", visitId, servicePoint: "WALK_IN", templateVersion: "KE-WALKIN-1.0", data: { ...data, carePlan: "Unsaved synthetic plan" }, riskLevel: "ROUTINE" });
+  expect(state.posts[0]).toEqual({ action: "SAVE_ASSESSMENT", visitId, expectedRevision: "a".repeat(64), servicePoint: "WALK_IN", templateVersion: "KE-WALKIN-1.0", data: { ...data, carePlan: "Unsaved synthetic plan" }, riskLevel: "ROUTINE" });
 });
 
 test("failed initial read disables writes; keyboard retry restores the saved record", async ({ page }) => {
@@ -78,8 +79,73 @@ test("save conflict retains the typed draft and original saved snapshot", async 
   await expect(page.locator(".serviceAssessment .alert")).toContainText("Synthetic save conflict");
   await expect(plan(page)).toHaveValue("Retained synthetic draft");
   await expect(page.locator(".savedAssessment")).toContainText("Saved synthetic plan");
-  await expect(save(page)).toBeEnabled();
+  await expect(save(page)).toBeDisabled();
   expect(state.posts).toHaveLength(1);
+});
+
+test("conflict review preserves entries until explicit replacement and uses the reviewed revision", async ({ page }, testInfo) => {
+  const state = await fixture(page, { saveStatus: 409 });
+  await plan(page).fill("Retained older draft");
+  await save(page).click();
+  await expect(save(page)).toBeDisabled();
+  state.saved = { ...record, data: { ...data, carePlan: "Newer saved plan" } };
+  state.revision = "c".repeat(64);
+  state.readFailure = true;
+  await page.getByRole("button", { name: "Review latest saved assessment" }).click();
+  await expect(page.locator(".serviceAssessment .alert")).toContainText("Synthetic assessment load failed");
+  await expect(plan(page)).toHaveValue("Retained older draft");
+  await expect(save(page)).toBeDisabled();
+  state.readFailure = false;
+  await page.getByRole("button", { name: "Review latest saved assessment" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".savedAssessment")).toContainText("Newer saved plan");
+  await expect(plan(page)).toHaveValue("Retained older draft");
+  await expect(save(page)).toBeDisabled();
+  expect(state.posts).toHaveLength(1);
+  const replace = page.getByRole("button", { name: "Replace my entries with saved assessment" });
+  for (const width of [1440, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    if (width <= 768) await expect.poll(() => page.locator("#main-navigation").evaluate(element => element.getBoundingClientRect().right)).toBeLessThanOrEqual(0);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
+    await expect(replace).toBeVisible();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: testInfo.outputPath(`assessment-conflict-${width}.png`), fullPage: true });
+  }
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator(".serviceAssessment")).toBeHidden();
+  await expect(page.locator(".savedAssessment")).toContainText("Newer saved plan");
+  await expect(page.locator(".savedAssessment")).not.toContainText("Retained older draft");
+  await page.emulateMedia({ media: "screen" });
+  page.once("dialog", dialog => dialog.dismiss());
+  await replace.click();
+  await expect(plan(page)).toHaveValue("Retained older draft");
+  page.once("dialog", dialog => dialog.accept());
+  await replace.click();
+  await expect(plan(page)).toHaveValue("Newer saved plan");
+  state.saveStatus = 200;
+  await plan(page).fill("Reviewed new edit");
+  await save(page).click();
+  await expect(page.locator(".savedAssessment")).toContainText("Reviewed new edit");
+  expect(state.posts[0].expectedRevision).toBe("a".repeat(64));
+  expect(state.posts[1].expectedRevision).toBe("c".repeat(64));
+});
+
+test("ambiguous response requires review without automatic resubmission", async ({ page }) => {
+  const state = await fixture(page, { saveStatus: 503 });
+  await plan(page).fill("Unconfirmed synthetic plan");
+  await save(page).click();
+  await expect(save(page)).toBeDisabled();
+  await expect(plan(page)).toHaveValue("Unconfirmed synthetic plan");
+  await page.getByRole("button", { name: "Review latest saved assessment" }).click();
+  await expect(page.getByRole("button", { name: "Replace my entries with saved assessment" })).toBeVisible();
+  expect(state.posts).toHaveLength(1);
+});
+
+test("missing server revision fails closed before editing", async ({ page }) => {
+  const state = await fixture(page, { revision: undefined });
+  await expect(page.locator(".serviceAssessment .alert")).toContainText("revision is unavailable");
+  await expect(plan(page)).toBeDisabled();
+  expect(state.posts).toHaveLength(0);
 });
 
 test("successful save remains confirmed when the metrics refresh fails", async ({ page }) => {

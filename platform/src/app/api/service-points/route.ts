@@ -16,6 +16,8 @@ import { recordDisclosure } from "@/lib/disclosure-audit";
 import { apiError, privateJson } from "@/lib/http";
 import { applyLnmpDating, dateInTimeZone } from "@/lib/pregnancy-dating";
 import { isOpenClinicalVisit } from "@/lib/visit-check-in";
+import { assessmentRevision, assessmentConflict } from "@/lib/assessment-revision";
+import { nextEncounterTime } from "@/lib/consultation-revision";
 
 const serviceCode = z.enum([
   "ANC",
@@ -32,6 +34,7 @@ const assessmentInput = z.object({
   visitId: z.uuid(),
   servicePoint: serviceCode,
   templateVersion: z.string().trim().min(3).max(60),
+  expectedRevision: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional(),
   data: z.record(
     z.string().trim().min(1).max(80),
     z.union([z.string().trim().max(5000), z.boolean()]),
@@ -71,7 +74,7 @@ export async function GET(request: Request) {
             where: { status: { in: ["DRAFT", "SIGNED", "CORRECTED"] } },
             orderBy: { createdAt: "desc" },
             take: 1,
-            select: { id: true, status: true, servicePointRecord: { include: { updatedBy: { select: { displayName: true } } } } },
+            select: { id: true, status: true, updatedAt: true, servicePointRecord: { include: { updatedBy: { select: { displayName: true } } } } },
           },
         },
       });
@@ -87,6 +90,7 @@ export async function GET(request: Request) {
       await recordDisclosure(user, "SERVICE_POINTS", [visit.id, ...relationships.map(item => item.id)]);
       return privateJson({
         record: visit.encounters[0]?.servicePointRecord || null,
+        assessmentRevision: assessmentRevision(visit.id, visit.encounters[0], visit.encounters[0]?.servicePointRecord),
         encounterStatus: visit.encounters[0]?.status || null,
         readOnly: !isOpenClinicalVisit(visit) || visit._count.encounters > 0,
         visitStatus: visit.status,
@@ -174,13 +178,15 @@ export async function POST(request: Request) {
   try {
     const user = await requirePermission("encounter.write");
     const input = inputSchema.parse(await request.json());
+    if (input.action === "SAVE_ASSESSMENT" && input.expectedRevision === undefined)
+      throw Object.assign(new Error("Reload the assessment before saving. This screen has no saved revision."), { status: 428 });
     const result = await db.$transaction(async (tx) => {
       const visit = await tx.visit.findFirst({
         where: { id: input.visitId, facilityId: user.facilityId },
         include: {
           patient: { select: { id: true } },
           ancAdmissionEvidence: { select: { safeguardingReviewRequired: true } },
-          encounters: { orderBy: { createdAt: "desc" } },
+          encounters: { orderBy: { createdAt: "desc" }, include: { servicePointRecord: true } },
         },
       });
       if (!visit) throw Object.assign(new Error("Visit not found"), { status: 404 });
@@ -259,9 +265,27 @@ export async function POST(request: Request) {
       if (signed)
         throw Object.assign(new Error("This encounter is signed or corrected. Add an authorised addendum instead of changing the assessment."), { status: 409 });
       let encounter = visit.encounters.find((item) => item.status === "DRAFT");
+      if (input.expectedRevision !== assessmentRevision(visit.id, encounter, encounter?.servicePointRecord))
+        throw assessmentConflict();
+      // All assessment saves also write the visit read above. Concurrent first
+      // creates and closure must contend on this row even without an encounter.
+      await tx.visit.update({
+        where: { id: visit.id, updatedAt: visit.updatedAt, status: visit.status, clinicallyClosedAt: null },
+        data: { updatedAt: nextEncounterTime(visit.updatedAt), ...(visit.status === "AWAITING_CLINICIAN" ? { status: "UNDER_CONSULTATION" as const } : {}) },
+      });
+      // Couple every assessment edit to the revision already checked by consultation
+      // saves/signing. The conditional write and record/audit stay in this transaction.
+      if (encounter) {
+        encounter = await tx.encounter.update({
+          where: { id: encounter.id, updatedAt: encounter.updatedAt, status: "DRAFT" },
+          data: { updatedAt: nextEncounterTime(encounter.updatedAt) },
+          include: { servicePointRecord: true },
+        });
+      }
       if (!encounter) {
         encounter = await tx.encounter.create({
           data: { visitId: visit.id, clinicianId: user.id, noteFormat: "STRUCTURED", status: "DRAFT" },
+          include: { servicePointRecord: true },
         });
       }
       const record = await tx.servicePointRecord.upsert({
@@ -286,7 +310,6 @@ export async function POST(request: Request) {
         },
       });
       if (visit.status === "AWAITING_CLINICIAN") {
-        await tx.visit.update({ where: { id: visit.id }, data: { status: "UNDER_CONSULTATION" } });
         await tx.queueEntry.updateMany({
           where: { visitId: visit.id, servicePoint: "CONSULTATION", status: { in: ["WAITING", "CALLED"] } },
           data: { status: "IN_PROGRESS", startedAt: new Date() },
@@ -299,7 +322,7 @@ export async function POST(request: Request) {
         entityId: record.id,
         afterHash: `${profile.code}:${profile.templateVersion}:${Object.keys(assessmentData).sort().join("|")}`,
       });
-      return { record, warnings: validation.warnings.map((issue) => issue.message) };
+      return { record, assessmentRevision: assessmentRevision(visit.id, encounter, record), warnings: validation.warnings.map((issue) => issue.message) };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return privateJson(result);
   } catch (error) {

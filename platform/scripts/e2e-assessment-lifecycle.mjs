@@ -11,7 +11,7 @@ export async function verifyAssessmentLifecycle({ pg, api, request, authenticate
     const visit = (await api(`open assessment lifecycle fixture ${lifecycle}`, "/api/visits", {
       method: "POST", body: JSON.stringify({ patientId: patient.id, clinic: "Walk-in", priority: "ROUTINE", visitType: "WALK_IN" }),
     })).body.visit;
-    const input = { action: "SAVE_ASSESSMENT", visitId: visit.id, servicePoint: "WALK_IN", templateVersion: "KE-WALKIN-1.0", data, riskLevel: "ROUTINE" };
+    const input = { action: "SAVE_ASSESSMENT", expectedRevision: null, visitId: visit.id, servicePoint: "WALK_IN", templateVersion: "KE-WALKIN-1.0", data, riskLevel: "ROUTINE" };
     const save = () => request("/api/service-points", { method: "POST", body: JSON.stringify(input) });
     const snapshot = async () => (await pg.query(`SELECT row_to_json(v) AS visit,
       (SELECT json_agg(e ORDER BY e.id) FROM "Encounter" e WHERE e."visitId"=v.id) AS encounters,

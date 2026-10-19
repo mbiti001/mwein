@@ -2,6 +2,7 @@ import { verifyMandatoryMfa } from "./e2e-mfa-enforcement.mjs";
 import { verifyCancellationTransaction } from "./e2e-cancellation-transaction.mjs";
 import { verifyFinancialAbort } from "./e2e-financial-abort.mjs";
 import { verifyAssessmentLifecycle } from "./e2e-assessment-lifecycle.mjs";
+import { verifyAssessmentRevision } from "./e2e-assessment-revision.mjs";
 import { verifyPrivacy } from "./e2e-privacy.mjs";
 import { verifySupplyDocuments } from "./e2e-supply-documents.mjs";
 import { verifyDocumentNumbering } from "./e2e-document-numbering.mjs";
@@ -545,7 +546,7 @@ try {
   const missingSafeguarding = await requestWithCookie("/api/service-points", sessionCookie, {
     method: "POST",
     body: JSON.stringify({
-      action: "SAVE_ASSESSMENT",
+      action: "SAVE_ASSESSMENT", expectedRevision: null,
       visitId: adolescentAnc.body.visit.id,
       servicePoint: "ANC",
       templateVersion: "KE-ANC-2026.4",
@@ -558,7 +559,7 @@ try {
   const implausibleObstetricHistory = await requestWithCookie("/api/service-points", sessionCookie, {
     method: "POST",
     body: JSON.stringify({
-      action: "SAVE_ASSESSMENT",
+      action: "SAVE_ASSESSMENT", expectedRevision: null,
       visitId: adolescentAnc.body.visit.id,
       servicePoint: "ANC",
       templateVersion: "KE-ANC-2026.4",
@@ -571,7 +572,7 @@ try {
   const adolescentAssessment = await api("canonicalize structured ANC dating from LNMP", "/api/service-points", {
     method: "POST",
     body: JSON.stringify({
-      action: "SAVE_ASSESSMENT",
+      action: "SAVE_ASSESSMENT", expectedRevision: null,
       visitId: adolescentAnc.body.visit.id,
       servicePoint: "ANC",
       templateVersion: "KE-ANC-2026.4",
@@ -591,6 +592,7 @@ try {
 
   const appointmentTime = new Date(Date.now() + 7 * 86400000);
   await verifyAssessmentLifecycle({ pg, api, request: (path, options) => requestWithCookie(path, sessionCookie, options), authenticate, requestWithCookie, relatedPatientId: patient.id, assert, steps });
+  await verifyAssessmentRevision({ pg, databaseKind: databaseBackend.kind, api, request: (path, options) => requestWithCookie(path, sessionCookie, options), assert, steps });
   appointmentTime.setUTCHours(7, 0, 0, 0);
   const appointmentResult = await api("book follow-up appointment", "/api/appointments", { method: "POST", body: JSON.stringify({ patientId: patient.id, scheduledAt: appointmentTime.toISOString(), clinic: "Outpatient", notes: "E2E follow-up" }) });
   const appointmentId = appointmentResult.body.appointment.id;
