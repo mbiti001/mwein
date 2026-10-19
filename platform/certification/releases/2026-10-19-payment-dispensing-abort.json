@@ -1,0 +1,328 @@
+{
+  "recordedAt": "2026-10-19T20:16:02.772Z",
+  "source": "3c3b12bdc07df853c47c30f81af2bcaa15cbfdaa",
+  "parent": "fd27cf441a1883cb4a676c3f52046f5fca83f73c",
+  "branch": "codex/mwein-platform",
+  "status": "Verified locally and in exact-source hosted CI; normally pushed; not deployed",
+  "sourceArchive": {
+    "path": "financial-source.tar",
+    "bytes": 6717440,
+    "sha256": "e3e2f897e8e069c586ace6e06a8e6d3f7422f8d7ad3677093d3884de4367b217"
+  },
+  "localBuildId": "HmiX6cGJtNRpR9d6U8_xY",
+  "buildScope": "Final runtime code; fixture-only edits and documentation followed the local build. Hosted CI rebuilds the exact commit.",
+  "local": {
+    "unitTests": 1196,
+    "unitFiles": 124,
+    "newTests": 28,
+    "focusedTests": 79,
+    "focusedFiles": 3,
+    "types": "passed",
+    "migrations": 55,
+    "productionDependencyVulnerabilities": 0,
+    "browserScenarios": 135,
+    "browserRetries": 0,
+    "nativeStandaloneChecks": 162,
+    "nativePostgresql": "18.3"
+  },
+  "nativeEvidence": [
+    {
+      "event": "financial_abort_evidence",
+      "action": "MEDICATION_DISPENSED",
+      "databaseKind": "native-postgresql",
+      "observedRawLock": true,
+      "rollbackTables": 19,
+      "beforeSha256": "182f01826aaad107cd8b0ef81ec8437aa51c2839c68158ef7773d165b9205510",
+      "afterSha256": "efb6644bb81a24fdb4ebb6f40db42f35d049ff6601e7fdf45f416176a67e8023",
+      "successStatus": 200,
+      "successAuditCount": 1,
+      "businessAuditSessionIdPresent": false,
+      "newRowCounts": {
+        "Invoice": 0,
+        "InvoiceItem": 1,
+        "Payment": 0,
+        "Receipt": 0,
+        "PaymentRequest": 0,
+        "ReferenceSequence": 0,
+        "Visit": 0,
+        "QueueEntry": 1,
+        "ClinicalOrder": 0,
+        "Prescription": 0,
+        "Dispensation": 1,
+        "DispensationItem": 1,
+        "InventoryBatch": 0,
+        "InventoryLocationBalance": 0,
+        "StockMovement": 1,
+        "AccountingJournal": 1,
+        "AccountingJournalLine": 2,
+        "AuditEvent": 2
+      }
+    },
+    {
+      "event": "financial_abort_evidence",
+      "action": "PAYMENT_RECEIVED",
+      "databaseKind": "native-postgresql",
+      "observedRawLock": true,
+      "rollbackTables": 19,
+      "beforeSha256": "3ce33ea11fc89c5acab8c339854ce572bda82f3e153e08cc4d2a6e7002913c16",
+      "afterSha256": "755adaaa668ca9bbf589340452d970e8c21c0667cb01423c9ee855ae6844dbd3",
+      "successStatus": 201,
+      "successAuditCount": 1,
+      "businessAuditSessionIdPresent": false,
+      "newRowCounts": {
+        "Invoice": 0,
+        "InvoiceItem": 0,
+        "Payment": 1,
+        "Receipt": 1,
+        "PaymentRequest": 1,
+        "ReferenceSequence": 1,
+        "Visit": 0,
+        "QueueEntry": 0,
+        "ClinicalOrder": 0,
+        "Prescription": 0,
+        "Dispensation": 0,
+        "DispensationItem": 0,
+        "InventoryBatch": 0,
+        "InventoryLocationBalance": 0,
+        "StockMovement": 0,
+        "AccountingJournal": 0,
+        "AccountingJournalLine": 0,
+        "AuditEvent": 1
+      }
+    }
+  ],
+  "evidence": [
+    {
+      "path": "unit.log",
+      "bytes": 379,
+      "sha256": "cdacdabed824183892adb1c445c9a14f1908e434e1794c05726a71e1a075cb4a"
+    },
+    {
+      "path": "payment-dispense-red.log",
+      "bytes": 41993,
+      "sha256": "3907290526ecc1e51b4f272c78ea1fc3cdaef73c118b0bfda6ad2f5e0f738812"
+    },
+    {
+      "path": "payment-dispense-red-generated.log",
+      "bytes": 9804,
+      "sha256": "64d12117a9e7c4d1a398025d46b9159f045616648db330fa8539b7ffe5f78566"
+    },
+    {
+      "path": "payment-dispense-green.log",
+      "bytes": 299,
+      "sha256": "1f6cc35ba6940e42f4151cd2773d299c79d029127e6e063d82858a0bfed9ef3a"
+    },
+    {
+      "path": "types.log",
+      "bytes": 754,
+      "sha256": "b29f1a84e53cb56865c250c0e22dd0ce42b2649fb05d170dd2905a270af1602a"
+    },
+    {
+      "path": "types-final.log",
+      "bytes": 54,
+      "sha256": "de9b61b03f0cbbabb7b993cc935867fcf4151421358ccbc4337bcd7b4f3b30b6"
+    },
+    {
+      "path": "build.log",
+      "bytes": 3155,
+      "sha256": "923cae1cfd5aa093fc7027a6dc3d5fce8ea6cab376689fbd73de98b7afce551f"
+    },
+    {
+      "path": "migrations.log",
+      "bytes": 3011,
+      "sha256": "c2a7b82b42f37f575881945dc7be6dacdbf960ecc1581fe1af8cbe9176fbe5d6"
+    },
+    {
+      "path": "dependency-audit.log",
+      "bytes": 25,
+      "sha256": "4b02d4a3c23d969c46bd2041360f80bfcb1fe760d9db864009acdd710f9de601"
+    },
+    {
+      "path": "native-browser.log",
+      "bytes": 12531,
+      "sha256": "2057c8cb14760890dc46bb3335ea5000f43423925519f29543700b12c1e1e4f3"
+    },
+    {
+      "path": "native-browser-utf8.log",
+      "bytes": 1205,
+      "sha256": "da1c8b19737b46152d7fb160d97115f3c8841d0aa654d8716930778d60bd42b3"
+    },
+    {
+      "path": "native-browser-activity.log",
+      "bytes": 18762,
+      "sha256": "65b3f701b1e392252d6e66326b09e3af8ece50a5cd5ab3e9dd68930aeb016304"
+    },
+    {
+      "path": "native-standalone.log",
+      "bytes": 21407,
+      "sha256": "e518c4b6eeb6bcc5d0a27f5141072b67b8988af6a6c7d9dd8a75592c66b41aea"
+    },
+    {
+      "path": "pg-server.log",
+      "bytes": 82104,
+      "sha256": "4321528f7a0a935f856023cff05610335edb1efcef0ccd4422e515f72a8f873b"
+    },
+    {
+      "path": "audit-inventory.json",
+      "bytes": 21522,
+      "sha256": "cb7cadc0eb40a4cff0723c165f24833176b5f0ef9d9e7a70e1839768c05ed688"
+    },
+    {
+      "path": "hosted-platform.log",
+      "bytes": 236960,
+      "sha256": "38d734a7ee4fe44423b0b8a2758a961bad4f076413cfe45da2a7d9146b7a1cc6"
+    },
+    {
+      "path": "ci-final.json",
+      "bytes": 560,
+      "sha256": "1ad33fac593d03c0572bfce1e445224b6c5bd07df28c4efe9a06f4e042b75012"
+    },
+    {
+      "path": "live-final-health.json",
+      "bytes": 462,
+      "sha256": "61c4f0272fce3b8d371101714bd79ed5bb4456e9274718486d2d8232fc512c49"
+    }
+  ],
+  "retainedFailures": [
+    "Initial unit invocation before Prisma client generation, not a valid regression baseline",
+    "Two test-only TypeScript union errors",
+    "WIN1252 fresh fixture failed Unicode bootstrap",
+    "Cached PostgreSQL activity snapshot prevented lock observation; fixed by pg_stat_clear_snapshot within observer transaction"
+  ],
+  "auditInventory": {
+    "routes": 73,
+    "gaps": 0,
+    "unclassified": 0,
+    "aliases": 0
+  },
+  "changedFiles": [
+    "platform/WORKFLOW_IMPROVEMENT_LOG.md",
+    "platform/certification/assessment-pack/PAYMENT-DISPENSING-ABORT-REVIEW.md",
+    "platform/certification/audit-route-review.json",
+    "platform/scripts/e2e-financial-abort.mjs",
+    "platform/scripts/e2e-outpatient.mjs",
+    "platform/src/app/api/invoices/[id]/payments/route.test.ts",
+    "platform/src/app/api/invoices/[id]/payments/route.ts",
+    "platform/src/app/api/orders/[id]/dispense/route.test.ts",
+    "platform/src/app/api/orders/[id]/dispense/route.ts"
+  ],
+  "ci": {
+    "id": 39316733994,
+    "url": "https://github.com/mbiti001/mwein/actions/runs/39316733994",
+    "platformJob": 118280039445,
+    "legacyJob": 118280039614,
+    "status": "completed",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "id": 118280039445,
+        "name": "Platform verification",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 118280039614,
+        "name": "Legacy compatibility verification",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ],
+    "hostedNativeEvidence": [
+      {
+        "event": "financial_abort_evidence",
+        "action": "MEDICATION_DISPENSED",
+        "databaseKind": "native-postgresql",
+        "observedRawLock": true,
+        "rollbackTables": 19,
+        "beforeSha256": "0fe4a1122c576c532b864cb1ad03ca2a324e59f51765f5e0c8354ec211f80260",
+        "afterSha256": "81d10e8ec33be4a9d63e309cf1d7f770c219d35790b3a7b2f86c2547acfc1a57",
+        "successStatus": 200,
+        "successAuditCount": 1,
+        "businessAuditSessionIdPresent": false,
+        "newRowCounts": {
+          "Invoice": 0,
+          "InvoiceItem": 1,
+          "Payment": 0,
+          "Receipt": 0,
+          "PaymentRequest": 0,
+          "ReferenceSequence": 0,
+          "Visit": 0,
+          "QueueEntry": 1,
+          "ClinicalOrder": 0,
+          "Prescription": 0,
+          "Dispensation": 1,
+          "DispensationItem": 1,
+          "InventoryBatch": 0,
+          "InventoryLocationBalance": 0,
+          "StockMovement": 1,
+          "AccountingJournal": 1,
+          "AccountingJournalLine": 2,
+          "AuditEvent": 2
+        }
+      },
+      {
+        "event": "financial_abort_evidence",
+        "action": "PAYMENT_RECEIVED",
+        "databaseKind": "native-postgresql",
+        "observedRawLock": true,
+        "rollbackTables": 19,
+        "beforeSha256": "65d003d8de4fea3dc67fd009c44e0016aa49426170943a73675f24caa3b2ed8c",
+        "afterSha256": "5e65efef3f8c75445d5093bff21bdde802b2303dd67464d0ea3e22614deddf1f",
+        "successStatus": 201,
+        "successAuditCount": 1,
+        "businessAuditSessionIdPresent": false,
+        "newRowCounts": {
+          "Invoice": 0,
+          "InvoiceItem": 0,
+          "Payment": 1,
+          "Receipt": 1,
+          "PaymentRequest": 1,
+          "ReferenceSequence": 1,
+          "Visit": 0,
+          "QueueEntry": 0,
+          "ClinicalOrder": 0,
+          "Prescription": 0,
+          "Dispensation": 0,
+          "DispensationItem": 0,
+          "InventoryBatch": 0,
+          "InventoryLocationBalance": 0,
+          "StockMovement": 0,
+          "AccountingJournal": 0,
+          "AccountingJournalLine": 0,
+          "AuditEvent": 1
+        }
+      }
+    ],
+    "hostedBuildId": null,
+    "hostedBuildIdNote": "CI logs do not expose a build ID; local build identity is not substituted."
+  },
+  "live": {
+    "checkedAt": "2026-10-19T20:15:23.134Z",
+    "version": "1.6.2",
+    "source": "89e693df430571b9371cefad7db1e750ae41fe30",
+    "deployment": "dpl_F3uShagMUnYftappZnbrmSdTf42T",
+    "database": "connected",
+    "migration": "20261016010000_rights_identity_evidence",
+    "productionMutated": false
+  },
+  "boundaries": [
+    "No new release/version assigned or deployed",
+    "No schema, dependency, clinical-rule or layout change",
+    "No production migration, seed, patient workflow, credentials change or external message",
+    "October 15 backup exception not reused",
+    "Known-abort retries remain three total with existing separate P2002 reconciliation and immediate timing",
+    "Native controlled 40001 contention is not general load or native deadlock proof",
+    "Existing missing session IDs on PAYMENT_RECEIVED and MEDICATION_* success events remain; dispensing request receipt is session-attributed",
+    "Authorization/MFA before transaction is preserved; no per-attempt session/role revocation guarantee"
+  ],
+  "next": [
+    "Service-point assessment lifecycle and stale-update protection",
+    "Financial and supply success-event session attribution",
+    "Safe changed-payload supply replay",
+    "Diagnostic offered/accepted handover, pharmacy clarification, cashier reconciliation/reversals, follow-up ownership"
+  ],
+  "references": [
+    "https://www.postgresql.org/docs/current/mvcc-serialization-failure-handling.html",
+    "https://www.postgresql.org/docs/current/monitoring-stats.html"
+  ]
+}
