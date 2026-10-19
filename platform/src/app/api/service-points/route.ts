@@ -15,6 +15,7 @@ import { db } from "@/lib/db";
 import { recordDisclosure } from "@/lib/disclosure-audit";
 import { apiError, privateJson } from "@/lib/http";
 import { applyLnmpDating, dateInTimeZone } from "@/lib/pregnancy-dating";
+import { isOpenClinicalVisit } from "@/lib/visit-check-in";
 
 const serviceCode = z.enum([
   "ANC",
@@ -63,11 +64,14 @@ export async function GET(request: Request) {
           id: true,
           clinic: true,
           patientId: true,
+          status: true,
+          clinicallyClosedAt: true,
+          _count: { select: { encounters: { where: { status: { in: ["SIGNED", "CORRECTED"] } } } } },
           encounters: {
-            where: { status: { in: ["DRAFT", "SIGNED"] } },
+            where: { status: { in: ["DRAFT", "SIGNED", "CORRECTED"] } },
             orderBy: { createdAt: "desc" },
             take: 1,
-            select: { id: true, status: true, servicePointRecord: true },
+            select: { id: true, status: true, servicePointRecord: { include: { updatedBy: { select: { displayName: true } } } } },
           },
         },
       });
@@ -84,6 +88,8 @@ export async function GET(request: Request) {
       return privateJson({
         record: visit.encounters[0]?.servicePointRecord || null,
         encounterStatus: visit.encounters[0]?.status || null,
+        readOnly: !isOpenClinicalVisit(visit) || visit._count.encounters > 0,
+        visitStatus: visit.status,
         relationships,
       });
     }
@@ -178,7 +184,7 @@ export async function POST(request: Request) {
         },
       });
       if (!visit) throw Object.assign(new Error("Visit not found"), { status: 404 });
-      if (["COMPLETED", "CANCELLED"].includes(visit.status))
+      if (!isOpenClinicalVisit(visit))
         throw Object.assign(new Error("This visit is closed and cannot be changed"), { status: 409 });
 
       if (input.action === "LINK_PATIENT") {
@@ -249,9 +255,9 @@ export async function POST(request: Request) {
           { status: 422 },
         );
 
-      const signed = visit.encounters.find((encounter) => encounter.status === "SIGNED");
+      const signed = visit.encounters.find((encounter) => ["SIGNED", "CORRECTED"].includes(encounter.status));
       if (signed)
-        throw Object.assign(new Error("This encounter is signed. Add an authorised addendum instead of changing the assessment."), { status: 409 });
+        throw Object.assign(new Error("This encounter is signed or corrected. Add an authorised addendum instead of changing the assessment."), { status: 409 });
       let encounter = visit.encounters.find((item) => item.status === "DRAFT");
       if (!encounter) {
         encounter = await tx.encounter.create({
@@ -259,6 +265,7 @@ export async function POST(request: Request) {
         });
       }
       const record = await tx.servicePointRecord.upsert({
+        include: { updatedBy: { select: { displayName: true } } },
         where: { encounterId: encounter.id },
         update: {
           servicePoint: profile.code,

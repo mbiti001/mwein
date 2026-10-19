@@ -21,7 +21,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(requirePermission).mockResolvedValue({ id: "actor", facilityId: "facility-a", sessionId: "session", roles: ["FACILITY_ADMIN"], permissions: ["admin.assign_governance"], facility: { timezone: "Africa/Nairobi" } } as any);
   for (const model of Object.values(db) as any[]) model.findMany.mockResolvedValue([]);
-  vi.mocked(db.visit.findFirst).mockResolvedValue({ id, patientId: "patient", encounters: [] } as any);
+  vi.mocked(db.visit.findFirst).mockResolvedValue({ id, patientId: "patient", status: "AWAITING_CLINICIAN", clinicallyClosedAt: null, encounters: [], _count: { encounters: 0 } } as any);
 });
 it.each(cases)("audits $name before returning private data", async ({ read, context }) => {
   const response = await read();

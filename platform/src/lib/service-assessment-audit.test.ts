@@ -54,7 +54,7 @@ beforeEach(() => {
     if (staged.length) saved = staged.at(-1);
     return result;
   });
-  vi.mocked(db.visit.findFirst).mockImplementation((async (args: any) => visit && ({ ...visit, encounters: visit.encounters.filter((e: any) => args.select.encounters.where.status.in.includes(e.status)).slice(0, 1).map((e: any) => ({ ...e, servicePointRecord: saved })) })) as any);
+  vi.mocked(db.visit.findFirst).mockImplementation((async (args: any) => visit && ({ ...visit, _count: { encounters: visit.encounters.filter((e: any) => ["SIGNED", "CORRECTED"].includes(e.status)).length }, encounters: visit.encounters.filter((e: any) => args.select.encounters.where.status.in.includes(e.status)).slice(0, 1).map((e: any) => ({ ...e, servicePointRecord: saved })) })) as any);
   vi.mocked(db.patientRelationship.findMany).mockResolvedValue([]);
 });
 
@@ -157,31 +157,44 @@ describe("service assessment existing safety boundaries", () => {
   });
 });
 
-// Explicit baseline observations, NOT desired behavior. Replace these assertions with
-// rejection/retention requirements when implementing SERVICE-ASSESSMENT-AUDIT.md.
-describe("known assessment gaps — characterization of unmodified runtime", () => {
+// Lifecycle requirements are corrected here. The two explicitly labeled
+// "currently" cases at the end still characterize pending revision/audit work.
+describe("assessment lifecycle corrections and remaining revision/audit gaps", () => {
   it.each([
     { status: "DISCHARGED", clinicallyClosedAt: null },
     { status: "UNDER_CONSULTATION", clinicallyClosedAt: new Date("2026-10-19T19:00:00Z") },
-  ])("currently accepts both writes after closure: %j", async state => {
+  ])("rejects both writes after closure: %j", async state => {
     Object.assign(visit, state);
-    expect((await post()).status).toBe(200);
-    expect((await post(link)).status).toBe(200);
-    expect(committed).toHaveLength(1);
-    expect(tx.patientRelationship.upsert).toHaveBeenCalledTimes(1);
+    expect((await post()).status).toBe(409);
+    expect((await post(link)).status).toBe(409);
+    expect(committed).toHaveLength(0);
+    expect(tx.patientRelationship.upsert).not.toHaveBeenCalled();
+    expect(appendAudit).not.toHaveBeenCalled();
   });
-  it("currently creates a new draft beside a corrected encounter", async () => {
+  it("rejects replacement beside a corrected encounter", async () => {
     visit.encounters = [{ id: "corrected", status: "CORRECTED" }];
-    expect((await post()).status).toBe(200);
-    expect(tx.encounter.create).toHaveBeenCalledTimes(1);
-    expect(tx.servicePointRecord.upsert.mock.calls[0][0].where).toEqual({ encounterId: "new-encounter" });
+    expect((await post()).status).toBe(409);
+    expect(tx.encounter.create).not.toHaveBeenCalled();
+    expect(tx.servicePointRecord.upsert).not.toHaveBeenCalled();
   });
-  it("currently omits corrected assessment records from GET", async () => {
+  it("retains corrected assessment records in GET", async () => {
     saved = { id: "retained-record", data };
     visit.encounters = [{ id: "corrected", status: "CORRECTED" }];
     const response = await get();
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ record: null, encounterStatus: null });
+    expect(await response.json()).toMatchObject({ record: saved, encounterStatus: "CORRECTED", readOnly: true });
+  });
+  it("keeps a newer draft read-only when an older encounter is final", async () => {
+    visit.encounters = [{ id: "new-draft", status: "DRAFT" }, { id: "older-final", status: "SIGNED" }];
+    expect(await (await get()).json()).toMatchObject({ encounterStatus: "DRAFT", readOnly: true });
+    expect((await post()).status).toBe(409);
+    expect(tx.servicePointRecord.upsert).not.toHaveBeenCalled();
+  });
+  it("selects only the recorder's display name for attributed record disclosure", async () => {
+    await get();
+    expect(vi.mocked(db.visit.findFirst).mock.calls[0][0]?.select?.encounters).toMatchObject({
+      select: { servicePointRecord: { include: { updatedBy: { select: { displayName: true } } } } },
+    });
   });
   it("currently accepts a stale sequential save and discards an unrecognized revision", async () => {
     expect((await post({ ...input, data: { ...data, carePlan: "Newer plan" } })).status).toBe(200);

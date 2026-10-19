@@ -1,7 +1,7 @@
 "use client";
 import { RecordFields, recordValue } from "./RecordFields";
 
-import { FormEvent, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   careServiceForClinic,
   careServiceProfile,
@@ -85,6 +85,7 @@ type ServiceRecord = {
   riskLevel?: string | null;
   followUpAt?: string | null;
   updatedAt: string;
+  updatedBy?: { displayName: string } | null;
 };
 
 type Relationship = {
@@ -316,28 +317,47 @@ function AssessmentWorkspace({
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [loaded, setLoaded] = useState(false);
+  const [readOnly, setReadOnly] = useState(true);
+  const [encounterStatus, setEncounterStatus] = useState<string | null>(null);
+  const [visitStatus, setVisitStatus] = useState(visit.status);
+  const loadController = useRef<AbortController | null>(null);
+  const draftLoaded = useRef(false);
   const facilityToday = dateInTimeZone(new Date(), facilityTimeZone);
   const ancDating = profile.code === "ANC" && typeof values.lmp === "string"
     ? pregnancyDatingFromLnmp(values.lmp, facilityToday)
     : null;
   const assessmentValidation = useMemo(() => validateCareAssessment(profile, values), [profile, values]);
 
-  async function load() {
+  async function load(preserveDraft = false) {
+    loadController.current?.abort();
+    const controller = new AbortController();
+    loadController.current = controller;
     setBusy(true);
+    setLoaded(false);
+    setError("");
     try {
-      const response = await api<{ record: ServiceRecord | null; relationships: Relationship[] }>(`/api/service-points?visitId=${visit.id}`);
+      const response = await api<{ record: ServiceRecord | null; relationships: Relationship[]; encounterStatus: string | null; readOnly: boolean; visitStatus: string }>(`/api/service-points?visitId=${visit.id}`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
       setRecord(response.record);
+      setEncounterStatus(response.encounterStatus);
+      setReadOnly(response.readOnly !== false || ["SIGNED", "CORRECTED"].includes(response.encounterStatus || ""));
+      setVisitStatus(response.visitStatus);
       const loadedValues = response.record?.data || {};
-      setValues(profile.code === "ANC" ? applyLnmpDating(loadedValues, facilityToday).data : loadedValues);
-      setRiskLevel(response.record?.riskLevel || "ROUTINE");
-      setFollowUpAt(response.record?.followUpAt?.slice(0, 10) || "");
+      if (!preserveDraft || !draftLoaded.current) {
+        setValues(profile.code === "ANC" ? applyLnmpDating(loadedValues, facilityToday).data : loadedValues);
+        setRiskLevel(response.record?.riskLevel || "ROUTINE");
+        setFollowUpAt(response.record?.followUpAt?.slice(0, 10) || "");
+        setSaved(Boolean(response.record));
+      }
+      draftLoaded.current = true;
       setRelationships(response.relationships);
-      setSaved(Boolean(response.record));
-    } catch (reason) { setError((reason as Error).message); }
-    finally { setBusy(false); }
+      setLoaded(true);
+    } catch (reason) { if (!controller.signal.aborted) setError((reason as Error).message); }
+    finally { if (!controller.signal.aborted) setBusy(false); }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); return () => loadController.current?.abort(); }, []);
 
   function change(key: string, value: string | boolean) {
     setValues((current) => {
@@ -358,6 +378,7 @@ function AssessmentWorkspace({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy || !loaded || readOnly) return;
     if (assessmentValidation.errors.length) {
       setError("Resolve the highlighted clinical data errors before saving.");
       return;
@@ -379,20 +400,21 @@ function AssessmentWorkspace({
       setRecord(response.record);
       setSaved(true);
       setNotice(`${profile.label} assessment saved in this patient's encounter.${response.warnings?.length ? " Clinical-range alerts remain visible for review." : ""}`);
-      await onSaved();
+      try { await onSaved(); }
+      catch (reason) { setError(`The assessment was saved, but the worklist could not refresh. ${(reason as Error).message}`); }
     } catch (reason) { setError((reason as Error).message); }
     finally { setBusy(false); }
   }
 
   return (
-    <>
+    <section className="assessmentWorkspace">
       <header className="servicePatientHeader">
         <div><p className="eyebrow">{profile.label} assessment</p><h1>{visit.patient.fullName}</h1><p>{visit.patient.patientNumber} · {visit.visitNumber} · {visit.clinic}</p></div>
         <div className="actions"><button className="secondary" type="button" onClick={onBack}>← Queue</button><button className="primary" type="button" onClick={onOpenClinical}>Diagnosis, orders &amp; sign →</button></div>
       </header>
       <section className="clinicalSummary serviceSafetyStrip">
         <div><small>Priority</small><strong>{visit.priority}</strong></div>
-        <div><small>Visit state</small><strong>{visit.status.replaceAll("_", " ")}</strong></div>
+        <div><small>Visit state</small><strong>{visitStatus.replaceAll("_", " ")}</strong></div>
         <div><small>Allergies</small><strong className={visit.patient.allergies?.length ? "dangerText" : ""}>{visit.patient.allergies?.length ? visit.patient.allergies.map((item) => item.substance).join(", ") : "None recorded—verify"}</strong></div>
         <div><small>Template</small><strong>{profile.templateVersion}</strong></div>
       </section>
@@ -400,10 +422,14 @@ function AssessmentWorkspace({
         <strong>Pregnancy confirmed</strong>
         <span>{visit.ancAdmissionEvidence.method.replaceAll("_", " ").toLowerCase()} · tested {new Date(visit.ancAdmissionEvidence.testedAt).toLocaleDateString()} · reference {visit.ancAdmissionEvidence.evidenceReference}.{visit.ancAdmissionEvidence.safeguardingReviewRequired ? " Provide a private, non-judgemental safeguarding assessment now; do not delay ANC." : " Continue WHO-aligned ANC assessment."}</span>
       </section>}
-      {profile.code === "MCH_PNC" && <PatientLinkPanel visit={visit} relationships={relationships} onLinked={load} />}
+      {profile.code === "MCH_PNC" && loaded && !readOnly && <PatientLinkPanel visit={visit} relationships={relationships} onLinked={() => load(true)} />}
       <form className="serviceAssessment" onSubmit={submit}>
         {error && <div className="alert">{error}</div>}
+        {!busy && !loaded && <div role="status">Assessment unavailable. Editing is disabled until the saved record loads. <button type="button" className="secondary" onClick={() => void load(true)}>Retry assessment load</button></div>}
+        {loaded && readOnly && <p role="status">Read-only assessment: this visit is closed or its encounter is signed/corrected. Retained saved data is shown below.</p>}
         {notice && <div className="inlineSaveConfirmation" role="status">✓ {notice}</div>}
+        <fieldset className="assessmentInputs" disabled={busy || !loaded || readOnly}>
+        <legend>{profile.label} assessment entries</legend>
         {assessmentValidation.errors.length > 0 && <div className="alert clinicalEntryAlert" role="alert" aria-live="assertive">
           <strong>Cannot save these entries</strong>
           <ul>{assessmentValidation.errors.map((issue) => <li key={`${issue.field || "form"}:${issue.message}`}>{issue.message}</li>)}</ul>
@@ -431,15 +457,20 @@ function AssessmentWorkspace({
           <label>Next follow-up<input type="date" value={followUpAt} onChange={(event) => { setFollowUpAt(event.target.value); setSaved(false); }} /></label>
           <div className="serviceSave">{saved ? <span className="inlineSaveConfirmation">✓ Saved {record?.updatedAt ? new Date(record.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</span> : <button className="primary" disabled={busy || assessmentValidation.errors.length > 0}>{busy ? "Saving…" : assessmentValidation.errors.length ? "Resolve entry errors" : `Save ${profile.label} assessment`}</button>}</div>
         </section>
+        </fieldset>
       </form>
-      {record && <section className="card savedAssessment"><h2>Saved {profile.label} assessment</h2><p>Template {record.templateVersion} · Saved {new Date(record.updatedAt).toLocaleString()}</p>
-        <RecordFields fields={[{ label: "Clinical risk", value: record.riskLevel }, { label: "Next follow-up", value: record.followUpAt ? new Date(record.followUpAt).toLocaleDateString() : null }]} />
+      {record && <section className="card savedAssessment"><h2>Saved {profile.label} assessment</h2>
+        <div className="assessmentIdentity"><strong>{visit.patient.fullName}</strong><span>{visit.patient.patientNumber} · {visit.visitNumber} · {visit.clinic}</span></div>
+        <p>Template {record.templateVersion} · Last saved by {record.updatedBy?.displayName || "Recorder not available"} · {new Date(record.updatedAt).toLocaleString(undefined, { timeZone: facilityTimeZone })} ({facilityTimeZone}) · Encounter: {encounterStatus || "Not available"}</p>
+        <p className="noPrint">Only this saved snapshot is printed; unsaved entries are excluded.</p>
         {profile.sections.map(section => <RecordFields key={section.title} title={section.title} fields={section.fields.map(field => {
-          const value = recordValue(record.data[field.key], true);
-          return { label: field.label, value: value === null ? null : `${value}${field.unit ? ` ${field.unit}` : ""}`, wide: field.type === "textarea" };
+          const value = recordValue(record.data[field.key]);
+          return { label: field.label, value: value === null ? "Not recorded" : `${value}${field.unit ? ` ${field.unit}` : ""}`, wide: field.type === "textarea" };
         })} />)}
+        <RecordFields fields={[{ label: "Clinical risk", value: record.riskLevel || "Not recorded" }, { label: "Next follow-up", value: record.followUpAt?.slice(0, 10) || "Not recorded" }]} />
       </section>}
-    </>
+      {!record && <p className="assessmentPrintEmpty">No saved assessment is available for this visit.</p>}
+    </section>
   );
 }
 
