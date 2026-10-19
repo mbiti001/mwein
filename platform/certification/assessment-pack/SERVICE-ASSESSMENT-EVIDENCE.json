@@ -1,0 +1,125 @@
+{
+  "recordedAt": "2026-10-19T21:06:41.218Z",
+  "type": "assessment lifecycle audit only; no runtime correction",
+  "baseCommit": "e4ac4ae4a195cbb1ef9742747e1902e237660a03",
+  "applicationSource": "3c3b12bdc07df853c47c30f81af2bcaa15cbfdaa",
+  "baselineRuntimeDelta": "",
+  "blobs": {
+    "src/app/api/service-points/route.ts": "70678bf42d2355aa7e923d693c76cdfeb05c3840",
+    "src/components/ServicePointsWorkstation.tsx": "6930ca2c42b96547d42d1001545e7030d1060d23",
+    "src/components/RecordFields.tsx": "3d8222e5d9f6893d68a98ee0e3e3ace8dd2dc2e1",
+    "src/app/service-points.css": "ec09add4f421d99ebada8037d3280a17c38965f4",
+    "prisma/schema.prisma": "a434c5184354841a497873d7e073e526ab1664a7"
+  },
+  "checks": {
+    "focusedTests": 61,
+    "files": 5,
+    "addedRouteCases": 28,
+    "types": "PASS",
+    "browser": {
+      "startTime": "2026-10-19T21:04:51.829Z",
+      "duration": 11255.854,
+      "expected": 7,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "retries": 0,
+    "layout": {
+      "measurements": [
+        {
+          "width": 1440,
+          "overflow": 0,
+          "entryColumns": "534.812px 534.812px",
+          "savedColumns": "352.531px 352.547px 352.547px"
+        },
+        {
+          "width": 768,
+          "overflow": 0,
+          "entryColumns": "338px 338px",
+          "savedColumns": "339px 339px"
+        },
+        {
+          "width": 390,
+          "overflow": 0,
+          "entryColumns": "322px",
+          "savedColumns": "322px"
+        },
+        {
+          "width": 320,
+          "overflow": 0,
+          "entryColumns": "252px",
+          "savedColumns": "252px"
+        }
+      ],
+      "print": {
+        "entryDisplay": "grid",
+        "identityDisplay": "none",
+        "savedDisplay": "block"
+      }
+    }
+  },
+  "build": {
+    "id": "HmiX6cGJtNRpR9d6U8_xY",
+    "source": "3c3b12bdc07df853c47c30f81af2bcaa15cbfdaa",
+    "reused": true,
+    "newBuild": false,
+    "port": 42782,
+    "api": "intercepted synthetic responses",
+    "database": "unreachable placeholder; no native DB testing in this audit"
+  },
+  "limitations": [
+    "Mocked route calls establish behavior, not native rollback or concurrency.",
+    "Known-gap tests characterize defects; their pass is not safety or release approval.",
+    "Print media screenshot and generated PDF retained; physical printing and PDF pagination not verified.",
+    "Native stale-update/closure/sign races and immutable assessment revisions remain unimplemented."
+  ],
+  "retainedFailure": {
+    "file": "work/assessment-types.log",
+    "description": "Prisma fluent return type mismatch in new test mock; corrected test-only cast, final types pass",
+    "sha256": "b85fc400a43ec34c7eb006629df41e7797115ead5a8460fa718ee812ba22fe26"
+  },
+  "live": {
+    "status": "ok",
+    "database": "connected",
+    "migration": "20261016010000_rights_identity_evidence",
+    "release": {
+      "version": "1.6.2",
+      "commit": "89e693df430571b9371cefad7db1e750ae41fe30",
+      "shortCommit": "89e693df4305",
+      "environment": "production",
+      "branch": "codex/mwein-platform",
+      "deployment": "dpl_F3uShagMUnYftappZnbrmSdTf42T",
+      "application": "mwein-hmis-platform"
+    },
+    "time": "2026-10-19T21:04:04.076Z"
+  },
+  "productionChanged": false,
+  "authenticationRequired": false,
+  "evidence": [
+    {
+      "path": "work/assessment-unit-final.log",
+      "sha256": "18647f044cfbf44303692743f9ccda305599e242cd2c902ae499699e97bb16c0"
+    },
+    {
+      "path": "work/assessment-unit.json",
+      "sha256": "7d32207a3826d66759318568b3c54e5f5876148c1cedf9a8b3ed3189e2f783ae"
+    },
+    {
+      "path": "work/assessment-types-final.log",
+      "sha256": "de9b61b03f0cbbabb7b993cc935867fcf4151421358ccbc4337bcd7b4f3b30b6"
+    },
+    {
+      "path": "work/assessment-browser-final.log",
+      "sha256": "344edc49b47c948ab6273b390e2f5f8d87e84a5d8d19f55f75ee64689296053e"
+    },
+    {
+      "path": "work/assessment-browser-results.json",
+      "sha256": "f344b791e04a6e27c742b1a3301359f08f8497244ba844f4b14f2447846c3349"
+    },
+    {
+      "path": "work/live-health.json",
+      "sha256": "97abf5123dc07627b0cc124505efa1b05274e24ca48c679f4e65d5b0d4ae6a43"
+    }
+  ]
+}
