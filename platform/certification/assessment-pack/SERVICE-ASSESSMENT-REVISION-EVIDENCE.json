@@ -1,0 +1,247 @@
+{
+  "recordedAt": "2026-10-19T23:17:06.367Z",
+  "scope": "Mandatory original assessment revision, consultation signer coupling, explicit conflict review and responsive review controls",
+  "branch": "codex/mwein-platform",
+  "baseCommit": "40401ed1302578e2a68a326a1a885bdd100d9f98",
+  "testedSource": "f9e79554f8be3ebc0b9da3efbc5dae9af58e2753",
+  "normalSourcePushVerified": true,
+  "local": {
+    "units": {
+      "passed": 1246,
+      "files": 126
+    },
+    "types": "passed",
+    "migrations": 55,
+    "productionVulnerabilities": 0,
+    "initialBuild": {
+      "id": "A10KtKHbHo9iIg2mH87v7",
+      "fullBrowserPassed": 148,
+      "browserRetries": 0,
+      "standaloneNativeChecks": 183,
+      "scopeLimit": "Before final review-controls CSS/class-only correction and final viewport assertions. Not represented as the final full-build pass."
+    },
+    "finalBuild": {
+      "id": "LJSOlC6B5Vx73zcbuQJ_m",
+      "focusedBrowserPassed": 13,
+      "browserRetries": 0,
+      "viewports": [
+        1440,
+        768,
+        390,
+        320
+      ],
+      "printMediaPassed": true,
+      "existingMultipagePDFRegressionPassed": true,
+      "physicalPrintReviewed": false
+    },
+    "nativeEvidence": {
+      "event": "assessment_revision_evidence",
+      "databaseKind": "native-postgresql",
+      "overlappingFirstSave": true,
+      "staleSignerRejected": true,
+      "auditRollback": true,
+      "sqlLifecycleRaces": [
+        "SIGNED",
+        "CLOSED_TIMESTAMP"
+      ],
+      "visitId": "da509160-2c2e-400b-8f47-9fc5cd257d14",
+      "encounterId": "e48cec26-c875-4e37-80ce-aa5b11bb4e39",
+      "recordId": "ba7441ef-dd82-425b-b905-8f5bbd188dde"
+    },
+    "nativeLimit": "Only native PostgreSQL proves overlapping first writers. Lifecycle race writers set SIGNED/closure states with SQL; not actual clinical sign/discharge flows. Stale SIGN is an actual HTTP revision rejection."
+  },
+  "ci": {
+    "run": {
+      "id": 39339754091,
+      "head_sha": "f9e79554f8be3ebc0b9da3efbc5dae9af58e2753",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/mbiti001/mwein/actions/runs/39339754091"
+    },
+    "jobs": [
+      {
+        "id": 118358081811,
+        "name": "Platform verification",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 118358082008,
+        "name": "Legacy compatibility verification",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ],
+    "decodedLogVerification": {
+      "unitFiles": 126,
+      "standaloneNativeChecks": 183,
+      "browserRetries": 0,
+      "productionVulnerabilities": 0,
+      "hostedBuildId": null,
+      "unitTests": 1246,
+      "browserScenarios": 148,
+      "migrations": 55,
+      "assessmentNativeRevisionEvidence": "overlapping first writes, stale editors and signer, rollback, SQL SIGNED and closure races passed"
+    }
+  },
+  "sourceArchive": {
+    "format": "canonical LF git archive",
+    "bytes": 6860800,
+    "sha256": "cee11af0205da83e4acc2fe084ad2395fed69e555f02370aee421e482324d56c"
+  },
+  "auditInventory": {
+    "routes": 73,
+    "gaps": 0,
+    "unclassified": 0,
+    "aliases": 0,
+    "reviewedRouteSha256": "b89cd06d6dc245e75bc6e798fee6329492811fa3d9058b1b3565fd618750676d",
+    "exceptionsAdded": false
+  },
+  "liveHealth": {
+    "status": "ok",
+    "database": "connected",
+    "migration": "20261016010000_rights_identity_evidence",
+    "release": {
+      "version": "1.6.2",
+      "commit": "89e693df430571b9371cefad7db1e750ae41fe30",
+      "shortCommit": "89e693df4305",
+      "environment": "production",
+      "branch": "codex/mwein-platform",
+      "deployment": "dpl_F3uShagMUnYftappZnbrmSdTf42T",
+      "application": "mwein-hmis-platform"
+    },
+    "time": "2026-10-19T23:17:06.362Z"
+  },
+  "productionChanged": false,
+  "migrationAdded": false,
+  "authenticationRequired": false,
+  "safeguards": "MFA, clinical readiness, independent release acceptance and fresh future backup/recovery gates retained; no October 15 exception reuse, production seed, credentials, real-patient workflows or external messages.",
+  "retainedFailures": [
+    "Three RED acceptance failures before the correction",
+    "Date-object versus JSON-string test mock mismatch, corrected",
+    "Unavailable Windows python alias; bundled Python used",
+    "First fresh local database inherited WIN1252; Unicode bootstrap failed. Preserved and replaced with a separate empty UTF-8 fixture database.",
+    "Expanded viewport test found 130px horizontal overflow at 768px (12/13 pass). Scoped review-controls grid corrected; final 13/13 pass."
+  ],
+  "next": [
+    "Canonical assessment before/after value fingerprints and session attribution",
+    "Immutable structured history/amendments with separate database-release safeguards",
+    "Unsaved assessment navigation/reload recovery",
+    "Financial/supply attribution and changed-payload stock replay",
+    "Diagnostic offered/accepted handover, pharmacy clarification, cashier and attributable follow-up"
+  ],
+  "limitations": [
+    "Mutable assessment record is not immutable history",
+    "Explicit remaining audit-payload characterization test retained",
+    "Supported application writers must advance encounter/record timestamps; arbitrary direct SQL bypass is outside the revision contract",
+    "No automatic retry or idempotent assessment replay claim",
+    "Local build identifiers are not hosted or Vercel internal build IDs"
+  ],
+  "files": [
+    {
+      "name": "revision-red.log",
+      "bytes": 3179,
+      "sha256": "7334f9e702a23b732092702d3c1c1089a43e88c60b3e57ac66531c7477f0e9fd"
+    },
+    {
+      "name": "unit-final.log",
+      "bytes": 342,
+      "sha256": "51f321bb4ef69cf08d082b31ba8ea02f07be453025d5dce2bbc59505e0ec0a03"
+    },
+    {
+      "name": "types-final.log",
+      "bytes": 54,
+      "sha256": "de9b61b03f0cbbabb7b993cc935867fcf4151421358ccbc4337bcd7b4f3b30b6"
+    },
+    {
+      "name": "migrations.log",
+      "bytes": 3011,
+      "sha256": "c2a7b82b42f37f575881945dc7be6dacdbf960ecc1581fe1af8cbe9176fbe5d6"
+    },
+    {
+      "name": "dependency-audit.log",
+      "bytes": 25,
+      "sha256": "4b02d4a3c23d969c46bd2041360f80bfcb1fe760d9db864009acdd710f9de601"
+    },
+    {
+      "name": "build.log",
+      "bytes": 3407,
+      "sha256": "e2de9c9575b33bc035830f02c52313176f787626cb61911f776bf44c5719d31a"
+    },
+    {
+      "name": "build-final.log",
+      "bytes": 3409,
+      "sha256": "983200c69f8ba180853196db1edf9901ced2894bf33ac51bcc316ffe636ba65f"
+    },
+    {
+      "name": "native-browser.log",
+      "bytes": 12272,
+      "sha256": "d7c287f324e8265337ffa79a39114c355f033bf33e07b1cdb11bf01b43b27599"
+    },
+    {
+      "name": "native-browser-utf8.log",
+      "bytes": 20513,
+      "sha256": "26cd8bfd44ff8e6dd1cca63c83a429586500952788d0e79af6f091296d0bd569"
+    },
+    {
+      "name": "native-standalone.log",
+      "bytes": 25055,
+      "sha256": "a98e972c250c968c0cb4480eac6eb9843b6f627ba3b6f9b825c0967a34b38a57"
+    },
+    {
+      "name": "layout-final.log",
+      "bytes": 5693,
+      "sha256": "f66032b8f4740e0c2f7ca16869e2361b36276c1f2a01f2fbc0a082c3f2d5b01e"
+    },
+    {
+      "name": "layout-corrected.log",
+      "bytes": 2443,
+      "sha256": "e247ced055f33a72e6d496d0112a5e00bb145350e3868e52ea96cec028eefd27"
+    },
+    {
+      "name": "revision-source.tar",
+      "bytes": 6860800,
+      "sha256": "cee11af0205da83e4acc2fe084ad2395fed69e555f02370aee421e482324d56c"
+    },
+    {
+      "name": "audit-inventory.json",
+      "bytes": 21522,
+      "sha256": "cc20824f171af71f7d903899268c1673b5ad700e871fa20de93097ced832c811"
+    },
+    {
+      "name": "live-health.json",
+      "bytes": 462,
+      "sha256": "0af133ed905d883fa52c13951906d483b448a07aaa89dbd081027a82525ac6ec"
+    },
+    {
+      "name": "ci-final.json",
+      "bytes": 965,
+      "sha256": "6d43ae3fe208f0e32e826302cbd75561a81e04c0ea843e20752e8e25d7102165"
+    },
+    {
+      "name": "hosted-platform.log",
+      "bytes": 257354,
+      "sha256": "768509d0bb363733f4284595652dc6cfb7d43870f5696022931a22d664f5b2f9"
+    },
+    {
+      "name": "assessment-conflict-1440.png",
+      "bytes": 272093,
+      "sha256": "9596b0fbcea08dfc1c3c3697610ed7e57a2de6c86ee46fdc30a7cdd43476933a"
+    },
+    {
+      "name": "assessment-conflict-768.png",
+      "bytes": 240088,
+      "sha256": "211f332443f922e20b5a823e89958872b802cfff025285b488318c4c7283ad60"
+    },
+    {
+      "name": "assessment-conflict-390.png",
+      "bytes": 248138,
+      "sha256": "06d81d5dec9db53f7e6267d8212e97296874fadbf54c1fb5cea1ac78356703a9"
+    },
+    {
+      "name": "assessment-conflict-320.png",
+      "bytes": 248324,
+      "sha256": "a1422a2a45ab0c858038d6a0f7ba72ddab2c2bc29e23af695aa50355cf08a529"
+    }
+  ]
+}
