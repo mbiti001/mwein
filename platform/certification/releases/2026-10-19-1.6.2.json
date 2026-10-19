@@ -1,0 +1,269 @@
+{
+  "version": "1.6.2",
+  "status": "deployed-and-verified",
+  "recordedAt": "2026-10-19T19:19:34.379Z",
+  "source": "89e693df430571b9371cefad7db1e750ae41fe30",
+  "branch": "codex/mwein-platform",
+  "tag": "mwein-v1.6.2",
+  "authorization": "User authorized routine implementation, verified pushes, independent agent test/retest and completion of this Vercel release. Owner-renamed branch retained.",
+  "scope": "Combined demographic/registration corrections, compact queue/history/follow-up tables, bounded native login/consultation/MFA/staff/cancellation transaction handling and native PostgreSQL test fixtures.",
+  "latestCorrection": "Visit cancellation recovers from confirmed transaction aborts and retains existing clinical/payment/claim/facility/audit protections.",
+  "canonicalSourceArchive": {
+    "sha256": "743f0350c4a473017983c4d66da687241c9d92b443895369caef391b7c08dd02",
+    "bytes": 6645760
+  },
+  "candidateEvidence": "2026-10-19-1.6.2-candidate.json",
+  "ci": {
+    "runId": 39307945010,
+    "url": "https://github.com/mbiti001/mwein/actions/runs/39307945010",
+    "platformJob": 118249771408,
+    "legacyJob": 118249771734,
+    "conclusion": "success",
+    "verifiedHostedChecks": {
+      "unitFiles": 124,
+      "unitTests": 1168,
+      "browserScenarios": 135,
+      "productionDependencyVulnerabilities": 0,
+      "migrations": 55,
+      "syntheticStandaloneChecks": 160
+    }
+  },
+  "local": {
+    "unitTests": 1168,
+    "unitFiles": 124,
+    "types": "passed",
+    "migrations": 55,
+    "productionDependencyVulnerabilities": 0,
+    "browserScenarios": 135,
+    "browserRetries": 0,
+    "browserMinutes": 6.1,
+    "buildId": "ue7wvZNjQ8vGx8SSDSMZV",
+    "database": "Disposable loopback PostgreSQL18.3",
+    "nativeCancellation": "Injected P0001 rollback, injected40001 one-retry success, one attributed cancellation/audit; saved fixture and browser records independently inspected",
+    "canonicalAudit": {
+      "routes": 73,
+      "gaps": 0,
+      "unclassified": 0,
+      "aliases": 0
+    }
+  },
+  "deployment": {
+    "id": "dpl_F3uShagMUnYftappZnbrmSdTf42T",
+    "url": "https://mwein-hmis-platform-pkcudy4ka-mbitis-projects.vercel.app",
+    "origin": "https://mwein-hmis-platform.vercel.app",
+    "readyState": "READY",
+    "promoted": true,
+    "method": "Exact canonical source archive staged with --prod --skip-domain, verified, then same deployment promoted",
+    "remoteInternalBuildId": null,
+    "remoteInternalBuildIdNote": "Not exposed by inspected v13/v6 deployment responses. Deployment ID and source are verified; local Next build ID is recorded separately.",
+    "buildCommand": "prisma generate && next build",
+    "buildMigrationFree": true
+  },
+  "prePromotionBaseline": {
+    "status": "ok",
+    "database": "connected",
+    "migration": "20261016010000_rights_identity_evidence",
+    "release": {
+      "version": "1.6.1",
+      "commit": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+      "shortCommit": "a0a0909bf61d",
+      "environment": "production",
+      "branch": "codex/mwein-platform",
+      "deployment": "dpl_4XsM4VZuihAG9BFNiHzjDD7WR335",
+      "application": "mwein-hmis-platform"
+    },
+    "time": "2026-10-19T19:15:09.453Z"
+  },
+  "stagedHealth": {
+    "status": "ok",
+    "database": "connected",
+    "migration": "20261016010000_rights_identity_evidence",
+    "release": {
+      "version": "1.6.2",
+      "commit": "89e693df430571b9371cefad7db1e750ae41fe30",
+      "shortCommit": "89e693df4305",
+      "environment": "production",
+      "branch": "codex/mwein-platform",
+      "deployment": "dpl_F3uShagMUnYftappZnbrmSdTf42T",
+      "application": "mwein-hmis-platform"
+    },
+    "time": "2026-10-19T19:14:34.231Z"
+  },
+  "liveVerification": {
+    "verifiedAt": "2026-10-19T19:16:14.207Z",
+    "origin": "https://mwein-hmis-platform.vercel.app",
+    "health": {
+      "status": "ok",
+      "database": "connected",
+      "migration": "20261016010000_rights_identity_evidence",
+      "release": {
+        "version": "1.6.2",
+        "commit": "89e693df430571b9371cefad7db1e750ae41fe30",
+        "shortCommit": "89e693df4305",
+        "environment": "production",
+        "branch": "codex/mwein-platform",
+        "deployment": "dpl_F3uShagMUnYftappZnbrmSdTf42T",
+        "application": "mwein-hmis-platform"
+      },
+      "time": "2026-10-19T19:16:06.435Z"
+    },
+    "readiness": {
+      "http": 503,
+      "status": "blocked"
+    },
+    "unauthenticatedReadChecks": 4,
+    "browser": "155.0.8059.82",
+    "widths": [
+      1440,
+      768,
+      390,
+      320
+    ],
+    "buildKeyboardExpansion": true,
+    "buildExcludedFromPrint": true,
+    "pageErrors": [],
+    "failedRequests": [],
+    "serverErrors": [],
+    "protectedReads": [
+      {
+        "route": "/api/auth/me",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/patients",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/visits",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      },
+      {
+        "route": "/api/visits/00000000-0000-4000-8000-000000000001/vitals",
+        "http": 401,
+        "cacheControl": "private, no-store"
+      }
+    ],
+    "productionPatientDataUsed": false
+  },
+  "independentLiveEvidence": "2026-10-19-1.6.2-independent-live.json",
+  "productionLinksEvidence": "2026-10-19-1.6.2-links.json",
+  "policyAfter": {
+    "autoAssignCustomDomains": false,
+    "previewDeploymentsDisabled": true,
+    "ssoProtection": {
+      "deploymentType": "all_except_custom_domains"
+    }
+  },
+  "database": {
+    "changed": false,
+    "migrationsRun": 0,
+    "latestMigration": "20261016010000_rights_identity_evidence",
+    "newBackupTaken": false,
+    "october15BackupExceptionReused": false,
+    "note": "Application-only release; historical backup is not a new database-release safeguard. Future database releases require fresh applicable backup and migration gates."
+  },
+  "runtime": {
+    "summary": {
+      "type": "summary",
+      "recordsReturned": 0,
+      "timeRange": {
+        "start": "2026-10-19T18:48:14.079Z",
+        "end": "2026-10-19T19:18:14.079Z"
+      },
+      "pagination": {
+        "hasMore": false,
+        "next": null
+      },
+      "excludedIntervals": []
+    },
+    "errorWarningFatalRecords": 0,
+    "serverErrorSummary": {
+      "type": "summary",
+      "recordsReturned": 2,
+      "timeRange": {
+        "start": "2026-10-19T18:48:14.000Z",
+        "end": "2026-10-19T19:18:14.000Z"
+      },
+      "pagination": {
+        "hasMore": false,
+        "next": null
+      },
+      "excludedIntervals": []
+    },
+    "serverErrors": [
+      {
+        "timestamp": "2026-10-19T19:16:06.695Z",
+        "path": "/api/ready",
+        "status": 503
+      },
+      {
+        "timestamp": "2026-10-19T19:14:50.482Z",
+        "path": "/api/ready",
+        "status": 503
+      }
+    ],
+    "interpretation": "Only two expected readiness503 checks; no other observed5xx. Bounded immediate observation, not long-term uptime evidence."
+  },
+  "clinicalReadiness": {
+    "http": 503,
+    "status": "blocked",
+    "approvedForPatientUse": false
+  },
+  "productionPatientDataUsed": false,
+  "authenticationRequired": false,
+  "limitations": [
+    "Engineering evidence is not clinical, legal, DHA, security or recovery acceptance. Clinical readiness remains blocked.",
+    "Cancellation authority is checked before the retry loop; no new per-attempt role/session revocation guarantee.",
+    "Native cancellation snapshots cover visit/invoice/queue status and cancellation/audit counts; populated order/claim/appointment rollback and commit-time abort/exhaustion remain modeled tests. Session attribution proves presence, not session-table ownership.",
+    "Native cancellation aborts are trigger-injected; login/supply probes are bounded local tests without guaranteed transaction overlap or production-load/pooling proof. Login probes disable MFA for synthetic accounts; separate MFA tests pass.",
+    "Supply submitted/approved/goods-received events retain36 previously known null session IDs; not corrected in this batch.",
+    "Independent JSON review cannot recompute full audit hashes because full chain rows are not included. Probe-side chain verification passed.",
+    "Historical PGlite, hosted and native failures remain retained; later passes do not relabel them infrastructure noise."
+  ],
+  "nextPriorities": [
+    "Payment/dispensing structured-abort audit with separate P2002 reconciliation and native durable effects.",
+    "Known supply audit session-attribution gaps.",
+    "Offered/accepted diagnostic handover, pharmacy clarification, cashier/refunds and attributable follow-up; retain external clinical/security/recovery acceptance gates."
+  ],
+  "evidenceHashes": [
+    {
+      "file": "2026-10-19-1.6.2-candidate.json",
+      "sha256": "b35838abff0fd3894e8d3dca1a2af7b9cfa60321ebc5b2895cd635f5b167287e"
+    },
+    {
+      "file": "2026-10-19-1.6.2-live.json",
+      "sha256": "91e79856578fbd953ec1eeb91d971736bbd4b82773628644210a3c1ae3676ea6"
+    },
+    {
+      "file": "2026-10-19-1.6.2-independent-live.json",
+      "sha256": "a1eed46db2dbfe96d59c678694a9162454ae50b1637ceca7c04cc21fa2d76769"
+    },
+    {
+      "file": "2026-10-19-1.6.2-links.json",
+      "sha256": "c71f4a1e67ed2fb635b399bf448c418c532c6ad57edc9e7a5668fd4fd3f48186"
+    },
+    {
+      "file": "work/stage-deploy.log",
+      "sha256": "76d621dbb4d71251f8f7dcab32ded8d365e55159ffd67650b1f473eb91a66669"
+    },
+    {
+      "file": "work/promotion.log",
+      "sha256": "3c4aeade83a35d464af076675fe4a1841282add4a5afcdbb44946bc2dc45b922"
+    },
+    {
+      "file": "work/runtime-errors.jsonl",
+      "sha256": "c7b4b1a5255b5fb1e032e3490683779c3ccc085c96248917cab1562133a5bd3f"
+    },
+    {
+      "file": "work/runtime-5xx.jsonl",
+      "sha256": "509d123588997d970c407f1027f68945749903a03b0399de38bcd0ef9880a2a7"
+    },
+    {
+      "file": "work/hosted-platform-118249771408.log",
+      "sha256": "a9d51fd3ed1f27d65b9a6732d6eebc5564d353f283dc613f35fba9e3f623ba71"
+    }
+  ]
+}

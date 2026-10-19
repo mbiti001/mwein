@@ -1,0 +1,247 @@
+{
+  "at": "2026-10-19T19:16:18.379Z",
+  "canonical": "https://mwein-hmis-platform.vercel.app",
+  "checks": 28,
+  "failed": 0,
+  "records": [
+    {
+      "alias": "mwein-hmis-platform-git-codex-mwein-platform-mbitis-projects.vercel.app",
+      "path": "/",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/",
+      "expected": "https://mwein-hmis-platform.vercel.app/",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-codex-mwein-platform-mbitis-projects.vercel.app",
+      "path": "/api/health?verification=canonical-link&source=independent",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-codex-hosipoa-ex-d842c5-mbitis-projects.vercel.app",
+      "path": "/",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/",
+      "expected": "https://mwein-hmis-platform.vercel.app/",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-codex-hosipoa-ex-d842c5-mbitis-projects.vercel.app",
+      "path": "/api/health?verification=canonical-link&source=independent",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-codex-public-web-c9c718-mbitis-projects.vercel.app",
+      "path": "/",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/",
+      "expected": "https://mwein-hmis-platform.vercel.app/",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-codex-public-web-c9c718-mbitis-projects.vercel.app",
+      "path": "/api/health?verification=canonical-link&source=independent",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-codex-main-action-fixes-mbitis-projects.vercel.app",
+      "path": "/",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/",
+      "expected": "https://mwein-hmis-platform.vercel.app/",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-codex-main-action-fixes-mbitis-projects.vercel.app",
+      "path": "/api/health?verification=canonical-link&source=independent",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-codex-clinic-flo-f3d343-mbitis-projects.vercel.app",
+      "path": "/",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/",
+      "expected": "https://mwein-hmis-platform.vercel.app/",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-codex-clinic-flo-f3d343-mbitis-projects.vercel.app",
+      "path": "/api/health?verification=canonical-link&source=independent",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-codex-dpia-opera-b56687-mbitis-projects.vercel.app",
+      "path": "/",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/",
+      "expected": "https://mwein-hmis-platform.vercel.app/",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-codex-dpia-opera-b56687-mbitis-projects.vercel.app",
+      "path": "/api/health?verification=canonical-link&source=independent",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-codex-outpatient-649e81-mbitis-projects.vercel.app",
+      "path": "/",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/",
+      "expected": "https://mwein-hmis-platform.vercel.app/",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-codex-outpatient-649e81-mbitis-projects.vercel.app",
+      "path": "/api/health?verification=canonical-link&source=independent",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-codex-unified-pa-cfc62a-mbitis-projects.vercel.app",
+      "path": "/",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/",
+      "expected": "https://mwein-hmis-platform.vercel.app/",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-codex-unified-pa-cfc62a-mbitis-projects.vercel.app",
+      "path": "/api/health?verification=canonical-link&source=independent",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-codex-dha-readin-634c91-mbitis-projects.vercel.app",
+      "path": "/",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/",
+      "expected": "https://mwein-hmis-platform.vercel.app/",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-codex-dha-readin-634c91-mbitis-projects.vercel.app",
+      "path": "/api/health?verification=canonical-link&source=independent",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-fix-platform-rel-34c208-mbitis-projects.vercel.app",
+      "path": "/",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/",
+      "expected": "https://mwein-hmis-platform.vercel.app/",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-fix-platform-rel-34c208-mbitis-projects.vercel.app",
+      "path": "/api/health?verification=canonical-link&source=independent",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-feat-sha-benefit-engine-mbitis-projects.vercel.app",
+      "path": "/",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/",
+      "expected": "https://mwein-hmis-platform.vercel.app/",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-feat-sha-benefit-engine-mbitis-projects.vercel.app",
+      "path": "/api/health?verification=canonical-link&source=independent",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-main-mbitis-projects.vercel.app",
+      "path": "/",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/",
+      "expected": "https://mwein-hmis-platform.vercel.app/",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-git-main-mbitis-projects.vercel.app",
+      "path": "/api/health?verification=canonical-link&source=independent",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-mbitis-projects.vercel.app",
+      "path": "/",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/",
+      "expected": "https://mwein-hmis-platform.vercel.app/",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform-mbitis-projects.vercel.app",
+      "path": "/api/health?verification=canonical-link&source=independent",
+      "status": 307,
+      "location": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "expected": "https://mwein-hmis-platform.vercel.app/api/health?verification=canonical-link&source=independent",
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform.vercel.app",
+      "path": "/",
+      "status": 200,
+      "location": null,
+      "expected": null,
+      "passed": true
+    },
+    {
+      "alias": "mwein-hmis-platform.vercel.app",
+      "path": "/api/health?verification=canonical-link&source=independent",
+      "status": 200,
+      "location": null,
+      "expected": null,
+      "passed": true
+    }
+  ],
+  "health": {
+    "status": "ok",
+    "database": "connected",
+    "migration": "20261016010000_rights_identity_evidence",
+    "release": {
+      "version": "1.6.2",
+      "commit": "89e693df430571b9371cefad7db1e750ae41fe30",
+      "shortCommit": "89e693df4305",
+      "environment": "production",
+      "branch": "codex/mwein-platform",
+      "deployment": "dpl_F3uShagMUnYftappZnbrmSdTf42T",
+      "application": "mwein-hmis-platform"
+    },
+    "time": "2026-10-19T19:16:18.301Z"
+  }
+}

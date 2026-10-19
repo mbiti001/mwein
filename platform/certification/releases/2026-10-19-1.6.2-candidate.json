@@ -1,0 +1,181 @@
+{
+  "recordedAt": "2026-10-19T19:10:54.707Z",
+  "version": "1.6.2",
+  "status": "all-agent-test-and-retest-complete",
+  "source": "89e693df430571b9371cefad7db1e750ae41fe30",
+  "branch": "codex/mwein-platform",
+  "scope": "Combined demographic/registration corrections, compact queue/history/follow-up tables, bounded native login/consultation/MFA/staff/cancellation transaction handling and native PostgreSQL test fixtures.",
+  "latestCorrection": "Visit cancellation recovers from confirmed transaction aborts and retains existing clinical/payment/claim/facility/audit protections.",
+  "canonicalSourceArchive": {
+    "sha256": "743f0350c4a473017983c4d66da687241c9d92b443895369caef391b7c08dd02",
+    "bytes": 6645760
+  },
+  "local": {
+    "unitTests": 1168,
+    "unitFiles": 124,
+    "types": "passed",
+    "migrations": 55,
+    "productionDependencyVulnerabilities": 0,
+    "browserScenarios": 135,
+    "browserRetries": 0,
+    "browserMinutes": 6.1,
+    "buildId": "ue7wvZNjQ8vGx8SSDSMZV",
+    "database": "Disposable loopback PostgreSQL18.3",
+    "nativeCancellation": "Injected P0001 rollback, injected40001 one-retry success, one attributed cancellation/audit; saved fixture and browser records independently inspected",
+    "canonicalAudit": {
+      "routes": 73,
+      "gaps": 0,
+      "unclassified": 0,
+      "aliases": 0
+    }
+  },
+  "independentReviews": [
+    {
+      "agent": "cancel_safety_review",
+      "tests": 87,
+      "files": 6,
+      "finalSource": "89e693df430571b9371cefad7db1e750ae41fe30",
+      "result": "pass"
+    },
+    {
+      "agent": "cancel_database_review",
+      "tests": 73,
+      "files": 3,
+      "finalSource": "89e693df430571b9371cefad7db1e750ae41fe30",
+      "result": "pass"
+    },
+    {
+      "agent": "cancel_release_review",
+      "tests": 105,
+      "files": 6,
+      "finalSource": "89e693df430571b9371cefad7db1e750ae41fe30",
+      "result": "pass"
+    }
+  ],
+  "probes": {
+    "validLogins": 72,
+    "wrongPasswordDenials": 2,
+    "loginRounds": 24,
+    "purchaseOrderPairs": 12,
+    "goodsReceiptPairs": 12,
+    "supplyResponses": 48,
+    "result": "pass",
+    "independentSavedEvidenceRecomputation": "passed",
+    "buildId": "ue7wvZNjQ8vGx8SSDSMZV"
+  },
+  "ci": {
+    "runId": 39307945010,
+    "url": "https://github.com/mbiti001/mwein/actions/runs/39307945010",
+    "platformJob": 118249771408,
+    "legacyJob": 118249771734,
+    "conclusion": "success",
+    "verifiedHostedChecks": {
+      "unitFiles": 124,
+      "unitTests": 1168,
+      "browserScenarios": 135,
+      "productionDependencyVulnerabilities": 0,
+      "migrations": 55,
+      "syntheticStandaloneChecks": 160
+    }
+  },
+  "baseline": {
+    "version": "1.6.1",
+    "source": "a0a0909bf61d2b0e382689a523b3b126d40d9eb6",
+    "deploymentId": "dpl_4XsM4VZuihAG9BFNiHzjDD7WR335",
+    "migration": "20261016010000_rights_identity_evidence"
+  },
+  "applicationOnly": {
+    "schemaMigrationsBootstrapAndVercelConfigDiffFromBaseline": "none",
+    "productionMigration": false,
+    "productionSeed": false,
+    "credentialChange": false,
+    "october15BackupExceptionReused": false
+  },
+  "priorFailure": {
+    "source": "85f1c3fb1bb35ed9035aefb2667b6510f49ef8e0",
+    "localBrowser": "134passed/1failed",
+    "requestAt": "2026-10-16T21:58:29.758Z",
+    "databaseFailureAt": "2026-10-16T21:58:29.827Z",
+    "sql": "AuditChainHead FOR UPDATE serialization failure",
+    "prismaWrapper": "not retained",
+    "logSha256": "33f155b3e04f4843f890efa21981f99d6327a2882033e39f29a4b8aaf0da7096",
+    "traceSha256": "3da495a90648180c1653e451804a76a708c6f3d5107b3e36b5cd871916a10004"
+  },
+  "evidenceFiles": [
+    {
+      "file": "work/full-unit.log",
+      "sha256": "2d0ef8875076f8dfefc9274d7c5b74b16fdcb75bee447b774789609046c7a8a5"
+    },
+    {
+      "file": "work/browser-full.log",
+      "sha256": "24e2efa92477de9db226207ca228ef636d252a0cf532241c80c9c27ac44ae082"
+    },
+    {
+      "file": "work/migrations.log",
+      "sha256": "25830362091aa6c68b9340e67d2a6d7a5cd371feadc7a9722dbe1533ba55d950"
+    },
+    {
+      "file": "work/dependency-audit.json",
+      "sha256": "8546e084a4432cf6c55cec1b07633b9663cd0716d5ac28586b1c67cca261fc64"
+    },
+    {
+      "file": "outputs/cancellation-native-evidence.json",
+      "sha256": "0db3ecc2128fea0fd2e3126f8dd81b8677bc270bd2a1361511777a2800dd0e79"
+    },
+    {
+      "file": "outputs/native-login-probe-e2976285-b516-4a9d-b775-282c0e0c24e8.json",
+      "sha256": "1209c44e4029a4a59e8040c06fa410e25c18ac5941d23ec68b170047e31e47d8"
+    },
+    {
+      "file": "outputs/native-login-probe-b25dbd0a-6207-4b1e-897b-e96c1856e3d2.json",
+      "sha256": "581bcb53900eb4f8ee6b434d74b2de88e90501bfa64cd3ef1e4b7e2901c44940"
+    },
+    {
+      "file": "outputs/native-supply-only-7f91e303-d130-4dbc-b37b-68365ac6f702.json",
+      "sha256": "0373e6a169ee113de6389a58067b105b2d2f024b45be3d324e6ab1392b9ea153"
+    },
+    {
+      "file": "outputs/supply-retry-diagnostic-fa679a17-6230-4af2-bb09-1b4944749be5.json",
+      "sha256": "ee89925ef848472015ca8ed91387464320bfd21f55e86bc91b43b42cb05662da"
+    }
+  ],
+  "limitations": [
+    "Engineering evidence is not clinical, legal, DHA, security or recovery acceptance. Clinical readiness remains blocked.",
+    "Cancellation authority is checked before the retry loop; no new per-attempt role/session revocation guarantee.",
+    "Native cancellation snapshots cover visit/invoice/queue status and cancellation/audit counts; populated order/claim/appointment rollback and commit-time abort/exhaustion remain modeled tests. Session attribution proves presence, not session-table ownership.",
+    "Native cancellation aborts are trigger-injected; login/supply probes are bounded local tests without guaranteed transaction overlap or production-load/pooling proof. Login probes disable MFA for synthetic accounts; separate MFA tests pass.",
+    "Supply submitted/approved/goods-received events retain36 previously known null session IDs; not corrected in this batch.",
+    "Independent JSON review cannot recompute full audit hashes because full chain rows are not included. Probe-side chain verification passed.",
+    "Historical PGlite, hosted and native failures remain retained; later passes do not relabel them infrastructure noise."
+  ],
+  "supplementalTables": {
+    "checkedAt": "2026-10-19T19:10:28.8523803Z",
+    "source": "89e693df430571b9371cefad7db1e750ae41fe30",
+    "cleanWorkingTree": true,
+    "buildId": "ue7wvZNjQ8vGx8SSDSMZV",
+    "serverPort": 42710,
+    "serverStopped": true,
+    "testCount": 13,
+    "retries": 0,
+    "durationSeconds": 27.1,
+    "sourceTests": "Current89e693d copied to work/table-supplemental; package import path adjusted, phone menu tap retained, unmocked APIs blocked503",
+    "selection": "6 connected worklists;1 queue refresh failure;3 desktop tables;3 mobile touch tables",
+    "viewports": [
+      1440,
+      768,
+      390,
+      320
+    ],
+    "findings": "Blue-and-white aligned desktop tables and labelled phone rows; identity, date meaning, missing/zero labels and permission-limited actions retained; print controls hidden; failed refresh suppresses stale actions and recovery preserves context.",
+    "visualReview": [
+      "queue1440",
+      "follow-up768",
+      "follow-up320",
+      "follow-up print",
+      "queue print",
+      "queue settled phone320"
+    ],
+    "captureLimitation": "Element/full-page captures taken after automatic scrolling can include fixed mobile header midway; original captures retained, new scrollY0 phone capture independently inspected and shows header at top,320/320width.",
+    "limits": "Intercepted synthetic APIs only; not native database, facility isolation, attribution persistence, physical printer or clinical approval proof. Existing build reused without rebuild; no source/config or production change."
+  }
+}

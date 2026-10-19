@@ -86,9 +86,12 @@
     {
       "version": "1.6.2",
       "displayName": "1.6.2",
-      "status": "reserved",
+      "status": "deployed",
       "branch": "codex/mwein-platform",
-      "note": "Combined candidate explicitly includes demographic input and emergency form corrections, compact responsive queue/history/follow-up tables, bounded native transaction-conflict handling, and isolated PostgreSQL CI fixtures. Exact frozen-source CI, native concurrency, phone/browser checks and all available independent reviews remain required before coordinated deployment."
+      "note": "Demographic and emergency form corrections, compact responsive workflow tables, bounded confirmed-abort transaction handling and native PostgreSQL fixtures. Exact-source hosted/local checks, independent reviews, public browser and redirects passed. Application-only release; clinical readiness remains blocked.",
+      "source": "89e693df430571b9371cefad7db1e750ae41fe30",
+      "deploymentId": "dpl_F3uShagMUnYftappZnbrmSdTf42T",
+      "evidence": "2026-10-19-1.6.2.json"
     }
   ]
 }
