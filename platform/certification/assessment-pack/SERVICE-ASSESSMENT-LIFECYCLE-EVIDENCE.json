@@ -1,0 +1,233 @@
+{
+  "recordedAt": "2026-10-19T22:19:11.601Z",
+  "source": "8d84befae4dd010826ff814f98d8949827509c82",
+  "branch": "codex/mwein-platform",
+  "normalPushVerified": true,
+  "sourceArchive": {
+    "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\assessment-source.tar",
+    "bytes": 6809600,
+    "sha256": "0dad1b541e2d95785eeeb6e6101249615cd5f3befb47286b622deb0f4ec7155c"
+  },
+  "canonicalAudit": {
+    "routes": 73,
+    "gaps": 0,
+    "unclassified": 0,
+    "aliases": 0,
+    "reviewedRoute": "service-points",
+    "sourceSha256": "c35046a447b229ee098aaa7dd36dc7c200dcd29197b51dc42c3edf9d7c2e3ae4"
+  },
+  "local": {
+    "unitTests": 1226,
+    "unitFiles": 125,
+    "types": "passed",
+    "migrations": 55,
+    "productionVulnerabilities": 0,
+    "buildId": "1gtB6cpbNTCumEM69irrE",
+    "supersededPreInstallBuildId": "ozEAvSsz-fmzDYjZJXgj_",
+    "nativeDatabaseVersion": "PostgreSQL 18.3",
+    "browserFixtureChecks": 175,
+    "browserScenarios": 145,
+    "browserRetries": 0,
+    "finalScreenshotAmendmentScenarios": 10,
+    "fixtureDatabase": "mwein_e2e_assessment_queues",
+    "fixturePort": 45911,
+    "fixtureServicesStopped": true,
+    "authorizationAndIsolation": "Native receptionist 403 and foreign clinician 404 for assessment GET/POST; no record output or state mutation",
+    "auditFailure": "Injected P0001 audit failure rolls back first assessment record/encounter and leaves visit/queues/history unchanged",
+    "lifecycle": "Native SIGNED/CORRECTED/DISCHARGED/clinical-closure timestamp rejects assessment replacement; closed states reject LINK; attributed saved GET remains available",
+    "limits": "SQL establishes synthetic lifecycle states; not proof of concurrent saves/signing/closure or clinical approval. No new transaction retries.",
+    "browserWidths": [
+      1440,
+      768,
+      390,
+      320
+    ],
+    "pdfs": [
+      {
+        "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\browser-results\\service-assessment-audit-a-f692f-y-author-and-missing-values\\assessment-print.pdf",
+        "pages": 1,
+        "charactersPerPage": [
+          592
+        ],
+        "identityAttributionAndMissingLabels": true,
+        "unsavedTextExcluded": true,
+        "allSavedLinesRetained": true,
+        "numberedSavedLinesChecked": 0,
+        "artifact": {
+          "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\browser-results\\service-assessment-audit-a-f692f-y-author-and-missing-values\\assessment-print.pdf",
+          "bytes": 52504,
+          "sha256": "50cc21c99ae47499c414ecdba2403084f94ce96e5c83eb516a70c9a08c431abc"
+        }
+      },
+      {
+        "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\browser-results\\service-assessment-audit-l-2cbd1--pages-without-unsaved-text\\assessment-multipage.pdf",
+        "pages": 3,
+        "charactersPerPage": [
+          1520,
+          2255,
+          1105
+        ],
+        "identityAttributionAndMissingLabels": true,
+        "unsavedTextExcluded": true,
+        "allSavedLinesRetained": true,
+        "numberedSavedLinesChecked": 90,
+        "artifact": {
+          "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\browser-results\\service-assessment-audit-l-2cbd1--pages-without-unsaved-text\\assessment-multipage.pdf",
+          "bytes": 59175,
+          "sha256": "1a8dddda6d1b545fc0f154e7b7eacfe80a93e5bda92c6253c6a28f680821843f"
+        }
+      }
+    ],
+    "visualInspection": "One-page and all three long-record PDF pages plus desktop/tablet/phone saved/form layouts inspected. No clipped text; 90 saved lines retained; unsaved markers absent."
+  },
+  "hosted": {
+    "run": {
+      "id": 39333149518,
+      "head_sha": "8d84befae4dd010826ff814f98d8949827509c82",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/mbiti001/mwein/actions/runs/39333149518"
+    },
+    "jobs": [
+      {
+        "id": 118336016561,
+        "name": "Legacy compatibility verification",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 118336016849,
+        "name": "Platform verification",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ],
+    "decodedLogVerification": {
+      "unitFiles": 125,
+      "assessmentPermissionIsolationRollbackAndLifecycleChecks": "passed",
+      "productionVulnerabilities": 0,
+      "migrations": 55,
+      "standaloneNativeChecks": 176,
+      "browserScenarios": 145,
+      "unitTests": 1226,
+      "browserRetries": 0,
+      "hostedBuildId": null
+    }
+  },
+  "live": {
+    "version": "1.6.2",
+    "commit": "89e693df430571b9371cefad7db1e750ae41fe30",
+    "shortCommit": "89e693df4305",
+    "environment": "production",
+    "branch": "codex/mwein-platform",
+    "deployment": "dpl_F3uShagMUnYftappZnbrmSdTf42T",
+    "application": "mwein-hmis-platform"
+  },
+  "productionChanged": false,
+  "schemaChanged": false,
+  "credentialsChanged": false,
+  "versionChanged": false,
+  "retainedFailures": [
+    "Four expected lifecycle acceptance failures before the correction",
+    "Accidental legacy root task invocation: Windows SQLite cleanup EBUSY; not platform acceptance",
+    "Native startup missing locked pg package after checkout fast-forward; npm ci and Prisma generation restored dependencies",
+    "One old disclosure mock omitted newly selected final encounter count; corrected the mock",
+    "New native lifecycle fixtures passed but their active consultation queues blocked later CALL_NEXT; retire only fixture queues after unchanged-state checks",
+    "Saved-card phone screenshot auto-scroll placed it under sticky navigation; final full-page capture starts at document top"
+  ],
+  "next": [
+    "Mandatory original assessment revision and consultation-signer revision coupling",
+    "Native concurrent first-save, stale-editor, sign and closure race evidence",
+    "Canonical before/after value fingerprints with session attribution and immutable assessment revisions/amendments",
+    "Navigation/reload draft protection",
+    "Financial/supply attribution and changed-payload replay; diagnostic offer/accept; pharmacy clarification; cashier and follow-up ownership"
+  ],
+  "gates": "No clinical/legal/security/restore approval. MFA/readiness unchanged. Any future database release requires fresh backup evidence; October 15 exception does not carry forward.",
+  "retainedFiles": [
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\assessment-red.log",
+      "bytes": 3864,
+      "sha256": "a412747b8521347fab756961dba0227ac45900dc9dbbea5f6381489b0f8de179"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\assessment-green-platform.log",
+      "bytes": 370,
+      "sha256": "9886b1b975cd8c831429a5df69cb640f40f8f015de4540e5a7f55f7b8c4e9bc2"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\unit.log",
+      "bytes": 1508,
+      "sha256": "a3dce9c11e529a9839558700b373a8b9346f2a96d1dcec496a79337d62c0b4cd"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\unit-final.log",
+      "bytes": 342,
+      "sha256": "f9786e716ca0a3a5f3a4be4baed11e30283223582d9b901b9c5fd4e8acce4b88"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\npm-ci.log",
+      "bytes": 955,
+      "sha256": "d49602f278451a1bfbeb542217115b7b0d101e7e7348b45177f06f172e211bbd"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\prisma-generate.log",
+      "bytes": 357,
+      "sha256": "594e57e3d6345ef9332963b7ee5bdac5ffd042f862799b5a4d3b597fc20d6876"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\build-locked.log",
+      "bytes": 3409,
+      "sha256": "626dd49ba8c2441b5deba073b8a07a724e1bbe073da253d708c31adb128fc3e3"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\types-final.log",
+      "bytes": 54,
+      "sha256": "de9b61b03f0cbbabb7b993cc935867fcf4151421358ccbc4337bcd7b4f3b30b6"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\migrations.log",
+      "bytes": 3011,
+      "sha256": "c2a7b82b42f37f575881945dc7be6dacdbf960ecc1581fe1af8cbe9176fbe5d6"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\dependency-audit.log",
+      "bytes": 25,
+      "sha256": "4b02d4a3c23d969c46bd2041360f80bfcb1fe760d9db864009acdd710f9de601"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\native-browser.log",
+      "bytes": 1282,
+      "sha256": "553eef777b642966707a620176109af53dd714f496078f484e8c7890357dd012"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\native-browser-locked.log",
+      "bytes": 6908,
+      "sha256": "3ef89a2d8baa972a59f3d7f301dab7b2c3a660ef5de9cec704d9bdd34d087052"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\native-browser-queues.log",
+      "bytes": 48128,
+      "sha256": "c2347b3fd5e7867bd0e0271be1dc270a232a4a658e63f186902d2c2d5dee8875"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\layout-final.log",
+      "bytes": 2045,
+      "sha256": "99e7e93455b43433bf9a82b8e27fa0b60062ba8584ce9326c56f3a18f0b918b2"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\pdf-verification.json",
+      "bytes": 919,
+      "sha256": "4b55fb650d3365f5478c5ef68b010b08cf4a1df805b60cb5b8d61b1c3b3f424a"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\hosted-platform.log",
+      "bytes": 233629,
+      "sha256": "8dd43009c8e254747f8f195306f1dde112c0c5e53034cdc0fac72171141a2934"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-20\\continue-the-user-s-authorized-mwein\\work\\ci-final.json",
+      "bytes": 897,
+      "sha256": "42a9aa9ce6ecfa619c895df68e27c6e1798a65f614415cffc0da6f6a287737ea"
+    }
+  ]
+}
