@@ -13,6 +13,7 @@ import {
 } from "@/lib/pharmacy";
 import { assertStoresNotFrozen, postInventoryJournal } from "@/lib/inventory-accounting";
 import { effectiveCatalogPrice } from "@/lib/catalog-pricing";
+import { isRetryableTransactionConflict } from "@/lib/transaction-conflict";
 
 const reason = z.string().trim().min(5).max(500).optional();
 const inputSchema = z.object({
@@ -368,7 +369,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     for (let attempt = 0; ; attempt++) {
       try { return privateJson(await transact()); }
       catch (error) {
-        if (attempt >= 2 || !["P2034", "P2002"].includes((error as { code?: string }).code || "")) throw error;
+        // Preserve actor/payload replay reconciliation and one shared attempt budget.
+        if (attempt >= 2 || (!isRetryableTransactionConflict(error) && (error as { code?: string }).code !== "P2002")) throw error;
       }
     }
   } catch (error) { return apiError(error); }

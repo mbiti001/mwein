@@ -1,5 +1,6 @@
 import { verifyMandatoryMfa } from "./e2e-mfa-enforcement.mjs";
 import { verifyCancellationTransaction } from "./e2e-cancellation-transaction.mjs";
+import { verifyFinancialAbort } from "./e2e-financial-abort.mjs";
 import { verifyPrivacy } from "./e2e-privacy.mjs";
 import { verifySupplyDocuments } from "./e2e-supply-documents.mjs";
 import { verifyDocumentNumbering } from "./e2e-document-numbering.mjs";
@@ -823,7 +824,7 @@ try {
   assert(replayEvents.some(item => item.action === "DISPENSING_REQUEST_RECORDED") && replayEvents.some(item => item.action === "DISPENSING_REPLAY_CONFIRMED"), "Supply and replay receipts were not retained");
   steps.push("verify concurrent partial-supply retries, actor-bound payloads and audit receipts");
 
-  const dispensation = await api("dispense remaining prescribed medicine", dispensingPath, {
+  const finalSupplyRequest = {
     method: "POST",
     body: JSON.stringify({
       action: "DISPENSE",
@@ -832,7 +833,9 @@ try {
       counsellingCompleted: true,
       notes: "Dose, route, duration and return precautions explained.",
     }),
-  });
+  };
+  const dispensation = await verifyFinancialAbort({ pg, databaseKind: databaseBackend.kind, action: "MEDICATION_DISPENSED", facilityId: facility.id, actorId: admin.id, entityId: medicationOrder.id, successStatus: 200, assert, steps,
+    request: () => requestWithCookie(dispensingPath, sessionCookie, finalSupplyRequest) });
   assert(dispensation.body.dispenseStatus === "DISPENSED", "Medicine was not fully dispensed");
 
   const forecast = await api("generate stock forecast and reorder worklist", "/api/inventory/forecast?days=90");
@@ -857,10 +860,12 @@ try {
   const cashierShift = await api("open cashier shift", "/api/billing/shifts", { method: "POST", body: JSON.stringify({ action: "OPEN", openingFloat: 1000 }) });
 
   const paymentKey = randomUUID();
-  const payment = await api("receive payment and close visit", `/api/invoices/${invoice.id}/payments`, {
+  const paymentRequest = {
     method: "POST",
     body: JSON.stringify({ method: "CASH", amount: 550, idempotencyKey: paymentKey }),
-  });
+  };
+  const payment = await verifyFinancialAbort({ pg, databaseKind: databaseBackend.kind, action: "PAYMENT_RECEIVED", facilityId: facility.id, actorId: admin.id, entityId: invoice.id, successStatus: 201, assert, steps,
+    request: () => requestWithCookie(`/api/invoices/${invoice.id}/payments`, sessionCookie, paymentRequest) });
   const paymentReplay = await requestWithCookie(`/api/invoices/${invoice.id}/payments`, sessionCookie, {
     method: "POST", body: JSON.stringify({ method: "CASH", amount: 550, idempotencyKey: paymentKey }),
   });

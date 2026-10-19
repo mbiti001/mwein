@@ -26,6 +26,72 @@ beforeEach(() => {
   }));
 });
 describe("payment replay protection", () => {
+  it.each(["40001", "40P01"])("restarts the entire payment after structured SQL abort %s", async code => {
+    mocks.audit.mockRejectedValueOnce({ code: "P2010", meta: { code } });
+    const response = await request();
+    expect(response.status).toBe(201);
+    expect(mocks.transaction).toHaveBeenCalledTimes(2);
+    expect(mocks.invoice).toHaveBeenCalledTimes(2);
+    expect(mocks.sequence).toHaveBeenCalledTimes(2);
+    expect(mocks.audit).toHaveBeenCalledTimes(2);
+    expect(mocks.saveReplay).toHaveBeenCalledTimes(1);
+    expect(response.headers.get("Idempotency-Replayed")).toBe("false");
+  });
+  it("shares the three-attempt budget across structured conflicts and unique-key reconciliation", async () => {
+    mocks.transaction.mockRejectedValueOnce({ code: "P2010", meta: { code: "40001" } })
+      .mockRejectedValueOnce({ code: "P2002" }).mockRejectedValueOnce({ code: "P2010", meta: { code: "40P01" } });
+    const response = await request();
+    expect(response.status).toBe(409);
+    expect(mocks.transaction).toHaveBeenCalledTimes(3);
+    expect(mocks.payment).not.toHaveBeenCalled();
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+  });
+  it("reconciles a unique-key winner through the original replay contract", async () => {
+    mocks.transaction.mockRejectedValueOnce({ code: "P2002" });
+    mocks.replay.mockResolvedValue({ invoiceId, fingerprint, response: body });
+    expect((await request()).status).toBe(200);
+    expect(mocks.transaction).toHaveBeenCalledTimes(2);
+    expect(mocks.payment).not.toHaveBeenCalled();
+  });
+  it("rejects changed winner details after an aborted attempt", async () => {
+    mocks.transaction.mockRejectedValueOnce({ code: "P2010", meta: { code: "40001" } });
+    mocks.replay.mockResolvedValue({ invoiceId, fingerprint: "different", response: body });
+    expect((await request()).status).toBe(409);
+    expect(mocks.transaction).toHaveBeenCalledTimes(2);
+    expect(mocks.payment).not.toHaveBeenCalled();
+  });
+  it("rereads invoice facility visibility after an abort", async () => {
+    mocks.audit.mockRejectedValueOnce({ code: "P2010", meta: { code: "40001" } });
+    const invoice = await mocks.invoice(); mocks.invoice.mockClear();
+    mocks.invoice.mockResolvedValueOnce(invoice).mockResolvedValueOnce(null);
+    expect((await request()).status).toBe(404);
+    expect(mocks.invoice).toHaveBeenCalledTimes(2);
+    expect(mocks.saveReplay).not.toHaveBeenCalled();
+  });
+  it("rechecks the remaining patient balance after an aborted payment", async () => {
+    mocks.audit.mockRejectedValueOnce({ code: "P2010", meta: { code: "40001" } });
+    const invoice = await mocks.invoice(); mocks.invoice.mockClear();
+    mocks.invoice.mockResolvedValueOnce(invoice).mockResolvedValueOnce({ ...invoice, payments: [{ amount: 100 }] });
+    expect((await request()).status).toBe(422);
+    expect(mocks.payment).toHaveBeenCalledTimes(1);
+    expect(mocks.saveReplay).not.toHaveBeenCalled();
+  });
+  it("rechecks the cashier's open shift after an abort", async () => {
+    mocks.shift.mockResolvedValueOnce({ id: "shift" }).mockResolvedValueOnce(null);
+    mocks.audit.mockRejectedValueOnce({ code: "P2010", meta: { code: "40P01" } });
+    expect((await request({ ...input, method: "CASH" })).status).toBe(409);
+    expect(mocks.shift).toHaveBeenCalledTimes(2);
+    expect(mocks.saveReplay).not.toHaveBeenCalled();
+  });
+  it.each([
+    { code: "P1001" }, { code: "P2028" }, { code: "P2003" },
+    { code: "P2010", meta: { code: "P0001" } }, { code: "P2010", meta: { code: "23505" } },
+    { code: "P2010", message: "40001 serialization failure" }, new Error("connection lost after commit"),
+  ])("does not retry unclassified or ambiguous failure %j", async error => {
+    mocks.transaction.mockRejectedValue(error);
+    expect((await request()).status).toBe("code" in error && error.code === "P2003" ? 409 : 500);
+    expect(mocks.transaction).toHaveBeenCalledTimes(1);
+  });
   it("commits a facility-scoped replay receipt with the payment", async () => {
     const response = await request();
     expect(response.status).toBe(201);

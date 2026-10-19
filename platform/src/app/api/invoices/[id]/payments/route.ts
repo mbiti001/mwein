@@ -7,6 +7,7 @@ import { apiError, privateJson } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
 import { operationalReference } from "@/lib/domain";
 import { invoiceTotals, paymentFitsBalance } from "@/lib/billing";
+import { isRetryableTransactionConflict } from "@/lib/transaction-conflict";
 
 const schema = z.object({
   idempotencyKey: z.uuid(),
@@ -87,7 +88,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         const result = await receive();
         return privateJson(result.body, { status: result.replayed ? 200 : 201, headers: { "Idempotency-Replayed": String(result.replayed) } });
       } catch (error) {
-        if (attempt >= 2 || !["P2034", "P2002"].includes((error as { code?: string }).code || "")) throw error;
+        // Keep unique-key reconciliation separate from known-aborted conflicts.
+        // Both consume the same three whole-transaction attempts; never retry a network outcome.
+        if (attempt >= 2 || (!isRetryableTransactionConflict(error) && (error as { code?: string }).code !== "P2002")) throw error;
       }
     }
   } catch (error) { return apiError(error); }

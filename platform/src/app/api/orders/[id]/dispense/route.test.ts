@@ -18,6 +18,55 @@ beforeEach(() => {
   mocks.receipt.mockImplementation(({ where }) => where.afterHash === auditValueFingerprint(original) ? { id: "audit" } : null);
 });
 describe("dispensing replay facility isolation", () => {
+  it.each(["40001", "40P01"])("retries the full audited replay after structured SQL abort %s", async code => {
+    mocks.replay.mockResolvedValue(replayRecord);
+    mocks.audit.mockRejectedValueOnce({ code: "P2010", meta: { code } });
+    expect((await dispense()).status).toBe(200);
+    expect(mocks.transaction).toHaveBeenCalledTimes(2);
+    expect(mocks.receipt).toHaveBeenCalledTimes(2);
+    expect(mocks.audit).toHaveBeenCalledTimes(2);
+    expect(mocks.order).not.toHaveBeenCalled();
+  });
+  it("preserves a single shared attempt budget for mixed conflicts", async () => {
+    mocks.transaction.mockRejectedValueOnce({ code: "P2002" })
+      .mockRejectedValueOnce({ code: "P2010", meta: { code: "40001" } })
+      .mockRejectedValueOnce({ code: "P2010", meta: { code: "40P01" } });
+    const response = await dispense();
+    expect(response.status).toBe(409);
+    expect(mocks.transaction).toHaveBeenCalledTimes(3);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+  });
+  it("does not accept a different actor's winning key after retry", async () => {
+    mocks.transaction.mockRejectedValueOnce({ code: "P2010", meta: { code: "40001" } });
+    mocks.replay.mockResolvedValue({ ...replayRecord, dispensedById: "other" });
+    expect((await dispense()).status).toBe(409);
+    expect(mocks.transaction).toHaveBeenCalledTimes(2);
+    expect(mocks.audit).not.toHaveBeenCalled();
+  });
+  it("preserves the submitted fingerprint after retry", async () => {
+    mocks.transaction.mockRejectedValueOnce({ code: "P2010", meta: { code: "40P01" } });
+    mocks.replay.mockResolvedValue(replayRecord);
+    expect((await dispense({ quantity: 4 })).status).toBe(409);
+    expect(mocks.transaction).toHaveBeenCalledTimes(2);
+    expect(mocks.audit).not.toHaveBeenCalled();
+  });
+  it("rechecks closed visit protection after a structured abort", async () => {
+    mocks.transaction.mockRejectedValueOnce({ code: "P2010", meta: { code: "40001" } });
+    mocks.replay.mockResolvedValue(null);
+    mocks.order.mockResolvedValue({ prescription: {}, visit: { status: "DISCHARGED" } });
+    expect((await dispense()).status).toBe(409);
+    expect(mocks.transaction).toHaveBeenCalledTimes(2);
+    expect(mocks.audit).not.toHaveBeenCalled();
+  });
+  it.each([
+    { code: "P1001" }, { code: "P2028" }, { code: "P2003" },
+    { code: "P2010", meta: { code: "P0001" } }, { code: "P2010", meta: { code: "23505" } },
+    { code: "P2010", message: "40001 serialization failure" }, new Error("connection lost after commit"),
+  ])("does not retry unclassified or ambiguous failure %j", async error => {
+    mocks.transaction.mockRejectedValue(error);
+    expect((await dispense()).status).toBe("code" in error && error.code === "P2003" ? 409 : 500);
+    expect(mocks.transaction).toHaveBeenCalledTimes(1);
+  });
   it("does not disclose a foreign facility replay even with its order ID and replay key", async () => {
     // Synthetic stored replay belongs to facility-b. Simulate the DB relation filter.
     mocks.replay.mockImplementation(({ where }) => where.prescription.order?.visit.facilityId === "facility-a" ? null : replayRecord);
