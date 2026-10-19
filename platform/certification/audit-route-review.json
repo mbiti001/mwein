@@ -262,7 +262,7 @@
       "methodExceptions": {}
     },
     "visits/[id]/cancel": {
-      "sourceSha256": "c2352ac27467d44387adaf4ab46f505d685d3369df973215ba109b341e14dea5",
+      "sourceSha256": "b2c3295df4320c793c0e9d1d7b2f5494fb16e516c28b1ce1916d59228a751c04",
       "methodExceptions": {}
     },
     "visits/[id]/complete": {

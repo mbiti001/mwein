@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { isWaitingOverdue } from "@/lib/service-points";
-import { db } from "@/lib/db";
+import { workflowTransaction } from "@/lib/workflow-transaction";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
 import { appendAudit } from "@/lib/audit";
@@ -17,7 +16,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const user = await requirePermission("visit.cancel");
     const input = visitCancellationSchema.parse(await request.json());
     const { id } = await context.params;
-    const result = await db.$transaction(async (tx) => {
+    const result = await workflowTransaction(async (tx) => {
       const visit = await tx.visit.findFirst({
         where: { id, facilityId: user.facilityId },
         include: {
@@ -91,7 +90,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         afterHash: `CANCELLED:${input.reasonCode}:${input.shaOutcome || "NOT_SHA"}`,
       });
       return { visit: updated, cancellation };
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    });
     return NextResponse.json(result);
   } catch (error) {
     return apiError(error);

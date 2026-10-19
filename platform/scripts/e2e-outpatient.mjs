@@ -1,4 +1,5 @@
 import { verifyMandatoryMfa } from "./e2e-mfa-enforcement.mjs";
+import { verifyCancellationTransaction } from "./e2e-cancellation-transaction.mjs";
 import { verifyPrivacy } from "./e2e-privacy.mjs";
 import { verifySupplyDocuments } from "./e2e-supply-documents.mjs";
 import { verifyDocumentNumbering } from "./e2e-document-numbering.mjs";
@@ -429,13 +430,15 @@ try {
   });
   assert(Number(shaCancellationVisit.body.visit.invoice.items[0].unitPrice) === 650 && shaCancellationVisit.body.visit.invoice.items[0].priceVersionId, "Check-in did not use the clinic tariff and price version");
   await pg.query(`UPDATE "CatalogPriceVersion" SET "unitPrice" = 500 WHERE "catalogItemId" IN (SELECT "id" FROM "CatalogItem" WHERE "facilityId" = $1 AND "code" = 'CONSULT-OUTPATIENT')`, [facility.id]);
-  await api("cancel visit after documented SHA benefit check", `/api/visits/${shaCancellationVisit.body.visit.id}/cancel`, {
+  await verifyCancellationTransaction({ pg, visitId: shaCancellationVisit.body.visit.id, actorId: admin.id, facilityId: facility.id, assert, steps,
+    request: () => requestWithCookie(`/api/visits/${shaCancellationVisit.body.visit.id}/cancel`, sessionCookie, {
     method: "POST",
     body: JSON.stringify({
       reasonCode: "SHA_BENEFIT_OR_ELIGIBILITY",
       shaOutcome: "BENEFIT_NOT_COVERED",
       shaEligibilityReference: "SHA-ELIG-E2E-0001",
       details: "Routine service was not available under the verified benefit; patient advised on alternatives.",
+    }),
     }),
   });
   const cancelledState = (await pg.query(

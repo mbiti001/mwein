@@ -90,7 +90,11 @@ test("cancels an undelivered visit with a documented SHA benefit outcome", async
   await page.getByLabel("SHA outcome").selectOption("BENEFIT_NOT_COVERED");
   await page.getByLabel("SHA check / verification reference").fill("BROWSER-SHA-CHECK-001");
   await page.getByLabel("Cancellation explanation").fill("Routine benefit was unavailable; alternatives and next steps were explained.");
+  const cancellationResponse = page.waitForResponse(response => response.request().method() === "POST" && /\/api\/visits\/[^/]+\/cancel$/.test(response.url()));
   await page.getByRole("button", { name: "Confirm cancellation" }).click();
+  const cancelled = await cancellationResponse;
+  expect(cancelled.status()).toBe(200);
+  expect(await cancelled.json()).toMatchObject({ visit: { status: "CANCELLED" }, cancellation: { reasonCode: "SHA_BENEFIT_OR_ELIGIBILITY", shaOutcome: "BENEFIT_NOT_COVERED", shaEligibilityReference: "BROWSER-SHA-CHECK-001" } });
   await expect(page.getByText(/was cancelled with a documented reason/)).toBeVisible();
 });
 
