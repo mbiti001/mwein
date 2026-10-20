@@ -10,6 +10,7 @@ import { recordDisclosure } from "./disclosure-audit";
 import { db } from "./db";
 import { GET, POST } from "@/app/api/service-points/route";
 import { assessmentRevision } from "./assessment-revision";
+import { assessmentAuditFingerprint } from "./assessment-audit";
 
 const visitId = "11111111-1111-4111-8111-111111111111";
 const patientId = "22222222-2222-4222-8222-222222222222";
@@ -45,7 +46,7 @@ beforeEach(() => {
   tx.encounter.update.mockImplementation(async args => ({ ...visit.encounters[0], ...args.data }));
   tx.patientRelationship.upsert.mockResolvedValue({ id: "relationship" });
   tx.servicePointRecord.upsert.mockImplementation(async (args) => {
-    const record = { id: "record", ...args.update, updatedAt: new Date("2026-10-19T20:00:00Z") };
+    const record = { id: "record", encounterId: args.create.encounterId, ...args.update, updatedAt: new Date("2026-10-19T20:00:00Z") };
     staged.push(record);
     return record;
   });
@@ -163,9 +164,7 @@ describe("service assessment existing safety boundaries", () => {
   });
 });
 
-// Lifecycle and revision requirements are corrected here. The last explicitly
-// labeled "currently" case still characterizes pending audit-payload work.
-describe("assessment lifecycle and revision corrections with remaining audit gap", () => {
+describe("assessment lifecycle, revision and audit corrections", () => {
   it.each([
     { status: "DISCHARGED", clinicallyClosedAt: null },
     { status: "UNDER_CONSULTATION", clinicallyClosedAt: new Date("2026-10-19T19:00:00Z") },
@@ -255,14 +254,41 @@ describe("assessment lifecycle and revision corrections with remaining audit gap
     expect((await post({ ...input, expectedRevision: original })).status).toBe(409);
     expect(committed).toHaveLength(1);
   });
-  it("currently emits identical audit payload fingerprints for different values and no session", async () => {
+  it("binds consecutive saved values to before/after fingerprints and the authenticated session", async () => {
     await post();
     await post({ ...input, expectedRevision: (await (await get()).json()).assessmentRevision, riskLevel: "HIGH", data: { ...data, carePlan: "Different synthetic plan" } });
     const events = vi.mocked(appendAudit).mock.calls.map(call => call[1]);
     expect(events).toHaveLength(2);
-    expect(events[0].afterHash).toBe(events[1].afterHash);
-    expect(events[0]).not.toHaveProperty("sessionId");
-    expect(events[0]).not.toHaveProperty("beforeHash");
-    // This does not claim equal audit event hashes: appendAudit also hashes identity/time/chain metadata.
+    expect(events[0].afterHash).not.toBe(events[1].afterHash);
+    expect(events[1].beforeHash).toBe(events[0].afterHash);
+    for (const event of events) {
+      expect(event).toMatchObject({ sessionId: user.sessionId, facilityId: user.facilityId, userId: user.id });
+      expect(event.beforeHash).toMatch(/^assessment-v1:[a-f0-9]{64}$/);
+      expect(event.afterHash).toMatch(/^assessment-v1:[a-f0-9]{64}$/);
+      expect(JSON.stringify(event)).not.toContain("synthetic");
+    }
+    expect(events[0].beforeHash).not.toBe(events[0].afterHash);
+  });
+  it("fingerprints the persisted result rather than raw request values", async () => {
+    const persist = tx.servicePointRecord.upsert.getMockImplementation()!;
+    tx.servicePointRecord.upsert.mockImplementation(async args => {
+      const result = await persist(args);
+      result.data = { ...result.data, carePlan: "Persisted synthetic value" };
+      return result;
+    });
+    expect((await post()).status).toBe(200);
+    const event = vi.mocked(appendAudit).mock.calls[0][1];
+    expect(event.beforeHash).toBe(assessmentAuditFingerprint(user.facilityId, visitId, null));
+    expect(event.afterHash).toBe(assessmentAuditFingerprint(user.facilityId, visitId, saved));
+    expect(event.afterHash).not.toBe(assessmentAuditFingerprint(user.facilityId, visitId, { ...saved, data: input.data }));
+  });
+  it("retains prior attribution in the before state when another session updates", async () => {
+    expect((await post()).status).toBe(200);
+    const first = vi.mocked(appendAudit).mock.calls[0][1];
+    vi.mocked(requirePermission).mockResolvedValue({ ...user, id: "second-actor", sessionId: "second-session" } as any);
+    expect((await post({ ...input, expectedRevision: (await (await get()).json()).assessmentRevision })).status).toBe(200);
+    const second = vi.mocked(appendAudit).mock.calls[1][1];
+    expect(second).toMatchObject({ beforeHash: first.afterHash, userId: "second-actor", sessionId: "second-session", facilityId: user.facilityId });
+    expect(second.afterHash).not.toBe(first.afterHash);
   });
 });

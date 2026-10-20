@@ -1,5 +1,6 @@
 // Guarded synthetic fixture only. Lifecycle race writers below establish SQL
 // test states; they are not clinical sign/discharge workflows or approvals.
+import { createHash } from "node:crypto";
 export async function verifyAssessmentRevision({ pg, databaseKind, api, request, assert, steps }) {
   const patient = (await api("register assessment revision fixture", "/api/patients", { method: "POST", body: JSON.stringify({ givenName: "Assessment", familyName: "Revision", dateOfBirth: "1990-02-02", sexAtBirth: "UNKNOWN", phone: "+254700099099", county: "Nairobi", subcounty: "Westlands", treatmentConsent: true, electronicRecordConsent: true, messagingConsent: false }) })).body.patient;
   const visit = (await api("open assessment revision fixture", "/api/visits", { method: "POST", body: JSON.stringify({ patientId: patient.id, clinic: "Walk-in", priority: "ROUTINE", visitType: "WALK_IN" }) })).body.visit;
@@ -48,12 +49,34 @@ export async function verifyAssessmentRevision({ pg, databaseKind, api, request,
   const initial = await snapshot();
   assert(first.response.status === 200 && initial.encounters.length === 1 && initial.records.length === 1 && initial.audits.length === 1, "First assessment had duplicate or missing durable effects");
   assert(initial.records[0].id === first.body.record.id && initial.audits[0].userId === first.body.record.updatedById && initial.audits[0].facilityId === visit.facilityId, "First assessment success attribution mismatch");
-  const signerRevision = `${initial.encounters[0].id}:${new Date(initial.encounters[0].updatedAt).toISOString()}`;
+  // Independently reconstruct the documented v1 format from PostgreSQL rows.
+  // This fixture uses flat data, whose JSONB key order may differ from the POST.
+  // Prisma DateTime uses UTC in timestamp-without-timezone columns. Raw
+  // row_to_json text has no offset; do not reinterpret it in the test host zone.
+  const sqlUtc = value => new Date(value.length === 10 ? `${value}T00:00:00Z` : `${value}Z`).toISOString();
+  const fingerprint = record => `assessment-v1:${createHash("sha256").update(JSON.stringify([
+    "assessment-v1", visit.facilityId, visit.id,
+    record ? [record.id, record.encounterId, record.servicePoint, record.templateVersion,
+      Object.fromEntries(Object.entries(record.data).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)),
+      record.riskLevel, record.followUpAt ? sqlUtc(record.followUpAt) : null,
+      record.updatedById, sqlUtc(record.updatedAt)] : null,
+  ])).digest("hex")}`;
+  const firstAudit = initial.audits[0];
+  assert(firstAudit.beforeHash === fingerprint(null) && firstAudit.afterHash === fingerprint(initial.records[0]), "First saved assessment fingerprints do not match persisted state");
+  const session = firstAudit.sessionId && (await pg.query('SELECT "userId" FROM "Session" WHERE id=$1', [firstAudit.sessionId])).rows[0];
+  assert(session?.userId === firstAudit.userId, "Assessment audit omitted or misattributed authenticated session");
+  steps.push("verify persisted assessment create fingerprints and authenticated user/session/facility attribution");
+  const signerRevision = `${initial.encounters[0].id}:${sqlUtc(initial.encounters[0].updatedAt)}`;
   const original = first.body.assessmentRevision;
   assert((await read()).body.assessmentRevision === original, "Saved revision differs from next read");
   const second = await save({ ...input, expectedRevision: original, data: { ...input.data, carePlan: "Newer synthetic plan" } });
   assert(second.response.status === 200 && second.body.assessmentRevision !== original, "Reviewed edit did not advance assessment revision");
   const after = await snapshot();
+  assert(after.audits.length === 2 && same(after.audits[0], firstAudit), "Assessment update rewrote the earlier success audit");
+  const secondAudit = after.audits[1];
+  assert(secondAudit.beforeHash === firstAudit.afterHash && secondAudit.afterHash === fingerprint(after.records[0]) && secondAudit.afterHash !== firstAudit.afterHash, "Assessment update omitted canonical before/after persisted values");
+  assert(secondAudit.sessionId === firstAudit.sessionId && secondAudit.userId === firstAudit.userId && secondAudit.facilityId === visit.facilityId, "Assessment update lost actor/session/facility attribution");
+  steps.push("verify persisted assessment update fingerprints link previous state without rewriting earlier audit history");
   assert(new Date(after.encounters[0].updatedAt) > new Date(initial.encounters[0].updatedAt), "Assessment did not invalidate consultation signer revision");
   for (const body of [input, { ...input, expectedRevision: original }, { ...input, expectedRevision: original, data: second.body.record.data }]) {
     assert((await save(body)).response.status === 409, "Stale assessment revision replaced the current record");
@@ -96,5 +119,5 @@ export async function verifyAssessmentRevision({ pg, databaseKind, api, request,
     }
   }
   await pg.query('UPDATE "QueueEntry" SET status=\'COMPLETED\', "completedAt"=CURRENT_TIMESTAMP WHERE "visitId"=$1 AND status IN (\'WAITING\',\'CALLED\',\'IN_PROGRESS\')', [visit.id]);
-  console.log(JSON.stringify({ event: "assessment_revision_evidence", databaseKind, overlappingFirstSave: databaseKind === "native-postgresql", staleSignerRejected: true, auditRollback: true, sqlLifecycleRaces: databaseKind === "native-postgresql" ? ["SIGNED", "CLOSED_TIMESTAMP"] : [], visitId: visit.id, encounterId: after.encounters[0].id, recordId: after.records[0].id }));
+  console.log(JSON.stringify({ event: "assessment_revision_evidence", databaseKind, canonicalPersistedFingerprints: true, sessionAttribution: true, priorAuditUnchanged: true, overlappingFirstSave: databaseKind === "native-postgresql", staleSignerRejected: true, auditRollback: true, sqlLifecycleRaces: databaseKind === "native-postgresql" ? ["SIGNED", "CLOSED_TIMESTAMP"] : [], visitId: visit.id, encounterId: after.encounters[0].id, recordId: after.records[0].id }));
 }

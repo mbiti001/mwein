@@ -18,6 +18,7 @@ import { applyLnmpDating, dateInTimeZone } from "@/lib/pregnancy-dating";
 import { isOpenClinicalVisit } from "@/lib/visit-check-in";
 import { assessmentRevision, assessmentConflict } from "@/lib/assessment-revision";
 import { nextEncounterTime } from "@/lib/consultation-revision";
+import { assessmentAuditFingerprint } from "@/lib/assessment-audit";
 
 const serviceCode = z.enum([
   "ANC",
@@ -267,6 +268,7 @@ export async function POST(request: Request) {
       let encounter = visit.encounters.find((item) => item.status === "DRAFT");
       if (input.expectedRevision !== assessmentRevision(visit.id, encounter, encounter?.servicePointRecord))
         throw assessmentConflict();
+      const beforeHash = assessmentAuditFingerprint(user.facilityId, visit.id, encounter?.servicePointRecord ?? null);
       // All assessment saves also write the visit read above. Concurrent first
       // creates and closure must contend on this row even without an encounter.
       await tx.visit.update({
@@ -318,9 +320,12 @@ export async function POST(request: Request) {
       await appendAudit(tx, {
         userId: user.id,
         action: "SERVICE_POINT_ASSESSMENT_SAVED",
+        facilityId: user.facilityId,
+        sessionId: user.sessionId,
         entityType: "ServicePointRecord",
         entityId: record.id,
-        afterHash: `${profile.code}:${profile.templateVersion}:${Object.keys(assessmentData).sort().join("|")}`,
+        beforeHash,
+        afterHash: assessmentAuditFingerprint(user.facilityId, visit.id, record),
       });
       return { record, assessmentRevision: assessmentRevision(visit.id, encounter, record), warnings: validation.warnings.map((issue) => issue.message) };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
