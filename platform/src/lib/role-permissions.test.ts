@@ -13,6 +13,7 @@ describe("role-scoped permissions", () => {
             "audit.view",
             "patient.read",
             "visit.read",
+            "visit.cancel",
             "encounter.write",
           ],
         },
@@ -24,8 +25,8 @@ describe("role-scoped permissions", () => {
     expect(
       roleScopedPermissions([
         { code: "SYSTEM_ADMIN", permissions: ["admin.dashboard", "patient.read"] },
-        { code: "CLINICIAN", permissions: ["patient.read", "visit.read", "encounter.write"] },
+        { code: "CLINICIAN", permissions: ["patient.read", "visit.read", "visit.cancel", "encounter.write"] },
       ]),
-    ).toEqual(["admin.dashboard", "patient.read", "visit.read", "encounter.write"]);
+    ).toEqual(["admin.dashboard", "patient.read", "visit.read", "visit.cancel", "encounter.write"]);
   });
 });

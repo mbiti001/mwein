@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
@@ -45,7 +46,7 @@ export async function POST(
         throw Object.assign(new Error("Laboratory order not found"), {
           status: 404,
         });
-      if (order.visit.clinicallyClosedAt || ["COMPLETED", "CANCELLED"].includes(order.status))
+      if (order.visit.clinicallyClosedAt || order.visit.status === "CANCELLED" || ["COMPLETED", "CANCELLED"].includes(order.status))
         throw Object.assign(
           new Error("A completed order cannot receive another specimen"),
           { status: 409 },
@@ -148,7 +149,7 @@ export async function POST(
         afterHash: `${laboratory.accessionNumber}:${input.specimenCondition}`,
       });
       return laboratory;
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return NextResponse.json({ laboratory: result });
   } catch (error) {
     return apiError(error);

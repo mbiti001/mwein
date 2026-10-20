@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { documentDefinitions, documentKinds } from "./clinic-documents";
 
 export const SHA_CANCELLATION_POLICY_VERSION = "SHA-OFFICIAL-REVIEW-2026-09-19";
 
@@ -41,8 +42,28 @@ const shaOutcomeCodes = shaCancellationOutcomes.map((outcome) => outcome.code) a
   ...(typeof shaCancellationOutcomes)[number]["code"][],
 ];
 
+export const visitCancellationReasonSchema = z.enum(cancellationReasonCodes);
+
+export type VisitCancellationPreview = {
+  visitId: string;
+  visitNumber: string;
+  patient: { id: string; fullName: string; patientNumber: string };
+  status: string;
+  canCancel: boolean;
+  blockers: string[];
+  overdueEligible: boolean;
+  emergencyCare: boolean;
+  impact: {
+    activeQueues: number;
+    pendingOrders: number;
+    draftClaims: number;
+    voidInvoice: boolean;
+    cancelAppointment: boolean;
+  };
+};
+
 export const visitCancellationSchema = z.object({
-  reasonCode: z.enum(cancellationReasonCodes),
+  reasonCode: visitCancellationReasonSchema,
   details: z.string().trim().min(5, "Explain why the visit is being cancelled").max(500),
   shaOutcome: z.enum(shaOutcomeCodes).optional(),
   shaEligibilityReference: z.string().trim().min(3).max(120).optional(),
@@ -59,10 +80,12 @@ export const visitCancellationSchema = z.object({
 
 type CancellableVisit = {
   status: string;
+  clinicallyClosedAt?: Date | string | null;
   clinic: string;
   visitType?: string | null;
   priority: string;
   encounters: Array<{ status: string }>;
+  clinicDocuments?: Array<{ status: string; kind: string }>;
   orders: Array<{ status: string; displayName?: string }>;
   invoice?: null | {
     status: string;
@@ -71,24 +94,34 @@ type CancellableVisit = {
   };
 };
 
+export function isEmergencyCancellationVisit(visit: Pick<CancellableVisit, "clinic" | "visitType" | "priority">) {
+  return [visit.clinic, visit.visitType].some((value) => value?.toLowerCase().includes("emergency"))
+    || ["URGENT", "EMERGENCY"].includes(visit.priority);
+}
+
 export function visitCancellationBlockers(visit: CancellableVisit, reasonCode: string) {
   const blockers: string[] = [];
   if (["ADMITTED", "REFERRED", "DISCHARGED", "COMPLETED", "CANCELLED"].includes(visit.status))
     blockers.push(`A visit that is ${visit.status.toLowerCase()} cannot be cancelled`);
+  else if (visit.clinicallyClosedAt)
+    blockers.push("Clinical closure is already recorded; use the clinical correction and billing workflows");
   if (visit.encounters.some((encounter) => ["SIGNED", "CORRECTED"].includes(encounter.status)))
     blockers.push("The clinical consultation is already signed; use the clinical correction and completion workflow");
-  const completedOrders = visit.orders.filter((order) => order.status === "COMPLETED");
+  if (visit.clinicDocuments?.some((document) => document.status === "SIGNED"
+    && documentKinds.some(kind => kind === document.kind && documentDefinitions[kind].clinical)))
+    blockers.push("A linked clinical document is already signed; review the signed record and use clinical closure or correction");
   if (visit.orders.some(order => order.status === "IN_PROGRESS")) blockers.push("Care is in progress; resolve the service before considering cancellation");
-  if (completedOrders.length)
-    blockers.push(`Completed care cannot be voided (${completedOrders.map((order) => order.displayName || "service").join(", ")})`);
-  if (visit.invoice?.payments.some((payment) => payment.status === "CONFIRMED") || visit.invoice?.status === "PAID")
+  // Cancellation authority does not grant access to the names or results of clinical services.
+  if (visit.orders.some((order) => order.status === "COMPLETED"))
+    blockers.push("Completed care cannot be voided; use clinical closure and the controlled billing workflow");
+  if (visit.invoice?.payments.some((payment) => payment.status === "PENDING"))
+    blockers.push("A payment is pending; resolve it through the billing workflow before cancellation");
+  if (visit.invoice?.payments.some((payment) => payment.status === "CONFIRMED") || ["PART_PAID", "PAID"].includes(visit.invoice?.status || ""))
     blockers.push("A confirmed payment exists; reverse it through the controlled billing workflow first");
-  if (visit.invoice?.claims.some((claim) => ["SUBMITTED", "APPROVED", "PAID"].includes(claim.status)))
+  if (visit.invoice?.claims.some((claim) => !["DRAFT", "CANCELLED"].includes(claim.status)))
     blockers.push("A claim has already left draft state; resolve it through the claims workflow first");
 
-  const emergencyCare = [visit.clinic, visit.visitType].some((value) => value?.toLowerCase().includes("emergency"))
-    || ["URGENT", "EMERGENCY"].includes(visit.priority);
-  if (reasonCode === "SHA_BENEFIT_OR_ELIGIBILITY" && emergencyCare)
-    blockers.push("Do not delay or cancel urgent or emergency care because of a SHA eligibility or benefit outcome; arrange clinical assessment and stabilisation");
+  if (["SHA_BENEFIT_OR_ELIGIBILITY", "PRIVATE_COVER_NOT_AVAILABLE"].includes(reasonCode) && isEmergencyCancellationVisit(visit))
+    blockers.push("Do not delay or cancel urgent or emergency care because of a cover eligibility or benefit outcome; arrange clinical assessment and stabilisation");
   return blockers;
 }

@@ -160,6 +160,7 @@ export default function ServicePointsWorkstation({
   facilityTimeZone,
   initialVisitId,
   onInitialVisitOpened,
+  onVisitSelected,
   onOpenClinical,
   onUpdated,
 }: {
@@ -167,6 +168,7 @@ export default function ServicePointsWorkstation({
   facilityTimeZone: string;
   initialVisitId?: string | null;
   onInitialVisitOpened?: () => void;
+  onVisitSelected?: (visitId: string | null) => void;
   onOpenClinical: (visitId: string) => void;
   onUpdated: () => Promise<void>;
 }) {
@@ -178,6 +180,11 @@ export default function ServicePointsWorkstation({
   const [metrics, setMetrics] = useState<Record<string, Metric>>({});
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
+  const selectedVisitId = activeVisit?.id ?? null;
+  useEffect(() => {
+    // Referral selection belongs to the nested workspace; avoid clearing its context here.
+    if (selectedCode !== "REFERRAL") onVisitSelected?.(selectedVisitId);
+  }, [onVisitSelected, selectedCode, selectedVisitId]);
 
   async function loadMetrics() {
     const result = await api<{ metrics: Record<string, Metric> }>("/api/service-points");
@@ -260,6 +267,7 @@ export default function ServicePointsWorkstation({
           visits={visits}
           initialVisitId={referralVisitId}
           onInitialVisitOpened={() => setReferralVisitId(null)}
+          onVisitSelected={onVisitSelected}
           onMetricsChanged={loadMetrics}
         />
       ) : activeVisit ? (
@@ -474,17 +482,21 @@ function ReferralWorkspace({
   visits,
   initialVisitId,
   onInitialVisitOpened,
+  onVisitSelected,
   onMetricsChanged,
 }: {
   visits: Visit[];
   initialVisitId?: string | null;
   onInitialVisitOpened?: () => void;
+  onVisitSelected?: (visitId: string | null) => void;
   onMetricsChanged: () => Promise<void>;
 }) {
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [query, setQuery] = useState("");
   const [visitQuery, setVisitQuery] = useState("");
   const [visit, setVisit] = useState<Visit | null>(null);
+  const selectedVisitId = visit?.id ?? null;
+  useEffect(() => { onVisitSelected?.(selectedVisitId); }, [onVisitSelected, selectedVisitId]);
   const [key, setKey] = useState(() => crypto.randomUUID());
   const [busy, setBusy] = useState(false);
   const [created, setCreated] = useState<Referral | null>(null);

@@ -69,6 +69,14 @@ export async function PATCH(request: Request) {
         record = await tx.clinicDocument.create({ data: { id, facilityId: user.facilityId, visitId: previous.visitId, kind: previous.kind, reference: `${user.facility.code}-${previous.kind}-${id}`, revision: previous.revision + 1, previousId: previous.id, correctionReason: input.reason, payload: previous.payload as Prisma.InputJsonValue, context: previous.context as Prisma.InputJsonValue, authorId: user.id, signerRoles: [] }, include });
       } else {
         assertDocumentEditable(previous.status, previous.version, input.version);
+        // Read the parent in this serializable transaction so a stale form cannot
+        // be saved or signed after its visit is cancelled. A correction revision
+        // remains available for an already signed historical record.
+        if (previous.visitId && !previous.previousId) {
+          const visit = await tx.visit.findFirst({ where: { id: previous.visitId, facilityId: user.facilityId }, select: { status: true } });
+          if (!visit || visit.status === "CANCELLED")
+            throw Object.assign(new Error("This visit is cancelled; an unsigned clinic document cannot be saved or signed"), { status: 409 });
+        }
         const data: Prisma.ClinicDocumentUpdateManyMutationInput = { version: { increment: 1 } };
         if (input.action === "SAVE") {
           data.payload = parseDocumentPayload(input.kind, input.payload);

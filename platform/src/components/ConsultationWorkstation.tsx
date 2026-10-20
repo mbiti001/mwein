@@ -1058,14 +1058,18 @@ export default function ConsultationWorkstation({
   onOpenServicePoints,
   initialVisitId,
   onInitialVisitOpened,
+  onVisitSelected,
 }: {
   visits: ConsultationVisit[];
   onCompleted: (patientName: string) => void;
   onOpenServicePoints?: (visitId: string) => void;
   initialVisitId?: string | null;
   onInitialVisitOpened?: () => void;
+  onVisitSelected?: (visitId: string | null) => void;
 }) {
   const [active, setActive] = useState<ConsultationVisit | null>(null);
+  const selectedVisitId = active?.id ?? null;
+  useEffect(() => { onVisitSelected?.(selectedVisitId); }, [onVisitSelected, selectedVisitId]);
   useEffect(() => {
     if (!initialVisitId) return;
     const visit = visits.find((item) => item.id === initialVisitId);

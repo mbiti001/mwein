@@ -51,6 +51,9 @@ async function enroll(page: Page, email: string) {
 }
 async function relogin(page: Page, email: string) {
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  // Sign-out reloads only after its request completes; do not race that reload
+  // with the next login helper's navigation.
+  await expect(page.getByRole("heading", { name: "Welcome back", exact: true })).toBeVisible();
   await login(page, email);
   await expect(page.getByRole("heading", { name: "Verify your sign-in" })).toBeVisible();
 }

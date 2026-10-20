@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
@@ -46,7 +47,7 @@ export async function POST(
         throw Object.assign(new Error("Imaging order not found"), {
           status: 404,
         });
-      if (order.visit.clinicallyClosedAt || ["COMPLETED", "CANCELLED"].includes(order.status))
+      if (order.visit.clinicallyClosedAt || order.visit.status === "CANCELLED" || ["COMPLETED", "CANCELLED"].includes(order.status))
         throw Object.assign(new Error("This imaging order is already closed"), {
           status: 409,
         });
@@ -138,7 +139,7 @@ export async function POST(
         afterHash: `${report.status}:${report.conclusion}`,
       });
       return { report };
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return NextResponse.json(result);
   } catch (error) {
     return apiError(error);

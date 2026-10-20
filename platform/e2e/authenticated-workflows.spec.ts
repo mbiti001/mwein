@@ -88,6 +88,7 @@ test("cancels an undelivered visit with a documented SHA benefit outcome", async
   await page.getByLabel("SHA outcome").selectOption("BENEFIT_NOT_COVERED");
   await page.getByLabel("SHA check / verification reference").fill("BROWSER-SHA-CHECK-001");
   await page.getByLabel("Cancellation explanation").fill("Routine benefit was unavailable; alternatives and next steps were explained.");
+  await page.getByRole("checkbox", { name: "I confirm this is the correct visit and only unstarted services will be cancelled." }).check();
   await page.getByRole("button", { name: "Confirm cancellation" }).click();
   await expect(page.getByText(/was cancelled with a documented reason/)).toBeVisible();
 });
@@ -206,6 +207,7 @@ test("completes registration and triage through the browser and routes to consul
   await page.getByLabel("Consciousness").selectOption("ALERT");
   await page.getByLabel("Triage category *").selectOption("ROUTINE");
   await page.getByRole("button", { name: "Complete triage" }).click();
+  await expect(page.getByRole("status")).toContainText("Triage completed for Browser Full Flow");
   await page.getByRole("button", { name: "Consultation", exact: true }).click();
   await expect(page.getByText("Browser Full Flow", { exact: true }).first()).toBeVisible();
 });

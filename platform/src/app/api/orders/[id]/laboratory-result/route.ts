@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
@@ -56,7 +57,7 @@ export async function POST(
         throw Object.assign(new Error("Laboratory order not found"), {
           status: 404,
         });
-      if (order.visit.clinicallyClosedAt || ["COMPLETED", "CANCELLED"].includes(order.status))
+      if (order.visit.clinicallyClosedAt || order.visit.status === "CANCELLED" || ["COMPLETED", "CANCELLED"].includes(order.status))
         throw Object.assign(new Error("This result is already verified"), {
           status: 409,
         });
@@ -223,7 +224,7 @@ export async function POST(
         entityId: laboratoryResult.id,
       });
       return { laboratoryResult, verified };
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return NextResponse.json(result);
   } catch (error) {
     return apiError(error);
