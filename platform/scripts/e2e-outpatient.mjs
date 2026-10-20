@@ -3,6 +3,7 @@ import { verifyCancellationTransaction } from "./e2e-cancellation-transaction.mj
 import { verifyFinancialAbort } from "./e2e-financial-abort.mjs";
 import { verifyAssessmentLifecycle } from "./e2e-assessment-lifecycle.mjs";
 import { verifyAssessmentRevision } from "./e2e-assessment-revision.mjs";
+import { verifyAssessmentHistory } from "./e2e-assessment-history.mjs";
 import { verifyPrivacy } from "./e2e-privacy.mjs";
 import { verifySupplyDocuments } from "./e2e-supply-documents.mjs";
 import { verifyDocumentNumbering } from "./e2e-document-numbering.mjs";
@@ -593,6 +594,7 @@ try {
   const appointmentTime = new Date(Date.now() + 7 * 86400000);
   await verifyAssessmentLifecycle({ pg, api, request: (path, options) => requestWithCookie(path, sessionCookie, options), authenticate, requestWithCookie, relatedPatientId: patient.id, assert, steps });
   await verifyAssessmentRevision({ pg, databaseKind: databaseBackend.kind, api, request: (path, options) => requestWithCookie(path, sessionCookie, options), assert, steps });
+  await verifyAssessmentHistory({ pg, api, request: (path, options) => requestWithCookie(path, sessionCookie, options), authenticate, requestWithCookie, assert, steps });
   appointmentTime.setUTCHours(7, 0, 0, 0);
   const appointmentResult = await api("book follow-up appointment", "/api/appointments", { method: "POST", body: JSON.stringify({ patientId: patient.id, scheduledAt: appointmentTime.toISOString(), clinic: "Outpatient", notes: "E2E follow-up" }) });
   const appointmentId = appointmentResult.body.appointment.id;

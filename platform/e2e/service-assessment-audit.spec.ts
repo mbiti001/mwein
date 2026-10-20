@@ -36,6 +36,33 @@ async function fixture(page: Page, options: Partial<State> = {}, authorized = tr
 const plan = (page: Page) => page.getByLabel("Follow-up, escalation or referral plan");
 const save = (page: Page) => page.getByRole("button", { name: "Save Walk-in assessment", exact: true });
 
+// Gap characterization, not acceptance of immutable history. Change these
+// expectations when the separately safeguarded history implementation lands.
+test("CHARACTERIZATION: reviewed edit and print expose current snapshot without earlier saved text", async ({ page }) => {
+  const state = await fixture(page);
+  await plan(page).fill("Replacement history audit plan");
+  await save(page).click();
+  await expect(page.locator(".savedAssessment")).toContainText("Replacement history audit plan");
+  await expect(page.locator(".savedAssessment")).not.toContainText(data.carePlan);
+  expect(state.posts).toHaveLength(1);
+  await page.reload();
+  await page.getByRole("button", { name: "Service points", exact: true }).click();
+  await page.locator(".careServiceCard").filter({ has: page.locator("strong", { hasText: /^Walk-in$/ }) }).click();
+  await page.getByRole("button", { name: /Synthetic Assessment Patient/ }).click();
+  await expect(page.locator(".savedAssessment")).toContainText("Replacement history audit plan");
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator(".savedAssessment")).toContainText("Replacement history audit plan");
+  await expect(page.locator(".savedAssessment")).not.toContainText(data.carePlan);
+});
+
+test("CHARACTERIZATION: corrected worksheet has no local amendment entry or history selector", async ({ page }) => {
+  const state = await fixture(page, { encounterStatus: "CORRECTED", readOnly: true });
+  await expect(plan(page)).toBeDisabled();
+  await expect(page.locator(".serviceAssessment").getByRole("button", { name: /addendum|amend|history|revision/i })).toHaveCount(0);
+  await expect(page.locator(".savedAssessment")).toContainText("Synthetic Recorder");
+  expect(state.posts).toHaveLength(0);
+});
+
 test("saved snapshot stays separate from edits; save binds to the original record revision", async ({ page }) => {
   const state = await fixture(page);
   await plan(page).fill("Unsaved synthetic plan");
