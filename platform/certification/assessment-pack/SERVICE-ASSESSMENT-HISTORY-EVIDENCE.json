@@ -1,0 +1,528 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-20T22:57:30.985Z",
+  "scope": "Engineering characterization audit and correction contract; no implementation of immutable history",
+  "source": {
+    "commit": "5abddf9d36d693273c8960f14c5228f66c3e85ab",
+    "baseline": "baf4764b941644e86184a04a65a8ccf017b18fd5",
+    "branch": "codex/mwein-platform",
+    "normalPushVerified": true,
+    "canonicalLfArchive": {
+      "bytes": 6942720,
+      "sha256": "7c93a6c2d8100a4cfe60188a83c3ebf87acd0aefe82c3dee078fc39277235dd8"
+    },
+    "changedFilesSinceRuntimeBuild": [
+      "platform/WORKFLOW_IMPROVEMENT_LOG.md",
+      "platform/certification/assessment-pack/SERVICE-ASSESSMENT-AUDIT-CORRECTION-EVIDENCE.json",
+      "platform/certification/assessment-pack/SERVICE-ASSESSMENT-HISTORY-AUDIT.md",
+      "platform/e2e/service-assessment-audit.spec.ts",
+      "platform/scripts/e2e-assessment-history.mjs",
+      "platform/scripts/e2e-outpatient.mjs",
+      "platform/src/lib/assessment-amendment-audit.test.ts"
+    ]
+  },
+  "localBuild": {
+    "id": "Xlayy8o8dbxBpiDq9oxKh",
+    "runtimeSource": "463007181a35ddce690794999bbec06e6068b263",
+    "reused": true,
+    "newBuildClaimed": false,
+    "runtimeUnchanged": true
+  },
+  "verification": {
+    "localUnit": {
+      "passed": 1275,
+      "files": 128
+    },
+    "focusedUnit": 53,
+    "types": "passed",
+    "nativeStandalone": {
+      "passed": 194,
+      "backend": "PostgreSQL 18.3",
+      "historyCharacterization": {
+        "event": "assessment_history_characterization",
+        "visitId": "771e833e-1334-4442-9ab3-b0ca42e7121f",
+        "encounterId": "3e817b4a-e272-45fe-80ed-0900192308cf",
+        "recordId": "2c602660-3aaa-4078-af04-648a24a72af4",
+        "observedCurrentRows": 1,
+        "assessmentSuccessEvents": 2,
+        "narrativeRowsAfterIdenticalSubmissions": 2,
+        "priorStructuredTextRetainedInQueriedState": false,
+        "servicePointReadIncludesAmendment": false,
+        "amendmentSessionAttributed": false,
+        "correctedAmendmentAccepted": false,
+        "permissionFacilityDenial": true,
+        "auditFailureRollback": true
+      }
+    },
+    "browser": {
+      "passed": 15,
+      "retries": 0,
+      "apiInterceptedUi": true,
+      "nativeFixtureSeparate": true,
+      "viewports": [
+        1440,
+        768,
+        390,
+        320
+      ],
+      "print": "Saved-only print-media assertions and PDF generation; no new physical-print certification"
+    },
+    "inventory": {
+      "routes": 73,
+      "gaps": 0,
+      "unclassified": 0,
+      "aliases": 0,
+      "routeFingerprintsChanged": false
+    },
+    "hosted": {
+      "checkedAt": "2026-10-20T22:57:30.851Z",
+      "run": {
+        "id": 39510701555,
+        "status": "in_progress",
+        "conclusion": null,
+        "sha": "5abddf9d36d693273c8960f14c5228f66c3e85ab",
+        "url": "https://github.com/mbiti001/mwein/actions/runs/39510701555"
+      },
+      "jobs": [
+        {
+          "id": 118930704825,
+          "name": "Platform verification",
+          "status": "completed",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 1,
+              "started_at": "2026-10-20T22:48:13Z",
+              "completed_at": "2026-10-20T22:48:13Z"
+            },
+            {
+              "name": "Initialize containers",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 2,
+              "started_at": "2026-10-20T22:48:13Z",
+              "completed_at": "2026-10-20T22:48:30Z"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 3,
+              "started_at": "2026-10-20T22:48:30Z",
+              "completed_at": "2026-10-20T22:48:31Z"
+            },
+            {
+              "name": "Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 4,
+              "started_at": "2026-10-20T22:48:31Z",
+              "completed_at": "2026-10-20T22:48:34Z"
+            },
+            {
+              "name": "Install locked dependencies",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 5,
+              "started_at": "2026-10-20T22:48:34Z",
+              "completed_at": "2026-10-20T22:48:48Z"
+            },
+            {
+              "name": "Check production dependency advisories",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 6,
+              "started_at": "2026-10-20T22:48:48Z",
+              "completed_at": "2026-10-20T22:48:49Z"
+            },
+            {
+              "name": "Generate database client",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 7,
+              "started_at": "2026-10-20T22:48:49Z",
+              "completed_at": "2026-10-20T22:48:51Z"
+            },
+            {
+              "name": "Check types",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 8,
+              "started_at": "2026-10-20T22:48:51Z",
+              "completed_at": "2026-10-20T22:48:56Z"
+            },
+            {
+              "name": "Run platform tests",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 9,
+              "started_at": "2026-10-20T22:48:56Z",
+              "completed_at": "2026-10-20T22:49:18Z"
+            },
+            {
+              "name": "Verify migrations and database constraints",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 10,
+              "started_at": "2026-10-20T22:49:18Z",
+              "completed_at": "2026-10-20T22:49:21Z"
+            },
+            {
+              "name": "Build without database credentials",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 11,
+              "started_at": "2026-10-20T22:49:21Z",
+              "completed_at": "2026-10-20T22:49:38Z"
+            },
+            {
+              "name": "Verify outpatient workflow against isolated test data",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 12,
+              "started_at": "2026-10-20T22:49:38Z",
+              "completed_at": "2026-10-20T22:49:57Z"
+            },
+            {
+              "name": "Install browser",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 13,
+              "started_at": "2026-10-20T22:49:57Z",
+              "completed_at": "2026-10-20T22:50:17Z"
+            },
+            {
+              "name": "Verify browser workflows",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 14,
+              "started_at": "2026-10-20T22:50:17Z",
+              "completed_at": "2026-10-20T22:55:02Z"
+            },
+            {
+              "name": "Build certification evidence index",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 15,
+              "started_at": "2026-10-20T22:55:02Z",
+              "completed_at": "2026-10-20T22:55:02Z"
+            },
+            {
+              "name": "Retain certification evidence index",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 16,
+              "started_at": "2026-10-20T22:55:02Z",
+              "completed_at": "2026-10-20T22:55:03Z"
+            },
+            {
+              "name": "Retain browser failure evidence",
+              "status": "completed",
+              "conclusion": "skipped",
+              "number": 17,
+              "started_at": "2026-10-20T22:55:03Z",
+              "completed_at": "2026-10-20T22:55:03Z"
+            },
+            {
+              "name": "Post Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 32,
+              "started_at": "2026-10-20T22:55:03Z",
+              "completed_at": "2026-10-20T22:55:03Z"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 33,
+              "started_at": "2026-10-20T22:55:03Z",
+              "completed_at": "2026-10-20T22:55:03Z"
+            },
+            {
+              "name": "Stop containers",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 34,
+              "started_at": "2026-10-20T22:55:03Z",
+              "completed_at": "2026-10-20T22:55:04Z"
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 35,
+              "started_at": "2026-10-20T22:55:04Z",
+              "completed_at": "2026-10-20T22:55:04Z"
+            }
+          ]
+        },
+        {
+          "id": 118930705297,
+          "name": "Legacy compatibility verification",
+          "status": "completed",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 1,
+              "started_at": "2026-10-20T22:48:13Z",
+              "completed_at": "2026-10-20T22:48:14Z"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 2,
+              "started_at": "2026-10-20T22:48:14Z",
+              "completed_at": "2026-10-20T22:48:15Z"
+            },
+            {
+              "name": "Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 3,
+              "started_at": "2026-10-20T22:48:15Z",
+              "completed_at": "2026-10-20T22:48:15Z"
+            },
+            {
+              "name": "Check JavaScript syntax",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 4,
+              "started_at": "2026-10-20T22:48:15Z",
+              "completed_at": "2026-10-20T22:48:15Z"
+            },
+            {
+              "name": "Run automated tests",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 5,
+              "started_at": "2026-10-20T22:48:15Z",
+              "completed_at": "2026-10-20T22:48:16Z"
+            },
+            {
+              "name": "Build hardened container",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 6,
+              "started_at": "2026-10-20T22:48:16Z",
+              "completed_at": "2026-10-20T22:48:21Z"
+            },
+            {
+              "name": "Build verified cloud bundle",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 7,
+              "started_at": "2026-10-20T22:48:21Z",
+              "completed_at": "2026-10-20T22:48:22Z"
+            },
+            {
+              "name": "Upload cloud bundle",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 8,
+              "started_at": "2026-10-20T22:48:22Z",
+              "completed_at": "2026-10-20T22:48:23Z"
+            },
+            {
+              "name": "Post Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 15,
+              "started_at": "2026-10-20T22:48:23Z",
+              "completed_at": "2026-10-20T22:48:23Z"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 16,
+              "started_at": "2026-10-20T22:48:23Z",
+              "completed_at": "2026-10-20T22:48:23Z"
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 17,
+              "started_at": "2026-10-20T22:48:23Z",
+              "completed_at": "2026-10-20T22:48:23Z"
+            }
+          ]
+        }
+      ]
+    },
+    "hostedDecodedResults": {
+      "units": 1275,
+      "unitFiles": 128,
+      "migrations": 55,
+      "nativeStandalone": 194,
+      "browser": 150,
+      "retries": 0,
+      "productionBuild": "passed",
+      "productionDependencyVulnerabilities": 0
+    },
+    "hostedBuildId": null,
+    "developmentDependencyAdvisory": {
+      "package": "vite",
+      "lockedVersion": "8.2.2",
+      "devOnly": true,
+      "severity": "high",
+      "advisory": "https://github.com/advisories/GHSA-587h-7wmj-h5pm",
+      "npmReportedFixAvailable": true,
+      "resolvedInThisBatch": false
+    }
+  },
+  "findings": [
+    "Prior structured values absent from queried current/addendum/audit state after reviewed save",
+    "Service-point read omits persisted narrative amendment",
+    "CORRECTED replacement advises addendum but addendum endpoint rejects CORRECTED",
+    "Identical narrative submissions produce distinct records/events",
+    "Narrative audit has null session and ID-only afterHash"
+  ],
+  "existingSafeguardsVerified": [
+    "Permission/facility denial without state mutation",
+    "Native audit failure rollback",
+    "Earlier assessment and success events retained after narrative append",
+    "Existing original-revision/signer coupling, lifecycle races, MFA and audit-chain checks"
+  ],
+  "release": {
+    "deployedByThisBatch": false,
+    "healthBefore": {
+      "status": "ok",
+      "database": "connected",
+      "migration": "20261016010000_rights_identity_evidence",
+      "release": {
+        "version": "1.6.2",
+        "commit": "89e693df430571b9371cefad7db1e750ae41fe30",
+        "shortCommit": "89e693df4305",
+        "environment": "production",
+        "branch": "codex/mwein-platform",
+        "deployment": "dpl_F3uShagMUnYftappZnbrmSdTf42T",
+        "application": "mwein-hmis-platform"
+      },
+      "time": "2026-10-20T22:45:01.178Z"
+    },
+    "healthFinal": {
+      "status": "ok",
+      "database": "connected",
+      "migration": "20261016010000_rights_identity_evidence",
+      "release": {
+        "version": "1.6.2",
+        "commit": "89e693df430571b9371cefad7db1e750ae41fe30",
+        "shortCommit": "89e693df4305",
+        "environment": "production",
+        "branch": "codex/mwein-platform",
+        "deployment": "dpl_F3uShagMUnYftappZnbrmSdTf42T",
+        "application": "mwein-hmis-platform"
+      },
+      "time": "2026-10-20T22:55:54Z"
+    }
+  },
+  "limitations": [
+    "Characterization passes confirm gaps, not implementation acceptance",
+    "SQL SIGNED/CORRECTED fixtures are not approved clinical workflows",
+    "No complete external backup/log search or historical-value recovery claim",
+    "No schema/migration or clinical/legal approval",
+    "October 15 backup exception not reused; fresh future database release safeguards required",
+    "Separate cancellation PR 11 untouched"
+  ],
+  "failures": [
+    {
+      "log": "native.log",
+      "cause": "Test snapshot compared AuditEvent text entityId to a UUID parameter; explicit SQL cast fixed verifier only",
+      "retainedDatabase": "mwein_e2e_history_native",
+      "subsequentFreshDatabase": "mwein_e2e_history_final",
+      "assertionsWeakened": false
+    }
+  ],
+  "retainedDatabases": [
+    "mwein_e2e_history_native",
+    "mwein_e2e_history_final",
+    "mwein_e2e_history_browser"
+  ],
+  "ownedServicesStopped": true,
+  "logs": [
+    {
+      "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-2\\work\\unit.log",
+      "sha256": "4142a54afe1da52ce8211353204e5825ef5d2081cdf2fb1cc8964620c01d4fad"
+    },
+    {
+      "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-2\\work\\focused.log",
+      "sha256": "7705c49724ace9bc876ff764ba860f281241779fcf41ae8c69abed5d679a02ba"
+    },
+    {
+      "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-2\\work\\types.log",
+      "sha256": "de9b61b03f0cbbabb7b993cc935867fcf4151421358ccbc4337bcd7b4f3b30b6"
+    },
+    {
+      "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-2\\work\\native.log",
+      "sha256": "a6e8d48ee0bd9f0c61bebd18e83ee26e7e8d7767b76a6dba63f57088a27db639"
+    },
+    {
+      "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-2\\work\\native-final.log",
+      "sha256": "d904cfeabc5913600e60d47710ff148ca6af0058ec20c7c71a84dc6ab2bdc1e2"
+    },
+    {
+      "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-2\\work\\browser.log",
+      "sha256": "b22d119bf865f02bab9b68fbbb3689078f09e206648f5cf38ff9336936154dca"
+    },
+    {
+      "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-2\\work\\hosted-legacy.log",
+      "sha256": "590dc69d8b290ddd015f044eca75adc41f94ee6bf60818c42e3891385e22f61d"
+    },
+    {
+      "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-2\\work\\audit-inventory.json",
+      "sha256": "4d8bd21c70db23feba153a19bbb37fdb89fb829f7d211527454bd7f19d1d8840"
+    },
+    {
+      "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-2\\work\\dependency-audit-full.json",
+      "sha256": "679a5d7fdbb76753f28d0675c3cea7cf7634498baa5abcff579b889e26484e8d"
+    },
+    {
+      "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-2\\work\\ci-run-detail.json",
+      "sha256": "aff1b36010d57bf2cda4d5e2dee7d008336ff51a0351ff1df367dd906e7f1c80"
+    },
+    {
+      "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-2\\work\\hosted-platform.log",
+      "sha256": "31550724f8a27404b68c454a97357b233789a3b5c2f588f79b639864dd9fc89d"
+    }
+  ],
+  "imagesAndPdfs": [
+    {
+      "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-2\\work\\browser-results\\service-assessment-audit-a-f692f-y-author-and-missing-values\\assessment-1440.png",
+      "sha256": "d7577373fc36cef9ae53319139a2b56c9db5f0a84ed05b562bd71bbdaba32a97"
+    },
+    {
+      "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-2\\work\\browser-results\\service-assessment-audit-a-f692f-y-author-and-missing-values\\assessment-320.png",
+      "sha256": "0fe0fbfc1f84ead21df4ec87f512e5694f675c4ecab096b6b650e27b977b3b47"
+    },
+    {
+      "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-2\\work\\browser-results\\service-assessment-audit-a-f692f-y-author-and-missing-values\\assessment-390.png",
+      "sha256": "483b5080eda72ec93b7591702616046b030fb2c8ad3a9e62b161f03f2b01af9f"
+    },
+    {
+      "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-2\\work\\browser-results\\service-assessment-audit-a-f692f-y-author-and-missing-values\\assessment-768.png",
+      "sha256": "186d91ef694a9ee8f9e67192500bd536fd507276689086a11b1ab011740301b0"
+    },
+    {
+      "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-2\\work\\browser-results\\service-assessment-audit-a-f692f-y-author-and-missing-values\\assessment-print-saved.png",
+      "sha256": "288f2568786298b3cbd732ced1175a60ec374c90d0e7f6b4740becc7ba197fc9"
+    },
+    {
+      "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-2\\work\\browser-results\\service-assessment-audit-a-f692f-y-author-and-missing-values\\assessment-print.pdf",
+      "sha256": "6d2272fa82a3c442a7b480b3a7c8beca28b3101f750d1197a2eb56005ff334ae"
+    },
+    {
+      "file": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-2\\work\\browser-results\\service-assessment-audit-a-f692f-y-author-and-missing-values\\saved-assessment-1440.png",
+      "sha256": "45ee0c5a8406d7d4ecec63fc281f7620ce89baeabd63f447fbcf2f0be14c5c87"
+    }
+  ],
+  "next": "Implement SERVICE-ASSESSMENT-HISTORY-AUDIT.md contract, then unsaved navigation/reload protection and remaining financial/supply/diagnostic/pharmacy/cashier/follow-up backlog"
+}
