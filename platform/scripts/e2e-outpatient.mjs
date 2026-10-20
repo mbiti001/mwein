@@ -1,5 +1,6 @@
 import { verifyMandatoryMfa } from "./e2e-mfa-enforcement.mjs";
 import { verifyPrivacy } from "./e2e-privacy.mjs";
+import { seedCancellationBrowserFixtures, verifyVisitCancellation } from "./e2e-visit-cancellation.mjs";
 import { createHmac, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { readdir } from "node:fs/promises";
@@ -922,6 +923,8 @@ try {
   const deathState = (await pg.query(`SELECT v."status", (SELECT "status" FROM "ClinicalOrder" WHERE "id"=$2) AS "orderStatus", (SELECT COUNT(*)::int FROM "QueueEntry" WHERE "visitId"=v."id" AND "status" IN ('WAITING','CALLED','IN_PROGRESS')) AS "activeQueues" FROM "Visit" v WHERE v."id"=$1`, [deathId, unstartedOrder])).rows[0];
   assert(deathState.status === "DISCHARGED" && deathState.orderStatus === "CANCELLED" && deathState.activeQueues === 0, "Deceased patient remained in an ordinary care queue");
 
+  await verifyVisitCancellation({ pg, facilityId: facility.id, actorId: admin.id, adminCookie: sessionCookie, requestWithCookie, authenticate, assert, steps });
+
   const auditExport = await requestWithCookie("/api/admin/audit/export", sessionCookie);
   assert(auditExport.response.ok, `Audit export failed: ${JSON.stringify(auditExport.body)}`);
   assert(auditExport.body.chain.valid === true && Number(auditExport.body.chain.eventCount) > 0, "Audit export did not verify its serialized chain");
@@ -969,6 +972,7 @@ try {
   console.log(`Outpatient E2E passed (${steps.length} checks)`);
   steps.forEach((step, index) => console.log(`${index + 1}. ${step}`));
   if (process.env.E2E_HOLD === "1") {
+    await seedCancellationBrowserFixtures({ pg, facilityId: facility.id, actorId: admin.id });
     const browserClosureId = randomUUID();
     await pg.query(`INSERT INTO "Visit" ("id", "facilityId", "patientId", "visitNumber", "clinic", "visitType", "status", "reason", "updatedAt") VALUES ($1,$2,$3,'E2E-BROWSER-CLOSE','Outpatient','WALK_IN','ADMITTED','Browser closure regression',now())`, [browserClosureId, facility.id, patient.id]);
     await pg.query(`INSERT INTO "Encounter" ("id", "visitId", "clinicianId", "status", "signedAt", "updatedAt") VALUES ($1,$2,$3,'SIGNED',now(),now())`, [randomUUID(), browserClosureId, admin.id]);

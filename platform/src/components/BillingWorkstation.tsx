@@ -116,15 +116,19 @@ export default function BillingWorkstation({
   onUpdated,
   initialVisitId,
   onInitialVisitOpened,
+  onVisitSelected,
 }: {
   visits: Visit[];
   permissions: string[];
   onUpdated: () => Promise<void>;
   initialVisitId?: string | null;
   onInitialVisitOpened?: () => void;
+  onVisitSelected?: (visitId: string | null) => void;
 }) {
   const queue = useMemo(() => visits.filter((v) => v.invoice && ["AWAITING_PAYMENT", "DISCHARGED", "REFERRED"].includes(v.status)), [visits]);
   const [active, setActive] = useState<Visit | null>(null);
+  const selectedVisitId = active?.id ?? null;
+  useEffect(() => { onVisitSelected?.(selectedVisitId); }, [onVisitSelected, selectedVisitId]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const paymentInFlight = useRef(false);

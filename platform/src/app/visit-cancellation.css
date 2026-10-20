@@ -1,0 +1,42 @@
+.visitHeaderActions { display: flex; flex-wrap: wrap; gap: 10px; }
+.visitTaskActions { display: flex; align-items: stretch; gap: 8px; }
+.visitTaskActions > .taskRow { flex: 1; min-width: 0; }
+.visitTaskActions > .cancelVisitAction { align-self: center; flex-shrink: 0; }
+.cancelVisitAction { color: var(--danger); border-color: rgb(225 190 186); background: white; }
+.visitManagementHelp { margin-bottom: 16px !important; }
+.visitManagementList { list-style: none; margin: 12px 0 0; padding: 0; }
+.visitManagementRow { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 20px; align-items: center; padding: 16px 0; border-top: 1px solid var(--line); }
+.visitManagementIdentity, .visitManagementState { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.visitManagementIdentity > span, .visitManagementRow small, .visitManagementRow time { color: var(--muted); font-size: 12px; }
+.visitManagementState > strong { text-transform: capitalize; font-size: 13px; }
+.visitManagementMore { margin-top: 18px; display: flex; justify-content: center; }
+.visitCancellationDialog { width: min(680px, calc(100% - 28px)); max-height: calc(100dvh - 32px); margin: auto; padding: 24px; border: 1px solid var(--line); border-radius: 14px; color: var(--ink); background: white; box-shadow: 0 20px 80px rgb(0 0 0 / 22%); overflow-y: auto; overscroll-behavior: contain; }
+.visitCancellationDialog::backdrop { background: rgb(9 31 40 / 58%); }
+.cancellationHeading { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.cancellationHeading h2 { margin: 0; font-size: 24px; }
+.cancellationHeading .eyebrow { margin: 0 0 4px; }
+.cancellationIdentity { display: grid; gap: 3px; margin: 18px 0 10px; padding: 12px; border-radius: 8px; background: var(--teal-soft); overflow-wrap: anywhere; }
+.cancellationIdentity span { font-size: 13px; color: var(--muted); }
+.visitCancellationDialog > p { font-size: 13px; color: var(--muted); }
+.cancellationForm { display: grid; gap: 16px; margin-top: 16px; }
+.cancellationForm p { margin: 0; }
+.cancellationFields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.cancellationBlockers ul, .cancellationImpact ul { margin: 8px 0 0; padding-left: 20px; font-size: 13px; }
+.cancellationBlockers li, .cancellationImpact li { margin: 5px 0; }
+.cancellationImpact { padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.cancellationImpact h3 { margin: 0; font-size: 14px; }
+.cancellationConfirmation { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
+.cancellationConfirmation input { width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; accent-color: var(--teal); }
+.cancellationFooter { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.cancellationForm .alert .actionButton { margin-top: 10px; }
+@media (max-width: 650px) {
+  .visitTaskActions { flex-direction: column; gap: 0; padding-bottom: 12px; }
+  .visitTaskActions > .cancelVisitAction { align-self: flex-end; }
+  .visitManagementRow { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .visitManagementRow > .actionButton { justify-self: start; }
+  .visitCancellationDialog { padding: 18px; }
+  .cancellationFields { grid-template-columns: minmax(0, 1fr); }
+  .cancellationFooter { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .cancellationFooter .actionButton { white-space: normal; }
+}
+@media print { .visitCancellationDialog, .cancelVisitAction { display: none !important; } }

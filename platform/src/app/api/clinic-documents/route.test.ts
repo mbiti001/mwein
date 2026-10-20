@@ -45,4 +45,29 @@ describe("clinic document access and signing boundaries", () => {
     expect((await PATCH(request({ id, kind: "SICK", version: 2, action: "SIGN", attested: true }))).status).toBe(409);
     expect(updateMany).not.toHaveBeenCalled();
   });
+
+  it.each(["SAVE", "SIGN"])("rejects a stale %s on an ordinary draft after its visit was cancelled", async action => {
+    const updateMany = vi.fn();
+    const findFirst = vi.fn().mockResolvedValue({ id, visitId: "visit-a", previousId: null, status: "DRAFT", version: 1 });
+    const visit = vi.fn().mockResolvedValue({ status: "CANCELLED" });
+    vi.mocked(db.$transaction).mockImplementation(async (fn: any) => fn({ clinicDocument: { findFirst, updateMany }, visit: { findFirst: visit } }));
+    const response = await PATCH(request({ id, kind: "SICK", version: 1, action, attested: true, ...(action === "SAVE" ? { payload: {} } : {}) }));
+    expect(response.status).toBe(409);
+    expect(visit).toHaveBeenCalledWith({ where: { id: "visit-a", facilityId: user.facilityId }, select: { status: true } });
+    expect(updateMany).not.toHaveBeenCalled();
+    expect(db.$transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "Serializable" });
+  });
+
+  it("retains the ability to save an explicit correction of a historical signed document", async () => {
+    const previous = { id, kind: "SICK", visitId: "historic-visit", previousId: "signed-original", status: "DRAFT", version: 1 };
+    const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+    const visit = vi.fn();
+    vi.mocked(db.$transaction).mockImplementation(async (fn: any) => fn({ clinicDocument: {
+      findFirst: vi.fn().mockResolvedValue(previous), updateMany, findUniqueOrThrow: vi.fn().mockResolvedValue({ ...previous, version: 2 }),
+    }, visit: { findFirst: visit } }));
+    const response = await PATCH(request({ id, kind: "SICK", version: 1, action: "SAVE", payload: { recommendation: "Corrected historical documentation" } }));
+    expect(response.status).toBe(200);
+    expect(updateMany).toHaveBeenCalled();
+    expect(visit).not.toHaveBeenCalled();
+  });
 });

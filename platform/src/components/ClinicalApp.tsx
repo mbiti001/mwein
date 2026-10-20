@@ -17,7 +17,7 @@ import ReadinessSnapshot from "@/components/ReadinessSnapshot";
 import MfaWorkstation from "@/components/MfaWorkstation";
 import VisitClosurePanel from "@/components/VisitClosurePanel";
 import PatientIdentityPanel from "@/components/PatientIdentityPanel";
-import { shaCancellationOutcomes, visitCancellationReasons } from "@/lib/visit-cancellation";
+import type { CancellationTarget } from "@/components/VisitCancellationDialog";
 
 const ClinicForms = dynamic(() => import("@/components/ClinicForms"));
 
@@ -36,6 +36,8 @@ const AdminCenter = dynamic(() => import("@/components/AdminCenter"), { loading:
 const ServicePointsWorkstation = dynamic(() => import("@/components/ServicePointsWorkstation"), { loading: workspaceLoading });
 const QueueOperationsPanel = dynamic(() => import("@/components/QueueOperationsPanel"), { loading: workspaceLoading });
 const FollowUpWorkstation = dynamic(() => import("@/components/FollowUpWorkstation"), { loading: workspaceLoading });
+const VisitCancellationDialog = dynamic(() => import("@/components/VisitCancellationDialog"));
+const VisitManagementWorkstation = dynamic(() => import("@/components/VisitManagementWorkstation"), { loading: workspaceLoading });
 
 type User = {
   displayName: string;
@@ -139,6 +141,7 @@ type Visit = {
 };
 type Screen =
   | "dashboard"
+  | "visits"
   | "registration"
   | "appointments"
   | "visit"
@@ -170,6 +173,9 @@ export default function ClinicalApp() {
   const [selected, setSelected] = useState<Patient | null>(null);
   const [appointment, setAppointment] = useState<{ id: string; clinic: string } | null>(null);
   const [notice, setNotice] = useState("");
+  const [cancellationTarget, setCancellationTarget] = useState<CancellationTarget | null>(null);
+  const [visitManagementVersion, setVisitManagementVersion] = useState(0);
+  const cancelledVisitIds = useRef(new Set<string>());
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [focusedVisitId, setFocusedVisitId] = useState<string | null>(null);
   const [contextVisitId, setContextVisitId] = useState<string | null>(null);
@@ -183,7 +189,7 @@ export default function ClinicalApp() {
     let request: Promise<void>;
     request = api<{ visits: Visit[] }>("/api/visits")
       .then((result) => {
-        setVisits(result.visits);
+        setVisits(result.visits.filter(visit => !cancelledVisitIds.current.has(visit.id)));
         setVisitsLastUpdatedAt(new Date());
         setVisitsRefreshFailed(false);
       })
@@ -226,6 +232,7 @@ export default function ClinicalApp() {
   useEffect(() => {
     const titles: Record<Screen, string> = {
       dashboard: "Home",
+      visits: "Visits",
       forms: "Clinic forms",
       registration: "Patient registration",
       appointments: "Appointments",
@@ -283,8 +290,24 @@ export default function ClinicalApp() {
     setScreen("visit");
     setNotice("");
   };
+  const onVisitCancelled = async (visit: CancellationTarget) => {
+    cancelledVisitIds.current.add(visit.id);
+    setVisits(current => current.filter(item => item.id !== visit.id));
+    setCancellationTarget(null);
+    setContextVisitId(null);
+    setFocusedVisitId(null);
+    setScreen(current => current === "visits" ? "visits" : "dashboard");
+    setVisitManagementVersion(value => value + 1);
+    const message = visit.visitNumber + " was cancelled with a documented reason. The patient record is retained.";
+    setNotice(message);
+    // Finish any older read before requesting the committed visit state.
+    await visitsRequest.current?.catch(() => undefined);
+    try { await loadVisits(); }
+    catch { setNotice(message + " Live queue refresh failed; use Retry to update the remaining visits."); }
+  };
   const allNav: [Screen, string, string?][] = [
     ["dashboard", "Home"],
+    ["visits", "Visits", "visit.cancel"],
     ["registration", "Registration", "patient.create"],
     ["appointments", "Appointments", "visit.create"],
     ["followUps", "Follow-up work", "visit.read"],
@@ -321,7 +344,7 @@ export default function ClinicalApp() {
           {nav.map(([key, label]) => (
             <button
               className={screen === key ? "active" : ""}
-              onClick={() => { setReturnToConsultation(false); setScreen(key); setFocusedVisitId(null); setStockFocus(null); setMobileNavOpen(false); }}
+              onClick={() => { setReturnToConsultation(false); setScreen(key); setFocusedVisitId(null); if (screen !== key) setContextVisitId(null); setStockFocus(null); setMobileNavOpen(false); }}
               key={key}
             >
               {label}
@@ -365,7 +388,7 @@ export default function ClinicalApp() {
           }}/>
         )}
         {screen !== "dashboard" &&
-          !["forms", "summaries", "reports", "surveillance", "vitals", "security", "appointments", "admin"].includes(screen) && (
+          !["visits", "forms", "summaries", "reports", "surveillance", "vitals", "security", "appointments", "admin"].includes(screen) && (
             <WorkflowSteps screen={screen} />
           )}{" "}
         {contextVisitId && (() => {
@@ -377,13 +400,7 @@ export default function ClinicalApp() {
             canCancel={user.permissions.includes("visit.cancel")}
             onClear={() => setContextVisitId(null)}
             onOpen={(target) => { setFocusedVisitId(visit.id); setScreen(target); }}
-            onCancelled={async () => {
-              await loadVisits();
-              setContextVisitId(null);
-              setFocusedVisitId(null);
-              setScreen("dashboard");
-              setNotice(`${visit.visitNumber} was cancelled with a documented reason.`);
-            }}
+            onCancel={() => setCancellationTarget(visit)}
           /> : null;
         })()}
         {notice && <div className="alert success" role="status">{notice}</div>}
@@ -391,6 +408,8 @@ export default function ClinicalApp() {
           <Dashboard
             visits={visits}
             onGovernance={() => setScreen("admin")}
+            onManageVisits={() => { setContextVisitId(null); setScreen("visits"); }}
+            onCancel={setCancellationTarget}
             user={user}
             onStart={() => {
               setScreen("registration");
@@ -400,6 +419,8 @@ export default function ClinicalApp() {
             onUpdated={loadVisits}
           />
         )}
+        {screen === "visits" && user.permissions.includes("visit.cancel") && <VisitManagementWorkstation
+          onCancel={setCancellationTarget} refreshKey={visitManagementVersion} timeZone={user.facility.timezone} />}
         {screen === "forms" && <ClinicForms permissions={user.permissions} />}
         {screen === "registration" && (
           <PatientRegister
@@ -439,9 +460,10 @@ export default function ClinicalApp() {
             }}
           />
         )}
-        {screen === "vitals" && user.permissions.includes("vitals.write") && <VitalsWorkstation visits={visits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />}
+        {screen === "vitals" && user.permissions.includes("vitals.write") && <VitalsWorkstation visits={visits} onVisitSelected={setContextVisitId} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />}
         {screen === "triage" && (
           <TriageWorkstation
+            onVisitSelected={setContextVisitId}
             visits={visits.filter(
               (visit) => visit.status === "AWAITING_TRIAGE",
             )}
@@ -462,6 +484,7 @@ export default function ClinicalApp() {
         )}
         {screen === "servicePoints" && (
           <ServicePointsWorkstation
+            onVisitSelected={setContextVisitId}
             visits={visits}
             facilityTimeZone={user.facility.timezone}
             initialVisitId={focusedVisitId}
@@ -483,6 +506,7 @@ export default function ClinicalApp() {
             </div>
           </section>
           <ConsultationWorkstation
+            onVisitSelected={setContextVisitId}
             visits={visits.filter((visit) =>
               ["AWAITING_CLINICIAN", "UNDER_CONSULTATION"].includes(
                 visit.status,
@@ -510,7 +534,7 @@ export default function ClinicalApp() {
           <PharmacyCenter permissions={user.permissions} visits={visits} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} stockFocus={stockFocus} onStockFocusConsumed={() => setStockFocus(null)} />
         )}
         {screen === "billing" && (
-          <BillingWorkstation visits={visits} permissions={user.permissions} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />
+          <BillingWorkstation visits={visits} onVisitSelected={setContextVisitId} permissions={user.permissions} onUpdated={loadVisits} initialVisitId={focusedVisitId} onInitialVisitOpened={() => setFocusedVisitId(null)} />
         )}
         {screen === "summaries" && <VisitSummaryWorkstation canAddendum={user.permissions.includes("encounter.write")} />}
         {screen === "followUps" && <FollowUpWorkstation/>}
@@ -521,6 +545,8 @@ export default function ClinicalApp() {
         }} />}
         {screen === "admin" && <AdminCenter permissions={user.permissions} onOpenStock={(focus) => { setStockFocus(focus); setFocusedVisitId(null); setScreen("pharmacy"); }} />}
       </section>
+      {cancellationTarget && user.permissions.includes("visit.cancel") && <VisitCancellationDialog
+        key={cancellationTarget.id} visit={cancellationTarget} onClose={() => { setCancellationTarget(null); setVisitManagementVersion(value => value + 1); }} onCancelled={onVisitCancelled} />}
     </main>
   );
 }
@@ -687,6 +713,8 @@ function PasswordChange({ onChanged }: { onChanged: () => Promise<void> }) {
 function Dashboard({
   visits,
   onGovernance,
+  onManageVisits,
+  onCancel,
   user,
   onStart,
   onOpenTask,
@@ -694,6 +722,8 @@ function Dashboard({
 }: {
   visits: Visit[];
   onGovernance: () => void;
+  onManageVisits: () => void;
+  onCancel: (visit: CancellationTarget) => void;
   user: User;
   onStart: () => void;
   onOpenTask: (screen: Screen, visitId: string) => void;
@@ -730,9 +760,12 @@ function Dashboard({
           <h1>My work now</h1>
           <p>{user.roles?.join(" · ") || "Clinical operations"} · tasks are ordered by urgency and waiting time.</p>
         </div>
-        {user.permissions.includes("patient.create") && <button className="new" onClick={onStart}>
-          + Reception / register patient
-        </button>}
+        <div className="visitHeaderActions">
+          {user.permissions.includes("visit.cancel") && <Button variant="secondary" onClick={onManageVisits}>Manage visits</Button>}
+          {user.permissions.includes("patient.create") && <button className="new" onClick={onStart}>
+            + Reception / register patient
+          </button>}
+        </div>
       </header>
       <div className="metrics">
         <article>
@@ -787,7 +820,8 @@ function Dashboard({
         ) : (
           <div className="queue">
             {visibleTasks.map(({ visit: v, point, wait, status }) => { const task = access[point!]; const overdue = isWaitingOverdue(v.priority, wait); return (
-              <button className={`row taskRow ${v.priority.toLowerCase()} ${overdue ? "overdue" : ""}`} key={`${v.id}:${point}`} onClick={() => onOpenTask(point === "CONSULTATION" && careServiceForClinic(v.clinic) ? "servicePoints" : task!.screen, v.id)}>
+              <div className="visitTaskActions" key={`${v.id}:${point}`}>
+              <button className={`row taskRow ${v.priority.toLowerCase()} ${overdue ? "overdue" : ""}`} onClick={() => onOpenTask(point === "CONSULTATION" && careServiceForClinic(v.clinic) ? "servicePoints" : task!.screen, v.id)}>
                 <span className="dot" />
                 <div>
                   <strong>{v.patient.fullName}</strong>
@@ -797,6 +831,8 @@ function Dashboard({
                 </div>
                 <span className="flowTaskState">{status === "IN_PROGRESS" ? "In progress" : status === "CALLED" ? "Called" : "Waiting"}</span><b>{v.priority}</b><time>{overdue ? "OVERDUE · " : ""}{wait} min at {servicePoints.find(item => item.code === point)?.label}</time>
               </button>
+              {user.permissions.includes("visit.cancel") && <Button variant="secondary" className="cancelVisitAction" onClick={() => onCancel(v)} aria-label={"Cancel visit " + v.visitNumber}>Cancel visit</Button>}
+              </div>
             );})}
           </div>
         )}
@@ -808,14 +844,14 @@ function Dashboard({
   );
 }
 
-function PatientContextBar({ visit, permissions, showBalance, canCancel, onClear, onOpen, onCancelled }: {
+function PatientContextBar({ visit, permissions, showBalance, canCancel, onClear, onOpen, onCancel }: {
   permissions: string[];
   visit: Visit;
   showBalance: boolean;
   canCancel: boolean;
   onClear: () => void;
   onOpen: (target: Screen) => void;
-  onCancelled: () => Promise<void>;
+  onCancel: () => void;
 }) {
   const active = activeServiceTasks(visit);
   const point = active.map(task => servicePoints.find(item => item.code === task.point)?.label).join(" · ") || visit.status.replaceAll("_", " ");
@@ -829,80 +865,11 @@ function PatientContextBar({ visit, permissions, showBalance, canCancel, onClear
       {visit.patient.allergies && <div><small>Allergies</small><b className={visit.patient.allergies.length ? "dangerText" : ""}>{visit.patient.allergies.length ? visit.patient.allergies.map(item => item.substance).join(", ") : "None recorded"}</b></div>}
       {visit.invoice && <div><small>Payment</small><b>{visit.invoice.status}{showBalance ? ` · KES ${Math.max(0, balance).toLocaleString()}` : ""}</b></div>}
       {active.filter(task => permissions.includes(pointPermission[task.point])).map(task => <button key={task.point} className="contextAction" onClick={() => onOpen(targets[task.point]!)}>{active.length === 1 ? "Open current task" : `Open ${servicePoints.find(item => item.code === task.point)?.label}`}</button>)}
+      {canCancel && <Button variant="secondary" className="cancelVisitAction" onClick={onCancel}>Cancel this visit</Button>}
       <button className="contextClose" onClick={onClear} aria-label="Clear patient context">×</button>
     </aside>
-    {canCancel && <VisitCancellationControl key={visit.id} visit={visit} onCancelled={onCancelled} />}
+
   </div>;
-}
-
-function VisitCancellationControl({ visit, onCancelled }: { visit: Visit; onCancelled: () => Promise<void> }) {
-  const [reasonCode, setReasonCode] = useState("");
-  const [details, setDetails] = useState("");
-  const [shaOutcome, setShaOutcome] = useState("");
-  const [shaEligibilityReference, setShaEligibilityReference] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const isSha = reasonCode === "SHA_BENEFIT_OR_ELIGIBILITY";
-  const emergencySha = isSha && (["URGENT", "EMERGENCY"].includes(visit.priority) || visit.clinic.toLowerCase().includes("emergency") || visit.visitType?.toLowerCase().includes("emergency"));
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    setError("");
-    if (emergencySha) return setError("Urgent and emergency care must not be cancelled because of a SHA benefit or eligibility outcome.");
-    setBusy(true);
-    try {
-      await api(`/api/visits/${visit.id}/cancel`, {
-        method: "POST",
-        body: JSON.stringify({
-          reasonCode,
-          details,
-          ...(isSha ? { shaOutcome, shaEligibilityReference } : {}),
-        }),
-      });
-      await onCancelled();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "The visit could not be cancelled");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return <details className="visitCancellationPanel">
-    <summary>Cancel this visit</summary>
-    <form onSubmit={submit}>
-      <p>Use this only when care has not been delivered. Completed clinical work, payments, and submitted claims cannot be cancelled here.</p>
-      <label>Reason
-        <select aria-label="Cancellation reason" required value={reasonCode} onChange={(event) => {
-          setReasonCode(event.target.value);
-          setShaOutcome("");
-          setShaEligibilityReference("");
-          setError("");
-        }}>
-          <option value="">Select a reason</option>
-          {visitCancellationReasons.map((reason) => <option key={reason.code} value={reason.code}>{reason.label}</option>)}
-        </select>
-      </label>
-      {isSha && <>
-        <div className="shaCareWarning">SHA eligibility and benefit checks must not delay emergency assessment or stabilisation.</div>
-        <label>SHA outcome
-          <select aria-label="SHA outcome" required value={shaOutcome} onChange={(event) => setShaOutcome(event.target.value)}>
-            <option value="">Select the verified outcome</option>
-            {shaCancellationOutcomes.map((outcome) => <option key={outcome.code} value={outcome.code}>{outcome.label}</option>)}
-          </select>
-        </label>
-        <label>SHA check / verification reference
-          <input aria-label="SHA check / verification reference" required minLength={3} maxLength={120} value={shaEligibilityReference} onChange={(event) => setShaEligibilityReference(event.target.value)} placeholder="Portal, call, or manual verification reference" />
-        </label>
-      </>}
-      <label>Explanation
-        <textarea aria-label="Cancellation explanation" required minLength={5} maxLength={500} rows={3} value={details} onChange={(event) => setDetails(event.target.value)} placeholder="Record what happened and any handover or next step" />
-      </label>
-      {error && <div className="alert">{error}</div>}
-      <div className="visitCancellationActions">
-        <button type="submit" className="dangerAction" disabled={busy || emergencySha}>{busy ? "Cancelling…" : "Confirm cancellation"}</button>
-      </div>
-    </form>
-  </details>;
 }
 
 function PatientRegister({
@@ -1230,12 +1197,14 @@ function StartVisit({
 
 function TriageWorkstation({
   visits,
+  onVisitSelected,
   onCompleted,
   initialVisitId,
   onInitialVisitOpened,
   facilityTimeZone,
 }: {
   visits: Visit[];
+  onVisitSelected?: (visitId: string | null) => void;
   onCompleted: (patientName: string, visitId: string) => void;
   initialVisitId?: string | null;
   onInitialVisitOpened?: () => void;
@@ -1262,6 +1231,7 @@ function TriageWorkstation({
     consciousness: "",
   });
   const [active, setActive] = useState<Visit | null>(null);
+  useEffect(() => { onVisitSelected?.(active?.id ?? null); }, [active?.id, onVisitSelected]);
   const [error, setError] = useState("");
   const [vitals, setVitals] = useState<TriageDraft>(blankVitals);
   const [lnmp, setLnmp] = useState("");
