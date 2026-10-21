@@ -7,6 +7,7 @@ import { requirePermission } from "./auth";
 import { appendAudit } from "./audit";
 import { db } from "./db";
 import { POST } from "@/app/api/encounters/[id]/addenda/route";
+import { createHash } from "node:crypto";
 
 const id = "11111111-1111-4111-8111-111111111111";
 const user = { id: "actor-a", facilityId: "facility-a", sessionId: "session-a" };
@@ -17,7 +18,7 @@ const post = (body: unknown = input) => POST(new Request("http://localhost/api/e
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(requirePermission).mockResolvedValue(user as any);
-  tx.encounter.findFirst.mockResolvedValue({ id, status: "SIGNED" });
+  tx.encounter.findFirst.mockResolvedValue({ id, visitId: "visit-a", status: "SIGNED" });
   tx.encounterAddendum.create.mockImplementation(async args => ({ id: "addendum-a", ...args.data, createdAt: new Date("2026-10-20T22:00:00Z"), author: { displayName: "Synthetic Author" } }));
   vi.mocked(db.$transaction).mockImplementation(async (callback: any) => callback(tx));
 });
@@ -59,12 +60,16 @@ describe("assessment narrative amendment audit: existing boundaries", () => {
 
 // These assertions characterize unresolved gaps. Replace them with positive
 // acceptance tests when implementing the history contract; they are not approvals.
-describe("CHARACTERIZATION: narrative addendum is not a structured revision", () => {
-  it("currently emits an ID-only fingerprint without explicit session attribution", async () => {
-    expect((await post()).status).toBe(201);
-    expect(appendAudit).toHaveBeenCalledWith(tx, { userId: user.id, action: "ENCOUNTER_ADDENDUM_ADDED", entityType: "Encounter", entityId: id, reason: input.reason, afterHash: "addendum-a" });
+describe("narrative addendum evidence and remaining replay gap", () => {
+  it("binds persisted narrative values to actor, session, facility and visit", async () => {
+    const response = await post();
+    expect(response.status).toBe(201);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    const { addendum } = await response.json();
+    const digest = createHash("sha256").update(JSON.stringify(["addendum-v1", user.facilityId, "visit-a", addendum.id, id, user.id, addendum.reason, addendum.text, addendum.createdAt])).digest("hex");
+    expect(appendAudit).toHaveBeenCalledWith(tx, { userId: user.id, facilityId: user.facilityId, sessionId: user.sessionId, action: "ENCOUNTER_ADDENDUM_ADDED", entityType: "Encounter", entityId: id, reason: input.reason, afterHash: `addendum-v1:${digest}` });
   });
-  it("currently accepts repeated identical submissions as separate creates", async () => {
+  it("CHARACTERIZATION: currently accepts repeated identical submissions as separate creates", async () => {
     expect((await post()).status).toBe(201);
     expect((await post()).status).toBe(201);
     expect(tx.encounterAddendum.create).toHaveBeenCalledTimes(2);

@@ -88,8 +88,18 @@ export async function GET(request: Request) {
         },
         orderBy: { createdAt: "asc" },
       });
-      await recordDisclosure(user, "SERVICE_POINTS", [visit.id, ...relationships.map(item => item.id)]);
+      // Include narratives from every encounter in this visit, including an older
+      // signed encounter beside a newer draft. Never infer structured revisions.
+      const narrativeRows = await db.encounterAddendum.findMany({
+        where: { encounter: { visitId: visit.id, visit: { facilityId: user.facilityId } } },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: 21,
+        select: { id: true, encounterId: true, text: true, reason: true, createdAt: true, author: { select: { displayName: true } } },
+      });
+      const addenda = { items: narrativeRows.slice(0, 20), hasMore: narrativeRows.length > 20, limit: 20 };
+      await recordDisclosure(user, "SERVICE_POINTS", [visit.id, ...relationships.map(item => item.id), ...addenda.items.map(item => item.id)]);
       return privateJson({
+        addenda,
         record: visit.encounters[0]?.servicePointRecord || null,
         assessmentRevision: assessmentRevision(visit.id, visit.encounters[0], visit.encounters[0]?.servicePointRecord),
         encounterStatus: visit.encounters[0]?.status || null,
@@ -264,7 +274,7 @@ export async function POST(request: Request) {
 
       const signed = visit.encounters.find((encounter) => ["SIGNED", "CORRECTED"].includes(encounter.status));
       if (signed)
-        throw Object.assign(new Error("This encounter is signed or corrected. Add an authorised addendum instead of changing the assessment."), { status: 409 });
+        throw Object.assign(new Error("This encounter is signed or corrected and its assessment cannot be replaced. Review its saved assessment and narrative addendum history."), { status: 409 });
       let encounter = visit.encounters.find((item) => item.status === "DRAFT");
       if (input.expectedRevision !== assessmentRevision(visit.id, encounter, encounter?.servicePointRecord))
         throw assessmentConflict();

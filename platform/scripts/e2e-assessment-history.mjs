@@ -1,4 +1,5 @@
-// Characterization of CURRENT gaps, not acceptance of a history implementation.
+import { createHash } from "node:crypto";
+// Native narrative-history acceptance plus explicitly retained structured-history/replay gaps.
 // Invoked only after e2e-database's loopback/dedicated/empty database guards.
 export async function verifyAssessmentHistory({ pg, api, request, authenticate, requestWithCookie, assert, steps }) {
   const patient = (await api("register assessment history fixture", "/api/patients", { method: "POST", body: JSON.stringify({ givenName: "Assessment", familyName: "History", dateOfBirth: "1990-02-02", sexAtBirth: "UNKNOWN", phone: "+254700099088", county: "Nairobi", subcounty: "Westlands", treatmentConsent: true, electronicRecordConsent: true, messagingConsent: false }) })).body.patient;
@@ -50,12 +51,32 @@ export async function verifyAssessmentHistory({ pg, api, request, authenticate, 
   assert(same(amended.records, current.records) && amended.addenda.length === 1 && amended.addenda[0].text === amendment.text, "Narrative addendum replaced the structured assessment");
   assert(same(amended.audits.slice(0, 2), current.audits), "Narrative addendum changed earlier assessment audits");
   const event = amended.audits[2];
-  assert(event.userId === added.body.addendum.authorId && event.facilityId === visit.facilityId && event.sessionId === null && event.afterHash === added.body.addendum.id, "Re-audit narrative attribution contract: ID-only/null-session evidence changed");
-  steps.push("CHARACTERIZATION: narrative addendum preserves assessment but emits ID-only evidence and no session");
+  const persisted = amended.addenda[0];
+  const digest = createHash("sha256").update(JSON.stringify(["addendum-v1", visit.facilityId, visit.id, persisted.id, persisted.encounterId, persisted.authorId, persisted.reason, persisted.text, new Date(persisted.createdAt + "Z").toISOString()])).digest("hex");
+  const session = event.sessionId && (await pg.query('SELECT "userId" FROM "Session" WHERE id=$1', [event.sessionId])).rows[0];
+  assert(event.userId === persisted.authorId && event.facilityId === visit.facilityId && session?.userId === persisted.authorId && event.afterHash === 'addendum-v1:' + digest, "Narrative audit persisted fingerprint or session attribution mismatch");
+  assert(added.response.headers.get("cache-control") === "private, no-store", "Narrative POST is not private");
+  steps.push("verify narrative persisted-value fingerprint, authenticated session and unchanged assessment/prior audit history");
   const read = await request(`/api/service-points?visitId=${visit.id}`);
   assert(read.response.status === 200 && read.body.readOnly && read.body.record.data.carePlan === "Current synthetic plan", "Signed assessment read changed current data");
-  assert(!JSON.stringify(read.body).includes(amendment.text) && !Object.hasOwn(read.body, "addenda") && !Object.hasOwn(read.body, "revisions"), "Re-audit service-point reader: history/amendments are now exposed");
-  steps.push("CHARACTERIZATION: service-point read omits the persisted narrative amendment and structured history");
+  assert(read.body.addenda.items.length === 1 && read.body.addenda.items[0].id === persisted.id && read.body.addenda.items[0].text === amendment.text && read.body.addenda.items[0].author.displayName && read.body.addenda.items[0].encounterId === encounterId && !read.body.addenda.hasMore, "Saved narrative missing from assessment read");
+  assert(read.response.headers.get("cache-control") === "private, no-store", "Narrative read is not private");
+  const disclosure = (await pg.query(`SELECT * FROM "AuditEvent" WHERE action='SENSITIVE_DATA_ACCESSED' AND reason='SERVICE_POINTS' AND "facilityId"=$1 ORDER BY sequence DESC LIMIT 1`, [visit.facilityId])).rows[0];
+  const ids = [visit.id, persisted.id].sort();
+  assert(disclosure.afterHash === '2:' + createHash("sha256").update(ids.join("\u001f")).digest("hex") && disclosure.sessionId, "Narrative disclosure did not bind returned identifiers/session");
+  for (const [cookie, status] of [[reception.cookie, 403], [foreign.cookie, 404]]) {
+    const denied = await requestWithCookie(`/api/service-points?visitId=${visit.id}`, cookie);
+    assert(denied.response.status === status && !denied.body.addenda, "Narrative read role/facility denial failed");
+  }
+  steps.push("verify privately disclosed narrative text, author, encounter and audited identifiers with read role/facility denial");
+  await pg.exec(`CREATE FUNCTION e2e_history_read_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+    IF NEW.action='SENSITIVE_DATA_ACCESSED' AND NEW.reason='SERVICE_POINTS' THEN RAISE EXCEPTION 'synthetic history disclosure failure'; END IF;
+    RETURN NEW; END; $$; CREATE TRIGGER e2e_history_read_failure BEFORE INSERT ON "AuditEvent" FOR EACH ROW EXECUTE FUNCTION e2e_history_read_failure();`);
+  try {
+    const failed = await request(`/api/service-points?visitId=${visit.id}`);
+    assert(failed.response.status === 500 && !failed.body.addenda && !JSON.stringify(failed.body).includes(amendment.text), "Failed disclosure leaked narrative text");
+  } finally { await pg.exec('DROP TRIGGER e2e_history_read_failure ON "AuditEvent"; DROP FUNCTION e2e_history_read_failure();'); }
+  steps.push("verify native disclosure-audit failure withholds narrative and assessment data");
   const repeated = await amend(amendment);
   assert(repeated.response.status === 201 && repeated.body.addendum.id !== added.body.addendum.id, "Re-audit amendment replay contract: duplicate prevention changed");
   current = await snapshot();
@@ -65,7 +86,16 @@ export async function verifyAssessmentHistory({ pg, api, request, authenticate, 
   const refused = await save({ ...input, expectedRevision: second.body.assessmentRevision });
   assert(refused.response.status === 409 && refused.body.error.includes("addendum"), "Corrected assessment replacement guidance changed");
   assert((await amend(amendment)).response.status === 409 && same(await snapshot(), current), "Re-audit corrected-encounter amendment contract: denial/state changed");
-  steps.push("CHARACTERIZATION: corrected assessment suggests an addendum but narrative endpoint rejects CORRECTED");
+  assert(!refused.body.error.includes("Add an authorised"), "Corrected assessment still suggests an unavailable write");
+  steps.push("verify corrected assessment keeps existing write gates without suggesting an unavailable addendum action");
+  // Direct SQL creates extra synthetic narratives (not API provenance) to exercise
+  // tied timestamp ordering, truncation, and older-encounter inclusion.
+  await pg.query(`INSERT INTO "EncounterAddendum" (id, "encounterId", "authorId", reason, text, "createdAt") SELECT gen_random_uuid(), $1::uuid, $2::uuid, 'Synthetic limit fixture', 'Synthetic extra narrative ' || n, '2026-10-21T10:00:00'::timestamp FROM generate_series(1,21) n`, [encounterId, persisted.authorId]);
+  const expected = (await pg.query(`SELECT id FROM "EncounterAddendum" WHERE "encounterId"=$1 ORDER BY "createdAt" DESC, id DESC LIMIT 20`, [encounterId])).rows.map(row => row.id);
+  await pg.query(`INSERT INTO "Encounter" (id, "visitId", "clinicianId", "noteFormat", status, "createdAt", "updatedAt") VALUES (gen_random_uuid(), $1::uuid, $2::uuid, 'STRUCTURED', 'DRAFT', '2026-10-22'::timestamp, '2026-10-22'::timestamp)`, [visit.id, persisted.authorId]);
+  const limited = await request(`/api/service-points?visitId=${visit.id}`);
+  assert(limited.response.status === 200 && limited.body.encounterStatus === 'DRAFT' && limited.body.readOnly && limited.body.addenda.hasMore && limited.body.addenda.limit === 20 && same(limited.body.addenda.items.map(item => item.id), expected), "Bounded history lost older encounter or deterministic order");
+  steps.push("verify deterministic latest twenty narrative limit and older corrected encounter alongside newer draft");
   await pg.query('UPDATE "QueueEntry" SET status=\'COMPLETED\', "completedAt"=CURRENT_TIMESTAMP WHERE "visitId"=$1 AND status IN (\'WAITING\',\'CALLED\',\'IN_PROGRESS\')', [visit.id]);
-  console.log(JSON.stringify({ event: "assessment_history_characterization", visitId: visit.id, encounterId, recordId: first.body.record.id, observedCurrentRows: 1, assessmentSuccessEvents: 2, narrativeRowsAfterIdenticalSubmissions: 2, priorStructuredTextRetainedInQueriedState: false, servicePointReadIncludesAmendment: false, amendmentSessionAttributed: false, correctedAmendmentAccepted: false, permissionFacilityDenial: true, auditFailureRollback: true }));
+  console.log(JSON.stringify({ event: "assessment_history_characterization", visitId: visit.id, encounterId, recordId: first.body.record.id, observedCurrentRows: 1, assessmentSuccessEvents: 2, narrativeRowsAfterIdenticalSubmissions: 2, priorStructuredTextRetainedInQueriedState: false, servicePointReadIncludesAmendment: true, amendmentSessionAttributed: true, correctedAmendmentAccepted: false, permissionFacilityDenial: true, auditFailureRollback: true }));
 }

@@ -88,6 +88,12 @@ type ServiceRecord = {
   updatedBy?: { displayName: string } | null;
 };
 
+type NarrativeHistory = {
+  items: { id: string; encounterId: string; text: string; reason: string; createdAt: string; author?: { displayName: string } | null }[];
+  hasMore: boolean;
+  limit: number;
+};
+
 type Relationship = {
   id: string;
   relationship: string;
@@ -312,6 +318,7 @@ function AssessmentWorkspace({
   const [riskLevel, setRiskLevel] = useState("ROUTINE");
   const [followUpAt, setFollowUpAt] = useState("");
   const [record, setRecord] = useState<ServiceRecord | null>(null);
+  const [addenda, setAddenda] = useState<NarrativeHistory | null>(null);
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(true);
@@ -339,13 +346,15 @@ function AssessmentWorkspace({
     loadController.current = controller;
     setBusy(true);
     setLoaded(false);
+    setAddenda(null);
     setError("");
     try {
-      const response = await api<{ record: ServiceRecord | null; assessmentRevision: string | null; relationships: Relationship[]; encounterStatus: string | null; readOnly: boolean; visitStatus: string }>(`/api/service-points?visitId=${visit.id}`, { signal: controller.signal });
+      const response = await api<{ record: ServiceRecord | null; addenda?: NarrativeHistory; assessmentRevision: string | null; relationships: Relationship[]; encounterStatus: string | null; readOnly: boolean; visitStatus: string }>(`/api/service-points?visitId=${visit.id}`, { signal: controller.signal });
       if (controller.signal.aborted) return;
       if (response.assessmentRevision !== null && !/^[a-f0-9]{64}$/.test(response.assessmentRevision || "")) throw new Error("The assessment revision is unavailable. Reload before editing.");
       setLatestRevision(response.assessmentRevision);
       setRecord(response.record);
+      setAddenda(response.addenda || null);
       setEncounterStatus(response.encounterStatus);
       setReadOnly(response.readOnly !== false || ["SIGNED", "CORRECTED"].includes(response.encounterStatus || ""));
       setVisitStatus(response.visitStatus);
@@ -491,13 +500,32 @@ function AssessmentWorkspace({
       {record && <section className="card savedAssessment"><h2>Saved {profile.label} assessment</h2>
         <div className="assessmentIdentity"><strong>{visit.patient.fullName}</strong><span>{visit.patient.patientNumber} · {visit.visitNumber} · {visit.clinic}</span></div>
         <p>Template {record.templateVersion} · Last saved by {record.updatedBy?.displayName || "Recorder not available"} · {new Date(record.updatedAt).toLocaleString(undefined, { timeZone: facilityTimeZone })} ({facilityTimeZone}) · Encounter: {encounterStatus || "Not available"}</p>
-        <p className="noPrint">Only this saved snapshot is printed; unsaved entries are excluded.</p>
+        <p className="noPrint">The saved snapshot and loaded narrative addenda are printed; unsaved entries are excluded.</p>
         {profile.sections.map(section => <RecordFields key={section.title} title={section.title} fields={section.fields.map(field => {
           const value = recordValue(record.data[field.key]);
           return { label: field.label, value: value === null ? "Not recorded" : `${value}${field.unit ? ` ${field.unit}` : ""}`, wide: field.type === "textarea" };
         })} />)}
         <RecordFields fields={[{ label: "Clinical risk", value: record.riskLevel || "Not recorded" }, { label: "Next follow-up", value: record.followUpAt?.slice(0, 10) || "Not recorded" }]} />
       </section>}
+      <section className="card assessmentAddenda" aria-label="Saved narrative addenda">
+        <h2>Saved narrative addenda</h2>
+        <div className="assessmentIdentity"><strong>{visit.patient.fullName}</strong><span>{visit.patient.patientNumber} · {visit.visitNumber} · {visit.clinic}</span></div>
+        <p>These notes belong to this visit&apos;s encounters. They do not replace the structured assessment, risk or follow-up fields. Earlier structured assessment versions are not available here.</p>
+        {!addenda ? <p role="status">Narrative addenda unavailable. Reload the assessment to review them.</p> : <>
+          <p>{addenda.hasMore ? `Showing the latest ${addenda.limit} narrative addenda. Older addenda are omitted from this view and printout.` : `${addenda.items.length} saved narrative addenda.`} Most recent first.</p>
+          {addenda.items.length === 0 && <p>No narrative addenda recorded for this visit.</p>}
+          {addenda.items.map(item => <article key={item.id} className="assessmentAddendum">
+            <RecordFields fields={[
+              { label: "Recorded by", value: item.author?.displayName || "Recorder not available" },
+              { label: "Recorded at", value: item.createdAt ? `${new Date(item.createdAt).toLocaleString(undefined, { timeZone: facilityTimeZone })} (${facilityTimeZone})` : "Not recorded" },
+              { label: "Encounter reference", value: item.encounterId || "Not recorded" },
+              { label: "Addendum reference", value: item.id },
+              { label: "Reason", value: item.reason || "Not recorded", wide: true },
+              { label: "Narrative addendum", value: item.text || "Not recorded", wide: true },
+            ]} />
+          </article>)}
+        </>}
+      </section>
       {!record && <p className="assessmentPrintEmpty">No saved assessment is available for this visit.</p>}
     </section>
   );

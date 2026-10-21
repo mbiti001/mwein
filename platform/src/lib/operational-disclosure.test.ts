@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 vi.mock("@/lib/auth", () => ({ requirePermission: vi.fn() }));
 vi.mock("@/lib/disclosure-audit", () => ({ recordDisclosure: vi.fn() }));
-vi.mock("@/lib/db", () => ({ db: Object.fromEntries(["appointment", "referral", "servicePointRecord", "encounter", "queueEntry", "servicePointControl", "visit", "patientRelationship", "user", "role"].map(name => [name, { findMany: vi.fn(), findFirst: vi.fn() }])) }));
+vi.mock("@/lib/db", () => ({ db: Object.fromEntries(["encounterAddendum", "appointment", "referral", "servicePointRecord", "encounter", "queueEntry", "servicePointControl", "visit", "patientRelationship", "user", "role"].map(name => [name, { findMany: vi.fn(), findFirst: vi.fn() }])) }));
 import { requirePermission } from "@/lib/auth";
 import { recordDisclosure } from "@/lib/disclosure-audit";
 import { db } from "@/lib/db";

@@ -124,7 +124,7 @@
       "methodExceptions": {}
     },
     "encounters/[id]/addenda": {
-      "sourceSha256": "e8e90f8a78bcb0b1dc4b9ea1e5d998a3c160133c20f96449c8a60bc50c586bb1",
+      "sourceSha256": "8ec7b489411c417a9f61f5e52612c54561620c9793a3b31d840a77e8b3e2f081",
       "methodExceptions": {}
     },
     "follow-ups": {
@@ -246,7 +246,7 @@
       "methodExceptions": {}
     },
     "service-points": {
-      "sourceSha256": "8a23c4e75b4d8dd2ad7e162d3517d34ee5dbb302891e9fb14a2e24c93888c4b5",
+      "sourceSha256": "637d0c65786e6ea8aaa27a455ceff74eed3c7163fa2192110e56491d290b697a",
       "methodExceptions": {}
     },
     "supply": {

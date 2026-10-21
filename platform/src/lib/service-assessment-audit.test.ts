@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/auth", () => ({ requirePermission: vi.fn() }));
 vi.mock("@/lib/audit", () => ({ appendAudit: vi.fn() }));
 vi.mock("@/lib/disclosure-audit", () => ({ recordDisclosure: vi.fn() }));
-vi.mock("@/lib/db", () => ({ db: { $transaction: vi.fn(), visit: { findFirst: vi.fn() }, patientRelationship: { findMany: vi.fn() } } }));
+vi.mock("@/lib/db", () => ({ db: { $transaction: vi.fn(), visit: { findFirst: vi.fn() }, patientRelationship: { findMany: vi.fn() }, encounterAddendum: { findMany: vi.fn() } } }));
 import { requirePermission } from "./auth";
 import { appendAudit } from "./audit";
 import { recordDisclosure } from "./disclosure-audit";
@@ -63,6 +63,44 @@ beforeEach(() => {
   });
   vi.mocked(db.visit.findFirst).mockImplementation((async (args: any) => visit && ({ ...visit, _count: { encounters: visit.encounters.filter((e: any) => ["SIGNED", "CORRECTED"].includes(e.status)).length }, encounters: visit.encounters.filter((e: any) => args.select.encounters.where.status.in.includes(e.status)).slice(0, 1).map((e: any) => ({ ...e, servicePointRecord: saved })) })) as any);
   vi.mocked(db.patientRelationship.findMany).mockResolvedValue([]);
+  vi.mocked(db.encounterAddendum.findMany).mockResolvedValue([]);
+});
+
+describe("assessment narrative history disclosure", () => {
+  it("returns only the latest twenty visit addenda in deterministic order and audits their IDs", async () => {
+    const items = Array.from({ length: 21 }, (_, i) => ({ id: `addendum-${i}`, encounterId: `encounter-${i}`, text: `Saved narrative ${i}`, reason: "Clarification", createdAt: new Date("2026-10-21T08:00:00Z"), author: { displayName: "Recorder" } }));
+    vi.mocked(db.encounterAddendum.findMany).mockResolvedValue(items as any);
+    const response = await get();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ addenda: { items: items.slice(0, 20).map(item => ({ ...item, createdAt: item.createdAt.toISOString() })), hasMore: true, limit: 20 } });
+    expect(db.encounterAddendum.findMany).toHaveBeenCalledWith({
+      where: { encounter: { visitId, visit: { facilityId: user.facilityId } } },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 21,
+      select: { id: true, encounterId: true, text: true, reason: true, createdAt: true, author: { select: { displayName: true } } },
+    });
+    expect(recordDisclosure).toHaveBeenCalledWith(user, "SERVICE_POINTS", [visitId, ...items.slice(0, 20).map(item => item.id)]);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+  });
+  it("distinguishes an empty audited result from an unavailable history", async () => {
+    expect(await (await get()).json()).toMatchObject({ addenda: { items: [], hasMore: false, limit: 20 } });
+    vi.mocked(db.encounterAddendum.findMany).mockRejectedValue(new Error("Synthetic read failure"));
+    const failed = await get();
+    expect(failed.status).toBe(500);
+    expect(await failed.json()).not.toHaveProperty("addenda");
+  });
+  it.each([401, 403, 404])("does not query narratives after access denial %s", async status => {
+    if (status === 404) visit = null;
+    else vi.mocked(requirePermission).mockRejectedValue(Object.assign(new Error("Denied"), { status }));
+    expect((await get()).status).toBe(status);
+    expect(db.encounterAddendum.findMany).not.toHaveBeenCalled();
+  });
+  it("withholds narratives when disclosure auditing fails", async () => {
+    vi.mocked(db.encounterAddendum.findMany).mockResolvedValue([{ id: "private", text: "Must not disclose" }] as any);
+    vi.mocked(recordDisclosure).mockRejectedValue(new Error("Synthetic disclosure failure"));
+    const failed = await get();
+    expect(failed.status).toBe(500);
+    expect(JSON.stringify(await failed.json())).not.toContain("Must not disclose");
+  });
 });
 
 describe("service assessment existing safety boundaries", () => {

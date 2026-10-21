@@ -6,9 +6,10 @@ const visitId = "11111111-1111-4111-8111-111111111111";
 const data = { serviceRequested: "Screening", requestDetails: "Synthetic request", safetyScreen: "Synthetic checks", carePlan: "Saved synthetic plan" };
 const record = { id: "record-a", servicePoint: "WALK_IN", templateVersion: "KE-WALKIN-1.0", data, riskLevel: "ROUTINE", followUpAt: null, updatedAt: "2026-10-19T20:00:00Z", updatedById: "synthetic-author", updatedBy: { displayName: "Synthetic Recorder" } };
 const visit = { id: visitId, visitNumber: "V-AUDIT-001", clinic: "Walk-in", priority: "ROUTINE", status: "UNDER_CONSULTATION", arrivedAt: "2026-10-19T18:00:00Z", patient: { id: "patient-a", patientNumber: "P-AUDIT-001", fullName: "Synthetic Assessment Patient", sexAtBirth: "UNKNOWN", allergies: [] }, encounters: [], orders: [] };
-type State = { saved: typeof record | null; readFailure: boolean; saveStatus: number; refreshFailure: boolean; encounterStatus: string; readOnly: boolean; revision: string | null; posts: any[] };
+const narrative = { id: "addendum-a", encounterId: "older-signed-encounter", text: "Saved synthetic narrative clarification", reason: "Clarify the recorded plan", createdAt: "2026-10-21T08:00:00Z", author: { displayName: "Synthetic Amendments Author" } };
+type State = { saved: typeof record | null; addenda?: { items: (typeof narrative)[]; hasMore: boolean; limit: number }; readFailure: boolean; saveStatus: number; refreshFailure: boolean; encounterStatus: string; readOnly: boolean; revision: string | null; posts: any[] };
 async function fixture(page: Page, options: Partial<State> = {}, authorized = true) {
-  const state: State = { saved: structuredClone(record), readFailure: false, saveStatus: 200, refreshFailure: false, encounterStatus: "DRAFT", readOnly: false, revision: "a".repeat(64), posts: [], ...options };
+  const state: State = { saved: structuredClone(record), addenda: { items: [], hasMore: false, limit: 20 }, readFailure: false, saveStatus: 200, refreshFailure: false, encounterStatus: "DRAFT", readOnly: false, revision: "a".repeat(64), posts: [], ...options };
   await page.route("**/api/auth/me", route => route.fulfill({ json: { user: { displayName: "Audit operator", email: "audit@example.test", facility: { name: "Synthetic clinic", timezone: "Africa/Nairobi" }, permissions: authorized ? ["visit.read", "patient.read", "encounter.write", "admin.dashboard"] : ["visit.read", "patient.read"], roles: ["TEST"], mustChangePassword: false, mfaRequired: false } } }));
   await page.route("**/api/visits", route => route.fulfill({ json: { visits: [visit] } }));
   await page.route("**/api/queues", route => route.fulfill({ json: { entries: [], controls: [], history: [] } }));
@@ -21,7 +22,7 @@ async function fixture(page: Page, options: Partial<State> = {}, authorized = tr
       state.revision = "b".repeat(64);
       return route.fulfill({ json: { record: state.saved, assessmentRevision: state.revision } });
     }
-    if (request.url().includes("visitId=")) return route.fulfill(state.readFailure ? { status: 503, json: { error: "Synthetic assessment load failed" } } : { json: { record: state.saved, assessmentRevision: state.revision, encounterStatus: state.encounterStatus, readOnly: state.readOnly, visitStatus: visit.status, relationships: [] } });
+    if (request.url().includes("visitId=")) return route.fulfill(state.readFailure ? { status: 503, json: { error: "Synthetic assessment load failed" } } : { json: { record: state.saved, addenda: state.addenda, assessmentRevision: state.revision, encounterStatus: state.encounterStatus, readOnly: state.readOnly, visitStatus: visit.status, relationships: [] } });
     return route.fulfill(state.refreshFailure && state.posts.length ? { status: 503, json: { error: "Synthetic metrics refresh failed" } } : { json: { metrics: {} } });
   });
   await page.goto("/");
@@ -55,12 +56,71 @@ test("CHARACTERIZATION: reviewed edit and print expose current snapshot without 
   await expect(page.locator(".savedAssessment")).not.toContainText(data.carePlan);
 });
 
-test("CHARACTERIZATION: corrected worksheet has no local amendment entry or history selector", async ({ page }) => {
-  const state = await fixture(page, { encounterStatus: "CORRECTED", readOnly: true });
+test("corrected worksheet exposes saved narratives while keeping amendment entry unavailable", async ({ page }) => {
+  const state = await fixture(page, { encounterStatus: "CORRECTED", readOnly: true, addenda: { items: [narrative], hasMore: false, limit: 20 } });
   await expect(plan(page)).toBeDisabled();
   await expect(page.locator(".serviceAssessment").getByRole("button", { name: /addendum|amend|history|revision/i })).toHaveCount(0);
   await expect(page.locator(".savedAssessment")).toContainText("Synthetic Recorder");
+  await expect(page.locator(".assessmentAddenda")).toContainText(narrative.text);
+  await expect(page.locator(".assessmentAddenda")).toContainText(narrative.encounterId);
   expect(state.posts).toHaveLength(0);
+});
+
+test("narrative history preserves attribution, wrapping and explicit print truncation", async ({ page }, testInfo) => {
+  const longText = Array.from({ length: 75 }, (_, i) => `Narrative line ${i + 1}: synthetic saved observation.`).join("\n");
+  const state = await fixture(page, { addenda: { items: [{ ...narrative, text: longText, encounterId: "synthetic-" + "reference".repeat(18) }], hasMore: true, limit: 20 } });
+  const history = page.getByRole("region", { name: "Saved narrative addenda" });
+  for (const width of [1440, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    if (width <= 768) await expect.poll(() => page.locator("#main-navigation").evaluate(element => element.getBoundingClientRect().right)).toBeLessThanOrEqual(0);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
+    await expect(history).toContainText(narrative.author.displayName);
+    await expect(history).toContainText("Africa/Nairobi");
+    await expect(history).toContainText(narrative.reason);
+    await expect(history).toContainText("Older addenda are omitted from this view and printout");
+    // Element screenshots scroll a tall region into view and capture the fixed
+    // mobile header over its text. Capture document coordinates from the top.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const bounds = await history.boundingBox();
+    expect(bounds).not.toBeNull();
+    await page.screenshot({ path: testInfo.outputPath(`narrative-history-${width}.png`), fullPage: true, clip: bounds! });
+  }
+  await plan(page).fill("UNSAVED NARRATIVE PRINT MARKER");
+  await page.emulateMedia({ media: "print" });
+  await expect(history).toBeVisible();
+  await expect(history).toContainText("P-AUDIT-001 · V-AUDIT-001");
+  await expect(history).toContainText("Narrative line 75:");
+  await expect(plan(page)).toBeHidden();
+  await page.pdf({ path: testInfo.outputPath("narrative-history.pdf"), format: "A4", printBackground: true, margin: { top: "12mm", bottom: "12mm", left: "12mm", right: "12mm" } });
+  expect(state.posts).toHaveLength(0);
+});
+
+test("failed narrative read never claims there are no addenda; keyboard retry recovers", async ({ page }) => {
+  const state = await fixture(page, { readFailure: true, addenda: { items: [narrative], hasMore: false, limit: 20 } });
+  const history = page.locator(".assessmentAddenda");
+  await expect(history).toContainText("Narrative addenda unavailable");
+  await expect(history).not.toContainText("No narrative addenda recorded");
+  await page.emulateMedia({ media: "print" });
+  await expect(history).toBeVisible();
+  await expect(history).toContainText("unavailable");
+  await page.emulateMedia({ media: "screen" });
+  state.readFailure = false;
+  await page.getByRole("button", { name: "Retry assessment load" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(history).toContainText(narrative.text);
+  await expect(history).not.toContainText("unavailable");
+  expect(state.posts).toHaveLength(0);
+});
+
+test("narratives remain visible without a current structured record and label missing values", async ({ page }) => {
+  await fixture(page, { saved: null, readOnly: true, addenda: { items: [{ ...narrative, reason: "", author: { displayName: "" } }], hasMore: false, limit: 20 } });
+  const history = page.locator(".assessmentAddenda");
+  await expect(history).toContainText(narrative.text);
+  await expect(history).toContainText("Recorder not available");
+  await expect(history).toContainText("Not recorded");
+  await page.emulateMedia({ media: "print" });
+  await expect(history).toBeVisible();
+  await expect(page.locator(".assessmentPrintEmpty")).toBeVisible();
 });
 
 test("saved snapshot stays separate from edits; save binds to the original record revision", async ({ page }) => {
