@@ -1,0 +1,559 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-21T07:45:28.016Z",
+  "scope": "Development-only Vite security patch and expanded existing CI advisory gate",
+  "source": {
+    "commit": "936618c5aff1e132dca75e2ae546598b0de42442",
+    "baseline": "719ad44a8bb8ce32c8ceb910786f41cd2094d0c5",
+    "branch": "codex/mwein-platform",
+    "normalPushVerified": true,
+    "changedFiles": [
+      ".github/workflows/ci.yml",
+      "platform/WORKFLOW_IMPROVEMENT_LOG.md",
+      "platform/certification/assessment-pack/VITE-TOOLING-SECURITY-PATCH.md",
+      "platform/package-lock.json",
+      "platform/package.json"
+    ],
+    "canonicalLfArchive": {
+      "bytes": 6983680,
+      "sha256": "2807346723d9658747d61647adae585edac4ecd2ca9aef024b3ed4ace4f27e17"
+    }
+  },
+  "change": {
+    "vite": {
+      "from": "8.2.2",
+      "to": "8.2.4",
+      "devOnly": true,
+      "explicitOverride": true
+    },
+    "vitest": "4.1.11 unchanged",
+    "lockDelta": {
+      "checkedAt": "2026-10-21T07:36:57.803Z",
+      "baseline": "719ad44a8bb8ce32c8ceb910786f41cd2094d0c5",
+      "onlyChangedPackage": "vite",
+      "before": "8.2.2",
+      "after": "8.2.4",
+      "changedFields": [
+        "version",
+        "resolved",
+        "integrity"
+      ],
+      "devOnly": true,
+      "registryIntegrityVerified": true,
+      "otherLockEntriesUnchanged": true
+    },
+    "ciCommand": "npm audit --include=dev --audit-level=high",
+    "applicationSchemaAndClinicalRulesUnchanged": true
+  },
+  "primarySource": "https://github.com/vitejs/launch-editor/security/advisories/GHSA-587h-7wmj-h5pm",
+  "verification": {
+    "local": {
+      "checks": [
+        {
+          "name": "audit-after",
+          "startedAt": "2026-10-21T07:35:55.9037559Z",
+          "completedAt": "2026-10-21T07:35:58.0117038Z",
+          "exitCode": 0,
+          "log": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\audit-after.log"
+        },
+        {
+          "name": "audit-production",
+          "startedAt": "2026-10-21T07:35:58.0282354Z",
+          "completedAt": "2026-10-21T07:36:00.1182760Z",
+          "exitCode": 0,
+          "log": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\audit-production.log"
+        },
+        {
+          "name": "types",
+          "startedAt": "2026-10-21T07:36:00.1223007Z",
+          "completedAt": "2026-10-21T07:36:02.1162089Z",
+          "exitCode": 0,
+          "log": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\types.log"
+        },
+        {
+          "name": "unit",
+          "startedAt": "2026-10-21T07:36:02.1181554Z",
+          "completedAt": "2026-10-21T07:36:33.2022952Z",
+          "exitCode": 0,
+          "log": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\unit.log"
+        },
+        {
+          "name": "migrations",
+          "startedAt": "2026-10-21T07:36:33.2039592Z",
+          "completedAt": "2026-10-21T07:36:36.0680157Z",
+          "exitCode": 0,
+          "log": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\migrations.log"
+        },
+        {
+          "name": "build",
+          "startedAt": "2026-10-21T07:36:36.0698901Z",
+          "completedAt": "2026-10-21T07:36:46.8329379Z",
+          "exitCode": 0,
+          "log": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\build.log"
+        }
+      ],
+      "unitTests": 1275,
+      "unitFiles": 128,
+      "migrations": 55,
+      "buildId": "dwW8EJ4xhlDqgBq9ToGeD",
+      "builtBeforeSourceCommit": true,
+      "localBuildScope": "Exact patched dependency tree before the source commit; hosted verification is tied to the immutable commit",
+      "cleanNpmCi": true,
+      "explicitPrismaGeneration": true,
+      "auditBefore": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 1,
+        "critical": 0,
+        "total": 1
+      },
+      "auditAfter": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "productionAudit": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      }
+    },
+    "hosted": {
+      "checkedAt": "2026-10-21T07:45:10.662Z",
+      "run": {
+        "id": 39563325886,
+        "status": "completed",
+        "conclusion": "success",
+        "sha": "936618c5aff1e132dca75e2ae546598b0de42442",
+        "url": "https://github.com/mbiti001/mwein/actions/runs/39563325886"
+      },
+      "jobs": [
+        {
+          "id": 119099515629,
+          "name": "Platform verification",
+          "status": "completed",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 1,
+              "started_at": "2026-10-21T07:37:48Z",
+              "completed_at": "2026-10-21T07:37:49Z"
+            },
+            {
+              "name": "Initialize containers",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 2,
+              "started_at": "2026-10-21T07:37:49Z",
+              "completed_at": "2026-10-21T07:38:04Z"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 3,
+              "started_at": "2026-10-21T07:38:04Z",
+              "completed_at": "2026-10-21T07:38:05Z"
+            },
+            {
+              "name": "Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 4,
+              "started_at": "2026-10-21T07:38:05Z",
+              "completed_at": "2026-10-21T07:38:08Z"
+            },
+            {
+              "name": "Install locked dependencies",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 5,
+              "started_at": "2026-10-21T07:38:08Z",
+              "completed_at": "2026-10-21T07:38:23Z"
+            },
+            {
+              "name": "Check production and development dependency advisories",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 6,
+              "started_at": "2026-10-21T07:38:23Z",
+              "completed_at": "2026-10-21T07:38:24Z"
+            },
+            {
+              "name": "Generate database client",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 7,
+              "started_at": "2026-10-21T07:38:24Z",
+              "completed_at": "2026-10-21T07:38:26Z"
+            },
+            {
+              "name": "Check types",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 8,
+              "started_at": "2026-10-21T07:38:26Z",
+              "completed_at": "2026-10-21T07:38:31Z"
+            },
+            {
+              "name": "Run platform tests",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 9,
+              "started_at": "2026-10-21T07:38:31Z",
+              "completed_at": "2026-10-21T07:38:53Z"
+            },
+            {
+              "name": "Verify migrations and database constraints",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 10,
+              "started_at": "2026-10-21T07:38:53Z",
+              "completed_at": "2026-10-21T07:38:55Z"
+            },
+            {
+              "name": "Build without database credentials",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 11,
+              "started_at": "2026-10-21T07:38:55Z",
+              "completed_at": "2026-10-21T07:39:13Z"
+            },
+            {
+              "name": "Verify outpatient workflow against isolated test data",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 12,
+              "started_at": "2026-10-21T07:39:13Z",
+              "completed_at": "2026-10-21T07:39:31Z"
+            },
+            {
+              "name": "Install browser",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 13,
+              "started_at": "2026-10-21T07:39:31Z",
+              "completed_at": "2026-10-21T07:39:53Z"
+            },
+            {
+              "name": "Verify browser workflows",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 14,
+              "started_at": "2026-10-21T07:39:53Z",
+              "completed_at": "2026-10-21T07:44:40Z"
+            },
+            {
+              "name": "Build certification evidence index",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 15,
+              "started_at": "2026-10-21T07:44:40Z",
+              "completed_at": "2026-10-21T07:44:40Z"
+            },
+            {
+              "name": "Retain certification evidence index",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 16,
+              "started_at": "2026-10-21T07:44:40Z",
+              "completed_at": "2026-10-21T07:44:41Z"
+            },
+            {
+              "name": "Retain browser failure evidence",
+              "status": "completed",
+              "conclusion": "skipped",
+              "number": 17,
+              "started_at": "2026-10-21T07:44:41Z",
+              "completed_at": "2026-10-21T07:44:41Z"
+            },
+            {
+              "name": "Post Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 32,
+              "started_at": "2026-10-21T07:44:41Z",
+              "completed_at": "2026-10-21T07:44:43Z"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 33,
+              "started_at": "2026-10-21T07:44:43Z",
+              "completed_at": "2026-10-21T07:44:43Z"
+            },
+            {
+              "name": "Stop containers",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 34,
+              "started_at": "2026-10-21T07:44:43Z",
+              "completed_at": "2026-10-21T07:44:43Z"
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 35,
+              "started_at": "2026-10-21T07:44:43Z",
+              "completed_at": "2026-10-21T07:44:43Z"
+            }
+          ]
+        },
+        {
+          "id": 119099516185,
+          "name": "Legacy compatibility verification",
+          "status": "completed",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 1,
+              "started_at": "2026-10-21T07:37:49Z",
+              "completed_at": "2026-10-21T07:37:49Z"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 2,
+              "started_at": "2026-10-21T07:37:49Z",
+              "completed_at": "2026-10-21T07:37:50Z"
+            },
+            {
+              "name": "Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 3,
+              "started_at": "2026-10-21T07:37:50Z",
+              "completed_at": "2026-10-21T07:37:51Z"
+            },
+            {
+              "name": "Check JavaScript syntax",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 4,
+              "started_at": "2026-10-21T07:37:51Z",
+              "completed_at": "2026-10-21T07:37:51Z"
+            },
+            {
+              "name": "Run automated tests",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 5,
+              "started_at": "2026-10-21T07:37:51Z",
+              "completed_at": "2026-10-21T07:37:52Z"
+            },
+            {
+              "name": "Build hardened container",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 6,
+              "started_at": "2026-10-21T07:37:52Z",
+              "completed_at": "2026-10-21T07:37:59Z"
+            },
+            {
+              "name": "Build verified cloud bundle",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 7,
+              "started_at": "2026-10-21T07:37:59Z",
+              "completed_at": "2026-10-21T07:38:00Z"
+            },
+            {
+              "name": "Upload cloud bundle",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 8,
+              "started_at": "2026-10-21T07:38:00Z",
+              "completed_at": "2026-10-21T07:38:01Z"
+            },
+            {
+              "name": "Post Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 15,
+              "started_at": "2026-10-21T07:38:01Z",
+              "completed_at": "2026-10-21T07:38:01Z"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 16,
+              "started_at": "2026-10-21T07:38:01Z",
+              "completed_at": "2026-10-21T07:38:02Z"
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 17,
+              "started_at": "2026-10-21T07:38:02Z",
+              "completed_at": "2026-10-21T07:38:02Z"
+            }
+          ]
+        }
+      ]
+    },
+    "hostedDecodedResults": {
+      "unitTests": 1275,
+      "unitFiles": 128,
+      "migrations": 55,
+      "nativeStandalone": 194,
+      "browsers": 150,
+      "browserRetries": 0,
+      "productionBuild": "passed",
+      "fullDependencyAudit": "zero reported vulnerabilities"
+    },
+    "hostedBuildId": null,
+    "inventory": {
+      "routes": 73,
+      "gaps": 0,
+      "unclassified": 0,
+      "aliases": 0,
+      "fingerprintsChanged": false
+    },
+    "browserCoverage": "Existing full hosted suite includes authorization, facility isolation, audit history, failure recovery, 1440/768/390/320 layouts and print/PDF regressions; no new local visual review or physical-printer acceptance claimed"
+  },
+  "release": {
+    "deployedByThisBatch": false,
+    "healthBefore": {
+      "status": "ok",
+      "database": "connected",
+      "migration": "20261016010000_rights_identity_evidence",
+      "release": {
+        "version": "1.6.2",
+        "commit": "89e693df430571b9371cefad7db1e750ae41fe30",
+        "shortCommit": "89e693df4305",
+        "environment": "production",
+        "branch": "codex/mwein-platform",
+        "deployment": "dpl_F3uShagMUnYftappZnbrmSdTf42T",
+        "application": "mwein-hmis-platform"
+      },
+      "time": "2026-10-21T07:33:36.371Z"
+    },
+    "healthFinal": {
+      "status": "ok",
+      "database": "connected",
+      "migration": "20261016010000_rights_identity_evidence",
+      "release": {
+        "version": "1.6.2",
+        "commit": "89e693df430571b9371cefad7db1e750ae41fe30",
+        "shortCommit": "89e693df4305",
+        "environment": "production",
+        "branch": "codex/mwein-platform",
+        "deployment": "dpl_F3uShagMUnYftappZnbrmSdTf42T",
+        "application": "mwein-hmis-platform"
+      },
+      "time": "2026-10-21T07:44:55.207Z"
+    },
+    "readiness": {
+      "checkedAt": "2026-10-21T07:41:06.586Z",
+      "status": 503,
+      "body": {
+        "status": "blocked"
+      }
+    }
+  },
+  "limitations": [
+    "Audit results are a point-in-time package-advisory check, not complete security assurance or a reproduction of exploitability",
+    "Prisma postinstall version probe took about two minutes; normal npm ci completed without interruption or skipped scripts",
+    "Deprecated transitive-package warnings retained; no broad dependency cleanup in this patch",
+    "No production operation, migration, seed, credential change, real-patient workflow or third-party message",
+    "No user authentication required; separate cancellation PR 11 unchanged",
+    "All clinical/MFA/release/future backup gates retained; October 15 exception not reused",
+    "Structured assessment history defects remain pending; characterization tests are not acceptance of corrected behavior"
+  ],
+  "priorHistoryCi": {
+    "id": 39510701555,
+    "status": "completed",
+    "conclusion": "success",
+    "sha": "5abddf9d36d693273c8960f14c5228f66c3e85ab",
+    "url": "https://github.com/mbiti001/mwein/actions/runs/39510701555"
+  },
+  "logs": [
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\lock-update.log",
+      "sha256": "690198007bac500f72516a3c8aa4d100f5149bf94d2a65c8716df790ca05582b"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\npm-ci.log",
+      "sha256": "de8cba0555316fa8ee1ad0079867770485d4676c9a738d20843dafa21c7e360c"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\prisma-generate.log",
+      "sha256": "a966acee493a07f17ea84acd3644663262dadfa59e65fee2effa9fc8868d0d8f"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\audit-before.json",
+      "sha256": "679a5d7fdbb76753f28d0675c3cea7cf7634498baa5abcff579b889e26484e8d"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\audit-after.log",
+      "sha256": "8546e084a4432cf6c55cec1b07633b9663cd0716d5ac28586b1c67cca261fc64"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\audit-production.log",
+      "sha256": "8546e084a4432cf6c55cec1b07633b9663cd0716d5ac28586b1c67cca261fc64"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\types.log",
+      "sha256": "de9b61b03f0cbbabb7b993cc935867fcf4151421358ccbc4337bcd7b4f3b30b6"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\unit.log",
+      "sha256": "15ddf7401c2423b06a13b2881d893b1136ac6fc61b11ac465c2c3d92fb471d52"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\migrations.log",
+      "sha256": "c2a7b82b42f37f575881945dc7be6dacdbf960ecc1581fe1af8cbe9176fbe5d6"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\build.log",
+      "sha256": "997250dc813016b80d0d4cc869d90727d7dc0ad41ef3c3843bcc020c5a3cc020"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\lock-delta.json",
+      "sha256": "3671b00cadac8853b54c8c7a5b649abf06671509f3024545935489073ea627e5"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\local-checks.json",
+      "sha256": "00d36949a53b3e69434ba0c5c74c5b8c3c19b61caf61db6616a2d88d94611393"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\audit-inventory.json",
+      "sha256": "9f7fdd37d2b6ebf2d90946fe2d96ba3b7497695570b487707b3db5b79d5ec8fa"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\hosted-platform.log",
+      "sha256": "8d85890ed97afaefaac817f982a43946e847f4ff9a229e351c37b71615d413f8"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\hosted-legacy.log",
+      "sha256": "bf1bc3d21970cd372ef7ebc97bbca0d1b56dbb285367824274bb712787d535b4"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\ci-latest.json",
+      "sha256": "4b12359213a6ddc1a59816f8b2eb456b91ac4396d84da8e074ce0e387bf6bbd8"
+    },
+    {
+      "path": "C:\\Users\\hp 800g6\\Documents\\Codex\\2026-10-21\\continue-the-user-s-authorized-mwein-3\\work\\previous-history-ci-final.json",
+      "sha256": "b8facdf27fb4a28c4cf274a366661b0e7cc7f8506d19af41bef1a3a802556362"
+    }
+  ],
+  "next": "Implement SERVICE-ASSESSMENT-HISTORY-AUDIT.md contract, then unsaved assessment navigation/reload protection and retained financial/supply/diagnostic/pharmacy/cashier/follow-up backlog"
+}
