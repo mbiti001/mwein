@@ -13,6 +13,7 @@ export async function verifyMandatoryMfa({ origin, pg, password, assert, steps }
   cookie = login.response.headers.get("set-cookie").split(";")[0];
   const passwordCookie = cookie;
   assert((await request("/api/visits")).response.status === 403, "Mandatory MFA allowed an unenrolled user to read visits");
+  assert((await request("/api/service-points/history?visitId=11111111-1111-4111-8111-111111111111&recordId=22222222-2222-4222-8222-222222222222")).response.status === 403, "Mandatory MFA allowed structured assessment history access");
   const setup = await request("/api/auth/mfa", { action: "START", password });
   assert(setup.response.ok && setup.body.secret && setup.body.qrCode?.startsWith("data:image/png"), "Mandatory enrollment did not provide a local QR code");
   const otherSession = await request("/api/auth/login", credentials);

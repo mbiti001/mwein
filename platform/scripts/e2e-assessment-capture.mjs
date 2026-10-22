@@ -39,4 +39,5 @@ export async function verifyAssessmentCapture({ pg, api, request, assert, steps 
   assert((await save()).response.status === 409 && same(await snapshot(), after), "Replayed baseline edit appended a duplicate revision");
   steps.push("verify original baseline revision replay cannot create duplicate captured history");
   await pg.query('UPDATE "QueueEntry" SET status=\'COMPLETED\', "completedAt"=CURRENT_TIMESTAMP WHERE "visitId"=$1 AND status IN (\'WAITING\',\'CALLED\',\'IN_PROGRESS\')', [visit.id]);
+  return { visitId: visit.id, recordId, encounterId };
 }

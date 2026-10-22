@@ -308,6 +308,10 @@
     "supply/documents": {
       "sourceSha256": "6bbc42a2ecb3a35abc94d352443d20638f2dd649ad56713325ab8e4d948bbdf7",
       "methodExceptions": {}
+    },
+    "service-points/history": {
+      "sourceSha256": "eab4083bc2824a19527a3a89eac90eafbd99f6d425a59bd224b788641f036c1c",
+      "methodExceptions": {}
     }
   }
 }

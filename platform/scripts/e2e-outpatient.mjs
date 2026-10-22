@@ -5,6 +5,7 @@ import { verifyAssessmentLifecycle } from "./e2e-assessment-lifecycle.mjs";
 import { verifyAssessmentRevision } from "./e2e-assessment-revision.mjs";
 import { verifyAssessmentHistory } from "./e2e-assessment-history.mjs";
 import { verifyAssessmentCapture } from "./e2e-assessment-capture.mjs";
+import { verifyAssessmentHistoryDisclosure } from "./e2e-assessment-history-disclosure.mjs";
 import { verifyPrivacy } from "./e2e-privacy.mjs";
 import { verifySupplyDocuments } from "./e2e-supply-documents.mjs";
 import { verifyDocumentNumbering } from "./e2e-document-numbering.mjs";
@@ -596,7 +597,8 @@ try {
   await verifyAssessmentLifecycle({ pg, api, request: (path, options) => requestWithCookie(path, sessionCookie, options), authenticate, requestWithCookie, relatedPatientId: patient.id, assert, steps });
   await verifyAssessmentRevision({ pg, databaseKind: databaseBackend.kind, api, request: (path, options) => requestWithCookie(path, sessionCookie, options), assert, steps });
   await verifyAssessmentHistory({ pg, api, request: (path, options) => requestWithCookie(path, sessionCookie, options), authenticate, requestWithCookie, assert, steps });
-  await verifyAssessmentCapture({ pg, api, request: (path, options) => requestWithCookie(path, sessionCookie, options), assert, steps });
+  const capturedAssessment = await verifyAssessmentCapture({ pg, api, request: (path, options) => requestWithCookie(path, sessionCookie, options), assert, steps });
+  await verifyAssessmentHistoryDisclosure({ pg, request: (path, options) => requestWithCookie(path, sessionCookie, options), authenticate, requestWithCookie, assert, steps, ...capturedAssessment });
   appointmentTime.setUTCHours(7, 0, 0, 0);
   const appointmentResult = await api("book follow-up appointment", "/api/appointments", { method: "POST", body: JSON.stringify({ patientId: patient.id, scheduledAt: appointmentTime.toISOString(), clinic: "Outpatient", notes: "E2E follow-up" }) });
   const appointmentId = appointmentResult.body.appointment.id;
