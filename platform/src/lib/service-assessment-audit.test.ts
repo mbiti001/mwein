@@ -24,10 +24,13 @@ let visit: any;
 let saved: any;
 let committed: any[];
 let staged: any[];
+let revisions: any[];
+let stagedRevisions: any[];
 const tx = {
   visit: { findFirst: vi.fn(), update: vi.fn() },
   encounter: { create: vi.fn(), update: vi.fn() },
   servicePointRecord: { upsert: vi.fn() },
+  servicePointRevision: { findFirst: vi.fn(), create: vi.fn() },
   patient: { findFirst: vi.fn() },
   patientRelationship: { upsert: vi.fn() },
   queueEntry: { updateMany: vi.fn() },
@@ -39,22 +42,29 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(requirePermission).mockResolvedValue(user as any);
   visit = { id: visitId, patientId, clinic: "Walk-in", status: "AWAITING_CLINICIAN", clinicallyClosedAt: null, patient: { id: patientId }, encounters: [{ ...originalEncounter }] };
-  saved = null; committed = []; staged = [];
+  saved = null; committed = []; staged = []; revisions = []; stagedRevisions = [];
+  tx.servicePointRevision.findFirst.mockImplementation(async () => revisions.at(-1) ?? null);
+  tx.servicePointRevision.create.mockImplementation(async args => {
+    const revision = { id: `retained-${revisions.length + 1}`, capturedAt: new Date(), ...args.data };
+    stagedRevisions.push(revision);
+    return { id: revision.id, version: revision.version };
+  });
   tx.visit.findFirst.mockImplementation(async () => visit);
   tx.patient.findFirst.mockResolvedValue({ id: relatedPatientId, fullName: "Synthetic relation" });
   tx.encounter.create.mockImplementation(async () => ({ ...originalEncounter, id: "new-encounter" }));
   tx.encounter.update.mockImplementation(async args => ({ ...visit.encounters[0], ...args.data }));
   tx.patientRelationship.upsert.mockResolvedValue({ id: "relationship" });
   tx.servicePointRecord.upsert.mockImplementation(async (args) => {
-    const record = { id: "record", encounterId: args.create.encounterId, ...args.update, updatedAt: new Date("2026-10-19T20:00:00Z") };
+    const record = { id: "record", encounterId: args.create.encounterId, ...args.update, createdAt: new Date("2026-10-19T19:30:00Z"), updatedAt: new Date("2026-10-19T20:00:00Z") };
     staged.push(record);
     return record;
   });
   // A model of transaction commit, NOT native PostgreSQL rollback/concurrency evidence.
   vi.mocked(db.$transaction).mockImplementation(async (callback: any) => {
-    staged = [];
+    staged = []; stagedRevisions = [];
     const result = await callback(tx);
     committed.push(...staged);
+    revisions.push(...stagedRevisions);
     if (staged.length) {
       saved = staged.at(-1);
       visit.encounters = [{ ...originalEncounter, ...(tx.encounter.update.mock.calls.at(-1)?.[0].data || {}), servicePointRecord: saved }];
@@ -64,6 +74,86 @@ beforeEach(() => {
   vi.mocked(db.visit.findFirst).mockImplementation((async (args: any) => visit && ({ ...visit, _count: { encounters: visit.encounters.filter((e: any) => ["SIGNED", "CORRECTED"].includes(e.status)).length }, encounters: visit.encounters.filter((e: any) => args.select.encounters.where.status.in.includes(e.status)).slice(0, 1).map((e: any) => ({ ...e, servicePointRecord: saved })) })) as any);
   vi.mocked(db.patientRelationship.findMany).mockResolvedValue([]);
   vi.mocked(db.encounterAddendum.findMany).mockResolvedValue([]);
+});
+
+describe("atomic structured assessment capture", () => {
+  it("retains persisted values and authenticated context with the success event", async () => {
+    const persist = tx.servicePointRecord.upsert.getMockImplementation()!;
+    tx.servicePointRecord.upsert.mockImplementation(async args => ({ ...await persist(args), data: { ...data, carePlan: "Persisted value", reviewed: false, missing: "" } }));
+    const response = await post({ ...input, sessionId: "forged-session", version: 99 });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ capturedRevision: { id: "retained-1", version: 1 } });
+    expect(revisions).toHaveLength(1);
+    expect(revisions[0]).toMatchObject({ recordId: "record", encounterId: "encounter", visitId, facilityId: user.facilityId, version: 1, previousVersion: null, kind: "DRAFT_SAVE", recordedById: user.id, sessionId: user.sessionId, sourceCreatedAt: new Date("2026-10-19T19:30:00Z"), sourceUpdatedAt: new Date("2026-10-19T20:00:00Z"), data: { ...data, carePlan: "Persisted value", reviewed: false, missing: "" } });
+    expect(tx.servicePointRevision.create.mock.calls[0][0].data).not.toHaveProperty("capturedAt");
+    expect(appendAudit).toHaveBeenCalledWith(tx, expect.objectContaining({ reason: "Structured assessment revision 1: retained-1", userId: user.id, sessionId: user.sessionId }));
+  });
+  it("appends successive versions without changing the original snapshot", async () => {
+    const first = await (await post()).json();
+    const original = structuredClone(revisions[0]);
+    const response = await post({ ...input, expectedRevision: first.assessmentRevision, riskLevel: "HIGH", followUpAt: "2026-12-01", data: { ...data, carePlan: "Reviewed change" } });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ capturedRevision: { id: "retained-2", version: 2 } });
+    expect(revisions[0]).toEqual(original);
+    expect(revisions[1]).toMatchObject({ version: 2, previousVersion: 1, riskLevel: "HIGH", followUpAt: new Date("2026-12-01"), data: { carePlan: "Reviewed change" } });
+  });
+  it("extends a truthful migration baseline without inventing its missing session", async () => {
+    const first = await (await post()).json();
+    revisions[0] = { ...revisions[0], kind: "MIGRATION_BASELINE", sessionId: null };
+    expect((await post({ ...input, expectedRevision: first.assessmentRevision })).status).toBe(200);
+    expect(revisions.map(r => [r.kind, r.sessionId, r.version])).toEqual([["MIGRATION_BASELINE", null, 1], ["DRAFT_SAVE", user.sessionId, 2]]);
+    expect(tx.servicePointRevision.findFirst).toHaveBeenLastCalledWith({ where: { recordId: "record", encounterId: "encounter", facilityId: user.facilityId, visitId }, orderBy: { version: "desc" } });
+  });
+  it("refuses a current record whose history is missing before updating its projection", async () => {
+    const first = await (await post()).json();
+    revisions = [];
+    const priorWrites = tx.servicePointRecord.upsert.mock.calls.length;
+    const response = await post({ ...input, expectedRevision: first.assessmentRevision });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ details: { code: "ASSESSMENT_HISTORY_INCONSISTENT" } });
+    expect(tx.servicePointRecord.upsert).toHaveBeenCalledTimes(priorWrites);
+    expect(revisions).toEqual([]);
+  });
+  it.each([
+    { data: { ...data, carePlan: "Different retained value" } },
+    { templateVersion: "OTHER-1" }, { sourceUpdatedAt: new Date("2026-01-01") },
+    { sourceCreatedAt: new Date("2026-01-01") }, { recordedById: "another-recorder" },
+    { facilityId: "foreign-facility" }, { visitId: "foreign-visit" }, { encounterId: "foreign-encounter" },
+  ])("refuses inconsistent history before any new writes: %j", async patch => {
+    const first = await (await post()).json();
+    Object.assign(revisions[0], patch);
+    const before = structuredClone(saved);
+    const response = await post({ ...input, expectedRevision: first.assessmentRevision });
+    expect(response.status).toBe(409);
+    expect(tx.visit.update).toHaveBeenCalledTimes(1);
+    expect(tx.servicePointRecord.upsert).toHaveBeenCalledTimes(1);
+    expect(saved).toEqual(before);
+    expect(revisions).toHaveLength(1);
+  });
+  it("does not confirm a save or audit it if revision append fails", async () => {
+    tx.servicePointRevision.create.mockRejectedValue(new Error("Synthetic append failure"));
+    const response = await post();
+    expect(response.status).toBe(500);
+    expect(await response.json()).not.toHaveProperty("record");
+    expect(appendAudit).not.toHaveBeenCalled();
+    expect(committed).toEqual([]);
+    expect(revisions).toEqual([]);
+    expect(db.$transaction).toHaveBeenCalledTimes(1);
+  });
+  it("does not commit a captured snapshot if audit persistence fails", async () => {
+    vi.mocked(appendAudit).mockRejectedValue(new Error("Synthetic audit failure"));
+    expect((await post()).status).toBe(500);
+    expect(tx.servicePointRevision.create).toHaveBeenCalledTimes(1);
+    expect(committed).toEqual([]);
+    expect(revisions).toEqual([]);
+  });
+  it("retains original attribution when another authenticated session edits", async () => {
+    const first = await (await post()).json();
+    vi.mocked(requirePermission).mockResolvedValue({ ...user, id: "second-actor", sessionId: "second-session" } as any);
+    expect((await post({ ...input, expectedRevision: first.assessmentRevision })).status).toBe(200);
+    expect(revisions.map(r => [r.recordedById, r.sessionId])).toEqual([[user.id, user.sessionId], ["second-actor", "second-session"]]);
+    expect(tx.servicePointRevision.findFirst).toHaveBeenLastCalledWith({ where: { recordId: "record", encounterId: "encounter", facilityId: user.facilityId, visitId }, orderBy: { version: "desc" } });
+  });
 });
 
 describe("assessment narrative history disclosure", () => {

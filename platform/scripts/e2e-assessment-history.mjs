@@ -14,14 +14,15 @@ export async function verifyAssessmentHistory({ pg, api, request, authenticate, 
   const snapshot = async () => (await pg.query(`SELECT
     (SELECT json_agg(r ORDER BY r.id) FROM "ServicePointRecord" r WHERE r."encounterId"=$1) AS records,
     (SELECT json_agg(a ORDER BY a.id) FROM "EncounterAddendum" a WHERE a."encounterId"=$1) AS addenda,
+    (SELECT json_agg(h ORDER BY h.version) FROM "ServicePointRevision" h WHERE h."encounterId"=$1) AS revisions,
     (SELECT json_agg(a ORDER BY a.sequence) FROM "AuditEvent" a WHERE
       (a.action='SERVICE_POINT_ASSESSMENT_SAVED' AND a."entityId"=$2) OR
       (a.action='ENCOUNTER_ADDENDUM_ADDED' AND a."entityId"=$1::text)) AS audits`, [encounterId, first.body.record.id])).rows[0];
   let current = await snapshot();
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   assert(current.records.length === 1 && current.records[0].id === first.body.record.id && current.records[0].data.carePlan === "Current synthetic plan", "Re-audit history contract: assessment storage behavior changed");
-  assert(current.audits.length === 2 && !JSON.stringify(current).includes(input.data.carePlan), "Re-audit history contract: earlier structured content is now retained in queried records/addenda/audit events");
-  steps.push("CHARACTERIZATION: two accepted assessment edits retain one current row and hashes, not the prior structured text");
+  assert(current.audits.length === 2 && current.revisions.length === 2 && current.revisions[0].data.carePlan === input.data.carePlan && current.revisions[1].data.carePlan === second.body.record.data.carePlan, "Original structured text was not retained across accepted saves");
+  steps.push("verify two accepted assessment edits retain original/current structured versions beside one current projection");
   const amend = body => request(`/api/encounters/${encounterId}/addenda`, { method: "POST", body: JSON.stringify(body) });
   const amendment = { reason: "Clarify synthetic assessment", text: "Synthetic narrative amendment for history audit" };
   assert((await amend(amendment)).response.status === 409, "Draft encounter unexpectedly accepted an addendum");
@@ -48,7 +49,7 @@ export async function verifyAssessmentHistory({ pg, api, request, authenticate, 
   const added = await amend(amendment);
   assert(added.response.status === 201 && added.body.addendum.author?.displayName, "Signed narrative amendment failed or omitted author display");
   const amended = await snapshot();
-  assert(same(amended.records, current.records) && amended.addenda.length === 1 && amended.addenda[0].text === amendment.text, "Narrative addendum replaced the structured assessment");
+  assert(same(amended.records, current.records) && same(amended.revisions, current.revisions) && amended.addenda.length === 1 && amended.addenda[0].text === amendment.text, "Narrative addendum replaced the structured assessment");
   assert(same(amended.audits.slice(0, 2), current.audits), "Narrative addendum changed earlier assessment audits");
   const event = amended.audits[2];
   const persisted = amended.addenda[0];
@@ -99,5 +100,5 @@ export async function verifyAssessmentHistory({ pg, api, request, authenticate, 
   assert(limited.response.status === 200 && limited.body.encounterStatus === 'DRAFT' && limited.body.readOnly && limited.body.addenda.hasMore && limited.body.addenda.limit === 20 && same(limited.body.addenda.items.map(item => item.id), expected), "Bounded history lost older encounter or deterministic order");
   steps.push("verify deterministic latest twenty narrative limit and older corrected encounter alongside newer draft");
   await pg.query('UPDATE "QueueEntry" SET status=\'COMPLETED\', "completedAt"=CURRENT_TIMESTAMP WHERE "visitId"=$1 AND status IN (\'WAITING\',\'CALLED\',\'IN_PROGRESS\')', [visit.id]);
-  console.log(JSON.stringify({ event: "assessment_history_characterization", visitId: visit.id, encounterId, recordId: first.body.record.id, observedCurrentRows: 1, assessmentSuccessEvents: 2, narrativeRowsAfterIdenticalSubmissions: 2, priorStructuredTextRetainedInQueriedState: false, servicePointReadIncludesAmendment: true, amendmentSessionAttributed: true, correctedAmendmentAccepted: false, permissionFacilityDenial: true, auditFailureRollback: true }));
+  console.log(JSON.stringify({ event: "assessment_history_characterization", visitId: visit.id, encounterId, recordId: first.body.record.id, observedCurrentRows: 1, assessmentSuccessEvents: 2, narrativeRowsAfterIdenticalSubmissions: 2, priorStructuredTextRetainedInQueriedState: true, servicePointReadIncludesAmendment: true, amendmentSessionAttributed: true, correctedAmendmentAccepted: false, permissionFacilityDenial: true, auditFailureRollback: true }));
 }

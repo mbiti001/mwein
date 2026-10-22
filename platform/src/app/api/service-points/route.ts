@@ -19,6 +19,7 @@ import { isOpenClinicalVisit } from "@/lib/visit-check-in";
 import { assessmentRevision, assessmentConflict } from "@/lib/assessment-revision";
 import { nextEncounterTime } from "@/lib/consultation-revision";
 import { assessmentAuditFingerprint } from "@/lib/assessment-audit";
+import { captureAssessmentRevision, retainedAssessmentVersion } from "@/lib/assessment-history-capture";
 
 const serviceCode = z.enum([
   "ANC",
@@ -279,6 +280,8 @@ export async function POST(request: Request) {
       if (input.expectedRevision !== assessmentRevision(visit.id, encounter, encounter?.servicePointRecord))
         throw assessmentConflict();
       const beforeHash = assessmentAuditFingerprint(user.facilityId, visit.id, encounter?.servicePointRecord ?? null);
+      const captureContext = { facilityId: user.facilityId, visitId: visit.id, sessionId: user.sessionId };
+      const previousVersion = await retainedAssessmentVersion(tx, captureContext, encounter?.servicePointRecord ?? null);
       // All assessment saves also write the visit read above. Concurrent first
       // creates and closure must contend on this row even without an encounter.
       await tx.visit.update({
@@ -321,6 +324,7 @@ export async function POST(request: Request) {
           updatedById: user.id,
         },
       });
+      const capturedRevision = await captureAssessmentRevision(tx, captureContext, previousVersion, record);
       if (visit.status === "AWAITING_CLINICIAN") {
         await tx.queueEntry.updateMany({
           where: { visitId: visit.id, servicePoint: "CONSULTATION", status: { in: ["WAITING", "CALLED"] } },
@@ -334,10 +338,11 @@ export async function POST(request: Request) {
         sessionId: user.sessionId,
         entityType: "ServicePointRecord",
         entityId: record.id,
+        reason: `Structured assessment revision ${capturedRevision.version}: ${capturedRevision.id}`,
         beforeHash,
         afterHash: assessmentAuditFingerprint(user.facilityId, visit.id, record),
       });
-      return { record, assessmentRevision: assessmentRevision(visit.id, encounter, record), warnings: validation.warnings.map((issue) => issue.message) };
+      return { record, capturedRevision, assessmentRevision: assessmentRevision(visit.id, encounter, record), warnings: validation.warnings.map((issue) => issue.message) };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return privateJson(result);
   } catch (error) {

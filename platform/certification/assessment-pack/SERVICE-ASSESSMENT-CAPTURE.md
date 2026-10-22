@@ -1,0 +1,23 @@
+# Structured assessment save capture — 22 October 2026
+
+Engineering implementation and synthetic verification, not clinical, regulatory or deployment approval.
+
+Each accepted structured assessment save now appends the persisted database result to `ServicePointRevision` in the existing Serializable transaction. The current record, encounter/visit revision, queue transition, immutable snapshot and existing success audit commit together. The response exposes the captured row ID/version; the existing audit reason binds that identity to its before/after persisted-value fingerprints and authenticated user/session/facility.
+
+The predecessor lookup is scoped to record/encounter/visit/facility, never the current session. A migration baseline or another user's previous save remains a valid predecessor. Before writing, capture compares the retained current values, template, risk, follow-up, recorder and source timestamps with the current projection. Missing or inconsistent history returns 409 `ASSESSMENT_HISTORY_INCONSISTENT`, without fabricating a baseline or overwriting uncaptured values. Baselines retain their unknown original session. New captures use the authenticated session and recorder, database-generated identity/capture time, and stored source values rather than caller-supplied attribution/version.
+
+Existing permission, facility isolation, MFA, lifecycle, revision, concurrent-save and stale-signer protections remain. Failed append or audit writing rolls back the complete save. A stale/replayed save is rejected without another snapshot. This does not add response-replay idempotency or change narrative duplicate-submission behavior.
+
+The tooling patch pins Vitest and its mocker family to 4.1.12. The final lockfile changes only eight Vitest-family package entries; unrelated production and development packages remain at their original versions. Clean `npm ci` and complete/production dependency audits pass with zero advisories. Existing npm deprecation and local runner/build informational warnings are not claimed resolved. Maintainer references: [GHSA-qxg6-89mg-rqv8](https://github.com/vitest-dev/vitest/security/advisories/GHSA-qxg6-89mg-rqv8), [GHSA-xp26-3454-mjgp](https://github.com/vitest-dev/vitest/security/advisories/GHSA-xp26-3454-mjgp).
+
+Verification covers unit failure paths, real PostgreSQL state before/after rejected writes, migration-baseline extension, unchanged original snapshots, value/session audit binding, forced capture/audit failures, concurrent first saves, stale editors/signers, role/facility denials and lifecycle gates. The browser test uses real authentication, API saves and reload; native tests independently query retained rows. Existing desktop/tablet/phone/print regressions remain. Exact final counts, source, build and CI evidence are recorded in the companion JSON and workflow log.
+
+Retained development failures: expected RED capture tests; malformed SQL dollar quoting in the new failure-injection fixture; baseline capture rejection caused by accidentally spreading session context into the predecessor lookup. The latter was a real implementation defect, corrected by explicit lookup keys and covered by baseline/session regression checks. Failed synthetic databases/logs remain available; production was never involved.
+
+## Release and remaining work
+
+This batch is not deployed. The original Vercel 1.6.2 release is already complete and remains unchanged. The prior history migration plus this writer must be released through coordinated write quiescence (or separately verified catch-up), a fresh backup and restore proof, compatible source, and all existing security/MFA/clinical/DHA/readiness gates. The October 15 backup exception does not apply. No production seeding, credential changes or real-patient workflows were performed.
+
+Structured history reading, disclosure auditing, aligned history/print presentation and reviewed amendment semantics remain unfinished. The current worksheet still shows the current structured snapshot and separately retained narrative addenda. Capture does not make earlier structured values visible in the UI. Narrative duplicate submissions and unsaved navigation/reload protection remain priorities, followed by the existing financial/supply/stock replay/diagnostic/pharmacy/cashier/follow-up backlog. This closes capture only, not the complete history contract.
+
+Primary engineering reference: [PostgreSQL 18 transaction isolation](https://www.postgresql.org/docs/18/transaction-iso.html). No new clinical rules or legal standards are introduced; the existing history contract retains WHO, Kenya MoH and HosiPoa reference context.

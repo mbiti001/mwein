@@ -17,6 +17,7 @@ export async function verifyAssessmentLifecycle({ pg, api, request, authenticate
       (SELECT json_agg(e ORDER BY e.id) FROM "Encounter" e WHERE e."visitId"=v.id) AS encounters,
       (SELECT json_agg(r ORDER BY r.id) FROM "ServicePointRecord" r JOIN "Encounter" e ON e.id=r."encounterId" WHERE e."visitId"=v.id) AS records,
       (SELECT json_agg(q ORDER BY q.id) FROM "QueueEntry" q WHERE q."visitId"=v.id) AS queues,
+    (SELECT json_agg(h ORDER BY h."recordId",h.version) FROM "ServicePointRevision" h WHERE h."visitId"=v.id) AS revisions,
       (SELECT json_agg(p ORDER BY p.id) FROM "PatientRelationship" p WHERE p."patientId"=v."patientId") AS relationships,
       (SELECT count(*)::int FROM "AuditEvent" a WHERE a.action='SERVICE_POINT_ASSESSMENT_SAVED' AND a."entityId" IN
         (SELECT r.id::text FROM "ServicePointRecord" r JOIN "Encounter" e ON e.id=r."encounterId" WHERE e."visitId"=v.id)) AS audits

@@ -11,6 +11,7 @@ export async function verifyAssessmentRevision({ pg, databaseKind, api, request,
     (SELECT json_agg(e ORDER BY e.id) FROM "Encounter" e WHERE e."visitId"=v.id) AS encounters,
     (SELECT json_agg(r ORDER BY r.id) FROM "ServicePointRecord" r JOIN "Encounter" e ON e.id=r."encounterId" WHERE e."visitId"=v.id) AS records,
     (SELECT json_agg(q ORDER BY q.id) FROM "QueueEntry" q WHERE q."visitId"=v.id) AS queues,
+    (SELECT json_agg(h ORDER BY h."recordId",h.version) FROM "ServicePointRevision" h WHERE h."visitId"=v.id) AS revisions,
     (SELECT json_agg(a ORDER BY a.sequence) FROM "AuditEvent" a WHERE a.action='SERVICE_POINT_ASSESSMENT_SAVED' AND a."entityId" IN
       (SELECT r.id::text FROM "ServicePointRecord" r JOIN "Encounter" e ON e.id=r."encounterId" WHERE e."visitId"=v.id)) AS audits
     FROM "Visit" v WHERE v.id=$1`, [visit.id])).rows[0];
@@ -47,7 +48,7 @@ export async function verifyAssessmentRevision({ pg, databaseKind, api, request,
     steps.push("verify sequential first assessment revision rejection (PGlite; no concurrent-writer claim)");
   }
   const initial = await snapshot();
-  assert(first.response.status === 200 && initial.encounters.length === 1 && initial.records.length === 1 && initial.audits.length === 1, "First assessment had duplicate or missing durable effects");
+  assert(first.response.status === 200 && initial.encounters.length === 1 && initial.records.length === 1 && initial.audits.length === 1 && initial.revisions.length === 1, "First assessment had duplicate or missing durable effects");
   assert(initial.records[0].id === first.body.record.id && initial.audits[0].userId === first.body.record.updatedById && initial.audits[0].facilityId === visit.facilityId, "First assessment success attribution mismatch");
   // Independently reconstruct the documented v1 format from PostgreSQL rows.
   // This fixture uses flat data, whose JSONB key order may differ from the POST.
@@ -87,6 +88,25 @@ export async function verifyAssessmentRevision({ pg, databaseKind, api, request,
   assert(same(await snapshot(), after), "Stale signing changed saved state");
   steps.push("verify native stale assessment editors, unchanged-payload replay and stale consultation signing retain current state");
   const currentInput = { ...input, expectedRevision: second.body.assessmentRevision };
+  assert(initial.revisions[0].version === 1 && initial.revisions[0].previousVersion === null && initial.revisions[0].kind === 'DRAFT_SAVE' && initial.revisions[0].sessionId === firstAudit.sessionId && same(initial.revisions[0].data, initial.records[0].data), "First capture lost persisted values or authenticated context");
+  assert(after.revisions.length === 2 && same(after.revisions[0], initial.revisions[0]) && after.revisions[1].version === 2 && after.revisions[1].previousVersion === 1 && same(after.revisions[1].data, after.records[0].data), "Reviewed edit did not retain original and current structured snapshots");
+  for (let i=0; i<2; i++) assert(after.audits[i].reason === 'Structured assessment revision ' + (i+1) + ': ' + after.revisions[i].id && after.revisions[i].recordedById === after.audits[i].userId && after.revisions[i].sessionId === after.audits[i].sessionId && after.revisions[i].facilityId === after.audits[i].facilityId, "Capture audit identity does not bind persisted snapshot and session");
+  steps.push("verify native structured snapshots retain exact original/current values with audit-linked version and actor/session/facility");
+  await pg.exec(`CREATE FUNCTION e2e_capture_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic capture failure' USING ERRCODE='P0001'; END; $$; CREATE TRIGGER e2e_capture_failure BEFORE INSERT ON "ServicePointRevision" FOR EACH ROW EXECUTE FUNCTION e2e_capture_failure();`);
+  try {
+    const failed = await save(currentInput);
+    assert(failed.response.status === 500 && !failed.body.record && !failed.body.capturedRevision, "Capture append failure exposed success");
+    assert(same(await snapshot(), after), "Capture failure changed visit, encounter, projection, history, queue or audit");
+  } finally { await pg.exec('DROP TRIGGER e2e_capture_failure ON "ServicePointRevision"; DROP FUNCTION e2e_capture_failure();'); }
+  steps.push("verify failed native revision append rolls back all assessment save effects");
+  // Simulate an old writer after migration without mutating immutable history.
+  await pg.query('UPDATE "ServicePointRecord" SET data=$1 WHERE id=$2', [JSON.stringify({ ...after.records[0].data, carePlan: 'Synthetic uncaptured edit' }), after.records[0].id]);
+  const uncaptured = await snapshot();
+  try {
+    const refused = await save(currentInput);
+    assert(refused.response.status === 409 && refused.body.details?.code === 'ASSESSMENT_HISTORY_INCONSISTENT' && !refused.body.record && same(await snapshot(), uncaptured), "Uncaptured prior edit was silently overwritten or relabeled");
+  } finally { await pg.query('UPDATE "ServicePointRecord" SET data=$1 WHERE id=$2', [JSON.stringify(after.records[0].data), after.records[0].id]); }
+  steps.push("verify unrecorded projection changes fail closed without inventing historical snapshots");
   await pg.exec(`CREATE FUNCTION e2e_revision_audit_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
     IF NEW.action='SERVICE_POINT_ASSESSMENT_SAVED' THEN RAISE EXCEPTION 'synthetic revision audit failure' USING ERRCODE='P0001'; END IF;
     RETURN NEW; END; $$; CREATE TRIGGER e2e_revision_audit_failure BEFORE INSERT ON "AuditEvent" FOR EACH ROW EXECUTE FUNCTION e2e_revision_audit_failure();`);
@@ -110,7 +130,7 @@ export async function verifyAssessmentRevision({ pg, databaseKind, api, request,
         await pg.exec("COMMIT");
         assert((await pending).response.status === 409, `Assessment saved across concurrent SQL ${lifecycle}`);
         const current = await snapshot();
-        assert(same(current.records, after.records) && same(current.queues, after.queues) && same(current.audits, after.audits), `Concurrent ${lifecycle} changed assessment or success history`);
+        assert(same(current.records, after.records) && same(current.revisions, after.revisions) && same(current.queues, after.queues) && same(current.audits, after.audits), `Concurrent ${lifecycle} changed assessment or success history`);
         steps.push(`verify observed native assessment writer rejects concurrent SQL ${lifecycle} without record or audit effects`);
       } catch (error) { await pg.exec("ROLLBACK"); if (pending) await pending; throw error; }
       // Synthetic-only reset after each asserted rejection, for the next race.
