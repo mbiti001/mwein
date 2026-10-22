@@ -8,11 +8,13 @@ test("browser saves capture successive revisions and reload the persisted assess
   await page.getByLabel("Password", { exact: true }).fill("Mwein-E2E-Password-2026!");
   await page.getByRole("button", { name: "Sign in securely" }).click();
   await expect(page.getByRole("button", { name: "Service points", exact: true })).toBeVisible();
+  // Let initial audited dashboard reads finish before synthetic setup writes.
+  await page.waitForLoadState("networkidle");
   const familyName = `Browser-${randomUUID().slice(0, 8)}`;
   await page.evaluate(async familyName => {
     const post = async (url: string, data: object) => {
       const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-      if (!response.ok) throw new Error(`Synthetic setup failed: ${url} ${response.status}`);
+      if (!response.ok) throw new Error(`Synthetic setup failed: ${url} ${response.status} ${await response.text()}`);
       return response.json();
     };
     const { patient } = await post("/api/patients", { givenName: "Capture", familyName, estimatedAgeYears: 30, sexAtBirth: "UNKNOWN", phone: "+254700099077", county: "Nairobi", subcounty: "Westlands", treatmentConsent: true, electronicRecordConsent: true, messagingConsent: false });
@@ -25,7 +27,7 @@ test("browser saves capture successive revisions and reload the persisted assess
     await page.getByRole("button", { name: new RegExp(familyName) }).click();
   };
   await open();
-  await page.getByLabel("Service requested", { exact: true }).selectOption("Screening");
+  await page.getByRole("combobox", { name: "Service requested *", exact: true }).selectOption("Screening");
   await page.getByLabel("Order, refill or service details").fill("Synthetic browser capture request");
   await page.getByLabel("Identity, allergy, indication and immediate-risk checks").fill("Synthetic browser checks");
   const plan = page.getByLabel("Follow-up, escalation or referral plan");
