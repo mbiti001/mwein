@@ -36,6 +36,17 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U mwein_e2e_fixture -d mwein_e2e_browser"
           --health-interval 5s --health-timeout 5s --health-retries 12
+      history-postgres:
+        image: postgres:18.3
+        env:
+          POSTGRES_USER: mwein_e2e_fixture
+          POSTGRES_PASSWORD: synthetic-ci-password
+          POSTGRES_DB: mwein_e2e_history_store
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U mwein_e2e_fixture -d mwein_e2e_history_store"
+          --health-interval 5s --health-timeout 5s --health-retries 12
     defaults:
       run:
         working-directory: platform
@@ -60,6 +71,10 @@ jobs:
         run: npm test
       - name: Verify migrations and database constraints
         run: npm run test:migrations
+      - name: Verify populated assessment history migration and non-owner restrictions
+        run: npm run test:assessment-history-store
+        env:
+          E2E_TEST_DATABASE_URL: postgresql://mwein_e2e_fixture:synthetic-ci-password@127.0.0.1:5434/mwein_e2e_history_store
       - name: Build without database credentials
         run: npm run vercel-build
       - name: Verify outpatient workflow against isolated test data

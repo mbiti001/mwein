@@ -22,6 +22,7 @@ for (const migration of migrations) {
 }
 
 const requiredTables = [
+  "ServicePointRevision",
   "DiagnosticReview",
   "GoodsReceipt",
   "PaymentRequest",

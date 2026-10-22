@@ -12,6 +12,7 @@
     "test:e2e": "node scripts/e2e-outpatient.mjs",
     "test:browser": "playwright test",
     "test:migrations": "node scripts/verify-migrations.mjs",
+    "test:assessment-history-store": "node scripts/verify-assessment-revision-store.mjs",
     "release:migrate": "prisma migrate deploy",
     "db:bootstrap": "node scripts/bootstrap.mjs",
     "ops:backup": "node scripts/backup-postgres.mjs",

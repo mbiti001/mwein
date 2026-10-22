@@ -311,6 +311,7 @@ model User {
   medicationSafetyOverrides     MedicationSafetyOverride[]
   encounterAddenda              EncounterAddendum[]
   updatedServicePointRecords    ServicePointRecord[]
+  recordedServicePointRevisions ServicePointRevision[]
   createdReferrals              Referral[]                      @relation("ReferralCreatedBy")
   updatedReferrals              Referral[]                      @relation("ReferralUpdatedBy")
   referralAttachments           ReferralAttachment[]            @relation("ReferralAttachmentAddedBy")
@@ -603,6 +604,7 @@ model Allergy {
 }
 
 model Visit {
+  servicePointRevisions ServicePointRevision[]
   clinicDocuments ClinicDocument[]
   measuredVitals MeasuredVitals[]
   id                   String                @id @default(uuid()) @db.Uuid
@@ -637,6 +639,7 @@ model Visit {
   updatedAt            DateTime              @updatedAt
 
   @@unique([facilityId, visitNumber])
+  @@unique([id, facilityId])
   @@unique([facilityId, checkInKey])
   // Visit_open_patient_key is a partial unique index maintained in SQL migrations.
   @@index([facilityId, status, priority, arrivedAt])
@@ -802,6 +805,7 @@ model Observation {
 }
 
 model Encounter {
+  servicePointRevisions ServicePointRevision[]
   id                  String              @id @default(uuid()) @db.Uuid
   visitId             String              @db.Uuid
   clinicianId         String              @db.Uuid
@@ -822,9 +826,12 @@ model Encounter {
   referrals           Referral[]
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
+
+  @@unique([id, visitId])
 }
 
 model ServicePointRecord {
+  revisions       ServicePointRevision[]
   id              String    @id @default(uuid()) @db.Uuid
   encounterId     String    @unique @db.Uuid
   servicePoint    String
@@ -839,6 +846,39 @@ model ServicePointRecord {
   updatedAt       DateTime  @updatedAt
 
   @@index([servicePoint, followUpAt])
+  @@unique([id, encounterId])
+}
+
+// Storage foundation. SQL enforces append-only behavior, baseline truthfulness,
+// JSON object shape, and immediate predecessor order. No amendment policy implied.
+model ServicePointRevision {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  recordId        String   @db.Uuid
+  encounterId     String   @db.Uuid
+  visitId         String   @db.Uuid
+  facilityId      String   @db.Uuid
+  version         Int
+  previousVersion Int?
+  kind            String
+  servicePoint    String
+  templateVersion String
+  data            Json
+  riskLevel       String?
+  followUpAt      DateTime? @db.Date
+  recordedById    String   @db.Uuid
+  sessionId       String?  @db.Uuid
+  sourceCreatedAt DateTime
+  sourceUpdatedAt DateTime
+  capturedAt      DateTime @default(now())
+  record          ServicePointRecord @relation(fields: [recordId, encounterId], references: [id, encounterId], onDelete: Restrict, onUpdate: Restrict, map: "ServicePointRevision_record_context_fkey")
+  encounter       Encounter @relation(fields: [encounterId, visitId], references: [id, visitId], onDelete: Restrict, onUpdate: Restrict, map: "ServicePointRevision_encounter_context_fkey")
+  visit           Visit @relation(fields: [visitId, facilityId], references: [id, facilityId], onDelete: Restrict, onUpdate: Restrict, map: "ServicePointRevision_visit_context_fkey")
+  recordedBy      User @relation(fields: [recordedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  predecessor     ServicePointRevision? @relation("ServicePointRevisionChain", fields: [recordId, previousVersion], references: [recordId, version], onDelete: Restrict, onUpdate: Restrict, map: "ServicePointRevision_predecessor_fkey")
+  successors      ServicePointRevision[] @relation("ServicePointRevisionChain")
+
+  @@unique([recordId, version])
+  @@index([facilityId, visitId, capturedAt])
 }
 
 model PatientRelationship {
