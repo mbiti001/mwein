@@ -90,9 +90,11 @@ export async function verifyAssessmentHistory({ pg, api, request, authenticate, 
   steps.push("verify corrected assessment keeps existing write gates without suggesting an unavailable addendum action");
   // Direct SQL creates extra synthetic narratives (not API provenance) to exercise
   // tied timestamp ordering, truncation, and older-encounter inclusion.
-  await pg.query(`INSERT INTO "EncounterAddendum" (id, "encounterId", "authorId", reason, text, "createdAt") SELECT gen_random_uuid(), $1::uuid, $2::uuid, 'Synthetic limit fixture', 'Synthetic extra narrative ' || n, '2026-10-21T10:00:00'::timestamp FROM generate_series(1,21) n`, [encounterId, persisted.authorId]);
+  // Derive fixture times from stored rows: fixed calendar dates become older
+  // than the API-created encounter and stop testing the intended newer draft.
+  await pg.query(`INSERT INTO "EncounterAddendum" (id, "encounterId", "authorId", reason, text, "createdAt") SELECT gen_random_uuid(), $1::uuid, $2::uuid, 'Synthetic limit fixture', 'Synthetic extra narrative ' || n, (SELECT MAX("createdAt") + interval '1 second' FROM "EncounterAddendum" WHERE "encounterId"=$1::uuid) FROM generate_series(1,21) n`, [encounterId, persisted.authorId]);
   const expected = (await pg.query(`SELECT id FROM "EncounterAddendum" WHERE "encounterId"=$1 ORDER BY "createdAt" DESC, id DESC LIMIT 20`, [encounterId])).rows.map(row => row.id);
-  await pg.query(`INSERT INTO "Encounter" (id, "visitId", "clinicianId", "noteFormat", status, "createdAt", "updatedAt") VALUES (gen_random_uuid(), $1::uuid, $2::uuid, 'STRUCTURED', 'DRAFT', '2026-10-22'::timestamp, '2026-10-22'::timestamp)`, [visit.id, persisted.authorId]);
+  await pg.query(`INSERT INTO "Encounter" (id, "visitId", "clinicianId", "noteFormat", status, "createdAt", "updatedAt") SELECT gen_random_uuid(), $1::uuid, $2::uuid, 'STRUCTURED', 'DRAFT', MAX("createdAt") + interval '1 second', MAX("createdAt") + interval '1 second' FROM "Encounter" WHERE "visitId"=$1::uuid`, [visit.id, persisted.authorId]);
   const limited = await request(`/api/service-points?visitId=${visit.id}`);
   assert(limited.response.status === 200 && limited.body.encounterStatus === 'DRAFT' && limited.body.readOnly && limited.body.addenda.hasMore && limited.body.addenda.limit === 20 && same(limited.body.addenda.items.map(item => item.id), expected), "Bounded history lost older encounter or deterministic order");
   steps.push("verify deterministic latest twenty narrative limit and older corrected encounter alongside newer draft");
