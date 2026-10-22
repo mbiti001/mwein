@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { SearchablePicker } from "./SearchablePicker";
 import { RecordFields } from "./RecordFields";
-import { calculateDispenseQuantity } from "@/lib/medication";
+import { frequencyLabel, prescriptionCalculation, readPrescribingDefaults, type PrescribingDefaults } from "@/lib/prescribing-defaults";
 import { jsonRequest } from "@/lib/client-http";
 
 type Medicine = {
@@ -15,9 +15,11 @@ type Medicine = {
   genericName?: string | null;
   strength?: string | null;
   dosageForm?: string | null;
+  prescribingDefaults?: unknown;
 };
 type Line = {
   medicineCode: string;
+  calculationDefaults?: PrescribingDefaults;
   indication: string;
   dose: string;
   doseQuantity: string;
@@ -91,10 +93,12 @@ const blank = (indication: string): Line => ({
   doseTiming: "SCHEDULED",
   sequenceNote: "",
 });
+const instructionsFor = (line: Line) => line.instructions.trim() || `${line.dose}; ${line.route}; ${line.frequency}; ${line.durationDays} days.`;
 function payload(line: Line) {
   return {
     ...line,
     doseQuantity: Number(line.doseQuantity),
+    instructions: instructionsFor(line),
     frequencyPerDay: Number(line.frequencyPerDay),
     durationDays: Number(line.durationDays),
     duration: line.durationDays + " days",
@@ -168,15 +172,11 @@ export default function PrescriptionComposer({
   function change(patch: Partial<Line>) {
     setEditor((current) => {
       const next = { ...current, ...patch };
-      if (
-        ["tablet", "capsule"].includes((selected?.unitOfMeasure || "").trim().toLowerCase()) &&
-        ["doseQuantity", "frequencyPerDay", "durationDays"].some(
-          (k) => k in patch,
-        )
-      )
-        next.quantity = next.doseQuantity && next.frequencyPerDay && next.durationDays
-          ? String(calculateDispenseQuantity(Number(next.doseQuantity), Number(next.frequencyPerDay), Number(next.durationDays)))
-          : "";
+      if (["dose", "frequencyPerDay", "durationDays"].some(key => key in patch)) {
+        const calculated = prescriptionCalculation(next.dose, next.frequencyPerDay, next.durationDays, next.calculationDefaults || null);
+        next.doseQuantity = calculated ? String(calculated.doseQuantity) : "";
+        next.quantity = calculated ? String(calculated.quantity) : "";
+      }
       if (!("quantityConfirmed" in patch)) next.quantityConfirmed = false;
       return next;
     });
@@ -195,6 +195,11 @@ export default function PrescriptionComposer({
         element.reportValidity();
         return false;
       }
+    const calculated = prescriptionCalculation(editor.dose, editor.frequencyPerDay, editor.durationDays, editor.calculationDefaults || null);
+    if (!calculated || !editor.quantity) {
+      setError("A valid dose and facility-configured dose conversion are required to calculate quantity. Review the medicine catalogue defaults.");
+      return false;
+    }
     return true;
   }
   function stage() {
@@ -212,14 +217,14 @@ export default function PrescriptionComposer({
       setError("Review and save this list before adding more medicines.");
       return false;
     }
-    const next =
-      editing === null
-        ? [...lines, editor]
-        : lines.map((line, index) => (index === editing ? editor : line));
+    const calculated = prescriptionCalculation(editor.dose, editor.frequencyPerDay, editor.durationDays, editor.calculationDefaults || null)!;
+    const reviewed = { ...editor, dose: calculated.dose, doseQuantity: String(calculated.doseQuantity), quantity: String(calculated.quantity) };
+    const next = editing === null ? [...lines, reviewed] : lines.map((line, index) => index === editing ? reviewed : line);
     setLines(next);
     setEditor(blank(indication));
     setEditing(null);
     setError("");
+    requestAnimationFrame(() => editorRef.current?.querySelector<HTMLInputElement>(".searchablePicker input:not([type=hidden])")?.focus());
     return next;
   }
   async function save(submit: boolean, retry?: object) {
@@ -292,9 +297,12 @@ export default function PrescriptionComposer({
       );
       return;
     }
-    setEditor(fromOrder(order));
+    const line = fromOrder(order);
+    const defaults = readPrescribingDefaults(catalogue.find(item => item.code === line.medicineCode)?.prescribingDefaults);
+    const calculated = prescriptionCalculation(line.dose, line.frequencyPerDay, line.durationDays, defaults);
+    setEditor({ ...line, calculationDefaults: defaults || undefined, quantity: calculated ? String(calculated.quantity) : "", doseQuantity: calculated ? String(calculated.doseQuantity) : "" });
     setEditing(null);
-    setError("");
+    setError(calculated && calculated.quantity !== Number(line.quantity) ? "Supply quantity recalculated from current facility settings. Review it before resubmitting." : "");
     editorRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
   }
   const sentEdit =
@@ -341,7 +349,7 @@ export default function PrescriptionComposer({
           </button>
         </div>
       )}
-      <fieldset ref={editorRef} disabled={locked} className="rxEditor noPrint">
+      <fieldset ref={editorRef} disabled={locked} className="rxEditor rxCompactEditor noPrint">
         <legend>
           {editing === null
             ? editor.existingOrderId
@@ -349,14 +357,18 @@ export default function PrescriptionComposer({
               : "Add a medicine"
             : "Edit medicine " + (editing + 1)}
         </legend>
-        <label className="wide">
+        <label className="rxMedicine">
           Medicine
           <SearchablePicker
             name="medicineCode"
             value={editor.medicineCode}
             onChange={(value) => {
               if (editor.existingOrderId) return;
-              setEditor({ ...blank(indication), medicineCode: value });
+              const defaults = readPrescribingDefaults(catalogue.find(item => item.code === value)?.prescribingDefaults);
+              setEditor({ ...blank(""), medicineCode: value, calculationDefaults: defaults || undefined,
+                route: defaults?.route || "", frequencyPerDay: defaults ? String(defaults.frequencyPerDay) : "",
+                frequency: defaults ? frequencyLabel(defaults.frequencyPerDay) : "", durationDays: defaults ? String(defaults.durationDays) : "" });
+              requestAnimationFrame(() => editorRef.current?.querySelector<HTMLInputElement>('input[name="dose"]')?.focus());
             }}
             placeholder="Search medicine by generic, brand or strength…"
             options={catalogue
@@ -374,36 +386,19 @@ export default function PrescriptionComposer({
                 detail: m.name + " · " + m.code,
               }))}
           />
+          {selected && <small className="rxSelected">{name(editor)}</small>}
         </label>
         {editor.medicineCode && (
           <>
-            <p className="wide rxSelected">
-              {name(editor)}
-              {editor.existingOrderId &&
-                " · Existing medicine; saved identity is retained"}
-            </p>
-            <section className="rxEntryGroup wide" aria-label="Dose and directions">
-              <h4>Dose and directions</h4>
-            <label className="wide">
-              Diagnosis / clinical indication *
-              <input
-                name="medicineIndication"
-                value={editor.indication}
-                onChange={(e) => change({ indication: e.target.value })}
-                required
-                minLength={2}
-                maxLength={240}
-              />
-            </label>
             <label>
-              Dose instruction *
+              Dose ({editor.calculationDefaults?.doseUnit || "unit not configured"}) *
               <input
                 name="dose"
                 value={editor.dose}
                 onChange={(e) => change({ dose: e.target.value })}
                 required
                 maxLength={100}
-                placeholder="e.g. 1 tablet"
+                placeholder={editor.calculationDefaults ? `Amount in ${editor.calculationDefaults.doseUnit}` : "Configure dose unit first"}
               />
             </label>
             <label>
@@ -469,55 +464,14 @@ export default function PrescriptionComposer({
                 onChange={(e) => change({ durationDays: e.target.value })}
               />
             </label>
-            <label className="wide">
-              Patient instructions *
-              <textarea
-                name="medicineInstructions"
-                required
-                minLength={2}
-                maxLength={500}
-                value={editor.instructions}
-                onChange={(e) => change({ instructions: e.target.value })}
-              />
+            <label>Quantity ({selected?.unitOfMeasure || "unit not configured"})
+              <input name="quantity" type="number" required readOnly value={editor.quantity} aria-label="Calculated dispensing quantity" />
             </label>
-            </section>
-            <section className="rxEntryGroup rxSupplyGroup wide" aria-label="Supply quantity">
-              <h4>Supply quantity</h4>
-            <label>
-              {selected?.unitOfMeasure ? `Units per dose (${selected.unitOfMeasure}) *` : "Dispensing units per dose *"}
-              <input
-                name="doseQuantity"
-                type="number"
-                min="0.001"
-                step="0.001"
-                max="1000"
-                required
-                value={editor.doseQuantity}
-                onChange={(e) => change({ doseQuantity: e.target.value })}
-              />
-              <small>
-                Use dispensing units, not the medicine strength in mg.
-              </small>
-            </label>
-            <label>
-              Dispensing quantity *
-              <input
-                name="quantity"
-                type="number"
-                min="0.001"
-                step="0.001"
-                max="10000"
-                required
-                value={editor.quantity}
-                onChange={(e) => change({ quantity: e.target.value })}
-              />
-              <small>
-                {["tablet", "capsule"].includes((selected?.unitOfMeasure || "").trim().toLowerCase())
-                  ? "Calculated from units per dose × times daily × days. Review before saving."
-                  : "Enter and verify the supply quantity for this preparation; it is not calculated automatically."}
-              </small>
-            </label>
-            </section>
+            {!editor.calculationDefaults && <p className="wide error" role="status">Facility prescribing defaults are not configured for this medicine. Configure its route, frequency, duration and dose conversion in the catalogue.</p>}
+            <details className="rxCourseDetails wide">
+              <summary>Additional patient instructions</summary>
+              <label>Instructions (optional)<textarea name="medicineInstructions" maxLength={500} value={editor.instructions} onChange={e => change({ instructions: e.target.value })} /></label>
+            </details>
             <details className="rxCourseDetails wide">
               <summary>Course dates and dose timing <span>Starts {editor.startDate || "Not set"} · {editor.doseTiming.replaceAll("_", " ")}{editor.stopDate ? ` · Stops ${editor.stopDate}` : ""}</span></summary>
               <div className="rxEntryGroup">
@@ -635,7 +589,7 @@ export default function PrescriptionComposer({
                   { label: "Starts", value: line.startDate },
                   {
                     label: "Patient instructions",
-                    value: line.instructions,
+                    value: instructionsFor(line),
                     wide: true,
                   },
                 ]}

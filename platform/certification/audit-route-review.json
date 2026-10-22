@@ -108,7 +108,7 @@
       "methodExceptions": {}
     },
     "catalog": {
-      "sourceSha256": "5cf1db00784a737e52e1e69a46c4b46dbbb92980bdcc256113001be2e0bac562",
+      "sourceSha256": "a4056046385ed19670f3d6668b49dd9508a982e9c1c22f9320d4c5291a91055b",
       "methodExceptions": {}
     },
     "claims/[id]/status": {
@@ -270,7 +270,7 @@
       "methodExceptions": {}
     },
     "visits/[id]/consultation": {
-      "sourceSha256": "f0f5055828eb4b2df77dc9500116a8de5f96427621aaf9891154856991cd7f2b",
+      "sourceSha256": "dc3787caf06fcaadebe34e080ce2a5997ce7d1aa6a0b9b4caf4c1f2691ad98e1",
       "methodExceptions": {}
     },
     "visits/[id]/discharge": {

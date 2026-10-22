@@ -984,6 +984,9 @@ try {
   const { verifyPrescriptionList } = await import("./e2e-prescription-list.mjs");
   await verifyPrescriptionList({ pg, api, requestWithCookie, authenticate, sessionCookie, facility, patient, admin, assert, steps });
 
+  const { verifyPrescribingDefaults } = await import("./e2e-prescribing-defaults.mjs");
+  await verifyPrescribingDefaults({ pg, api, requestWithCookie, authenticate, sessionCookie, facility, patient, admin, assert, steps });
+
   const { verifyPatientJourney } = await import("./e2e-patient-journey.mjs");
   await verifyPatientJourney({ pg, api, requestWithCookie, sessionCookie, facility, patient, admin, assert, steps });
   const { verifyTriageReleaseReview } = await import("./e2e-triage-release-review.mjs");

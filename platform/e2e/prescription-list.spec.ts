@@ -10,6 +10,7 @@ const items = ["A", "B"].map((code) => ({
   category: "PHARMACEUTICAL",
   unitPrice: 10,
   active: true,
+  prescribingDefaults: { route: "Oral", frequencyPerDay: 1, durationDays: 2, doseUnit: "tablet", doseUnitsPerIssueUnit: 1, wholeIssueUnits: false },
 }));
 const patient = {
   id,
@@ -78,14 +79,14 @@ async function fill(page: Page, code = "A") {
   await page
     .getByRole("button", { name: new RegExp("Synthetic medicine " + code) })
     .click();
-  await page
-    .locator('[name="medicineIndication"]')
-    .fill("Synthetic indication");
+  await expect(page.locator('[name="medicineIndication"]')).toHaveCount(0);
+  await expect(page.locator('[name="doseQuantity"]')).toHaveCount(0);
   await page.locator('[name="dose"]').fill("1 tablet");
   await page.locator('[name="route"]').selectOption("Oral");
   await page.locator('[name="frequencyPerDay"]').selectOption("1");
   await page.locator('[name="durationDays"]').fill("2");
-  await page.locator('[name="doseQuantity"]').fill("1");
+
+  await page.getByText("Additional patient instructions", { exact: true }).click();
   await page
     .locator('[name="medicineInstructions"]')
     .fill("Synthetic patient instructions");
@@ -138,6 +139,7 @@ test("multiple medicines retain editable lines, recover a lost response and use 
     .getByRole("button", { name: "Edit medicine 1", exact: true })
     .click();
   await expect(page.locator('[name="dose"]')).toHaveValue("1 tablet");
+  await page.getByText("Additional patient instructions", { exact: true }).click();
   await page
     .locator('[name="medicineInstructions"]')
     .fill("Revised synthetic patient instructions");
@@ -289,11 +291,10 @@ test("validation failure retains the editable prescription and save actions foll
   expect(posts).toBe(1);
 });
 
-test("prescription entry proceeds from directions through supply to review without a floating send bar", async ({ page }, info) => {
+test("prescription uses one dose in a compact row with editable facility defaults and automatic quantity", async ({ page }, info) => {
   await fixture(page);
   await fill(page);
-  await expect(page.getByRole("region", { name: "Dose and directions", exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Supply quantity", exact: true })).toBeVisible();
+  await expect(page.locator('[name="quantity"]')).toHaveAttribute("readonly", "");
   await expect(page.locator('[name="stopDate"]')).toBeHidden();
   await expect(page.locator('[name="quantity"]')).toHaveValue("2");
   await page.locator('[name="durationDays"]').fill("");
@@ -303,8 +304,9 @@ test("prescription entry proceeds from directions through supply to review witho
   for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
-    const group = page.getByRole("region", { name: "Dose and directions", exact: true });
+    const group = page.locator(".rxCompactEditor");
     expect(await group.evaluate(el => getComputedStyle(el).gridTemplateColumns.split(" ").length)).toBeGreaterThanOrEqual(2);
+    if (width <= 390) expect((await page.locator('[name="frequencyPerDay"]').boundingBox())!.width).toBeGreaterThan(200);
     await page.evaluate(() => window.scrollTo(0, 0));
     const bounds = await page.locator(".prescriptionComposer").boundingBox();
     expect(bounds).not.toBeNull();
@@ -320,7 +322,7 @@ test("prescription entry proceeds from directions through supply to review witho
 test("collapsed course details reveal invalid dates without losing medicine directions", async ({ page }) => {
   await fixture(page);
   await fill(page);
-  const summary = page.locator(".rxCourseDetails > summary");
+  const summary = page.locator(".rxCourseDetails > summary").filter({ hasText: "Course dates" });
   await summary.focus();
   await page.keyboard.press("Enter");
   await page.locator('[name="startDate"]').fill("");
@@ -397,6 +399,13 @@ test("Kenya references prepare inactive, attributed catalogue entries without in
     .screenshot({ path: info.outputPath("kenya-reference-phone.png") });
   await page.locator('[name="unitOfMeasure"]').fill("tablet");
   await page.locator('[name="unitPrice"]').fill("5");
+  await expect(page.locator('[name="defaultRoute"]')).toHaveValue("");
+  await expect(page.locator('[name="defaultFrequency"]')).toHaveValue("");
+  await page.locator('[name="defaultRoute"]').fill("Oral");
+  await page.locator('[name="defaultFrequency"]').fill("2");
+  await page.locator('[name="defaultDuration"]').fill("3");
+  await page.locator('[name="doseUnit"]').fill("tablet");
+  await page.locator('[name="doseUnitsPerIssueUnit"]').fill("1");
   await page
     .locator(".catalogForm")
     .getByRole("button", { name: /Add to catalogue/ })
@@ -411,20 +420,38 @@ test("Kenya references prepare inactive, attributed catalogue entries without in
     strength: "500 mg",
     dosageForm: "Tablet (scored)",
     unitOfMeasure: "tablet",
+    prescribingDefaults: { route: "Oral", frequencyPerDay: 2, durationDays: 3, doseUnit: "tablet", doseUnitsPerIssueUnit: 1, wholeIssueUnits: false },
   });
 });
 
-test("liquids and packs require a manually verified supply quantity",async({page})=>{
+test("configured liquid conversion calculates whole bottles from one dose", async ({page}) => {
   await fixture(page);
-  await page.route("**/api/catalog",route=>route.fulfill({json:{items:items.map(item=>({...item,unitOfMeasure:"bottle",dosageForm:"Oral liquid"}))}}));
+  await page.route("**/api/catalog", route => route.fulfill({json:{items:items.map(item=>({...item, unitOfMeasure:"bottle", dosageForm:"Oral liquid", prescribingDefaults:{...item.prescribingDefaults, doseUnit:"mL", doseUnitsPerIssueUnit:100, wholeIssueUnits:true, frequencyPerDay:3, durationDays:7}}))}}));
   await page.reload();
   await page.getByRole("button",{name:"Consultation",exact:true}).click();
   await page.getByRole("button",{name:/Synthetic Prescription.*P-RX/}).click();
   await page.getByRole("button",{name:"Medicines",exact:true}).click();
-  await fill(page);
-  await expect(page.locator('[name="quantity"]')).toHaveValue("");
-  await page.locator('[name="quantity"]').fill("1");
+  await page.getByPlaceholder("Search medicine by generic, brand or strength…").fill("brand A");
+  await page.getByRole("button",{name:/Synthetic medicine A/}).click();
+  await expect(page.locator('[name="route"]')).toHaveValue("Oral");
+  await expect(page.locator('[name="frequencyPerDay"]')).toHaveValue("3");
+  await expect(page.locator('[name="durationDays"]')).toHaveValue("7");
+  await page.locator('[name="dose"]').fill("5");
+  await expect(page.locator('[name="quantity"]')).toHaveValue("2");
   await page.locator('[name="quantityConfirmed"]').check();
   await page.getByRole("button",{name:"Add to prescription list",exact:true}).click();
-  await expect(page.getByLabel("Medicines to save")).toContainText("Oral liquid");
+  await expect(page.getByLabel("Medicines to save")).toContainText("5 mL");
+  await expect(page.locator('[name="medicineCode"]')).toHaveValue("");
+});
+test("missing facility defaults stay blank and cannot invent a regimen", async ({page}) => {
+  await fixture(page);
+  await page.route("**/api/catalog", route => route.fulfill({json:{items:items.map(item=>({...item, prescribingDefaults:null}))}}));
+  await page.reload();
+  await page.getByRole("button",{name:"Consultation",exact:true}).click();
+  await page.getByRole("button",{name:/Synthetic Prescription.*P-RX/}).click();
+  await page.getByRole("button",{name:"Medicines",exact:true}).click();
+  await page.getByPlaceholder("Search medicine by generic, brand or strength…").fill("brand A");
+  await page.getByRole("button",{name:/Synthetic medicine A/}).click();
+  await expect(page.getByRole("status").filter({hasText:"Facility prescribing defaults"})).toBeVisible();
+  for (const name of ["route", "frequencyPerDay", "durationDays", "quantity"]) await expect(page.locator('[name="'+name+'"]')).toHaveValue("");
 });

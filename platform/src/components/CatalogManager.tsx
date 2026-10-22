@@ -6,6 +6,8 @@ import { SearchablePicker } from "./SearchablePicker";
 import { jsonRequest } from "@/lib/client-http";
 import { nairobiDateInputValue } from "@/lib/catalog-pricing";
 
+import type { PrescribingDefaults } from "@/lib/prescribing-defaults";
+
 type Category =
   | "LABORATORY_TEST"
   | "PROCEDURE"
@@ -31,6 +33,8 @@ type Item = {
   dosageForm?: string | null;
   unitOfMeasure?: string | null;
   reorderLevel?: string | null;
+  prescribingDefaults?: PrescribingDefaults | null;
+  updatedAt?: string;
   currentPriceEffectiveFrom?: string | null;
   upcomingPrice?: {
     id: string;
@@ -80,6 +84,20 @@ export default function CatalogManager() {
     const form = new FormData(formElement);
     const body = Object.fromEntries(form.entries()) as Record<string, unknown>;
     body.category = category;
+    if (editing) body.expectedUpdatedAt = editing.updatedAt;
+    if (category === "PHARMACEUTICAL") {
+      const fields = ["defaultRoute", "defaultFrequency", "defaultDuration", "doseUnit", "doseUnitsPerIssueUnit"];
+      const any = fields.some(key => String(form.get(key) || "").trim());
+      body.prescribingDefaults = any ? {
+        route: String(form.get("defaultRoute") || ""),
+        frequencyPerDay: Number(form.get("defaultFrequency")),
+        durationDays: Number(form.get("defaultDuration")),
+        doseUnit: String(form.get("doseUnit") || ""),
+        doseUnitsPerIssueUnit: Number(form.get("doseUnitsPerIssueUnit")),
+        wholeIssueUnits: form.get("wholeIssueUnits") === "on",
+      } : null;
+      for (const key of [...fields, "wholeIssueUnits"]) delete body[key];
+    }
     body.active = form.get("active") === "on";
     if (!body.reorderLevel) delete body.reorderLevel;
     if (!body.costPrice) delete body.costPrice;
@@ -107,6 +125,7 @@ export default function CatalogManager() {
         method: "PATCH",
         body: JSON.stringify({
           ...item,
+          expectedUpdatedAt: item.updatedAt,
           unitPrice: Number(item.unitPrice),
           costPrice: item.costPrice ? Number(item.costPrice) : undefined,
           packSize: item.packSize ? Number(item.packSize) : undefined,
@@ -293,6 +312,16 @@ export default function CatalogManager() {
               </label>
             </>
           )}
+          {category === "PHARMACEUTICAL" && <fieldset className="wide rxEntryGroup">
+            <legend>Facility prescribing defaults</legend>
+            <p className="wide">Optional configuration. Complete all fields to enable automatic entry and supply calculation. Leave all blank to remove defaults.</p>
+            <label>Default route<input name="defaultRoute" maxLength={50} defaultValue={editing?.prescribingDefaults?.route || ""} /></label>
+            <label>Times daily<input name="defaultFrequency" type="number" min="1" max="24" defaultValue={editing?.prescribingDefaults?.frequencyPerDay || ""} /></label>
+            <label>Duration in days<input name="defaultDuration" type="number" min="1" max="3650" defaultValue={editing?.prescribingDefaults?.durationDays || ""} /></label>
+            <label>Dose unit<input name="doseUnit" maxLength={40} placeholder="tablet, mL…" defaultValue={editing?.prescribingDefaults?.doseUnit || ""} /></label>
+            <label>Dose units per issue unit<input name="doseUnitsPerIssueUnit" type="number" min="0.001" step="0.001" max="1000000" defaultValue={editing?.prescribingDefaults?.doseUnitsPerIssueUnit || ""} /><small>For example, the number of mL in one bottle. Use 1 when dose and issue units match.</small></label>
+            <label><input name="wholeIssueUnits" type="checkbox" defaultChecked={editing?.prescribingDefaults?.wholeIssueUnits || false} />Round supply up to whole issue units (bottles/packs)</label>
+          </fieldset>}
           <label className="wide">
             Description
             <textarea

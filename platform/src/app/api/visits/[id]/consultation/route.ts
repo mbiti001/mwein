@@ -1,3 +1,4 @@
+import { prescriptionCalculation, readPrescribingDefaults } from "@/lib/prescribing-defaults";
 import { ensureServiceTask } from "@/lib/visit-handoff";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
@@ -245,10 +246,10 @@ export async function POST(
             code: { not: null },
           },
         });
-        if (!primary)
+        if (!primary && input.action !== "SAVE_PRESCRIPTION")
           throw Object.assign(
             new Error(
-              "Record a primary ICD-11 diagnosis before ordering or prescribing",
+              "Record a primary ICD-11 diagnosis before investigations or signing",
             ),
             { status: 409 },
           );
@@ -445,6 +446,14 @@ export async function POST(
               );
             if (!item.genericName || !item.strength || !item.dosageForm)
               throw Object.assign(new Error(`${item.name} is missing generic name, strength or dosage form in the medicine catalogue`), { status: 422 });
+            if (medicine.calculationDefaults) {
+              const configured = readPrescribingDefaults(item.prescribingDefaults);
+              if (!configured || JSON.stringify(configured) !== JSON.stringify(medicine.calculationDefaults))
+                throw Object.assign(new Error("Medicine defaults changed. Reload the catalogue and review this line."), { status: 409 });
+              const calculated = prescriptionCalculation(medicine.dose, String(medicine.frequencyPerDay ?? ""), String(medicine.durationDays ?? ""), configured);
+              if (!calculated || calculated.doseQuantity !== medicine.doseQuantity || calculated.quantity !== medicine.quantity)
+                throw Object.assign(new Error("The dose and calculated supply quantity do not agree."), { status: 422 });
+            }
             const medicationConceptId = item.medicationConceptId || normalizeMedicationConcept(item.genericName);
             const safetyContext = {
               medicationConceptId,
@@ -513,7 +522,7 @@ export async function POST(
                 doseQuantity: medicine.doseQuantity ? new Prisma.Decimal(medicine.doseQuantity) : undefined, frequencyPerDay: medicine.frequencyPerDay, durationDays: medicine.durationDays, quantityConfirmed: medicine.quantityConfirmed,
                 startDate, stopDate, quantity: new Prisma.Decimal(medicine.quantity), instructions: medicine.instructions,
                 isPrn: false, prnIndication: null, doseTiming: medicine.doseTiming, sequenceNote: medicine.sequenceNote,
-                encounterId: encounter.id, diagnosisId: primary.id, idempotencyKey: lineSaveKey,
+                encounterId: encounter.id, diagnosisId: primary?.id ?? null, idempotencyKey: lineSaveKey,
                 ...(sameVisit ? { visitMedicationKey: sameVisitMedicationKey(id, medicationConceptId) } : {}),
               } });
               await tx.clinicalOrder.update({ where: { id: duplicate.order.id }, data: { orderedById: user.id, displayName: item.name, clinicalIndication: medicine.indication, status: input.data.submit ? "REQUESTED" : "DRAFT" } });
@@ -563,7 +572,7 @@ export async function POST(
                     quantityConfirmed: medicine.quantityConfirmed,
                     instructions: medicine.instructions,
                     encounterId: encounter.id,
-                    diagnosisId: primary.id,
+                    diagnosisId: primary?.id ?? null,
                     idempotencyKey: lineSaveKey,
                     visitMedicationKey: sameVisitMedicationKey(id, medicationConceptId),
                   },
@@ -583,6 +592,8 @@ export async function POST(
           }
           await appendAudit(tx, {
             userId: user.id,
+            sessionId: user.sessionId,
+            facilityId: user.facilityId,
             action: input.data.submit
               ? "PRESCRIPTION_SUBMITTED"
               : "PRESCRIPTION_DRAFT_SAVED",

@@ -355,3 +355,13 @@ body .diagnosticReviewWorkspace .diagnosticReviewTable button.secondary { white-
 .rxLine .recordFields { grid-template-columns: repeat(2,minmax(0,1fr)); }
 @media(min-width:1051px) { .rxLine .recordFields { grid-template-columns: repeat(4,minmax(0,1fr)); } }
 @media(max-width:650px) { .consultForm { --consultation-top: 74px; } .consultationSaveBar > span { font-size: 12px; } .rxLine { padding: 10px; } .rxLine .recordFields { gap: 8px; } .rxLine .recordFields > div { padding: 8px; } }
+
+/* One dose entry and one aligned medicine row; secondary details follow it. */
+.rxCompactEditor { grid-template-columns: minmax(200px,2fr) repeat(5,minmax(90px,1fr)); align-items:start; }
+.rxCompactEditor > .rxMedicine { grid-column:auto; }
+.rxCompactEditor > label { min-width:0; }
+.rxCompactEditor input, .rxCompactEditor select { width:100%; min-width:0; }
+.rxCompactEditor .rxEditorActions { order:1; }
+@media(max-width:1050px) { .rxCompactEditor { grid-template-columns:repeat(3,minmax(0,1fr)); } .rxCompactEditor > .rxMedicine { grid-column:1/-1; } }
+@media(max-width:600px) { .rxCompactEditor { grid-template-columns:repeat(2,minmax(0,1fr)); } .rxCompactEditor > label:has(select[name="frequencyPerDay"]) { grid-column:1/-1; } }
+.rxCompactEditor .rxSelected { overflow-wrap:anywhere; font-size:12px; font-weight:400; }

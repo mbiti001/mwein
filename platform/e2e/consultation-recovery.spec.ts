@@ -220,7 +220,7 @@ test("notes do not clear diagnosis, investigation or prescription drafts and sig
   await page.route("**/api/diagnoses/search?*", route => route.fulfill({ json: { results: [] } }));
   await fixture(page, [], [
     { code: "SYNTH-LAB", name: "Synthetic laboratory test", category: "LABORATORY_TEST", unitPrice: 100, active: true },
-    { code: "SYNTH-MED", name: "Synthetic medicine", genericName: "Synthetic medicine", category: "PHARMACEUTICAL", unitPrice: 100, active: true },
+    { code: "SYNTH-MED", name: "Synthetic medicine", genericName: "Synthetic medicine", category: "PHARMACEUTICAL", unitPrice: 100, active: true, prescribingDefaults: { route: "Oral", frequencyPerDay: 1, durationDays: 2, doseUnit: "tablet", doseUnitsPerIssueUnit: 1, wholeIssueUnits: false } },
   ]);
   await page.getByRole("button", { name: "Diagnosis", exact: true }).click();
   await page.locator('[name="primaryDiagnosis"]').fill("Synthetic diagnosis selection");
@@ -243,14 +243,11 @@ test("notes do not clear diagnosis, investigation or prescription drafts and sig
   await expect(status).not.toContainText("investigation requests");
   await expect(status).toContainText("prescription");
   await page.getByRole("button", { name: "Medicines", exact: true }).click();
-  await page.locator('[name="medicineIndication"]').fill("Synthetic indication");
   await page.locator('[name="dose"]').fill("1 tablet");
   await page.locator('[name="route"]').selectOption("Oral");
   await page.locator('[name="frequencyPerDay"]').selectOption("1");
   await page.locator('[name="durationDays"]').fill("2");
-  await page.locator('[name="doseQuantity"]').fill("1");
-  await page.locator('[name="quantity"]').fill("2");
-  await page.locator('[name="medicineInstructions"]').fill("Synthetic instructions");
+  await expect(page.locator('[name="quantity"]')).toHaveValue("2");
   await page.locator('[name="quantityConfirmed"]').check();
   await page.getByRole("button", { name: "Save for later", exact: true }).click();
   await expect(status).toContainText("diagnosis");

@@ -5,7 +5,8 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { apiError } from "@/lib/http";
-import { appendAudit } from "@/lib/audit";
+import { prescribingDefaultsSchema, readPrescribingDefaults } from "@/lib/prescribing-defaults";
+import { appendAudit, auditValueFingerprint } from "@/lib/audit";
 import { canonicalLaboratoryCode, laboratoryDisplayName } from "@/lib/laboratory";
 import { normalizeMedicationConcept } from "@/lib/medication";
 import { effectiveCatalogPrice, kenyaEffectiveDate, nextCatalogPrice, nairobiDateInputValue } from "@/lib/catalog-pricing";
@@ -51,12 +52,15 @@ const itemSchema = z
     strength: optionalText(80),
     dosageForm: optionalText(80),
     unitOfMeasure: optionalText(80),
+    prescribingDefaults: prescribingDefaultsSchema.nullable().optional(),
+    expectedUpdatedAt: z.coerce.date().optional(),
     reorderLevel: optionalNumber(z.number().min(0).max(100000000)),
     active: z.boolean().default(true),
     priceEffectiveFrom: z.preprocess((value) => value == null || value === "" ? undefined : value, z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()),
     priceChangeReason: z.preprocess((value) => value == null || value === "" ? undefined : value, z.string().trim().min(5).max(300).optional()),
   })
   .superRefine((value, context) => {
+    if (value.prescribingDefaults && value.category !== "PHARMACEUTICAL") context.addIssue({ code: "custom", path: ["prescribingDefaults"], message: "Prescribing defaults apply only to medicines" });
     if (value.category === "LABORATORY_TEST" && !value.specimenType)
       context.addIssue({
         code: "custom",
@@ -120,7 +124,7 @@ export async function POST(request: Request) {
   try {
     const user = await requirePermission("admin.catalog");
     const input = itemSchema.parse(await request.json());
-    const { priceEffectiveFrom: _priceEffectiveFrom, priceChangeReason: _priceChangeReason, ...catalogInput } = input;
+    const { priceEffectiveFrom: _priceEffectiveFrom, priceChangeReason: _priceChangeReason, expectedUpdatedAt: _expectedUpdatedAt, ...catalogInput } = input;
     const normalizedCode = input.category === "LABORATORY_TEST" ? canonicalLaboratoryCode(input.code) : input.code.toUpperCase();
     const normalizedName = normalizedCode === "FBC" ? laboratoryDisplayName(normalizedCode) : input.name;
     const now = new Date();
@@ -131,6 +135,7 @@ export async function POST(request: Request) {
         data: {
           facilityId: user.facilityId,
           ...catalogInput,
+          prescribingDefaults: input.category !== "PHARMACEUTICAL" || input.prescribingDefaults === null ? Prisma.DbNull : input.prescribingDefaults,
           medicationConceptId: input.category === "PHARMACEUTICAL" ? input.medicationConceptId || normalizeMedicationConcept(input.genericName!) : undefined,
           code: normalizedCode,
           name: normalizedName,
@@ -157,10 +162,12 @@ export async function POST(request: Request) {
       });
       await appendAudit(tx, {
         userId: user.id,
+        facilityId: user.facilityId,
+        sessionId: user.sessionId,
         action: "CATALOG_ITEM_CREATED",
         entityType: "CatalogItem",
         entityId: created.id,
-        afterHash: `${created.category}:${created.code}:${created.unitPrice}`,
+        afterHash: auditValueFingerprint(created),
       });
       return created;
     });
@@ -176,7 +183,7 @@ export async function PATCH(request: Request) {
     const body = await request.json();
     const id = z.uuid().parse(body.id);
     const input = itemSchema.parse(body);
-    const { priceEffectiveFrom: _priceEffectiveFrom, priceChangeReason: _priceChangeReason, ...catalogInput } = input;
+    const { priceEffectiveFrom: _priceEffectiveFrom, priceChangeReason: _priceChangeReason, expectedUpdatedAt: _expectedUpdatedAt, ...catalogInput } = input;
     const normalizedCode = input.category === "LABORATORY_TEST" ? canonicalLaboratoryCode(input.code) : input.code.toUpperCase();
     const existing = await db.catalogItem.findFirst({
       where: { id, facilityId: user.facilityId },
@@ -187,6 +194,8 @@ export async function PATCH(request: Request) {
         { error: "Catalogue item not found" },
         { status: 404 },
       );
+    const defaultsChanged = input.prescribingDefaults !== undefined && JSON.stringify(input.prescribingDefaults) !== JSON.stringify(readPrescribingDefaults(existing.prescribingDefaults));
+    if (defaultsChanged && !input.expectedUpdatedAt) throw Object.assign(new Error("Reload the catalogue item before changing prescribing defaults."), { status: 428 });
     const now = new Date();
     const currentPrice = effectiveCatalogPrice(existing, now);
     const sameCost = input.costPrice === undefined
@@ -214,9 +223,10 @@ export async function PATCH(request: Request) {
         });
       }
       const updated = await tx.catalogItem.update({
-        where: { id },
+        where: { id, facilityId: user.facilityId, ...(input.prescribingDefaults !== undefined && input.expectedUpdatedAt ? { updatedAt: input.expectedUpdatedAt } : {}) },
         data: {
           ...catalogInput,
+          prescribingDefaults: input.category !== "PHARMACEUTICAL" || input.prescribingDefaults === null ? Prisma.DbNull : input.prescribingDefaults,
           medicationConceptId: input.category === "PHARMACEUTICAL" ? input.medicationConceptId || normalizeMedicationConcept(input.genericName!) : null,
           code: normalizedCode,
           name: normalizedCode === "FBC" ? laboratoryDisplayName(normalizedCode) : input.name,
@@ -265,11 +275,13 @@ export async function PATCH(request: Request) {
       }
       await appendAudit(tx, {
         userId: user.id,
+        facilityId: user.facilityId,
+        sessionId: user.sessionId,
         action: priceChanged ? futureChange ? "CATALOG_PRICE_SCHEDULED" : "CATALOG_PRICE_CHANGED" : "CATALOG_ITEM_UPDATED",
         entityType: "CatalogItem",
         entityId: id,
-        beforeHash: `${existing.category}:${existing.code}:${existing.unitPrice}:${existing.active}`,
-        afterHash: `${updated.category}:${updated.code}:${priceChanged ? input.unitPrice : updated.unitPrice}:${updated.active}:${priceChanged ? effectiveFrom.toISOString() : "no-price-change"}`,
+        beforeHash: auditValueFingerprint(existing),
+        afterHash: auditValueFingerprint({ updated, price: input.unitPrice, effectiveFrom }),
       });
       return updated;
     });

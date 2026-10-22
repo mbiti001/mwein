@@ -1,3 +1,4 @@
+import { prescribingDefaultsSchema } from "@/lib/prescribing-defaults";
 import { z } from "zod";
 import { consultationDispositionCodes, visitDispositionSchema } from "./visit-disposition";
 
@@ -95,7 +96,8 @@ export const prescriptionSchema = z.object({
         expectedPrescriptionKey: z.string().max(100).nullable().optional(),
         correctionReason: z.string().trim().min(10).max(500).optional(),
         medicineCode: z.string().trim().min(2).max(40),
-        indication: z.string().trim().min(2).max(240),
+        indication: z.string().trim().max(240).default(""),
+        calculationDefaults: prescribingDefaultsSchema.optional(),
         dose: z.string().trim().min(1).max(100),
         doseQuantity: z.coerce.number().positive().max(1000).optional(),
         route: z.string().trim().min(1).max(50),
