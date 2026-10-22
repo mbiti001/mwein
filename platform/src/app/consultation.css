@@ -318,7 +318,7 @@ body .diagnosticReviewWorkspace .diagnosticReviewTable button.secondary { white-
 .rxHeading { display: flex; justify-content: space-between; gap: 12px; align-items: start; flex-wrap: wrap; }
 .rxHeading h3,.rxLine h4 { margin: 0 0 8px; }
 .rxHeading p { margin: 0; color: var(--muted); }
-.rxActions { position: sticky; top: 70px; z-index: 10; display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 9px; flex-wrap: wrap; }
+.rxActions { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 9px; flex-wrap: wrap; }
 .rxActions > div,.rxLineActions,.rxEditorActions { display: flex; gap: 8px; flex-wrap: wrap; }
 .rxEditor { min-width: 0; margin: 0; padding: 16px; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; border: 1px solid var(--line); border-radius: 9px; scroll-margin-top: 150px; }
 .rxEditor legend { padding: 0 8px; font-weight: 700; }
@@ -327,6 +327,15 @@ body .diagnosticReviewWorkspace .diagnosticReviewTable button.secondary { white-
 .rxEditor .rxCheck { display: flex; align-items: start; gap: 10px; }
 .rxEditor .rxCheck input { flex: 0 0 18px; width: 18px; height: 18px; margin: 3px 0 0; }
 .rxSelected { margin: 0; color: var(--blue); font-weight: 650; }
+.rxEntryGroup { min-width: 0; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; padding: 12px; background: #f8fbff; border: 1px solid #dbeafe; border-radius: 8px; }
+.rxEntryGroup h4 { grid-column: 1 / -1; margin: 0; color: var(--blue); }
+.rxSupplyGroup { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.rxCourseDetails { min-width: 0; border: 1px solid var(--line); border-radius: 8px; }
+.rxCourseDetails summary { padding: 12px; cursor: pointer; font-weight: 650; }
+.rxCourseDetails summary span { display: block; margin-top: 4px; font-size: 12px; font-weight: 400; overflow-wrap: anywhere; }
+.rxCourseDetails .rxEntryGroup { border: 0; border-top: 1px solid var(--line); border-radius: 0; }
+@media(max-width:1050px) { .rxEntryGroup { grid-template-columns: repeat(2,minmax(0,1fr)); padding: 10px; } }
+@media(max-width:360px) { .rxEntryGroup label:has(select[name="frequencyPerDay"]),.rxEntryGroup label:has(input[name="durationDays"]) { grid-column: 1 / -1; } }
 .rxList,.rxSaved { display: grid; gap: 12px; }
 .rxLine { min-width: 0; padding: 14px; background: #fff; border: 1px solid var(--line); border-radius: 9px; overflow-wrap: anywhere; }
 .rxLineActions,.rxLine > button { margin-top: 10px; }

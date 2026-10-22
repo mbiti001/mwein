@@ -244,7 +244,7 @@ test("saved draft review hydrates all fields and saves against the original revi
   await expect(page.locator(".rxSaved article")).toHaveCount(1);
 });
 
-test("validation failure retains the editable prescription and save actions stay reachable", async ({
+test("validation failure retains the editable prescription and save actions follow review", async ({
   page,
 }) => {
   let posts = 0;
@@ -271,7 +271,7 @@ test("validation failure retains the editable prescription and save actions stay
   ).toHaveCount(0);
   for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
-    await page.locator(".rxEditor").scrollIntoViewIfNeeded();
+    await page.locator(".rxActions").scrollIntoViewIfNeeded();
     await expect(
       page.getByRole("button", { name: "Send to pharmacy", exact: true }),
     ).toBeInViewport();
@@ -287,6 +287,49 @@ test("validation failure retains the editable prescription and save actions stay
     expect(boxes[1].top).toBeGreaterThanOrEqual(boxes[0].bottom - 1);
   }
   expect(posts).toBe(1);
+});
+
+test("prescription entry proceeds from directions through supply to review without a floating send bar", async ({ page }, info) => {
+  await fixture(page);
+  await fill(page);
+  await expect(page.getByRole("region", { name: "Dose and directions", exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Supply quantity", exact: true })).toBeVisible();
+  await expect(page.locator('[name="stopDate"]')).toBeHidden();
+  await expect(page.locator('[name="quantity"]')).toHaveValue("2");
+  await page.locator('[name="durationDays"]').fill("");
+  await expect(page.locator('[name="quantity"]')).toHaveValue("");
+  await page.locator('[name="durationDays"]').fill("2");
+  await page.locator('[name="quantityConfirmed"]').check();
+  for (const width of [1440, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
+    const group = page.getByRole("region", { name: "Dose and directions", exact: true });
+    expect(await group.evaluate(el => getComputedStyle(el).gridTemplateColumns.split(" ").length)).toBeGreaterThanOrEqual(2);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const bounds = await page.locator(".prescriptionComposer").boundingBox();
+    expect(bounds).not.toBeNull();
+    await page.screenshot({ path: info.outputPath(`prescription-entry-${width}.png`), fullPage: true, clip: bounds! });
+  }
+  await page.getByRole("button", { name: "Add to prescription list", exact: true }).click();
+  expect(await page.evaluate(() => {
+    const editor = document.querySelector(".rxEditor")!, list = document.querySelector(".rxList")!, actions = document.querySelector(".rxActions")!;
+    return !!(editor.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING) && !!(list.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING) && getComputedStyle(actions).position === "static";
+  })).toBe(true);
+});
+
+test("collapsed course details reveal invalid dates without losing medicine directions", async ({ page }) => {
+  await fixture(page);
+  await fill(page);
+  const summary = page.locator(".rxCourseDetails > summary");
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await page.locator('[name="startDate"]').fill("");
+  await summary.click();
+  await expect(page.locator('[name="startDate"]')).toBeHidden();
+  await page.getByRole("button", { name: "Add to prescription list", exact: true }).click();
+  await expect(page.locator('[name="startDate"]')).toBeVisible();
+  await expect(page.locator('[name="dose"]')).toHaveValue("1 tablet");
+  await expect(page.getByLabel("Medicines to save").locator("article")).toHaveCount(0);
 });
 
 test("Kenya references prepare inactive, attributed catalogue entries without invented units or prices", async ({

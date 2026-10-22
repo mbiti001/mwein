@@ -174,13 +174,9 @@ export default function PrescriptionComposer({
           (k) => k in patch,
         )
       )
-        next.quantity = String(
-          calculateDispenseQuantity(
-            Number(next.doseQuantity),
-            Number(next.frequencyPerDay),
-            Number(next.durationDays),
-          ),
-        );
+        next.quantity = next.doseQuantity && next.frequencyPerDay && next.durationDays
+          ? String(calculateDispenseQuantity(Number(next.doseQuantity), Number(next.frequencyPerDay), Number(next.durationDays)))
+          : "";
       if (!("quantityConfirmed" in patch)) next.quantityConfirmed = false;
       return next;
     });
@@ -193,7 +189,12 @@ export default function PrescriptionComposer({
     for (const element of editorRef.current?.querySelectorAll<
       HTMLInputElement | HTMLSelectElement
     >("input,select,textarea") || [])
-      if (!element.reportValidity()) return false;
+      if (!element.checkValidity()) {
+        const details = element.closest("details");
+        if (details) details.open = true;
+        element.reportValidity();
+        return false;
+      }
     return true;
   }
   function stage() {
@@ -310,12 +311,12 @@ export default function PrescriptionComposer({
         <div>
           <h3>Prescription list</h3>
           <p>
-            Add each medicine, review the complete list, then save a draft or
-            send to pharmacy.
+            Choose a medicine and enter its directions. Add another if needed,
+            then review the list below and save or send it.
           </p>
         </div>
         <strong>
-          {lines.length} medicine{lines.length === 1 ? "" : "s"} to save
+          {lines.length} added to list{editor.medicineCode ? " · Entry in progress" : ""}
         </strong>
       </header>
       {error && (
@@ -338,95 +339,6 @@ export default function PrescriptionComposer({
           >
             Retry unchanged prescription
           </button>
-        </div>
-      )}
-      <div className="rxActions noPrint">
-        <span>
-          {lines.length
-            ? "Review every line before sending."
-            : "Start by choosing a medicine below."}
-        </span>
-        <div>
-          <button
-            type="button"
-            className="secondary"
-            disabled={
-              locked ||
-              (!lines.length && !editor.medicineCode) ||
-              lines.some(
-                (l) =>
-                  l.existingOrderId &&
-                  saved.find((o) => o.id === l.existingOrderId)?.status !==
-                    "DRAFT",
-              ) ||
-              sentEdit
-            }
-            onClick={() => void save(false)}
-          >
-            Save for later
-          </button>
-          <button
-            type="button"
-            className="primary"
-            disabled={locked || (!lines.length && !editor.medicineCode)}
-            onClick={() => void save(true)}
-          >
-            {busy ? "Saving…" : "Send to pharmacy"}
-          </button>
-        </div>
-      </div>
-      {!!lines.length && (
-        <div className="rxList noPrint" aria-label="Medicines to save">
-          {lines.map((line, index) => (
-            <article className="rxLine" key={index}>
-              <h4>
-                {index + 1}. {name(line)}
-              </h4>
-              <RecordFields
-                fields={[
-                  { label: "Dose", value: line.dose },
-                  { label: "Route", value: line.route },
-                  { label: "Frequency", value: line.frequency },
-                  { label: "Duration", value: line.durationDays + " days" },
-                  { label: "Quantity", value: line.quantity },
-                  { label: "Starts", value: line.startDate },
-                  {
-                    label: "Patient instructions",
-                    value: line.instructions,
-                    wide: true,
-                  },
-                ]}
-              />
-              <div className="rxLineActions noPrint">
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={locked}
-                  onClick={() => {
-                    if (
-                      editor.medicineCode &&
-                      !window.confirm(
-                        "Replace the medicine currently being entered?",
-                      )
-                    )
-                      return;
-                    setEditor({ ...line, quantityConfirmed: false });
-                    setEditing(index);
-                  }}
-                >
-                  Edit medicine {index + 1}
-                </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={locked || editing !== null}
-                  onClick={() => setLines(lines.filter((_, i) => i !== index))}
-                >
-                  Remove medicine {index + 1}
-                </button>
-              </div>
-            </article>
-          ))}
         </div>
       )}
       <fieldset ref={editorRef} disabled={locked} className="rxEditor noPrint">
@@ -470,6 +382,8 @@ export default function PrescriptionComposer({
               {editor.existingOrderId &&
                 " · Existing medicine; saved identity is retained"}
             </p>
+            <section className="rxEntryGroup wide" aria-label="Dose and directions">
+              <h4>Dose and directions</h4>
             <label className="wide">
               Diagnosis / clinical indication *
               <input
@@ -555,8 +469,22 @@ export default function PrescriptionComposer({
                 onChange={(e) => change({ durationDays: e.target.value })}
               />
             </label>
+            <label className="wide">
+              Patient instructions *
+              <textarea
+                name="medicineInstructions"
+                required
+                minLength={2}
+                maxLength={500}
+                value={editor.instructions}
+                onChange={(e) => change({ instructions: e.target.value })}
+              />
+            </label>
+            </section>
+            <section className="rxEntryGroup rxSupplyGroup wide" aria-label="Supply quantity">
+              <h4>Supply quantity</h4>
             <label>
-              Units per dose *
+              {selected?.unitOfMeasure ? `Units per dose (${selected.unitOfMeasure}) *` : "Dispensing units per dose *"}
               <input
                 name="doseQuantity"
                 type="number"
@@ -568,8 +496,7 @@ export default function PrescriptionComposer({
                 onChange={(e) => change({ doseQuantity: e.target.value })}
               />
               <small>
-                Use the catalogue's dispensing unit; do not enter mg as a tablet
-                count.
+                Use dispensing units, not the medicine strength in mg.
               </small>
             </label>
             <label>
@@ -585,9 +512,15 @@ export default function PrescriptionComposer({
                 onChange={(e) => change({ quantity: e.target.value })}
               />
               <small>
-                Calculated only for tablet or capsule issue units. Enter and verify the supply quantity for liquids, packs and other preparations.
+                {["tablet", "capsule"].includes((selected?.unitOfMeasure || "").trim().toLowerCase())
+                  ? "Calculated from units per dose × times daily × days. Review before saving."
+                  : "Enter and verify the supply quantity for this preparation; it is not calculated automatically."}
               </small>
             </label>
+            </section>
+            <details className="rxCourseDetails wide">
+              <summary>Course dates and dose timing <span>Starts {editor.startDate || "Not set"} · {editor.doseTiming.replaceAll("_", " ")}{editor.stopDate ? ` · Stops ${editor.stopDate}` : ""}</span></summary>
+              <div className="rxEntryGroup">
             <label>
               Start date *
               <input
@@ -606,17 +539,6 @@ export default function PrescriptionComposer({
                 min={editor.startDate}
                 value={editor.stopDate}
                 onChange={(e) => change({ stopDate: e.target.value })}
-              />
-            </label>
-            <label className="wide">
-              Patient instructions *
-              <textarea
-                name="medicineInstructions"
-                required
-                minLength={2}
-                maxLength={500}
-                value={editor.instructions}
-                onChange={(e) => change({ instructions: e.target.value })}
               />
             </label>
             <label>
@@ -643,6 +565,8 @@ export default function PrescriptionComposer({
                 onChange={(e) => change({ sequenceNote: e.target.value })}
               />
             </label>
+              </div>
+            </details>
             {sentEdit && (
               <label className="wide">
                 Reason for correction *
@@ -694,6 +618,95 @@ export default function PrescriptionComposer({
           </button>
         </div>
       </fieldset>
+      {!!lines.length && (
+        <div className="rxList noPrint" aria-label="Medicines to save">
+          {lines.map((line, index) => (
+            <article className="rxLine" key={index}>
+              <h4>
+                {index + 1}. {name(line)}
+              </h4>
+              <RecordFields
+                fields={[
+                  { label: "Dose", value: line.dose },
+                  { label: "Route", value: line.route },
+                  { label: "Frequency", value: line.frequency },
+                  { label: "Duration", value: line.durationDays + " days" },
+                  { label: "Quantity", value: line.quantity },
+                  { label: "Starts", value: line.startDate },
+                  {
+                    label: "Patient instructions",
+                    value: line.instructions,
+                    wide: true,
+                  },
+                ]}
+              />
+              <div className="rxLineActions noPrint">
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={locked}
+                  onClick={() => {
+                    if (
+                      editor.medicineCode &&
+                      !window.confirm(
+                        "Replace the medicine currently being entered?",
+                      )
+                    )
+                      return;
+                    setEditor({ ...line, quantityConfirmed: false });
+                    setEditing(index);
+                  }}
+                >
+                  Edit medicine {index + 1}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={locked || editing !== null}
+                  onClick={() => setLines(lines.filter((_, i) => i !== index))}
+                >
+                  Remove medicine {index + 1}
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+      <div className="rxActions noPrint">
+        <span>
+          {lines.length
+            ? "Review every line before sending."
+            : editor.medicineCode ? "Review the entered medicine before saving." : "Choose a medicine above."}
+        </span>
+        <div>
+          <button
+            type="button"
+            className="secondary"
+            disabled={
+              locked ||
+              (!lines.length && !editor.medicineCode) ||
+              lines.some(
+                (l) =>
+                  l.existingOrderId &&
+                  saved.find((o) => o.id === l.existingOrderId)?.status !==
+                    "DRAFT",
+              ) ||
+              sentEdit
+            }
+            onClick={() => void save(false)}
+          >
+            Save for later
+          </button>
+          <button
+            type="button"
+            className="primary"
+            disabled={locked || (!lines.length && !editor.medicineCode)}
+            onClick={() => void save(true)}
+          >
+            {busy ? "Saving…" : "Send to pharmacy"}
+          </button>
+        </div>
+      </div>
       <section className="rxSaved">
         <header className="rxHeading">
           <div>
