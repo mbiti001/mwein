@@ -1,5 +1,7 @@
 "use client";
 import { RecordFields, recordValue } from "./RecordFields";
+import { AssessmentSnapshotFields } from "./AssessmentSnapshotFields";
+import { AssessmentHistory } from "./AssessmentHistory";
 
 import { FormEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
@@ -501,16 +503,13 @@ function AssessmentWorkspace({
         <div className="assessmentIdentity"><strong>{visit.patient.fullName}</strong><span>{visit.patient.patientNumber} · {visit.visitNumber} · {visit.clinic}</span></div>
         <p>Template {record.templateVersion} · Last saved by {record.updatedBy?.displayName || "Recorder not available"} · {new Date(record.updatedAt).toLocaleString(undefined, { timeZone: facilityTimeZone })} ({facilityTimeZone}) · Encounter: {encounterStatus || "Not available"}</p>
         <p className="noPrint">The saved snapshot and loaded narrative addenda are printed; unsaved entries are excluded.</p>
-        {profile.sections.map(section => <RecordFields key={section.title} title={section.title} fields={section.fields.map(field => {
-          const value = recordValue(record.data[field.key]);
-          return { label: field.label, value: value === null ? "Not recorded" : `${value}${field.unit ? ` ${field.unit}` : ""}`, wide: field.type === "textarea" };
-        })} />)}
-        <RecordFields fields={[{ label: "Clinical risk", value: record.riskLevel || "Not recorded" }, { label: "Next follow-up", value: record.followUpAt?.slice(0, 10) || "Not recorded" }]} />
+        <AssessmentSnapshotFields snapshot={record} />
       </section>}
+      {loaded && record && <AssessmentHistory key={`${record.id}:${record.updatedAt}:${latestRevision}`} visitId={visit.id} recordId={record.id} facilityTimeZone={facilityTimeZone} identity={{ ...visit.patient, visitNumber: visit.visitNumber, clinic: visit.clinic }} />}
       <section className="card assessmentAddenda" aria-label="Saved narrative addenda">
         <h2>Saved narrative addenda</h2>
         <div className="assessmentIdentity"><strong>{visit.patient.fullName}</strong><span>{visit.patient.patientNumber} · {visit.visitNumber} · {visit.clinic}</span></div>
-        <p>These notes belong to this visit&apos;s encounters. They do not replace the structured assessment, risk or follow-up fields. Earlier structured assessment versions are not available here.</p>
+        <p>These notes belong to this visit&apos;s encounters. They do not replace the structured assessment, risk or follow-up fields. Retained structured versions can be reviewed separately in Structured assessment history.</p>
         {!addenda ? <p role="status">Narrative addenda unavailable. Reload the assessment to review them.</p> : <>
           <p>{addenda.hasMore ? `Showing the latest ${addenda.limit} narrative addenda. Older addenda are omitted from this view and printout.` : `${addenda.items.length} saved narrative addenda.`} Most recent first.</p>
           {addenda.items.length === 0 && <p>No narrative addenda recorded for this visit.</p>}

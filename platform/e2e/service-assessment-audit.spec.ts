@@ -37,9 +37,8 @@ async function fixture(page: Page, options: Partial<State> = {}, authorized = tr
 const plan = (page: Page) => page.getByLabel("Follow-up, escalation or referral plan");
 const save = (page: Page) => page.getByRole("button", { name: "Save Walk-in assessment", exact: true });
 
-// Gap characterization, not acceptance of immutable history. Change these
-// expectations when the separately safeguarded history implementation lands.
-test("CHARACTERIZATION: reviewed edit and print expose current snapshot without earlier saved text", async ({ page }) => {
+// Default print remains the current snapshot; selected history prints separately.
+test("reviewed edit and default print expose current snapshot without earlier saved text", async ({ page }) => {
   const state = await fixture(page);
   await plan(page).fill("Replacement history audit plan");
   await save(page).click();
@@ -287,4 +286,165 @@ test("long saved assessment prints across pages without unsaved text", async ({ 
 test("reception-only permissions hide the assessment destination", async ({ page }) => {
   await fixture(page, {}, false);
   await expect(page.getByRole("button", { name: "Service points", exact: true })).toHaveCount(0);
+});
+
+const snapshot = (version: number, overrides: Record<string, unknown> = {}) => ({
+  id: `snapshot-${version}`, version, previousVersion: version > 1 ? version - 1 : null,
+  kind: version === 1 ? "MIGRATION_BASELINE" : "DRAFT_SAVE", servicePoint: "WALK_IN", templateVersion: record.templateVersion,
+  data: { ...data, carePlan: `Retained plan ${version}` }, riskLevel: "ROUTINE", followUpAt: null,
+  sourceCreatedAt: "2026-10-18T08:00:00Z", sourceUpdatedAt: "2026-10-19T08:00:00Z", capturedAt: "2026-10-22T08:00:00Z",
+  recordedBy: { id: "synthetic-author", displayName: "History Recorder" }, sessionAttribution: version === 1 ? "NOT_AVAILABLE" : "RECORDED", ...overrides,
+});
+async function historyFixture(page: Page, options: Partial<State> = {}) {
+  const state = await fixture(page, options);
+  const history = { status: 200, requests: [] as string[], items: [snapshot(22), snapshot(21)], older: [snapshot(1)], hasMore: true, responseVisitId: visitId };
+  await page.route("**/api/service-points/history?**", async route => {
+    history.requests.push(route.request().url());
+    const older = new URL(route.request().url()).searchParams.has("beforeVersion");
+    return route.fulfill({ status: history.status, json: history.status !== 200 ? { error: "Synthetic history unavailable" } : {
+      visitId: history.responseVisitId, recordId: record.id, encounterId: "encounter-history", items: older ? history.older : history.items,
+      hasMore: !older && history.hasMore, nextBeforeVersion: !older && history.hasMore ? 21 : null,
+    } });
+  });
+  return { state, history, region: page.getByRole("region", { name: "Structured assessment history", exact: true }) };
+}
+
+test("structured history loads on demand, pages with stable cursors and retains the editable draft", async ({ page }) => {
+  const { state, history, region } = await historyFixture(page);
+  expect(history.requests).toHaveLength(0);
+  await plan(page).fill("UNSAVED HISTORY DRAFT");
+  await region.getByRole("button", { name: "Load saved versions" }).click();
+  await region.getByRole("combobox", { name: "Saved version", exact: true }).selectOption("snapshot-21");
+  await expect(region.getByRole("article")).toContainText("Retained plan 21");
+  await expect(region).toContainText("History Recorder");
+  await expect(region).toContainText("Africa/Nairobi");
+  await region.getByRole("button", { name: "Older versions", exact: true }).click();
+  await region.getByRole("combobox", { name: "Saved version", exact: true }).selectOption("snapshot-1");
+  await expect(region).toContainText("Migration baseline: values retained when history capture began");
+  await expect(region.getByRole("article")).toContainText("Not available");
+  expect(history.requests.at(-1)).toContain("beforeVersion=21");
+  await expect(region.getByRole("button", { name: "Older versions", exact: true })).toHaveCount(0);
+  await region.getByRole("button", { name: "Newer versions", exact: true }).click();
+  await expect(region.getByRole("combobox", { name: "Saved version", exact: true })).toHaveValue("");
+  await expect(plan(page)).toHaveValue("UNSAVED HISTORY DRAFT");
+  expect(state.posts).toHaveLength(0);
+});
+
+test("failed older page clears selected print data and keyboard retry uses the same cursor", async ({ page }) => {
+  const { history, region } = await historyFixture(page);
+  await region.getByRole("button", { name: "Load saved versions" }).click();
+  await region.getByRole("combobox", { name: "Saved version", exact: true }).selectOption("snapshot-22");
+  await region.getByLabel("Use this version for printing").check();
+  history.status = 503;
+  await region.getByRole("button", { name: "Older versions", exact: true }).click();
+  await expect(region).toContainText("Structured history unavailable");
+  await expect(region).not.toContainText("No retained snapshots");
+  await expect(region.getByRole("article")).toHaveCount(0);
+  await expect(page.locator(".historyPrintSelected")).toHaveCount(0);
+  history.status = 200;
+  await region.getByRole("button", { name: "Retry history load" }).focus();
+  await page.keyboard.press("Enter");
+  await region.getByRole("combobox", { name: "Saved version", exact: true }).selectOption("snapshot-1");
+  expect(history.requests.slice(-2).every(url => url.includes("beforeVersion=21"))).toBe(true);
+  await expect(region).toContainText("Retained plan 1");
+});
+
+test("empty, denied and mismatched history never disclose selected snapshots", async ({ page }) => {
+  const { history, region } = await historyFixture(page);
+  history.items = []; history.hasMore = false;
+  await region.getByRole("button", { name: "Load saved versions" }).click();
+  await expect(region).toContainText("No retained snapshots on this page");
+  await expect(region.getByRole("combobox", { name: "Saved version", exact: true })).toHaveCount(0);
+  for (const status of [401, 403, 404, 500]) {
+    history.status = status;
+    await region.getByRole("button", { name: "Reload latest history" }).click();
+    await expect(region).toContainText("Structured history unavailable");
+    await expect(region).not.toContainText("No retained snapshots");
+    await expect(region.getByRole("article")).toHaveCount(0);
+  }
+  history.status = 200; history.items = [snapshot(2)]; history.responseVisitId = "different-visit";
+  await region.getByRole("button", { name: "Reload latest history" }).click();
+  await expect(region).toContainText("does not match this assessment");
+  await expect(region.getByRole("article")).toHaveCount(0);
+});
+
+test("saved assessment change invalidates history selection and print target", async ({ page }) => {
+  const { region } = await historyFixture(page);
+  await region.getByRole("button", { name: "Load saved versions" }).click();
+  await region.getByRole("combobox", { name: "Saved version", exact: true }).selectOption("snapshot-22");
+  await region.getByLabel("Use this version for printing").check();
+  await plan(page).fill("Newly saved plan after history review");
+  await save(page).click();
+  await expect(page.locator(".savedAssessment")).toContainText("Newly saved plan after history review");
+  await expect(region.getByRole("button", { name: "Load saved versions" })).toBeVisible();
+  await expect(region.getByRole("article")).toHaveCount(0);
+  await expect(page.locator(".historyPrintSelected")).toHaveCount(0);
+});
+
+test("selected retained version aligns across viewports and prints only its saved content", async ({ page }, testInfo) => {
+  const { state, history, region } = await historyFixture(page, { encounterStatus: "CORRECTED", readOnly: true, addenda: { items: [narrative], hasMore: false, limit: 20 } });
+  const longPlan = Array.from({ length: 80 }, (_, index) => `Historical line ${index + 1}: synthetic retained observation.`).join("\n");
+  history.items = [snapshot(1, { data: { ...data, carePlan: longPlan, retainedZero: 0, retainedNegative: false }, recordedBy: { id: "original-recorder", displayName: "" } })]; history.hasMore = false;
+  await region.getByRole("button", { name: "Load saved versions" }).click();
+  await region.getByRole("combobox", { name: "Saved version", exact: true }).selectOption("snapshot-1");
+  for (const width of [1440, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    if (width <= 768) await expect.poll(() => page.locator("#main-navigation").evaluate(element => element.getBoundingClientRect().right)).toBeLessThanOrEqual(0);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
+    await expect(region).toContainText("Recorder not available");
+    await expect(region).toContainText("Not recorded");
+    await expect(region.locator("dd").filter({ hasText: /^0$/ })).toHaveCount(1);
+    await expect(region.locator("dd").filter({ hasText: /^No$/ })).toHaveCount(1);
+    const columns = await region.locator(".recordFields").first().evaluate(el => getComputedStyle(el).gridTemplateColumns.split(" ").length);
+    expect(columns).toBe(width > 650 ? 2 : 1);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const bounds = await region.boundingBox();
+    await page.screenshot({ path: testInfo.outputPath(`structured-history-${width}.png`), fullPage: true, clip: bounds! });
+  }
+  await page.emulateMedia({ media: "print" });
+  await expect(region).toBeHidden();
+  await expect(page.locator(".savedAssessment")).toBeVisible();
+  await page.emulateMedia({ media: "screen" });
+  await region.getByLabel("Use this version for printing").check();
+  await page.evaluate(() => { window.print = () => { document.documentElement.dataset.printInvoked = "yes"; }; });
+  await region.getByRole("button", { name: "Print selected version" }).click();
+  expect(await page.locator("html").getAttribute("data-print-invoked")).toBe("yes");
+  await page.emulateMedia({ media: "print" });
+  await expect(region).toBeVisible();
+  await expect(page.locator(".savedAssessment")).toBeHidden();
+  await expect(page.locator(".assessmentAddenda")).toBeHidden();
+  await expect(plan(page)).toBeHidden();
+  await expect(region.getByRole("button", { name: "Print selected version" })).toBeHidden();
+  await expect(region.getByRole("article")).toContainText("P-AUDIT-001 · V-AUDIT-001");
+  await page.pdf({ path: testInfo.outputPath("selected-history.pdf"), format: "A4", printBackground: true, margin: { top: "12mm", bottom: "12mm", left: "12mm", right: "12mm" } });
+  await page.screenshot({ path: testInfo.outputPath("selected-history-print.png"), fullPage: true });
+  expect(state.posts).toHaveLength(0);
+});
+
+test("unknown historical template keeps original keys and values without relabeling", async ({ page }) => {
+  const { history, region } = await historyFixture(page);
+  history.items = [snapshot(3, { templateVersion: "RETIRED-TEMPLATE", data: { retiredField: "Original retained text", carePlan: "Old key meaning" } })]; history.hasMore = false;
+  await region.getByRole("button", { name: "Load saved versions" }).click();
+  await region.getByRole("combobox", { name: "Saved version", exact: true }).selectOption("snapshot-3");
+  await expect(region).toContainText("original field keys");
+  await expect(region).toContainText("retiredField");
+  await expect(region).toContainText("Original retained text");
+  await expect(region).not.toContainText("Follow-up, escalation or referral plan");
+});
+
+test("leaving the patient while history is pending discards the response", async ({ page }) => {
+  await fixture(page);
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  await page.route("**/api/service-points/history?**", async route => {
+    await pending;
+    await route.fulfill({ json: { visitId, recordId: record.id, encounterId: "old", items: [snapshot(1)], hasMore: false, nextBeforeVersion: null } }).catch(() => undefined);
+  });
+  await page.getByRole("button", { name: "Load saved versions" }).click();
+  await expect(page.getByText("Loading saved versions…")).toBeVisible();
+  await page.getByRole("button", { name: "← Queue", exact: true }).click();
+  release();
+  await page.getByRole("button", { name: /Synthetic Assessment Patient/ }).click();
+  await expect(page.getByRole("button", { name: "Load saved versions" })).toBeVisible();
+  await expect(page.getByText("Retained plan 1", { exact: true })).toHaveCount(0);
 });

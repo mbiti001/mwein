@@ -73,6 +73,12 @@ test("browser saves capture successive revisions and reload the persisted assess
   expect((await readHistory(historyPath + "&beforeVersion=0")).status).toBe(422);
   await open();
   await expect(plan).toHaveValue("Synthetic browser reviewed plan");
+  const historyRegion = page.getByRole("region", { name: "Structured assessment history", exact: true });
+  await historyRegion.getByRole("button", { name: "Load saved versions" }).click();
+  await historyRegion.getByRole("combobox", { name: "Saved version", exact: true }).selectOption(first.id);
+  await expect(historyRegion.getByRole("article")).toContainText("Synthetic browser original plan");
+  await expect(historyRegion.getByRole("article")).toContainText("Recorded");
+  await expect(plan).toHaveValue("Synthetic browser reviewed plan");
   for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
     await expect(page.locator(".savedAssessment")).toContainText("Synthetic browser reviewed plan");
@@ -81,8 +87,20 @@ test("browser saves capture successive revisions and reload the persisted assess
   await page.emulateMedia({ media: "print" });
   await expect(page.locator(".savedAssessment")).toBeVisible();
   await expect(plan).toBeHidden();
+  await page.emulateMedia({ media: "screen" });
+  await historyRegion.getByLabel("Use this version for printing").check();
+  await page.emulateMedia({ media: "print" });
+  await expect(historyRegion).toBeVisible();
+  await expect(page.locator(".savedAssessment")).toBeHidden();
+  await expect(page.locator(".assessmentAddenda")).toBeHidden();
+  await expect(historyRegion.getByRole("article")).toContainText("Synthetic browser original plan");
+  await page.emulateMedia({ media: "screen" });
   await page.context().clearCookies();
   const signedOut = await readHistory(historyPath);
   expect(signedOut.status).toBe(401);
   expect(signedOut.body).not.toHaveProperty("items");
+  await historyRegion.getByRole("button", { name: "Reload latest history" }).click();
+  await expect(historyRegion).toContainText("Structured history unavailable");
+  await expect(historyRegion.getByRole("article")).toHaveCount(0);
+  await expect(page.locator(".historyPrintSelected")).toHaveCount(0);
 });
