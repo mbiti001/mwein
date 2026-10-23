@@ -1,0 +1,16 @@
+{
+  "folders": [
+    {
+      "name": "Public website",
+      "path": "website"
+    },
+    {
+      "name": "HMIS (supported)",
+      "path": "platform"
+    },
+    {
+      "name": "Legacy pilot",
+      "path": "legacy"
+    }
+  ]
+}

@@ -1,125 +1,25 @@
-# Mwein HMIS repository
+# Mwein Medical Services
 
-> **Canonical application:** the supported product is the Next.js/PostgreSQL application in [`platform/`](platform/). The root Node/SQLite application is retained as a legacy compatibility pilot only; do not use its deployment files for a new clinical deployment.
+One repository, three independently deployed applications.
 
-## Supported platform development and release
+| Directory | Purpose | Deployment root |
+| --- | --- | --- |
+| [`website/`](website/README.md) | Public patient website: PHP and SQLite | `website/site/` contents → existing cPanel public root |
+| [`platform/`](platform/OPERATIONS.md) | Supported HMIS: Next.js and PostgreSQL | Keep the Vercel Root Directory set to `platform` |
+| [`legacy/`](legacy/README.md) | Retained Node/SQLite compatibility pilot | `legacy/`, for compatibility testing only |
 
-Start in `platform/`: run `npm ci`, `npm run db:generate`, then `npm test` and `npm run build`. Database configuration and the controlled release sequence are documented in [`platform/OPERATIONS.md`](platform/OPERATIONS.md).
+## Public website
 
-For Vercel, set the project **Root Directory to `platform`** and use `npm run vercel-build`. Root-level `vercel.json`, Docker and release-bundle commands below belong to the legacy pilot. Platform builds do not migrate or seed databases. Apply migrations separately through `npm run release:migrate` after the release backup and review.
+Run `npm run website:build` after editing HTML, PHP, CSS or JavaScript. It generates fingerprinted CSS bundles and updates asset references without dependencies. Run `npm run website:test` for JavaScript and source checks. With PHP 8.4 and Python available, run `python website/tests/backend_test.py` and `php website/tests/jpeg_metadata_test.php` as well. Preview with `npm run website:dev` (requires PHP on PATH); private configuration stays outside `website/site/`.
 
-The GitHub check **Platform verification** covers the supported application. Repository administrators must make that check required in branch protection/rulesets before treating it as a merge gate.
+## HMIS
 
-## Facility branding
+Run commands inside `platform/`: `npm ci`, `npm run db:generate`, `npm test`, then the documented build/release sequence. Clinical releases, database migrations and patient data are managed separately from website releases. See [`platform/OPERATIONS.md`](platform/OPERATIONS.md).
 
-The existing `platform/src/app/icon.png` is the canonical Mwein “M + QRS wave” mark. The same mark is used by the application shell, receipts, invoices, visit summaries, referral letters, laboratory reports and imaging reports; do not replace it with a medical cross or a separate facility logo. Source letterheads, QA exports, regulatory documents and reusable signing assets remain under the ignored `facility-branding/` directory. Never commit or serve the facility's digital stamp; electronically generated records must show their workflow status and named authorisation evidence instead of applying a reusable image signature.
+## Repository migration
 
-## Legacy compatibility pilot
+`website-rewrite/` is now `website/`. Root pilot files, its deployment configuration, scripts and tests are now in `legacy/`. Its internal relative paths are preserved. Existing pilot automation must use `legacy/` as its working directory; Docker uses `docker build legacy`. Do not move production databases as part of this source reorganization. Existing HMIS deployment paths stay unchanged.
 
-Mwein Cloud EMR is a Kenya-focused full-stack electronic medical record pilot for outpatient and primary care facilities. It includes patient registration, encounter documentation, prescription capture, visit summaries, lab and pharmacy workflows, SHA billing preparation, analytics, audit logging, and compliance readiness.
+Root npm commands are explicit shortcuts, not an application server. `npm start` directs you to select an application. GitHub Actions verifies the website, supported platform and legacy pilot separately. Never upload the repository root to cPanel: publish only reviewed website files and preserve the existing private configuration, uploads and database.
 
-## What Is Included
-
-- Single-page clinical workspace in `index.html`
-- Node clinical API in `server.js`
-- Persistent SQLite database created at `data/mwein-emr.sqlite`
-- Transactional encounters, prescriptions, server-side safety screening, health monitoring, and audit events
-- Governed prescription plug-ins for facility formulary, stock, allergy, duplicate-order, antimicrobial, and paediatric review
-- Synchronized lab, dispensing, and invoice lifecycle: ordering creates a charge, cancellation or deletion reverses it, and completion or dispensing clears the active queue while preserving the charge
-- Staff sign-in with salted password hashing, expiring HTTP-only sessions, and server-enforced clinical roles
-- Fail-closed production configuration, CSP nonces, host/origin enforcement, tamper-evident audit chaining, and verified backups
-- Installable PWA metadata in `manifest.webmanifest`
-- Offline app-shell cache in `service-worker.js`
-- Implementation and rollout plan in `EMR_IMPLEMENTATION_PLAN.md`
-- Deployment guide in `DEPLOYMENT.md`
-- Cloud release checklist in `CLOUD_DEPLOY_CHECKLIST.md`
-- GitHub connection and safe first-push guide in `GITHUB_PREPARATION.md`
-- Security notes in `SECURITY.md`
-- Production gate and evidence checklist in `PRODUCTION_READINESS.md`
-- Docker, Nginx, Apache/cPanel, health check, and robots metadata
-
-## Demo Workflow
-
-1. Open the dashboard and review cloud readiness, clinical safety, triage queue, and workflow cards.
-2. Go to Patients and test duplicate detection by entering `CHU-4481-029`.
-3. Open Peter Wekesa from the registry and confirm the encounter profile updates.
-4. Use the Safety tab to tick checklist items and watch the completion score change.
-5. In the Orders tab, complete a prescription, run the safety plug-ins, and review pass, review, or blocked findings before saving.
-6. Open Visit Summary, generate the visit note, then copy, download, or print it.
-7. Open Analytics to review charts, report pack, and assessment rubric.
-8. Use the download icon in the top bar to export a sample daily JSON report.
-9. Open Compliance to review architecture, ODPC posture, exchange readiness, and audit logs.
-
-## Run Locally
-
-Requires Node.js 22.5 or newer.
-
-```bash
-npm start
-```
-
-Then open `http://127.0.0.1:4173/index.html`.
-
-## Open In VS Code
-
-Open `Mwein-Cloud-EMR.code-workspace` in VS Code. The workspace includes tasks for starting the server, running tests, creating and verifying backups, and producing an allowlisted cloud source bundle.
-
-Run `npm run package-release` to create `dist/mwein-cloud-emr-v<version>.zip`. The archive excludes local databases, backups, secrets, environment files, unrelated website files, and development output.
-
-## Docker Deployment
-
-```bash
-docker build -t mwein-emr .
-docker run --rm -p 8080:8080 -v mwein-data:/app/data \
-  -e NODE_ENV=development \
-  -e EMR_BOOTSTRAP_PASSWORD='replace-with-a-strong-secret' mwein-emr
-```
-
-Then open `http://127.0.0.1:8080`.
-
-This command is only for local container testing. Use `compose.production.yml` behind an HTTPS reverse proxy for the hardened baseline.
-
-## Configuration
-
-- `PORT`: HTTP port, defaults to `4173`
-- `HOST`: bind host, defaults to `127.0.0.1`
-- `DATA_DIR`: persistent SQLite directory, defaults to `./data`
-- `DATABASE_PATH`: optional full SQLite file path
-- `EMR_BOOTSTRAP_PASSWORD`: required on first production startup; creates `clinician@mwein.local`
-- `PUBLIC_ORIGIN`: required HTTPS application origin in production
-- `TRUST_PROXY`: set to `true` only behind a trusted reverse proxy that overwrites forwarding headers
-- `SESSION_HOURS` and `SESSION_IDLE_MINUTES`: absolute and idle session limits
-- `SEED_DEMO_DATA`: defaults to false and is rejected in production
-- `EMR_API_KEY`: optional bearer token for trusted machine integrations
-
-Local development seeds `clinician@mwein.local` with password `MweinPilot2026!`. Change the bootstrap password for every deployed environment.
-
-Run `npm test` to verify the database-backed registration and encounter flow.
-
-Authenticated dashboard metrics are calculated from SQLite through `/api/metrics`. Browser-only clinical drafts are disabled when the service is in use so records cannot split between local storage and the server; the cached PWA shell remains non-clinical.
-
-Run `npm run backup` to create and integrity-check a restricted backup under `data/backups/`. Production must copy encrypted backups off-host and test restoration regularly.
-
-Run `npm run verify-backup` to copy the newest backup into an isolated temporary restore location, verify SQLite integrity, required tables, audit-chain continuity, and a writable transaction, then remove the temporary copy. Set `BACKUP_PATH` to test a specific backup.
-
-## Prescription Safety Plug-ins
-
-Prescription plug-ins are an allowlisted, server-owned clinical decision-support layer. The browser can display results but cannot bypass mandatory server screening when an order is saved. The current pilot checks facility formulary and stock flags, documented penicillin-allergy terms, identical unsigned orders, antimicrobial review, and paediatric review.
-
-The rules and sample stock values are demonstration data, not authoritative clinical content. Before patient use, a named clinical safety owner must approve rule sources, medicine identifiers, terminology mappings, dose logic, stock integration, override policy, versioning, validation cases, monitoring, and rollback. Do not load arbitrary third-party plug-in code into the clinical process.
-
-## Orders And Billing
-
-Laboratory orders and prescriptions create invoice items in the same database transaction as the clinical order. Cancelling an unfinished lab order or deleting an unsigned, undispensed prescription removes its invoice line. Completing a lab test or dispensing a prescription removes it from the active operational queue but retains the charge and audit history. Signing an encounter links its orders and marks the open invoice ready for billing review.
-
-Catalog prices are integer KES pilot values stored in server configuration. They are not approved tariffs and must be replaced with facility-governed service and medicine pricing before deployment.
-
-## Structured Laboratory Results
-
-Each laboratory catalog item defines its own controlled result schema. Malaria and pregnancy tests use qualitative outcomes; FBC, glucose, and HbA1c capture numeric analytes and units; urinalysis captures a structured dipstick panel. Every test also records specimen quality, overall interpretation, optional method/analyser, reference context, and universal result notes.
-
-The server validates required fields, numeric values, and controlled options before a result can be completed. Completed results leave the active worklist while remaining linked to the encounter, invoice, and audit history. The pilot fields and reference context require approval by the facility laboratory lead before patient use.
-
-## Production Path
-
-This version is an engineering pilot, not yet a certified medical device or production clinical system. Before real patient use, replace the bootstrap account with identity-provider MFA and account lifecycle management, then add managed encrypted database hosting, facility tenancy, tested offline conflict resolution, secrets management, backups and restore drills, validated prescription knowledge sources, SHA integration, FHIR exchange validation, monitoring, penetration testing, a DPIA, and Kenyan digital health certification evidence.
+Open `Mwein.code-workspace` for separate website, HMIS and legacy folders. See [`website/RELEASE-20261023.md`](website/RELEASE-20261023.md) for this website change and deployment limits.

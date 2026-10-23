@@ -1,18 +1,14 @@
 {
-  "name": "mwein-cloud-emr-legacy",
-  "version": "0.8.0",
+  "name": "mwein-services",
   "private": true,
-  "description": "Legacy SQLite compatibility pilot; use ./platform for the canonical Mwein HMIS.",
-  "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
-    "test": "node --test test/*.test.js",
-    "backup": "node scripts/backup.js",
-    "verify-backup": "node scripts/verify-backup.js",
-    "package-release": "sh scripts/package-release.sh"
-  },
-  "engines": {
-    "node": ">=22.5.0"
+    "start": "node -e \"console.error('Choose website:dev, hmis:dev, or legacy:start; see README.md'); process.exit(1)\"",
+    "website:build": "node website/tools/build-assets.mjs",
+    "website:dev": "php -S 127.0.0.1:8085 -t website/site",
+    "website:test": "node website/tests/source_test.cjs && node website/tests/cookie_choices_test.cjs && node website/tests/interaction_states_test.cjs && node website/tests/deferred_content_test.cjs",
+    "hmis:dev": "npm --prefix platform run dev",
+    "hmis:test": "npm --prefix platform test",
+    "legacy:start": "npm --prefix legacy start",
+    "legacy:test": "npm --prefix legacy test"
   }
 }

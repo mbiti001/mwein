@@ -1,0 +1,12 @@
+/* Registration date confirmed from the business registration certificate. */
+.clinic-home .board-established{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 18px;margin-top:22px;padding:17px 20px;border:1px solid #a9d3bc70;border-radius:12px;background:#ffffff0a}
+.clinic-home .board-established>span{font-size:11px;font-weight:700;letter-spacing:1.5px;color:#e4efc5}
+.clinic-home .board-established>strong{grid-column:2;grid-row:1 / 3;font-size:42px;line-height:1.1;font-weight:600;letter-spacing:-1.5px;color:#e4efc5;font-variant-numeric:tabular-nums}
+.clinic-home .board-established>small{font-size:11px;line-height:1.7;color:#dbeae5}
+.clinic-home .impact-grid-established{grid-template-columns:repeat(3,minmax(0,1fr))}
+.clinic-home .impact-grid-established .established-card{background:#e4efc5;border-color:#d5e5b0}
+.clinic-home .impact-grid-established article{min-width:0}
+@media(max-width:700px){.clinic-home .impact-grid-established{grid-template-columns:repeat(2,minmax(0,1fr))}.clinic-home .impact-grid-established .established-card{grid-column:1 / -1}.clinic-home .board-established{padding:14px 15px;gap:4px 12px}.clinic-home .board-established>strong{font-size:38px}}
+@media(max-width:360px){.clinic-home .impact-grid-established{grid-template-columns:1fr}.clinic-home .board-established{grid-template-columns:1fr}.clinic-home .board-established>strong{grid-column:1;grid-row:2}.clinic-home .board-established>small{grid-row:3}}
+
+.clinic-home .board-established{margin-top:16px;padding:12px 16px}.clinic-home .board-established>strong{font-size:34px}
