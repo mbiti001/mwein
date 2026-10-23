@@ -485,6 +485,87 @@ class WebsiteTests(unittest.TestCase):
         public=json.loads(self.req('/api/care-summary.php')[1]);self.assertNotIn('note',public);self.assertNotIn('actor',public)
         self.assertEqual(self.req('/api/care-summary.php',{})[0],405)
 
+    def test_admin_origin_sessions_and_private_storage(self):
+        self.login()
+        _,page,headers=self.req('/manage/security.php')
+        self.assertIn('no-store',headers['Cache-Control']);self.assertIn('private',headers['Cache-Control'])
+        self.assertIn('noindex',headers['X-Robots-Tag'])
+        csrf=re.search('name="csrf" value="([a-f0-9]+)"',page)[1]
+        payload={'csrf':csrf,'action':'revoke','current':self.password}
+        self.assertEqual(self.req('/manage/security.php',payload,origin='https://untrusted.example')[0],403)
+        self.assertEqual(self.req('/manage/security.php',payload,extra={'Sec-Fetch-Site':'cross-site'})[0],403)
+        self.assertEqual(self.req('/manage/security.php',payload|{'csrf':'bad'})[0],403)
+        self.assertEqual(self.req('/manage/security.php',payload|{'current':'incorrect'})[0],401)
+        self.assertTrue(list((Path(self.tmp.name)/'admin-sessions').glob('sess_*')))
+        self.assertTrue(list((Path(self.tmp.name)/'security-backups').glob('*.sqlite')))
+        self.store.execute('DELETE FROM admin_sessions');self.store.commit()
+        self.assertEqual(self.req('/manage/')[0],303)
+        self.login()
+        self.store.execute('UPDATE admin_sessions SET last_seen=?',(int(time.time())-1801,));self.store.commit()
+        self.assertEqual(self.req('/manage/')[0],303)
+        self.login()
+        self.store.execute('UPDATE admin_sessions SET created=?',(int(time.time())-28801,));self.store.commit()
+        self.assertEqual(self.req('/manage/')[0],303)
+
+    def test_admin_authenticator_enrolment_and_recovery(self):
+        import base64,hmac,hashlib,struct
+        def code(secret,offset=0):
+            digest=hmac.new(secret,struct.pack('>Q',int(time.time())//30+offset),hashlib.sha1).digest()
+            value=struct.unpack('>I',digest[digest[-1]&15:(digest[-1]&15)+4])[0]&0x7fffffff
+            return str(value%1000000).zfill(6)
+        def csrf_of(page):return re.search('name="csrf" value="([a-f0-9]+)"',page)[1]
+        def password_step():
+            page=self.req('/manage/login.php')[1]
+            return self.req('/manage/login.php',{'csrf':csrf_of(page),'email':'admin@example.test','password':self.password})
+        self.login()
+        try:
+            page=self.req('/manage/security.php')[1]
+            self.assertEqual(self.req('/manage/security.php',{'csrf':csrf_of(page),'action':'enrol','current':self.password})[0],303)
+            page=self.req('/manage/security.php')[1]
+            encoded=re.search('Private setup key:</strong> <code>([A-Z2-7]+)</code>',page)[1]
+            secret=base64.b32decode(encoded)
+            payload={'csrf':csrf_of(page),'action':'enable','current':self.password,'code':code(secret)}
+            self.assertEqual(self.req('/manage/security.php',payload|{'code':'invalid'})[0],422)
+            self.assertEqual(self.req('/manage/security.php',payload)[0],303)
+            page=self.req('/manage/security.php')[1]
+            codes=re.findall(r'[A-F0-9]{5}(?:-[A-F0-9]{5}){3}',page)
+            self.assertEqual(len(codes),10)
+            self.assertNotIn(codes[0],self.req('/manage/security.php')[1])
+            encrypted=self.store.execute('SELECT secret FROM admin_security').fetchone()[0]
+            self.assertNotIn(encoded,encrypted)
+            self.assertEqual(self.store.execute('SELECT count(*) FROM admin_recovery').fetchone()[0],10)
+            self.assertNotIn(codes[0].replace('-',''),str(self.store.execute('SELECT hash FROM admin_recovery').fetchall()))
+            self.req('/manage/logout.php',{'csrf':csrf_of(page)})
+            first=password_step();self.assertEqual(first[2]['Location'],'/manage/verify.php')
+            # Password alone does not authorize administration.
+            self.assertEqual(self.req('/manage/')[2]['Location'],'/manage/login.php')
+            password_step();page=self.req('/manage/verify.php')[1]
+            # The code used for enrolment cannot be replayed in its time step.
+            self.assertEqual(self.req('/manage/verify.php',{'csrf':csrf_of(page),'code':payload['code']})[0],401)
+            next_code=code(secret,1)
+            verified=self.req('/manage/verify.php',{'csrf':csrf_of(page),'code':next_code})
+            self.assertEqual(verified[2]['Location'],'/manage/')
+            page=self.req('/manage/security.php')[1]
+            self.req('/manage/logout.php',{'csrf':csrf_of(page)})
+            password_step();page=self.req('/manage/verify.php')[1]
+            self.assertEqual(self.req('/manage/verify.php',{'csrf':csrf_of(page),'code':next_code})[0],401)
+            verified=self.req('/manage/verify.php',{'csrf':csrf_of(page),'code':codes[0]})
+            self.assertEqual(verified[2]['Location'],'/manage/')
+            self.assertEqual(self.req('/manage/')[0],200)
+            page=self.req('/manage/security.php')[1]
+            self.req('/manage/logout.php',{'csrf':csrf_of(page)})
+            password_step();page=self.req('/manage/verify.php')[1]
+            self.assertEqual(self.req('/manage/verify.php',{'csrf':csrf_of(page),'code':codes[0]})[0],401)
+            self.store.execute('UPDATE admin_security SET version=version+1');self.store.commit()
+            self.assertEqual(self.req('/manage/verify.php')[2]['Location'],'/manage/login.php')
+            self.assertEqual(self.store.execute('SELECT count(*) FROM admin_recovery').fetchone()[0],9)
+            events=str(self.store.execute('SELECT event,network FROM admin_security_events').fetchall())
+            self.assertIn('mfa_enabled',events);self.assertIn('recovery_used',events)
+            self.assertNotIn(self.password,events);self.assertNotIn(codes[0],events)
+        finally:
+            self.store.execute("UPDATE admin_security SET secret='',last_counter=-1,version=version+1")
+            self.store.execute('DELETE FROM admin_recovery');self.store.execute('DELETE FROM admin_sessions');self.store.commit()
+
     def test_service_context_preserved_and_saved(self):
         payload=self.payload()|{'service':'Ultrasound'}
         invalid=payload|{'contact':'invalid'}
@@ -494,7 +575,7 @@ class WebsiteTests(unittest.TestCase):
         first=self.req('/api/message.php',payload)
         self.assertEqual(first[0],303)
         saved=self.store.execute('SELECT message FROM messages ORDER BY id DESC LIMIT 1').fetchone()[0]
-        self.assertEqual(saved,'Service: Ultrasound\n\n'+payload['message'])
+        self.assertEqual(saved,'Service requested: Ultrasound\n\n'+payload['message'])
         self.assertEqual(self.req('/api/message.php',payload)[2]['Location'],first[2]['Location'])
         self.assertEqual(self.req('/api/message.php',payload|{'service':'Laboratory testing'})[0],409)
 

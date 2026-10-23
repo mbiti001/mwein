@@ -9,5 +9,6 @@ if($_SERVER['REQUEST_METHOD']==='POST') {
     else $error='Your credentials changed. Sign in again.';
 }
 layout_start('Account settings'); ?>
+<section class="wrap"><p><a class="button" href="/manage/security.php">Two-step verification, sessions &amp; security activity</a></p></section>
 <p><a href="/manage/">← Dashboard</a></p><section class="login-card"><h1>Account security</h1><p>Administrator: <?= h(config()['admin_email']) ?></p><p>Recovery emails go to this address. Keep access to the mailbox secure.</p><?php if($error): ?><p class="error" role="alert"><?= h($error) ?></p><?php endif ?><form method="post"><?= csrf() ?><label>Current password<input name="current" type="password" autocomplete="current-password" required></label><label>New password<input name="password" type="password" autocomplete="new-password" minlength="16" maxlength="72" required></label><label>Confirm new password<input name="confirmation" type="password" autocomplete="new-password" minlength="16" maxlength="72" required></label><button class="button">Change password</button></form><p>Changing your password ends all existing sign-ins.</p></section>
 <?php layout_end(); ?>

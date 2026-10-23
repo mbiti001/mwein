@@ -45,3 +45,27 @@ DirectoryIndex index.html index.php
     Header set Cache-Control "public, max-age=604800"
   </FilesMatch>
 </IfModule>
+
+# Careers is managed through the website dashboard.
+RedirectMatch 301 ^/careers\.html$ /careers.php
+
+# Consolidate the duplicate homepage URL.
+RedirectMatch 301 ^/index\.html$ /
+
+# Preserve the destinations of legacy moved pages using HTTP redirects.
+RedirectMatch 301 ^/(about|quality)\.html$ /
+RedirectMatch 301 ^/blog\.html$ /blog.php
+RedirectMatch 301 ^/donations\.html$ /partners.html
+RedirectMatch 301 ^/(appointments|shop|terms-of-service)\.html$ /contact.html
+RedirectMatch 301 ^/patient-rights\.html$ /privacy-policy.html
+
+# Block retired application trees and local development/runtime material.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^my-folder-name(?:/|$) - [F,L,NC]
+  RewriteCond %{REQUEST_METHOD} ^(?:TRACE|TRACK)$ [NC]
+  RewriteRule ^ - [F,L]
+</IfModule>
+<FilesMatch "(?i)^(?:\.env(?:\..*)?|error_log|.*\.(?:ini|bak|orig|save|swp|sql|sqlite3?|db|log))$">
+  Require all denied
+</FilesMatch>

@@ -15,7 +15,7 @@ if(post('website')!=='') { limited('message',5,900); http_response_code(422); ex
 $key=post('request_key');
 if($key!=='' && !preg_match('/^[A-Za-z0-9_-]{16,128}$/D',$key)) { http_response_code(422); exit('Reload the contact page and try again.'); }
 if($errors) { if(limited('message',5,900)) { header('Retry-After: 900'); enquiry_error(['message'=>'Too many messages. Wait 15 minutes before retrying, or email info@mweinmedical.co.ke.'],429); } enquiry_error($errors); }
-$storedMessage=($service!==''?'Service: '.$service."\n\n":'').$message;
+$storedMessage=($service!==''?'Service requested: '.$service."\n\n":'').$message;
 $hash=hash_hmac('sha256',json_encode([$name,$contact,$category,$storedMessage],JSON_THROW_ON_ERROR),config()['secret']);
 $request=hash_hmac('sha256',$key!==''?'key:'.$key:'form:'.$hash,config()['secret']);
 db()->exec('CREATE TABLE IF NOT EXISTS enquiry_receipts(request_key TEXT PRIMARY KEY,payload_hash TEXT NOT NULL,reference TEXT NOT NULL,created INTEGER NOT NULL)');

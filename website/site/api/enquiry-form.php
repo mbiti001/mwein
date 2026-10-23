@@ -1,8 +1,6 @@
 <?php
 require_once __DIR__.'/content.php';
-function enquiry_services(): array {
-    return ['Consultation / medical examination','Chronic illness care','Pharmacy / medicine refill','Family planning','Pregnancy / maternity care','Child health / vaccination','Laboratory testing','Ultrasound','Minor procedures','Screening / health education','Counselling','Home-based care','Other / not sure'];
-}
+require_once __DIR__.'/services.php';
 function enquiry_error(array $errors, int $status=422): never {
     http_response_code($status);
     header('X-Robots-Tag: noindex, nofollow');

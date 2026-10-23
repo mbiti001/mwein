@@ -51,9 +51,13 @@ function content_body(string $text): string {
     }return $html;
 }
 function render_article(array $p,bool $preview=false): string {
-    $html='<article class="wrap prose"><p class="eyebrow">'.h($p['category']).'</p><h1>'.h($p['title']).'</h1><p class="lead">'.h($p['summary']).'</p>';
-    foreach(post_images($p) as $id){$m=rows(run('SELECT * FROM media WHERE id=?',[(int)$id]))[0]??null;if($m)$html.='<figure><img class="post-image" loading="lazy" src="'.($preview?'/manage/media.php?view=':'/media.php?id=').(int)$id.'" alt="'.h($m['alt']).'">'.(!empty(post_options($p)['captions'][$id])?'<figcaption>'.h(post_options($p)['captions'][$id]).'</figcaption>':'').'</figure>';}
-    $html.=content_body($p['body']);$links=resource_links($p['links']);
+    $html='<article class="wrap prose" itemscope itemtype="https://schema.org/BlogPosting"><p class="eyebrow">'.h($p['category']).'</p><h1 itemprop="headline">'.h($p['title']).'</h1><p class="lead" itemprop="description">'.h($p['summary']).'</p>';
+    if(!empty($p['date_published']))$html.='<p>Published <time itemprop="datePublished" datetime="'.h($p['date_published']).'">'.h(date('j F Y',strtotime($p['date_published']))).'</time></p>';
+    $html.='<p itemprop="author" itemscope itemtype="https://schema.org/Organization">By <a itemprop="url" href="/"><span itemprop="name">Mwein Medical Services</span></a></p>';
+    $html.='<div itemprop="publisher" itemscope itemtype="https://schema.org/Organization"><meta itemprop="name" content="Mwein Medical Services"><link itemprop="url" href="https://mweinmedical.co.ke/"></div>';
+    if(!empty($p['id']))$html.='<link itemprop="mainEntityOfPage" href="'.h(config()['origin'].'/blog.php?id='.(int)$p['id']).'">';
+    foreach(post_images($p) as $id){$m=rows(run('SELECT * FROM media WHERE id=?',[(int)$id]))[0]??null;if($m)$html.='<figure><img itemprop="image" class="post-image" loading="lazy" src="'.($preview?'/manage/media.php?view=':'/media.php?id=').(int)$id.'" alt="'.h($m['alt']).'">'.(!empty(post_options($p)['captions'][$id])?'<figcaption>'.h(post_options($p)['captions'][$id]).'</figcaption>':'').'</figure>';}
+    $html.='<div itemprop="articleBody">'.content_body($p['body']).'</div>';$links=resource_links($p['links']);
     if($links){$html.='<h2>Related links & videos</h2><ul>';foreach($links as [$label,$url]){$html.='<li><a href="'.h($url).'" target="_blank" rel="noopener noreferrer">'.h($label).' ↗</a> <small>(opens another website)</small>';
         $video=youtube_id($url);if($video)$html.='<div class="video-panel" data-video="'.h($video).'"><p>Load this video to connect to YouTube. YouTube may process viewing data.</p><button type="button" class="button video-load" data-title="'.h($label).'">Load video</button></div>';$html.='</li>'; }$html.='</ul>';}
     return $html.'<p><a class="button" href="/contact.html'.(!empty($p['id'])?'?from=post:'.(int)$p['id']:'').'#send-message">Ask our team →</a></p></article>';
@@ -65,7 +69,7 @@ function public_content(string $title,string $body,string $url,string $descripti
     $shell=preg_replace_callback('~<main id="main">.*?</main>~s',fn()=>'<main id="main">'.$body.'</main>',$shell);
     $shell=preg_replace_callback('~<title>.*?</title>~s',fn()=>'<title>'.h($title).' | Mwein Medical Services</title>',$shell);
     $shell=preg_replace_callback('~(<meta (?:name="description"|property="og:description") content=")[^"]*~',fn($m)=>$m[1].h($description),$shell);
-    $shell=preg_replace_callback('~(<meta property="og:title" content=")[^"]*~',fn($m)=>$m[1].h($title),$shell);
+    $shell=preg_replace_callback('~(<meta property="og:title" content=")[^"]*~',fn($m)=>$m[1].h($title.' | Mwein Medical Services'),$shell);
     $shell=preg_replace_callback('~(<link rel="canonical" href=")[^"]*~',fn($m)=>$m[1].h($url),$shell);
     $shell=preg_replace_callback('~(<meta property="og:url" content=")[^"]*~',fn($m)=>$m[1].h($url),$shell);
     if($article){
@@ -77,6 +81,7 @@ function public_content(string $title,string $body,string $url,string $descripti
         }}
     }
     $shell=str_replace('aria-current="page" ','',$shell);
+    if(str_contains($url,'/careers.php'))$shell=str_replace('href="careers.php">Careers','aria-current="page" href="careers.php">Careers',$shell);
     if(str_contains($url,'/blog.php'))$shell=str_replace('href="blog.php">Blog','aria-current="page" href="blog.php">Blog',$shell);
     $shell=preg_replace('~(href|src)="(?![a-z]+:|/|#|\?)([^"]+)"~i','$1="/$2"',$shell);
     echo $shell;

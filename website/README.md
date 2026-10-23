@@ -46,3 +46,7 @@ Sign in at `/manage/` and choose **Confirmed care totals**. Enter patients regis
 The homepage reads only totals and the reporting date from `/api/care-summary.php`. No scheduled increments or estimates are used. If JavaScript or the endpoint is unavailable, it retains the explicitly dated 27 September 2026 snapshot in the HTML. Private history is included in existing SQLite backups. The initial production figures stay at 6,255 and 13,557 until an administrator publishes newly confirmed records.
 
 See `UX-REVIEW-20260928.md` for the interaction audit, verified workflows and performance measurements. Shared interaction styles live in `assets/experience.css`; directional SVG icons are original Mwein assets in `assets/icons.svg`.
+
+## Administrator security
+
+See [ADMIN-SECURITY.md](ADMIN-SECURITY.md) for private sessions, revocation, event history, authenticator setup, recovery and the live-source reconciliation. MFA is activated by the owner after confirming an authenticator code; deployment alone does not enable it.

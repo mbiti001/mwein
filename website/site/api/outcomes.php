@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__.'/common.php';
 function public_source(string $value): string {
-    if(in_array($value,['/','/index.html','/services.html','/insurers.html','/blog.html','/blog.php','/partners.html','/contact.html','/privacy-policy.html'],true))return $value==='/index.html'?'/':$value;
+    if(in_array($value,['/','/index.html','/services.html','/insurers.html','/blog.html','/blog.php','/reviews.php','/careers.html','/careers.php','/faq.html','/partners.html','/contact.html','/privacy-policy.html'],true))return $value==='/index.html'?'/':$value;
     if(preg_match('/^post:([1-9][0-9]{0,8})$/D',$value,$m)){
         if(!scalar(run("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='posts'")))return '';
         if(scalar(run("SELECT id FROM posts WHERE id=? AND published IS NOT NULL AND published!=''",[(int)$m[1]])))return 'post:'.(int)$m[1];

@@ -17,7 +17,7 @@ function setup(saved, privacy = false, failStorage = false) {
   const footer = new Element('footer');
   let storage = saved ? JSON.stringify(saved) : null;
   const context = {
-    navigator: { globalPrivacyControl: privacy }, location: { pathname: '/', search: '' }, URL, URLSearchParams,
+    crypto: require('node:crypto').webcrypto, AbortController, setTimeout, clearTimeout, navigator: { globalPrivacyControl: privacy }, location: { pathname: '/', search: '' }, URL, URLSearchParams,
     localStorage: { getItem: () => { if (failStorage) throw Error(); return storage; }, setItem: (_, v) => { if (failStorage) throw Error(); storage = v; } },
     document: { visibilityState: 'visible', referrer: '', querySelector: () => footer, createElement: tag => new Element(tag), addEventListener: (k, fn) => { listeners[k] = fn; } },
     window: { addEventListener: (k,fn) => { listeners[k] = fn; } },

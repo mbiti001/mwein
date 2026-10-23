@@ -1,0 +1,4 @@
+# Helpers are PHP includes, not HTTP endpoints.
+<FilesMatch "^(?:common|admin-security|analytics|backup|care-totals|careers|content|enquiry-form|feedback|mail|notifications|outcomes|services)\.php$">
+  Require all denied
+</FilesMatch>

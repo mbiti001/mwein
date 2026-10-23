@@ -2,6 +2,16 @@
 require dirname(__DIR__).'/api/content.php';require_admin();content_tables();
 $id=(int)($_GET['id']??0);$p=$id?(rows(run('SELECT * FROM posts WHERE id=?',[$id]))[0]??null):['title'=>'','summary'=>'','body'=>'','category'=>'Facility news','links'=>'','media_ids'=>'[]','version'=>0,'published'=>null];
 if(!$p){http_response_code(404);exit('Post not found');}$error='';
+if(!$id && $_SERVER['REQUEST_METHOD']==='GET'){
+ $templates=[
+ 'construction'=>['Facility construction update','Facility development',"## Confirmed progress\nDescribe what has been completed and when it was checked.\n\n## What happens next\nAdd only confirmed next steps. State clearly if dates or approvals remain pending."],
+ 'service'=>['Service update','Services',"## What is available\nName the confirmed service and who it is for.\n\n## Planning your visit\nConfirm availability, session times and enquiry details before publishing."],
+ 'community'=>['Community activity update','Community',"## About the activity\nAdd the confirmed date, location and activity.\n\n## Taking part\nExplain who can attend and any confirmed practical arrangements."],
+ 'careers'=>['Our Careers page is now available','Facility news',"Our website now has a Careers section for opportunities at Mwein Medical Services in Mungatsi, Busia County.\n\nWe recruit according to facility needs. Future recruitment may include clinical officers, nurses, laboratory technologists and other healthcare or support roles.\n\nVisit the Careers page for the current vacancy status. When a role is advertised, the notice will include qualifications, application instructions and a closing date."]];
+ $template=is_string($_GET['template']??null)?$_GET['template']:'';
+ if(isset($templates[$template])){[$p['title'],$p['category'],$p['body']]=$templates[$template];if($template==='careers'){$p['summary']='Find future opportunities and application instructions on our Careers page.';$p['links']='View Careers | https://mweinmedical.co.ke/careers.php';}}
+}
+
 if($_SERVER['REQUEST_METHOD']==='POST'){
     require_post();check_csrf();
     try {
@@ -21,7 +31,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         try {
             if($id){$current=rows(run('SELECT * FROM posts WHERE id=?',[$id]))[0];if((int)post('version')!==(int)$current['version'])throw new InvalidArgumentException('This post was changed in another tab. Copy your draft before reloading.');}
             $published=$action==='publish'?json_encode($data):($action==='unpublish'?'':($p['published']??''));
-            $date=$action==='publish'?($p['published_at']??date('c')):($p['published_at']??'');
+            $date=$action==='publish'?($p['published_at']?:date('c')):($p['published_at']??'');
             $values=[$data['title'],$data['summary'],$data['body'],$data['category'],$data['links'],json_encode($data['media_ids']),$published,$date,date('c')];
             if($id)run('UPDATE posts SET title=?,summary=?,body=?,category=?,links=?,media_ids=?,published=?,published_at=?,updated_at=?,version=version+1 WHERE id=?',[...$values,$id]);
             else {run('INSERT INTO posts(title,summary,body,category,links,media_ids,published,published_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)',$values);$id=(int)db()->lastInsertRowID();}
@@ -33,7 +43,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     }catch(InvalidArgumentException $e){http_response_code(422);$error=$e->getMessage();$p=array_merge($p,$data??[]);$p['media_ids']=json_encode($data['media_ids']??[]);}
 }
 $media=rows(run('SELECT * FROM media ORDER BY id DESC LIMIT 100'));$chosen=json_decode($p['media_ids'],true)?:[];
-layout_start('Edit facility post'); echo '<link rel="stylesheet" href="/assets/common.647bd0dff5d8.css">'; ?>
+layout_start('Edit facility post'); echo '<link rel="stylesheet" href="/assets/common.3ed568225c2c.css">'; ?>
 <p><a href="/manage/posts.php">← Blog publishing</a></p><h1><?= $id?'Edit post':'Write a post' ?></h1>
 <?php if($error): ?><p class="error" role="alert"><?= h($error) ?></p><?php elseif(isset($_GET['saved'])): ?><p class="notice">Saved as <?= h($_GET['saved']) ?>.</p><?php endif ?>
 <?php if($id): ?><p><a href="/manage/preview.php?id=<?= $id ?>" target="_blank" rel="noopener">Preview saved draft ↗</a><?php if($p['published']): ?> · <a href="/blog.php?id=<?= $id ?>">View published post</a><?php endif ?></p><?php endif ?>

@@ -32,7 +32,7 @@ $page=max(1,min((int)($_GET['page']??1),max(1,(int)ceil($count/20))));
 $history=rows(run('SELECT * FROM care_totals_history ORDER BY id DESC LIMIT 20 OFFSET ?',[($page-1)*20]));
 layout_start('Confirmed care totals');
 ?>
-<link rel="stylesheet" href="/assets/common.647bd0dff5d8.css">
+<link rel="stylesheet" href="/assets/common.3ed568225c2c.css">
 <p><a href="/manage/">← Dashboard</a></p><h1>Confirmed care totals</h1>
 <p>Publish totals checked against facility records. Registrations count registered patients; encounters may include repeat visits. No daily estimates are added. Corrections may increase or decrease a total.</p>
 <?php if(isset($_GET['saved'])): ?><p role="status">Confirmed totals saved and available on the public homepage.</p><?php endif ?>

@@ -63,19 +63,36 @@ function post(string $key): string { return is_string($_POST[$key] ?? null) ? tr
 function h(string $value): string { return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
 function redirect(string $path): never { header('Location: ' . $path, true, 303); exit; }
 function session_open(): void {
+    if(session_status()===PHP_SESSION_ACTIVE) return;
     header('Referrer-Policy: no-referrer');
+    header('X-Robots-Tag: noindex, nofollow, noarchive');
+    header('Cache-Control: no-store, private, max-age=0');
+    header('Pragma: no-cache');
     $secure = parse_url(config()['origin'], PHP_URL_SCHEME) === 'https';
     if ($secure && ($_SERVER['HTTPS'] ?? '') !== 'on') { http_response_code(400); exit('HTTPS is required.'); }
+    if($_SERVER['REQUEST_METHOD']==='POST' &&
+       (($_SERVER['HTTP_SEC_FETCH_SITE']??'')==='cross-site' ||
+        (isset($_SERVER['HTTP_ORIGIN']) && $_SERVER['HTTP_ORIGIN']!==config()['origin']))) {
+        http_response_code(403);exit('Please submit from the Mwein administration page.');
+    }
+    $sessionDirectory=config()['data_dir'].'/admin-sessions';
+    if(is_link($sessionDirectory) || (!is_dir($sessionDirectory) && !mkdir($sessionDirectory,0700))) throw new RuntimeException('Private session storage unavailable');
+    if(PHP_OS_FAMILY!=='Windows' && !chmod($sessionDirectory,0700)) throw new RuntimeException('Cannot protect session storage');
+    ini_set('session.save_handler','files');
+    session_save_path($sessionDirectory);
+    ini_set('session.use_trans_sid','0');
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');
-    session_name('mwein_admin');
-    session_set_cookie_params(['lifetime'=>0, 'path'=>'/manage', 'secure'=>$secure, 'httponly'=>true, 'samesite'=>'Strict']);
+    ini_set('session.gc_maxlifetime','28800');
+    session_name($secure?'__Host-mwein_admin':'mwein_admin');
+    session_set_cookie_params(['lifetime'=>0, 'path'=>$secure?'/':'/manage', 'secure'=>$secure, 'httponly'=>true, 'samesite'=>'Strict']);
     session_start();
+    header('Cache-Control: no-store, private, max-age=0');
     $_SESSION['csrf'] ??= bin2hex(random_bytes(32));
 }
 function csrf(): string { return '<input type="hidden" name="csrf" value="' . h($_SESSION['csrf']) . '">'; }
 function check_csrf(): void {
-    if (!hash_equals($_SESSION['csrf'], post('csrf'))) { http_response_code(403); exit('Session check failed. Reload this page and try again.'); }
+    if (!is_string($_SESSION['csrf']??null) || !hash_equals($_SESSION['csrf'], post('csrf'))) { http_response_code(403); exit('Session check failed. Reload this page and try again.'); }
 }
 function same_origin(): void {
     if (($_SERVER['HTTP_ORIGIN'] ?? '') !== config()['origin']) { http_response_code(403); exit('Please submit from the Mwein website.'); }
@@ -97,8 +114,8 @@ function require_admin(): void {
     session_open();
     $valid = isset($_SESSION['admin'], $_SESSION['last'], $_SESSION['started'], $_SESSION['credential']) &&
         time() - $_SESSION['last'] < 1800 && time() - $_SESSION['started'] < 28800 &&
-        hash_equals(hash('sha256', config()['password_hash']), $_SESSION['credential']);
-    if (!$valid) { unset($_SESSION['admin']); redirect('/manage/login.php'); }
+        hash_equals(hash('sha256', config()['password_hash']), $_SESSION['credential']) && admin_session_registered();
+    if (!$valid) { $_SESSION=['csrf'=>bin2hex(random_bytes(32))]; session_regenerate_id(true); redirect('/manage/login.php'); }
     $_SESSION['last'] = time();
     exclude_internal_browser();
 }
@@ -117,6 +134,7 @@ function exclude_internal_browser(): void {
 function layout_start(string $title): void {
     header('Content-Type: text/html; charset=utf-8');
     header('X-Robots-Tag: noindex, nofollow');
-    echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . h($title) . ' | Mwein</title><link rel="icon" href="/favicon.ico?v=mwein-tab02"><link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png?v=mwein-tab02"><link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png?v=mwein-tab02"><link rel="stylesheet" href="/assets/common.647bd0dff5d8.css"></head><body class="dashboard"><header class="wrap header"><a href="/index.html" class="brand"><img src="/assets/mwein-wordmark.webp" width="300" height="100" alt="Mwein Medical Services"></a><a href="/index.html">View website ↗</a></header><main class="wrap admin-main">';
+    echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . h($title) . ' | Mwein</title><link rel="icon" href="/favicon.ico?v=mwein-tab02"><link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png?v=mwein-tab02"><link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png?v=mwein-tab02"><link rel="stylesheet" href="/assets/common.3ed568225c2c.css"></head><body class="dashboard"><header class="wrap header"><a href="/index.html" class="brand"><img src="/assets/mwein-wordmark.webp" width="300" height="100" alt="Mwein Medical Services"></a><a href="/index.html">View website ↗</a></header><main class="wrap admin-main">';
 }
 function layout_end(): void { echo '</main></body></html>'; }
+require_once __DIR__.'/admin-security.php';

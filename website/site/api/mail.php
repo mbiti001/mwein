@@ -27,6 +27,7 @@ function update_password(string $expectedHash, string $password): bool {
         $temp=tempnam(dirname($path),'password-');
         if(file_put_contents($temp,"<?php\nreturn ".var_export($current,true).";\n")===false || !rename($temp,$path)) throw new RuntimeException('Password save');
         if(function_exists('opcache_invalidate')) opcache_invalidate($path,true);
+        admin_security_tables();run('DELETE FROM admin_sessions');admin_event('password_changed');
         return true;
     } finally { flock($lock,LOCK_UN); fclose($lock); }
 }

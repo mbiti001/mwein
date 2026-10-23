@@ -16,7 +16,7 @@ $status=is_string($_GET['status']??null)?$_GET['status']:'pending';if(!in_array(
 $count=(int)scalar(run('SELECT COUNT(*) FROM feedback WHERE status=?',[$status]));$page=max(1,(int)($_GET['page']??1));$page=min($page,max(1,(int)ceil($count/20)));
 $items=rows(run('SELECT f.*,p.published AS post_published FROM feedback f LEFT JOIN posts p ON p.id=f.post_id WHERE f.status=? ORDER BY f.id DESC LIMIT 20 OFFSET ?',[$status,($page-1)*20]));
 layout_start('Comments & reviews'); ?>
-<link rel="stylesheet" href="/assets/common.647bd0dff5d8.css">
+<link rel="stylesheet" href="/assets/common.3ed568225c2c.css">
 <p><a href="/manage/">← Dashboard</a></p><h1>Comments & reviews</h1>
 <p>Publish genuine, relevant feedback regardless of its rating. Hide spam, abuse and private medical or contact details. Do not approve a submission containing personal health information. Hidden entries remain private for review; use the facility’s privacy process for removal requests.</p>
 <p>Website reviews are self-reported, not verified patient visits. Published ratings alone contribute to the displayed average.</p>
