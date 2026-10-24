@@ -1,0 +1,7 @@
+# Public asset fingerprints must be reproducible on Windows and Linux.
+website/**/*.css text eol=lf
+website/**/*.js text eol=lf
+website/**/*.mjs text eol=lf
+website/**/*.cjs text eol=lf
+website/**/*.html text eol=lf
+website/**/*.php text eol=lf

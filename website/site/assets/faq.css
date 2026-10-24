@@ -1,0 +1,1 @@
+.faq-list details+details{border-top:1px solid var(--line)}.faq-list summary{padding:20px 0;font-weight:600;cursor:pointer;line-height:1.6}.faq-list summary:focus-visible{outline:3px solid var(--teal);outline-offset:4px}.faq-list details p{margin:0;padding:0 0 22px;line-height:1.8}.faq-list details p a{text-decoration:underline;text-underline-offset:3px}

@@ -1,0 +1,3 @@
+<?php
+require dirname(__DIR__).'/api/content.php';require_admin();content_tables();$p=rows(run('SELECT * FROM posts WHERE id=?',[(int)($_GET['id']??0)]))[0]??null;
+if(!$p){http_response_code(404);exit('Post not found');}$p['media_ids']=json_decode($p['media_ids'],true);layout_start('Private draft preview');echo '<link rel="stylesheet" href="/assets/common.3ed568225c2c.css"><p class="notice">Private draft preview. This version is not published by previewing it.</p><p><a href="/manage/post.php?id='.(int)$p['id'].'">Back to editor</a></p>'.render_article($p,true);echo '<script src="/assets/site.js?v=a9dc47458b58" defer></script>';layout_end();

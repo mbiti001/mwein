@@ -1,4 +1,4 @@
-name: EMR verification
+name: Mwein verification
 
 on:
   push:
@@ -9,6 +9,38 @@ permissions:
   contents: read
 
 jobs:
+  website:
+    name: Website verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, mbstring, gd, fileinfo, openssl
+          coverage: none
+      - name: Verify generated assets are current
+        run: |
+          npm run website:build
+          git diff --exit-code -- website/site
+          test -z "$(git ls-files --others --exclude-standard website/site/assets)"
+      - name: Check website source and interactions
+        run: npm run website:test
+      - name: Check PHP syntax
+        run: find website -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Verify website backend with synthetic data
+        run: python website/tests/backend_test.py
+      - name: Check uploaded JPEG metadata handling
+        run: php website/tests/jpeg_metadata_test.php
+      - name: Verify authenticator reference vectors
+        run: php website/tests/admin_security_test.php
   platform:
     name: Platform verification
     runs-on: ubuntu-latest
@@ -64,6 +96,9 @@ jobs:
           retention-days: 7
   verify:
     name: Legacy compatibility verification
+    defaults:
+      run:
+        working-directory: legacy
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -86,6 +121,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mwein-cloud-emr-source
-          path: dist/mwein-cloud-emr-v*.zip
+          path: legacy/dist/mwein-cloud-emr-v*.zip
           if-no-files-found: error
           retention-days: 14
