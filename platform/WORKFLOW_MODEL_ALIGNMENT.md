@@ -32,4 +32,3 @@ This supersedes the earlier ordering that would automatically continue structure
 - [AfyaDynamics public site](https://dev.afyadynamics.com/), primary public page checked 24 October: registration, triage, consultation, laboratory request, prescription and billing share a record; dispensing connects to inventory. Main https://afyadynamics.com/ returned 403. No authenticated product demo or proprietary screen-level behaviour was inspected.
 
 These are public product descriptions, not clinical protocols, independently verified certification, integration contracts or acceptance of Mwein. No vendor integration, communication, clinical standard or new production approval is inferred. WHO/MoH/DHA acceptance and existing release safeguards remain separate.
-
