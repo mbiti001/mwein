@@ -167,7 +167,7 @@ export default function VisitSummaryWorkstation({ canAddendum = false, initialVi
           <h1>Clinical record</h1>
         </div>
         <div>
-          <button className="secondary" onClick={() => { if (confirmWorkspaceNavigation()) { setActive(null); setVisitFocus(null); } }}>
+          <button className="secondary" onClick={() => { if (confirmWorkspaceNavigation()) { void list.refresh(); setActive(null); setVisitFocus(null); } }}>
             ← Back
           </button>{" "}
           <button className="primary" onClick={() => window.print()}>

@@ -1,10 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
-async function fixture(page: Page) {
+async function fixture(page: Page, savedRecords: any[] = []) {
   const make = (id: string) => ({
     id, visitNumber: `TEST-V-${id}`, priority: "ROUTINE", status: "COMPLETED", clinic: "Outpatient", arrivedAt: "2026-10-24T08:00:00Z", facility: { name: "Synthetic clinic", code: "TEST" },
     patient: { fullName: `Synthetic Patient ${id}`, patientNumber: `TEST-P-${id}`, sexAtBirth: "UNKNOWN", estimatedAgeYears: 34, allergies: [] },
-    encounter: { id: `encounter-${id}`, status: "SIGNED", clinician: { displayName: "Synthetic Clinician" }, signedAt: "2026-10-24T09:00:00Z", subjective: {}, objective: {}, diagnoses: [], plan: {}, addenda: [] },
+    encounter: { id: `encounter-${id}`, status: "SIGNED", clinician: { displayName: "Synthetic Clinician" }, signedAt: "2026-10-24T09:00:00Z", subjective: {}, objective: {}, diagnoses: [], plan: {}, addenda: id === "A" ? savedRecords : [] },
     orders: [], referrals: [], invoice: null,
   });
   await page.route("**/api/auth/me", route => route.fulfill({ json: { user: { displayName: "Synthetic Author", facility: { name: "Synthetic clinic", timezone: "Africa/Nairobi" }, permissions: ["clinical.summary.read", "encounter.write"], mustChangePassword: false, mfaRequired: false } } }));
@@ -101,4 +101,22 @@ test("pending save prevents duplicate submits and a late response cannot replace
   release();
   await expect(page.locator(".summaryIdentity")).toContainText("Synthetic Patient B");
   await expect(page.locator(".compactVisitSummary")).not.toContainText("Saved synthetic narrative for exact retry");
+});
+
+
+test("returning to records reloads the confirmed addendum before reopening the patient", async ({ page }) => {
+  const records: any[] = [];
+  await page.route("**/api/encounters/*/addenda", route => {
+    const record = saved(route.request().postDataJSON());
+    records.push(record);
+    return route.fulfill({ status: 201, json: { addendum: record } });
+  });
+  const form = await fixture(page, records);
+  await form.getByRole("button", { name: "Add signed addendum" }).click();
+  await expect(form.getByLabel("Addendum *", { exact: true })).toHaveValue("");
+  await page.getByRole("button", { name: "← Back", exact: true }).click();
+  await page.getByRole("button", { name: /Synthetic Patient A/ }).click();
+  await page.getByText("Signed-note addenda", { exact: true }).click();
+  await expect(page.locator(".savedAddendum")).toHaveCount(1);
+  await expect(page.locator(".savedAddendum")).toContainText("Saved synthetic narrative for exact retry");
 });
