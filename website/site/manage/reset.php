@@ -1,6 +1,6 @@
 <?php
 require dirname(__DIR__).'/api/mail.php';
-session_open(); header('Referrer-Policy: no-referrer');
+session_open();
 if ($_SERVER['REQUEST_METHOD']==='GET' && isset($_GET['token'])) {
     $token=is_string($_GET['token'])?$_GET['token']:'';
     $_SESSION['reset_token']=preg_match('/^[a-f0-9]{64}$/D',$token)?hash('sha256',$token):'';

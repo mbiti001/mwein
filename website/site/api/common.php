@@ -64,7 +64,7 @@ function h(string $value): string { return htmlspecialchars($value, ENT_QUOTES |
 function redirect(string $path): never { header('Location: ' . $path, true, 303); exit; }
 function session_open(): void {
     if(session_status()===PHP_SESSION_ACTIVE) return;
-    header('Referrer-Policy: no-referrer');
+    header('Referrer-Policy: same-origin');
     header('X-Robots-Tag: noindex, nofollow, noarchive');
     header('Cache-Control: no-store, private, max-age=0');
     header('Pragma: no-cache');

@@ -378,7 +378,7 @@ class WebsiteTests(unittest.TestCase):
         self.assertIn('Website dashboard',self.login())
     def test_login_malformed_credentials_and_private_headers(self):
         _,text,headers=self.req('/manage/login.php');csrf=re.search('name="csrf" value="([a-f0-9]+)"',text)[1]
-        self.assertEqual(headers['Referrer-Policy'],'no-referrer');self.assertIn('no-store',headers['Cache-Control'])
+        self.assertEqual(headers['Referrer-Policy'],'same-origin');self.assertIn('no-store',headers['Cache-Control'])
         for email,password in [('unknown@example.test','wrong'),('admin@example.test','wrong'),('admin@example.test','x'*100),('admin@example.test','bad\x00password')]:
             result=self.req('/manage/login.php',{'csrf':csrf,'email':email,'password':password})
             self.assertEqual(result[0],401);self.assertIn('The email or password is incorrect.',result[1])
