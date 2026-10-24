@@ -985,6 +985,7 @@ model EncounterAddendum {
   id          String    @id @default(uuid()) @db.Uuid
   encounterId String    @db.Uuid
   authorId    String    @db.Uuid
+  idempotencyKey String? @unique @db.Uuid
   text        String
   reason      String
   createdAt   DateTime  @default(now())

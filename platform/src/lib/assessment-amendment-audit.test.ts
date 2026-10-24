@@ -11,14 +11,15 @@ import { createHash } from "node:crypto";
 
 const id = "11111111-1111-4111-8111-111111111111";
 const user = { id: "actor-a", facilityId: "facility-a", sessionId: "session-a" };
-const input = { reason: "Clarify synthetic wording", text: "Synthetic narrative amendment" };
-const tx = { encounter: { findFirst: vi.fn() }, encounterAddendum: { create: vi.fn() } };
+const input = { idempotencyKey: "22222222-2222-4222-8222-222222222222", reason: "Clarify synthetic wording", text: "Synthetic narrative amendment" };
+const tx = { encounter: { findFirst: vi.fn() }, encounterAddendum: { findUnique: vi.fn(), create: vi.fn() }, auditEvent: { findFirst: vi.fn() } };
 const post = (body: unknown = input) => POST(new Request("http://localhost/api/encounters/test/addenda", { method: "POST", body: JSON.stringify(body) }), { params: Promise.resolve({ id }) });
 
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(requirePermission).mockResolvedValue(user as any);
   tx.encounter.findFirst.mockResolvedValue({ id, visitId: "visit-a", status: "SIGNED" });
+  tx.encounterAddendum.findUnique.mockResolvedValue(null);
   tx.encounterAddendum.create.mockImplementation(async args => ({ id: "addendum-a", ...args.data, createdAt: new Date("2026-10-20T22:00:00Z"), author: { displayName: "Synthetic Author" } }));
   vi.mocked(db.$transaction).mockImplementation(async (callback: any) => callback(tx));
 });
@@ -58,9 +59,7 @@ describe("assessment narrative amendment audit: existing boundaries", () => {
   });
 });
 
-// These assertions characterize unresolved gaps. Replace them with positive
-// acceptance tests when implementing the history contract; they are not approvals.
-describe("narrative addendum evidence and remaining replay gap", () => {
+describe("narrative addendum evidence and idempotent replay", () => {
   it("binds persisted narrative values to actor, session, facility and visit", async () => {
     const response = await post();
     expect(response.status).toBe(201);
@@ -69,10 +68,49 @@ describe("narrative addendum evidence and remaining replay gap", () => {
     const digest = createHash("sha256").update(JSON.stringify(["addendum-v1", user.facilityId, "visit-a", addendum.id, id, user.id, addendum.reason, addendum.text, addendum.createdAt])).digest("hex");
     expect(appendAudit).toHaveBeenCalledWith(tx, { userId: user.id, facilityId: user.facilityId, sessionId: user.sessionId, action: "ENCOUNTER_ADDENDUM_ADDED", entityType: "Encounter", entityId: id, reason: input.reason, afterHash: `addendum-v1:${digest}` });
   });
-  it("CHARACTERIZATION: currently accepts repeated identical submissions as separate creates", async () => {
-    expect((await post()).status).toBe(201);
-    expect((await post()).status).toBe(201);
-    expect(tx.encounterAddendum.create).toHaveBeenCalledTimes(2);
-    expect(appendAudit).toHaveBeenCalledTimes(2);
+  it("returns the original committed addendum on an exact same-actor retry", async () => {
+    const createdAt = new Date("2026-10-20T22:00:00Z");
+    const existing = { id: "addendum-a", encounterId: id, authorId: user.id, ...input, createdAt, author: { displayName: "Synthetic Author" } };
+    tx.encounterAddendum.findUnique.mockResolvedValue(existing);
+    tx.auditEvent.findFirst.mockResolvedValue({ id: "receipt-a" });
+    const response = await post();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ replayed: true, addendum: { ...existing, createdAt: createdAt.toISOString() } });
+    expect(tx.encounterAddendum.create).not.toHaveBeenCalled();
+    expect(appendAudit).not.toHaveBeenCalled();
+    expect(tx.auditEvent.findFirst).toHaveBeenCalledWith({ where: expect.objectContaining({ facilityId: user.facilityId, userId: user.id, action: "ENCOUNTER_ADDENDUM_ADDED", entityType: "Encounter", entityId: id }), select: { id: true } });
   });
+  it("rejects a reused key with altered narrative or a missing audit receipt", async () => {
+    const existing = { id: "addendum-a", encounterId: id, authorId: user.id, ...input, createdAt: new Date("2026-10-20T22:00:00Z"), author: { displayName: "Synthetic Author" } };
+    tx.encounterAddendum.findUnique.mockResolvedValue(existing);
+    expect((await post({ ...input, text: "Different submitted narrative" })).status).toBe(409);
+    expect(tx.encounterAddendum.create).not.toHaveBeenCalled();
+    tx.auditEvent.findFirst.mockResolvedValue(null);
+    expect((await post()).status).toBe(409);
+    expect(appendAudit).not.toHaveBeenCalled();
+  });
+});
+
+it.each([undefined, "not-a-uuid"])("rejects missing or invalid retry key %s", async idempotencyKey => {
+  expect((await post({ ...input, idempotencyKey })).status).toBe(422);
+  expect(db.$transaction).not.toHaveBeenCalled();
+});
+it.each(["authorId", "encounterId", "reason", "text"])("rejects a key reused with different %s", async field => {
+  tx.encounterAddendum.findUnique.mockResolvedValue({ id: "addendum-a", encounterId: id, authorId: user.id, ...input, [field]: "different", createdAt: new Date() });
+  expect((await post()).status).toBe(409);
+  expect(appendAudit).not.toHaveBeenCalled();
+  expect(tx.encounterAddendum.create).not.toHaveBeenCalled();
+});
+it.each(["P2034", "P2002"])("retries a known aborted transaction %s with bounded attempts", async code => {
+  vi.mocked(db.$transaction).mockRejectedValueOnce({ code });
+  expect((await post()).status).toBe(201);
+  expect(db.$transaction).toHaveBeenCalledTimes(2);
+  vi.mocked(db.$transaction).mockReset().mockRejectedValue({ code });
+  expect((await post()).status).toBe(409);
+  expect(db.$transaction).toHaveBeenCalledTimes(3);
+});
+it("does not automatically retry an ambiguous network failure", async () => {
+  vi.mocked(db.$transaction).mockRejectedValue(new Error("Connection lost"));
+  expect((await post()).status).toBe(500);
+  expect(db.$transaction).toHaveBeenCalledTimes(1);
 });

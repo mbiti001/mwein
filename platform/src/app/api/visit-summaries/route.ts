@@ -33,7 +33,7 @@ export async function GET(request: Request) {
         facility: { select: { name: true, code: true, timezone: true } },
         patient: { select: { fullName: true, patientNumber: true, dateOfBirth: true, estimatedAgeYears: true, sexAtBirth: true, allergies: { where: { active: true } } } },
         triage: { include: { observations: true } },
-        encounters: { include: { diagnoses: true, servicePointRecord: true, clinician: { select: { displayName: true } }, addenda: { include: { author: { select: { displayName: true } } }, orderBy: { createdAt: "asc" } } }, orderBy: { createdAt: "desc" } },
+        encounters: { include: { diagnoses: true, servicePointRecord: true, clinician: { select: { displayName: true } }, addenda: { omit: { idempotencyKey: true }, include: { author: { select: { displayName: true } } }, orderBy: { createdAt: "asc" } } }, orderBy: { createdAt: "desc" } },
         orders: { include: {
           laboratory: { include: { result: { where: verifiedResultWhere, include: { items: true, verifiedBy: { select: { displayName: true } } } } } },
           imaging: { include: { result: { where: verifiedResultWhere, include: { performedBy: { select: { displayName: true } }, verifiedBy: { select: { displayName: true } } } } } },

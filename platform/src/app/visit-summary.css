@@ -19,6 +19,12 @@
 .compactVisitSummary .summaryFold[open] > summary::after { content: '−'; }
 .compactVisitSummary .summaryFold > summary h2 { margin: 0; padding: 0; border: 0; }
 .summaryFoldBody { display: grid; gap: 10px; padding: 0 0 12px; }
+.compactVisitSummary .addendumEntry { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: start; gap: 10px 16px; padding: 12px; border: 1px solid var(--line); border-radius: 7px; background: #f8fbff; }
+.compactVisitSummary .addendumEntry > label { min-width: 0; }
+.compactVisitSummary .addendumEntry :is(input, textarea) { width: 100%; min-width: 0; }
+.compactVisitSummary .addendumEntry > :is(p, button) { grid-column: 1 / -1; }
+.compactVisitSummary .addendumEntry > button { justify-self: start; white-space: normal; }
+@media (max-width: 650px) { .compactVisitSummary .addendumEntry { grid-template-columns: minmax(0, 1fr); } }
 .compactVisitSummary .summaryDisclosure { color: var(--muted); font-size: 12px; }
 .compactVisitSummary .summaryDisclosure > summary { padding: 6px 0; cursor: pointer; }
 .compactVisitSummary .summaryDisclosure > :not(summary) { margin-top: 6px; }
@@ -75,3 +81,10 @@
   .compactVisitSummary .summarySection { display: block; }
   .compactVisitSummary .summarySection > h2 { margin-bottom: 8px; }
 }
+
+/* Saved narratives mirror the entry columns and keep their original attribution. */
+.compactVisitSummary .savedAddendum { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); padding: 12px; border: 1px solid var(--line); border-radius: 7px; }
+.compactVisitSummary .savedAddendum .addendumAttribution { grid-column: 1 / -1; }
+.compactVisitSummary .savedAddendum p { white-space: pre-wrap; }
+@media (max-width: 650px) { .compactVisitSummary .savedAddendum { grid-template-columns: minmax(0, 1fr); } }
+@media print { .compactVisitSummary .savedAddendum { break-inside: auto; } }

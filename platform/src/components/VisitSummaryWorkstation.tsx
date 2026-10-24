@@ -1,7 +1,8 @@
 "use client";
 import { RecordFields, recordValue } from "./RecordFields";
 import { useEffect, useRef, useState } from "react";
-import { jsonRequest } from "@/lib/client-http";
+import SignedAddendumForm from "./SignedAddendumForm";
+import { confirmWorkspaceNavigation } from "./useUnsavedConsultation";
 import { careServiceProfile } from "@/lib/care-service-points";
 import { FacilityLetterhead } from "@/components/FacilityBrand";
 import { useWorklist } from "@/lib/use-worklist";
@@ -32,8 +33,6 @@ export default function VisitSummaryWorkstation({ canAddendum = false, initialVi
   const [query, setQuery] = useState("");
   const [visitFocus, setVisitFocus] = useState(initialVisitId || null);
   const [active, setActive] = useState<Summary | null>(null);
-  const [error, setError] = useState("");
-  const [savingAddendum, setSavingAddendum] = useState(false);
   const list = useWorklist<{ summaries: Summary[] }>(`/api/visit-summaries?q=${encodeURIComponent(query)}${visitFocus ? `&visitId=${visitFocus}` : ""}`);
   const summaries = list.data?.summaries || [];
   const loading = list.loading;
@@ -70,7 +69,7 @@ export default function VisitSummaryWorkstation({ canAddendum = false, initialVi
             </p>
           </div>
         </header>
-        {(error || list.error) && <div className="alert" role="alert">{error || list.error}<button className="secondary" onClick={() => void list.refresh()}>Retry records</button></div>}
+        {list.error && <div className="alert" role="alert">{list.error}<button className="secondary" onClick={() => void list.refresh()}>Retry records</button></div>}
         <section className="card search">
           <label>
             Find by patient, patient number, visit number or phone
@@ -168,7 +167,7 @@ export default function VisitSummaryWorkstation({ canAddendum = false, initialVi
           <h1>Clinical record</h1>
         </div>
         <div>
-          <button className="secondary" onClick={() => { setActive(null); setVisitFocus(null); }}>
+          <button className="secondary" onClick={() => { if (confirmWorkspaceNavigation()) { setActive(null); setVisitFocus(null); } }}>
             ← Back
           </button>{" "}
           <button className="primary" onClick={() => window.print()}>
@@ -176,7 +175,6 @@ export default function VisitSummaryWorkstation({ canAddendum = false, initialVi
           </button>
         </div>
       </header>
-      {error && <div className="alert noPrint" role="alert">{error}</div>}
       <article className="visitSummaryPaper compactVisitSummary" ref={paperRef}>
         <FacilityLetterhead
           facilityName={active.facility.name}
@@ -285,8 +283,8 @@ export default function VisitSummaryWorkstation({ canAddendum = false, initialVi
           ]} />
         </SummarySection>}
         {e?.status === "SIGNED" && (e.addenda?.length > 0 || canAddendum) && <SummarySection title="Signed-note addenda" collapsible wide screenOnly={!e.addenda?.length}>
-          {e.addenda?.length ? e.addenda.map((item: Summary) => <div className="summaryLine" key={item.id}><strong>{new Date(item.createdAt).toLocaleString()} · {item.author.displayName}</strong><span>{item.reason}: {item.text}</span></div>) : <p>No addenda recorded.</p>}
-          {canAddendum && <form className="dataForm noPrint" onSubmit={async event => { event.preventDefault(); setSavingAddendum(true); setError(""); const formElement = event.currentTarget; const form = new FormData(formElement); try { const result = await jsonRequest<any>(`/api/encounters/${e.id}/addenda`, { method: "POST", body: JSON.stringify({ reason: form.get("reason"), text: form.get("text") }) }, "Addendum could not be saved"); setActive({ ...active, encounter: { ...e, addenda: [...(e.addenda || []), result.addendum] } }); formElement.reset(); } catch (reason) { setError((reason as Error).message); } finally { setSavingAddendum(false); } }}><label>Reason *<input name="reason" required minLength={5} placeholder="Correction, clarification, or late information" /></label><label>Addendum *<textarea name="text" required minLength={5} rows={3} placeholder="Add new information without changing the signed note" /></label><button className="secondary" disabled={savingAddendum}>{savingAddendum ? "Adding…" : "Add signed addendum"}</button></form>}
+          {e.addenda?.length ? e.addenda.map((item: Summary) => <div className="summaryLine savedAddendum" key={item.id}><strong className="addendumAttribution">{item.createdAt ? new Date(item.createdAt).toLocaleString() : "Time not recorded"} · {recordedText(item.author?.displayName) || "Recorder not recorded"}</strong><div><small>Reason</small><p>{recordedText(item.reason) || "Not recorded"}</p></div><div><small>Addendum</small><p>{recordedText(item.text) || "Not recorded"}</p></div></div>) : <p>No addenda in this loaded summary.</p>}
+          {canAddendum && <SignedAddendumForm key={e.id} encounterId={e.id} onSaved={record => setActive((current: Summary | null) => current?.encounter?.id === record.encounterId ? { ...current, encounter: { ...current.encounter, addenda: [...(current.encounter.addenda || []).filter((item: Summary) => item.id !== record.id), record] } } : current)} />}
         </SummarySection>}
         {investigations.length > 0 && <SummarySection title="Investigations" wide>
           {investigations.length ? (

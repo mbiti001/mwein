@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 // Native narrative-history acceptance plus explicitly retained structured-history/replay gaps.
 // Invoked only after e2e-database's loopback/dedicated/empty database guards.
 export async function verifyAssessmentHistory({ pg, api, request, authenticate, requestWithCookie, assert, steps }) {
@@ -24,7 +24,7 @@ export async function verifyAssessmentHistory({ pg, api, request, authenticate, 
   assert(current.audits.length === 2 && current.revisions.length === 2 && current.revisions[0].data.carePlan === input.data.carePlan && current.revisions[1].data.carePlan === second.body.record.data.carePlan, "Original structured text was not retained across accepted saves");
   steps.push("verify two accepted assessment edits retain original/current structured versions beside one current projection");
   const amend = body => request(`/api/encounters/${encounterId}/addenda`, { method: "POST", body: JSON.stringify(body) });
-  const amendment = { reason: "Clarify synthetic assessment", text: "Synthetic narrative amendment for history audit" };
+  const amendment = { idempotencyKey: randomUUID(), reason: "Clarify synthetic assessment", text: "Synthetic narrative amendment for history audit" };
   assert((await amend(amendment)).response.status === 409, "Draft encounter unexpectedly accepted an addendum");
   assert(same(await snapshot(), current), "Draft rejection changed assessment/history");
   // SQL establishes a synthetic signed state; no clinical signing approval claimed.
@@ -79,10 +79,27 @@ export async function verifyAssessmentHistory({ pg, api, request, authenticate, 
   } finally { await pg.exec('DROP TRIGGER e2e_history_read_failure ON "AuditEvent"; DROP FUNCTION e2e_history_read_failure();'); }
   steps.push("verify native disclosure-audit failure withholds narrative and assessment data");
   const repeated = await amend(amendment);
-  assert(repeated.response.status === 201 && repeated.body.addendum.id !== added.body.addendum.id, "Re-audit amendment replay contract: duplicate prevention changed");
+  assert(repeated.response.status === 200 && repeated.body.replayed && repeated.body.addendum.id === added.body.addendum.id, "Exact retry did not return the committed narrative");
   current = await snapshot();
-  assert(current.addenda.length === 2 && current.audits.length === 4 && same(current.records, amended.records), "Repeated narrative submission did not create the characterized two records/events");
-  steps.push("CHARACTERIZATION: repeated narrative submissions create distinct records and success events");
+  assert(current.addenda.length === 1 && current.audits.length === 3 && same(current, amended), "Exact retry changed retained narrative or audit history");
+  steps.push("verify exact narrative replay returns original record without another row or success event");
+  for (const patch of [{ text: "Changed synthetic narrative" }, { reason: "Changed synthetic reason" }]) {
+    assert((await amend({ ...amendment, ...patch })).response.status === 409 && same(await snapshot(), current), "Changed-payload replay mutated saved state");
+  }
+  const renewed = await authenticate("MMS", "admin@mwein.local");
+  const renewedReplay = await requestWithCookie(`/api/encounters/${encounterId}/addenda`, renewed.cookie, { method: "POST", body: JSON.stringify(amendment) });
+  assert(renewedReplay.response.status === 200 && renewedReplay.body.addendum.id === persisted.id && same(await snapshot(), current), "Same actor could not confirm after renewed authentication");
+  const otherAuthor = await authenticate("MMS", "medical.director@example.test");
+  const authorDenied = await requestWithCookie(`/api/encounters/${encounterId}/addenda`, otherAuthor.cookie, { method: "POST", body: JSON.stringify(amendment) });
+  assert(authorDenied.response.status === 409 && !authorDenied.body.addendum && same(await snapshot(), current), "Another permitted actor replayed the original key");
+  const summaryRead = await request(`/api/visit-summaries?visitId=${visit.id}`);
+  assert(summaryRead.response.status === 200 && summaryRead.body.summaries[0].encounter.addenda.some(item => item.id === persisted.id) && !JSON.stringify(summaryRead.body).includes(amendment.idempotencyKey), "Summary disclosed the internal retry key or omitted saved narrative");
+  const concurrentInput = { ...amendment, idempotencyKey: randomUUID(), text: "Separate reviewed concurrent synthetic narrative" };
+  const concurrent = await Promise.all([amend(concurrentInput), amend(concurrentInput)]);
+  assert(concurrent.map(item => item.response.status).sort().join() === "200,201" && concurrent[0].body.addendum.id === concurrent[1].body.addendum.id, "Concurrent identical requests did not converge to one record");
+  current = await snapshot();
+  assert(current.addenda.length === 2 && current.audits.length === 4 && same(current.records, amended.records) && same(current.revisions, amended.revisions), "Concurrent retries changed projections or duplicated audits");
+  steps.push("verify changed narrative rejection, renewed actor session confirmation and concurrent exact-key convergence");
   await pg.query('UPDATE "Encounter" SET status=\'CORRECTED\' WHERE id=$1', [encounterId]);
   const refused = await save({ ...input, expectedRevision: second.body.assessmentRevision });
   assert(refused.response.status === 409 && refused.body.error.includes("addendum"), "Corrected assessment replacement guidance changed");
@@ -100,5 +117,5 @@ export async function verifyAssessmentHistory({ pg, api, request, authenticate, 
   assert(limited.response.status === 200 && limited.body.encounterStatus === 'DRAFT' && limited.body.readOnly && limited.body.addenda.hasMore && limited.body.addenda.limit === 20 && same(limited.body.addenda.items.map(item => item.id), expected), "Bounded history lost older encounter or deterministic order");
   steps.push("verify deterministic latest twenty narrative limit and older corrected encounter alongside newer draft");
   await pg.query('UPDATE "QueueEntry" SET status=\'COMPLETED\', "completedAt"=CURRENT_TIMESTAMP WHERE "visitId"=$1 AND status IN (\'WAITING\',\'CALLED\',\'IN_PROGRESS\')', [visit.id]);
-  console.log(JSON.stringify({ event: "assessment_history_characterization", visitId: visit.id, encounterId, recordId: first.body.record.id, observedCurrentRows: 1, assessmentSuccessEvents: 2, narrativeRowsAfterIdenticalSubmissions: 2, priorStructuredTextRetainedInQueriedState: true, servicePointReadIncludesAmendment: true, amendmentSessionAttributed: true, correctedAmendmentAccepted: false, permissionFacilityDenial: true, auditFailureRollback: true }));
+  console.log(JSON.stringify({ event: "assessment_history_characterization", visitId: visit.id, encounterId, recordId: first.body.record.id, observedCurrentRows: 1, assessmentSuccessEvents: 2, narrativeRowsAfterIdenticalSubmissions: 1, priorStructuredTextRetainedInQueriedState: true, servicePointReadIncludesAmendment: true, amendmentSessionAttributed: true, correctedAmendmentAccepted: false, permissionFacilityDenial: true, auditFailureRollback: true }));
 }

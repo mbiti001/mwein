@@ -124,7 +124,7 @@
       "methodExceptions": {}
     },
     "encounters/[id]/addenda": {
-      "sourceSha256": "8ec7b489411c417a9f61f5e52612c54561620c9793a3b31d840a77e8b3e2f081",
+      "sourceSha256": "5bb2cd9f02ef2151ae6ea9a7aad3a7dba7e0028f3176baee91888e7439b893f7",
       "methodExceptions": {}
     },
     "follow-ups": {
@@ -192,7 +192,7 @@
       "methodExceptions": {}
     },
     "patients/[id]/privacy/export": {
-      "sourceSha256": "53577ebe6529cbbb5a4efdc2d71ef9443d7e0d2c896ad2803bc82c7be10ed4dc",
+      "sourceSha256": "8999b3ba67d05dc018927ff9e709975a12985904a30412391bdea5ecb8cdc6a1",
       "methodExceptions": {}
     },
     "patients/[id]/privacy": {
@@ -258,7 +258,7 @@
       "methodExceptions": {}
     },
     "visit-summaries": {
-      "sourceSha256": "e0a11bdd956a1277cce3d9a3d8eeb6d94d85f4349eed25e8ce1f2cb97493eabc",
+      "sourceSha256": "aa88f3e738f3728103a2b94412d58cd313b0c54c5cc4e58b27267c1d8f9b4716",
       "methodExceptions": {}
     },
     "visits/[id]/cancel": {
