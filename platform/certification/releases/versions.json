@@ -96,9 +96,11 @@
     {
       "version": "1.7.0",
       "displayName": "1.7.0",
-      "status": "candidate",
+      "status": "deployed",
       "branch": "codex/encounter-pharmacy-workflow",
-      "note": "Encounter prescribing and pharmacy handoff with quoted order prices, refill review and a separate dispensing queue."
+      "note": "Promoted to the engineering pilot. Release identity, migration and sign-in verified. Clinical readiness is blocked and patient use is on hold. FHIR remains disabled.",
+      "source": "1a0faef367af32fab5e237b8d107aa2bb20a13d1",
+      "deploymentId": "dpl_BPBWRsdCteheQtycirQ93bWbGufm"
     }
   ]
 }
