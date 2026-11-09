@@ -313,6 +313,18 @@ export default function ClinicalApp() {
     setScreen("visit");
     setNotice("");
   };
+  async function signOut() {
+    if (!confirmWorkspaceNavigation()) return;
+    setNavigationError("");
+    try {
+      await api("/api/auth/logout", { method: "POST" });
+      flushSync(() => setUser(null));
+      location.reload();
+    } catch {
+      setNavigationError("Sign out could not be confirmed. Your open form is still here. Check the connection and try again.");
+    }
+  }
+
   const allNav: [Screen, string, string?][] = [
     ["dashboard", "Home"],
     ["registration", "Registration", "patient.create"],
@@ -362,25 +374,12 @@ export default function ClinicalApp() {
           <small>Signed in as</small>
           <strong>{user.displayName}</strong>
           <span>{user.facility.name}</span>
-          <button
-            onClick={async () => {
-              if (!confirmWorkspaceNavigation()) return;
-              setNavigationError("");
-              try {
-                await api("/api/auth/logout", { method: "POST" });
-                flushSync(() => setUser(null));
-                location.reload();
-              } catch {
-                setNavigationError("Sign out could not be confirmed. Your open form is still here. Check the connection and try again.");
-              }
-            }}
-          >
-            Sign out
-          </button>
+          <button onClick={signOut}>Sign out</button>
         </div>
       </aside>}
       <section className="workspace">
         {encounterFocused && <button className="secondary encounterHome noPrint" onClick={() => { if (!confirmWorkspaceNavigation()) return; setScreen("dashboard"); setContextVisitId(null); setFocusedVisitId(null); setNotice(""); }}>← Home</button>}
+        {encounterFocused && <button type="button" className="secondary noPrint" onClick={signOut}>Sign out</button>}
         {navigationError && <p className="alert" role="alert">{navigationError}</p>}
         {visitsRefreshFailed && user.permissions.includes("visit.read") && (
           <div className="alert syncWarning" role="status">

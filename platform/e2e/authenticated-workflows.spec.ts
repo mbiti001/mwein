@@ -226,8 +226,13 @@ test("a pending triage save prevents navigation until its result is confirmed", 
   await page.getByRole("button", { name: "Complete triage" }).click();
   await started;
   await page.getByRole("button", { name: "Home", exact: true }).click();
-  await page.getByRole("button", { name: "Consultation", exact: true }).click();
+  await expect(page.getByLabel("Temperature °C")).toHaveValue("38.1");
+  const confirmed = page.waitForResponse(response => response.url().endsWith("/triage") && response.request().method() === "POST");
   releaseResponse();
+  await (await confirmed).finished();
+  await expect(page.getByText(/Triage saved for Browser Full Flow/)).toBeVisible();
+  await page.getByRole("button", { name: "Home", exact: true }).click();
+  await page.getByRole("button", { name: "Consultation", exact: true }).click();
   await expect(page.getByText("Browser Full Flow", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Waiting for triage", exact: true })).toHaveCount(0);
 });
