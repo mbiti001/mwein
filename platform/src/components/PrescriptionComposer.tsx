@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { SearchablePicker } from "./SearchablePicker";
 import { chargeMoney, orderCharge, type OrderCharge } from "@/lib/order-charges";
 import { directIssueConversion, frequencyLabel, prescriptionCalculation, readPrescribingDefaults, type PrescribingDefaults } from "@/lib/prescribing-defaults";
@@ -183,7 +183,15 @@ export default function PrescriptionComposer({
   const [loading, setLoading] = useState(false);
   const editorRef = useRef<HTMLFieldSetElement>(null);
   const pending = useRef(false);
+  const focusNextSearch = useRef(false);
   const locked = busy || loading || !!uncertain;
+  useLayoutEffect(() => {
+    if (!focusNextSearch.current || locked || editor.medicineCode) return;
+    focusNextSearch.current = false;
+    const fieldset = editorRef.current;
+    if (!fieldset || fieldset.closest("[hidden], [inert]")) return;
+    fieldset.querySelector<HTMLInputElement>(".searchablePicker input:not([type=hidden])")?.focus();
+  }, [locked, editor.medicineCode]);
   const selected = catalogue.find(item => item.code === editor.medicineCode);
   function change(patch: Partial<Line>) {
     setEditor((current) => {
@@ -243,11 +251,11 @@ export default function PrescriptionComposer({
           setUncertain(body);
         return;
       }
+      focusNextSearch.current = true;
       setSaved(result.orders || saved);
       setEditor(blank(indication));
       setUncertain(null);
       onSaved();
-      requestAnimationFrame(() => editorRef.current?.querySelector<HTMLInputElement>(".searchablePicker input:not([type=hidden])")?.focus());
     } finally {
       pending.current = false;
     }
