@@ -92,6 +92,13 @@
       "source": "89e693df430571b9371cefad7db1e750ae41fe30",
       "deploymentId": "dpl_F3uShagMUnYftappZnbrmSdTf42T",
       "evidence": "2026-10-19-1.6.2.json"
+    },
+    {
+      "version": "1.7.0",
+      "displayName": "1.7.0",
+      "status": "candidate",
+      "branch": "codex/encounter-pharmacy-workflow",
+      "note": "Encounter prescribing and pharmacy handoff with quoted order prices, refill review and a separate dispensing queue."
     }
   ]
 }
