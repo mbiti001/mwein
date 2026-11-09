@@ -7,6 +7,13 @@ describe("staff role boundaries", () => {
     expect(canAssignRole({ actorRoles: ["SYSTEM_ADMIN"], canAssignGovernance: true, roleCode: "SYSTEM_ADMIN" })).toBe(true);
   });
 
+  it("enforces every protection on an account with system and governance roles", () => {
+    const targetRoleCodes = ["CLINICIAN", "SYSTEM_ADMIN", "DATA_PROTECTION_OFFICER"];
+    expect(canManageStaff({ actorRoles: ["SYSTEM_ADMIN"], canAssignGovernance: false, targetRoleCodes })).toBe(false);
+    expect(canManageStaff({ actorRoles: ["FACILITY_ADMIN"], canAssignGovernance: true, targetRoleCodes })).toBe(false);
+    expect(canManageStaff({ actorRoles: ["SYSTEM_ADMIN"], canAssignGovernance: true, targetRoleCodes })).toBe(true);
+  });
+
   it("lets delegated facility governance assign governance roles", () => {
     expect(canAssignRole({ actorRoles: ["FACILITY_ADMIN"], canAssignGovernance: true, roleCode: "MEDICAL_DIRECTOR" })).toBe(true);
     expect(canAssignRole({ actorRoles: ["HR_ADMIN"], canAssignGovernance: false, roleCode: "FACILITY_ADMIN" })).toBe(false);
