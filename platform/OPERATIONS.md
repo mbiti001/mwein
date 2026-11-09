@@ -96,6 +96,10 @@ Alert on 5xx rate, `/api/health` failure, `/api/ready` failure, repeated login t
 
 If a clinical save fails, staff must not infer it succeeded. Use the facility downtime register, reconcile from the immutable audit and domain records after recovery, and record the incident under the approved response plan.
 
+## Assigning staff to more than one department
+
+Open **Administration → Users & access**. On a new or existing staff account, check every authorised role under **Assigned roles**, then save. For example, a member assigned both **Clinician** and **Pharmacy & inventory officer** can open both workspaces with one sign-in. To end pharmacy cover, uncheck the pharmacy role and keep Clinician selected. Saving access ends the staff member’s existing sessions; their next sign-in uses the updated selection. Role edits do not create a second staff account or change existing visits or bills.
+
 ## DHA access-control release: reporting permissions
 
 The remediation branch separates `reports.clinical` from `reports.operations` and from `billing.read`. Review this proposed definition map before production provisioning:

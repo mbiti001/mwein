@@ -13,18 +13,39 @@ import { roleScopedPermissions } from "@/lib/role-permissions";
 import { workflowTransaction } from "@/lib/workflow-transaction";
 
 const roleCode = z.enum(["SYSTEM_ADMIN", "FACILITY_ADMIN", "MEDICAL_DIRECTOR", "FINANCE_MANAGER", "HR_ADMIN", "AUDITOR", "DATA_PROTECTION_OFFICER", "RECEPTION", "NURSE", "CLINICIAN", "CLINICIAN_COVER", "LABORATORY", "IMAGING", "PHARMACY", "PHARMACY_MANAGER", "BILLING"]);
+const roleCodes = z.array(roleCode).min(1, "Select at least one role").max(roleCode.options.length)
+  .refine(codes => new Set(codes).size === codes.length, "Select each role only once");
+const assignment = { roleCodes: roleCodes.optional(), roleCode: roleCode.optional() };
+type Assignment = { roleCodes?: z.infer<typeof roleCodes>; roleCode?: z.infer<typeof roleCode> };
+function selection(input: Assignment) {
+  return input.roleCodes ?? (input.roleCode ? [input.roleCode] : undefined);
+}
+const unambiguous = (input: Assignment) => !(input.roleCode && input.roleCodes);
 const createSchema = z.object({
   displayName: z.string().trim().min(2).max(120),
   email: z.email().transform((value) => value.toLowerCase()),
-  roleCode,
+  ...assignment,
   temporaryPassword: z.string().min(16).max(256),
-});
+}).refine(unambiguous, "Send only one role selection")
+  .refine(input => selection(input)?.length, "Select at least one role");
 const updateSchema = z.object({
   id: z.uuid(),
-  roleCode: roleCode.optional(),
+  ...assignment,
+  previousRoleCodes: z.array(roleCode).max(roleCode.options.length).optional(),
   status: z.enum(["ACTIVE", "DISABLED"]).optional(),
   temporaryPassword: z.string().min(16).max(256).optional(),
-}).refine((value) => value.roleCode || value.status || value.temporaryPassword, "Choose a staff change");
+}).refine(unambiguous, "Send only one role selection")
+  .refine(input => selection(input) || input.status || input.temporaryPassword, "Choose a staff change");
+
+async function selectedRoles(tx: Prisma.TransactionClient, user: {roles: string[]; permissions: string[]}, codes: string[]) {
+  const access = { actorRoles: user.roles, canAssignGovernance: user.permissions.includes("admin.assign_governance") };
+  if (!codes.every(roleCode => canAssignRole({ ...access, roleCode })))
+    throw Object.assign(new Error("Your role cannot assign this governance level"), { status: 403 });
+  const roles = await tx.role.findMany({ where: { code: { in: codes } }, select: { id: true, code: true } });
+  if (roles.length !== codes.length) throw Object.assign(new Error("A selected staff role is not configured"), { status: 422 });
+  return roles;
+}
+const orderedCodes = (codes: string[]) => [...codes].sort().join(",");
 
 const staffInclude = { mfaCredential: { select: { enabledAt: true } }, roles: { include: { role: true } } } as const;
 
@@ -62,7 +83,7 @@ export async function GET() {
     const access = { actorRoles: user.roles, canAssignGovernance: user.permissions.includes("admin.assign_governance") };
     await recordDisclosure(user, "STAFF_ACCESS", users.map(staff => staff.id));
     return privateJson({
-      users: users.map(({ passwordHash: _passwordHash, ...staff }) => ({ ...staff, canRecoverMfa: staff.id !== user.id && staff.status === "ACTIVE" && Boolean(staff.mfaCredential?.enabledAt) && access.canAssignGovernance && canManageStaff({ ...access, targetRoleCodes: staff.roles.map(item => item.role.code) }), manageable: canManageStaff({ ...access, targetRoleCodes: staff.roles.map(item => item.role.code) }) })),
+      users: users.map(({ passwordHash: _passwordHash, ...staff }) => ({ ...staff, self: staff.id === user.id, canRecoverMfa: staff.id !== user.id && staff.status === "ACTIVE" && Boolean(staff.mfaCredential?.enabledAt) && access.canAssignGovernance && canManageStaff({ ...access, targetRoleCodes: staff.roles.map(item => item.role.code) }), manageable: canManageStaff({ ...access, targetRoleCodes: staff.roles.map(item => item.role.code) }) })),
       roles: roles.map(role => ({ ...role, assignable: canAssignRole({ ...access, roleCode: role.code }) })),
     });
   } catch (error) { return apiError(error); }
@@ -70,22 +91,21 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const user = await requirePermission("admin.users");
+    const actor = await requirePermission("admin.users");
     const input = createSchema.parse(await request.json());
-    if (!canAssignRole({ actorRoles: user.roles, canAssignGovernance: user.permissions.includes("admin.assign_governance"), roleCode: input.roleCode }))
-      throw Object.assign(new Error("Your role cannot assign this governance level"), { status: 403 });
-    const role = await db.role.findUnique({ where: { code: input.roleCode } });
-    if (!role) throw Object.assign(new Error("Selected staff role is not configured"), { status: 422 });
-    const created = await db.$transaction(async (tx) => {
+    const requested = selection(input)!;
+    const created = await workflowTransaction(async (tx) => {
+      const user = await currentStaffActor(tx, actor);
+      const roles = await selectedRoles(tx, user, requested);
       const staff = await tx.user.create({ data: {
         facilityId: user.facilityId,
         displayName: input.displayName,
         email: input.email,
         passwordHash: hashPassword(input.temporaryPassword),
         mustChangePassword: true,
-        roles: { create: { roleId: role.id } },
+        roles: { create: roles.map(role => ({ roleId: role.id })) },
       }, include: staffInclude });
-      await appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: "STAFF_CREATED", entityType: "User", entityId: staff.id, afterHash: `${staff.email}:${input.roleCode}` });
+      await appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: "STAFF_CREATED", entityType: "User", entityId: staff.id, afterHash: `${staff.email}:${orderedCodes(requested)}` });
       return staff;
     });
     const { passwordHash: _passwordHash, ...safeStaff } = created;
@@ -108,18 +128,23 @@ export async function PATCH(request: Request) {
       const access = { actorRoles: user.roles, canAssignGovernance: user.permissions.includes("admin.assign_governance") };
       if (!canManageStaff({ ...access, targetRoleCodes: target.roles.map(item => item.role.code) }))
         throw Object.assign(new Error("Your role cannot change this governance account"), { status: 403 });
-      if (input.roleCode && !canAssignRole({ ...access, roleCode: input.roleCode }))
-        throw Object.assign(new Error("Your role cannot assign this governance level"), { status: 403 });
-      const targetIsAdmin = target.roles.some((item) => item.role.code === "SYSTEM_ADMIN");
-      const activeAdminCount = await tx.user.count({ where: { facilityId: user.facilityId, status: "ACTIVE", roles: { some: { role: { code: "SYSTEM_ADMIN" } } } } });
-      const safety = staffChangeIsSafe({ targetUserId: target.id, actingUserId: user.id, targetIsAdmin, activeAdminCount, nextStatus: input.status, nextRoleCode: input.roleCode });
+      const current = target.roles.map(item => item.role.code);
+      const requested = selection(input);
+      if (input.roleCode && current.length > 1)
+        throw Object.assign(new Error("This account has multiple roles. Reopen Staff access to edit its full selection."), { status: 409 });
+      if (input.previousRoleCodes && orderedCodes(current) !== orderedCodes(input.previousRoleCodes))
+        throw Object.assign(new Error("The assigned roles have changed. Refresh staff and review the current selection."), { status: 409 });
+      if (target.id === user.id && requested?.some(code => !current.includes(code)))
+        throw Object.assign(new Error("Another authorised administrator must grant new roles to your account"), { status: 403 });
+      const roles = requested ? await selectedRoles(tx, user, requested) : undefined;
+      const targetIsAdmin = target.status === "ACTIVE" && current.includes("SYSTEM_ADMIN");
+      const activeAdminCount = targetIsAdmin ? await tx.user.count({ where: { facilityId: user.facilityId, status: "ACTIVE", roles: { some: { role: { code: "SYSTEM_ADMIN" } } } } }) : 0;
+      const safety = staffChangeIsSafe({ targetUserId: target.id, actingUserId: user.id, targetIsAdmin, activeAdminCount, nextStatus: input.status, nextRoleCodes: requested });
       if (!safety.safe) throw Object.assign(new Error(safety.reason), { status: 409 });
-      const role = input.roleCode ? await tx.role.findUnique({ where: { code: input.roleCode } }) : null;
-      if (input.roleCode && !role) throw Object.assign(new Error("Selected staff role is not configured"), { status: 422 });
 
-      if (role) {
-        await tx.userRole.deleteMany({ where: { userId: target.id } });
-        await tx.userRole.create({ data: { userId: target.id, roleId: role.id } });
+      if (roles) {
+        await tx.userRole.deleteMany({ where: { userId: target.id, roleId: { notIn: roles.map(role => role.id) } } });
+        await tx.userRole.createMany({ data: roles.map(role => ({ userId: target.id, roleId: role.id })), skipDuplicates: true });
       }
       const staff = await tx.user.update({ where: { id: target.id }, data: {
         status: input.status,
@@ -127,9 +152,9 @@ export async function PATCH(request: Request) {
         mustChangePassword: input.temporaryPassword ? true : undefined,
         passwordChangedAt: input.temporaryPassword ? null : undefined,
       }, include: staffInclude });
-      if (input.status || input.roleCode || input.temporaryPassword)
+      if (input.status || requested || input.temporaryPassword)
         await tx.session.deleteMany({ where: { userId: target.id } });
-      await appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: input.temporaryPassword ? "STAFF_PASSWORD_RESET" : "STAFF_ACCESS_UPDATED", entityType: "User", entityId: target.id, beforeHash: `${target.status}:${target.roles.map((item) => item.role.code).join(",")}`, afterHash: `${staff.status}:${staff.roles.map((item) => item.role.code).join(",")}` });
+      await appendAudit(tx, { facilityId: user.facilityId, userId: user.id, sessionId: user.sessionId, action: input.temporaryPassword ? "STAFF_PASSWORD_RESET" : "STAFF_ACCESS_UPDATED", entityType: "User", entityId: target.id, beforeHash: `${target.status}:${orderedCodes(current)}`, afterHash: `${staff.status}:${orderedCodes(staff.roles.map(item => item.role.code))}` });
       return staff;
     });
     const { passwordHash: _passwordHash, ...safeStaff } = updated;

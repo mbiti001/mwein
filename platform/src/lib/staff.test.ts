@@ -7,10 +7,10 @@ describe("staff administration safeguards", () => {
   });
 
   it("protects the final active administrator", () => {
-    expect(staffChangeIsSafe({ targetUserId: "2", actingUserId: "1", targetIsAdmin: true, activeAdminCount: 1, nextRoleCode: "CLINICIAN" }).safe).toBe(false);
+    expect(staffChangeIsSafe({ targetUserId: "2", actingUserId: "1", targetIsAdmin: true, activeAdminCount: 1, nextRoleCodes: ["CLINICIAN", "PHARMACY"] }).safe).toBe(false);
   });
 
   it("allows ordinary role and status changes", () => {
-    expect(staffChangeIsSafe({ targetUserId: "2", actingUserId: "1", targetIsAdmin: false, activeAdminCount: 1, nextRoleCode: "NURSE" }).safe).toBe(true);
+    expect(staffChangeIsSafe({ targetUserId: "2", actingUserId: "1", targetIsAdmin: false, activeAdminCount: 1, nextRoleCodes: ["NURSE"] }).safe).toBe(true);
   });
 });

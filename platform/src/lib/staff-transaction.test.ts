@@ -5,10 +5,10 @@ vi.mock("@/lib/audit", () => ({ appendAudit: vi.fn() }));
 import { db } from "./db";
 import { requirePermission } from "./auth";
 import { appendAudit } from "./audit";
-import { PATCH } from "@/app/api/admin/users/route";
+import { PATCH, POST } from "@/app/api/admin/users/route";
 const actor = { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", facilityId: "facility", sessionId: "session", roles: ["FACILITY_ADMIN"], permissions: ["admin.users", "admin.assign_governance"] };
 const target = { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", status: "ACTIVE", passwordHash: "private", roles: [{ role: { code: "DATA_PROTECTION_OFFICER" } }] };
-const tx = { user: { findFirst: vi.fn(), count: vi.fn(), update: vi.fn() }, role: { findUnique: vi.fn() }, userRole: { deleteMany: vi.fn(), create: vi.fn() }, session: { findUnique: vi.fn(), deleteMany: vi.fn() } };
+const tx = { user: { findFirst: vi.fn(), count: vi.fn(), update: vi.fn() }, role: { findMany: vi.fn() }, userRole: { deleteMany: vi.fn(), createMany: vi.fn() }, session: { findUnique: vi.fn(), deleteMany: vi.fn() } };
 const call = () => PATCH(new Request("http://localhost/api/admin/users", { method: "PATCH", body: JSON.stringify({ id: target.id, status: "DISABLED" }) }));
 beforeEach(() => {
   vi.resetAllMocks();
@@ -71,10 +71,10 @@ function stagedStaff(errors: unknown[] = [], failAt: "role" | "audit" | "commit"
         findFirst: vi.fn(async () => state.target), count: vi.fn(async () => state.adminCount),
         update: vi.fn(async ({ data }: any) => { Object.assign(state.target, Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined))); return structuredClone(state.target); }),
       },
-      role: { findUnique: vi.fn(async () => state.selectedRole) },
+      role: { findMany: vi.fn(async () => state.selectedRole ? [state.selectedRole] : []) },
       userRole: {
         deleteMany: vi.fn(async () => { state.target.roles = []; }),
-        create: vi.fn(async () => { state.target.roles = [{ role: state.selectedRole }]; if (failAt === "role") fail(); }),
+        createMany: vi.fn(async () => { state.target.roles = [{ role: state.selectedRole }]; if (failAt === "role") fail(); }),
       },
     };
     attempts.push(attempt);
@@ -105,8 +105,8 @@ it.each(conflicts)("recovers DPO reassignment after known-aborted audit %j with 
   for (const attempt of model.attempts) {
     expect(attempt.session.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: actor.sessionId } }));
     expect(attempt.user.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: target.id, facilityId: actor.facilityId } }));
-    expect(attempt.role.findUnique).toHaveBeenCalledWith({ where: { code: "DATA_PROTECTION_OFFICER" } });
-    expect(attempt.userRole.create).toHaveBeenCalledWith({ data: { userId: target.id, roleId: "dpo-role" } });
+    expect(attempt.role.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { code: { in: ["DATA_PROTECTION_OFFICER"] } } }));
+    expect(attempt.userRole.createMany).toHaveBeenCalledWith({ data: [{ userId: target.id, roleId: "dpo-role" }], skipDuplicates: true });
     expect(attempt.session.deleteMany).toHaveBeenCalledWith({ where: { userId: target.id } });
   }
   expect(model.saved.target.roles).toEqual([{ role: model.saved.selectedRole }]);
@@ -121,7 +121,7 @@ it.each(["role", "commit"] as const)("restarts the complete staff transaction af
   expect(model.attempts).toHaveLength(2);
   expect(model.saved.audits).toHaveLength(1);
   expect(model.saved.sessions).toEqual([]);
-  expect(model.attempts[1].userRole.create).toHaveBeenCalledTimes(1);
+  expect(model.attempts[1].userRole.createMany).toHaveBeenCalledTimes(1);
 });
 it.each(conflicts)("exhausts three aborted staff attempts without modeled durable changes: %j", async conflict => {
   const model = stagedStaff([conflict, conflict, conflict]);
@@ -168,7 +168,7 @@ it("does not let HR overwrite a target promoted to governance after an aborted o
   model.afterAbort(saved => { saved.target.roles = [{ role: { code: "DATA_PROTECTION_OFFICER" } }]; });
   expect((await reassign({ roleCode: "NURSE" })).status).toBe(403);
   expect(model.attempts).toHaveLength(2);
-  expect(model.attempts[0].role.findUnique).toHaveBeenCalledWith({ where: { code: "NURSE" } });
+  expect(model.attempts[0].role.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { code: { in: ["NURSE"] } } }));
   expect(model.attempts[1].userRole.deleteMany).not.toHaveBeenCalled();
   expect(model.saved.sessions).toEqual(["target-session"]); expect(model.saved.audits).toEqual([]);
 });
@@ -202,4 +202,49 @@ it("allows existing verified MFA older than five minutes without inventing a new
   expect((await reassign()).status).toBe(200);
   expect(model.attempts).toHaveLength(2);
   expect(model.saved.sessions).toEqual([]); expect(model.saved.audits).toHaveLength(1);
+});
+
+const rolePatch = (data: object) => PATCH(new Request("http://localhost/api/admin/users", { method: "PATCH", body: JSON.stringify({ id: target.id, ...data }) }));
+const clinician = { role: { code: "CLINICIAN" } };
+const pharmacist = { role: { code: "PHARMACY" } };
+
+it("validates the entire selection before creating or editing any assignments", async () => {
+  const session = actorSession(["HR_ADMIN"], ["admin.users"]);
+  tx.session.findUnique.mockResolvedValue(session);
+  tx.user.findFirst.mockResolvedValue({ ...target, roles: [clinician] });
+  const roleCodes = ["CLINICIAN", "SYSTEM_ADMIN"];
+  expect((await rolePatch({ roleCodes })).status).toBe(403);
+  expect((await POST(new Request("http://localhost/api/admin/users", { method: "POST", body: JSON.stringify({
+    displayName: "Role test", email: "role@example.test", temporaryPassword: "synthetic-test-password", roleCodes,
+  }) }))).status).toBe(403);
+  expect(tx.role.findMany).not.toHaveBeenCalled();
+  expect(tx.userRole.deleteMany).not.toHaveBeenCalled();
+  expect(appendAudit).not.toHaveBeenCalled();
+});
+it.each([{ roleCodes: [] }, { roleCodes: ["PHARMACY", "PHARMACY"] }, { roleCodes: ["CLINICIAN", "UNKNOWN"] }])("rejects an invalid role set %j", async input => {
+  expect((await rolePatch(input)).status).toBe(422);
+  expect(db.$transaction).not.toHaveBeenCalled();
+});
+it("rejects ambiguous role inputs", async () => {
+  expect((await rolePatch({ roleCode: "NURSE", roleCodes: ["PHARMACY"] })).status).toBe(422);
+  expect(db.$transaction).not.toHaveBeenCalled();
+});
+it("rejects a stale multi-role editor and an older single-role client without deleting another assignment", async () => {
+  tx.user.findFirst.mockResolvedValue({ ...target, roles: [clinician, pharmacist] });
+  expect((await rolePatch({ previousRoleCodes: ["CLINICIAN"], roleCodes: ["CLINICIAN", "NURSE"] })).status).toBe(409);
+  expect((await rolePatch({ roleCode: "CLINICIAN" })).status).toBe(409);
+  expect(tx.userRole.deleteMany).not.toHaveBeenCalled();
+});
+it("cannot add privileges to the acting administrator's own account", async () => {
+  tx.user.findFirst.mockResolvedValue({ ...target, id: actor.id, roles: [{ role: { code: "FACILITY_ADMIN" } }] });
+  expect((await rolePatch({ id: actor.id, roleCodes: ["FACILITY_ADMIN", "PHARMACY"] })).status).toBe(403);
+  expect(tx.userRole.createMany).not.toHaveBeenCalled();
+});
+it("preserves the last active administrator when that role is one of several requested roles", async () => {
+  tx.session.findUnique.mockResolvedValue(actorSession(["SYSTEM_ADMIN"]));
+  tx.user.findFirst.mockResolvedValue({ ...target, roles: [clinician, { role: { code: "SYSTEM_ADMIN" } }] });
+  tx.role.findMany.mockResolvedValue([{ id: "admin", code: "SYSTEM_ADMIN" }, { id: "pharmacy", code: "PHARMACY" }]);
+  expect((await rolePatch({ roleCodes: ["PHARMACY", "SYSTEM_ADMIN"] })).status).toBe(200);
+  tx.role.findMany.mockResolvedValue([{ id: "pharmacy", code: "PHARMACY" }]);
+  expect((await rolePatch({ roleCodes: ["PHARMACY"] })).status).toBe(409);
 });
