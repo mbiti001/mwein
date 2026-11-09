@@ -114,9 +114,12 @@
     {
       "version": "1.8.0",
       "displayName": "1.8.0",
-      "status": "reserved",
+      "status": "deployed",
       "branch": "codex/encounter-workspace",
-      "note": "Clinical encounter workspace and multiple authorised roles per staff account."
+      "note": "Patient encounter with section navigation, patient overview and responsive saved prescriptions. Authorised staff can hold multiple roles. Engineering pilot, patient use on hold.",
+      "source": "e24baeafc2b312649c116c70538acb7f273d4e95",
+      "deploymentId": "dpl_GqyVZE2MoifC7Gdyg13vr5SAw6Bz",
+      "evidence": "2026-11-10-1.8.0.json"
     }
   ]
 }

@@ -1,0 +1,84 @@
+{
+  "version": "1.8.0",
+  "source": "e24baeafc2b312649c116c70538acb7f273d4e95",
+  "branch": "codex/encounter-workspace",
+  "tag": "mwein-v1.8.0",
+  "target": "Mwein engineering pilot",
+  "previousRelease": "1.7.1",
+  "previousSource": "8161e98994ebc087babda1618d923df94c0fec9c",
+  "archive": {
+    "scope": "platform and root .vercelignore",
+    "sha256": "1ada2d9f87f3187a3ac19a99641e1d331918bdefa083ef0d8063a1789fb11a2c",
+    "bytes": 6236160
+  },
+  "applicationOnly": {
+    "migration": "20261109183000_order_price_handoff",
+    "changesToPrismaMigrationsOrSchema": false,
+    "provisioningPerformed": false,
+    "fhirIncluded": false
+  },
+  "local": {
+    "unitTests": 1361,
+    "typeCheck": "passed",
+    "productionBuild": "passed",
+    "validationData": "Disposable synthetic fixtures",
+    "isolatedWorkflowChecks": 214
+  },
+  "reviews": [
+    {
+      "reviewer": "roles_review",
+      "scope": "Staff role grant validation, governance, session revocation, facility boundaries and encounter navigation",
+      "result": "70 access tests passed. A development run timed out once during a navigation check. The compiled production build passed the affected scenario and layout retest."
+    },
+    {
+      "reviewer": "picker",
+      "scope": "Compiled prescription editor, repeated concurrent focus tests, saved quantities and prices visible from 320 to 1440 px",
+      "result": "10 prescription tests and two additional scenarios passed on the compiled build."
+    },
+    {
+      "reviewer": "handoff_review",
+      "scope": "Two medicines, both dispensation retries, stock balances, a single invoice and final discharge in isolated PostgreSQL",
+      "result": "214 isolated outpatient checks passed, including persisted supply, stock, invoice and discharge."
+    }
+  ],
+  "isolatedDispensing": {
+    "prescribedAndSupplied": [
+      10,
+      3
+    ],
+    "unitPricesKes": [
+      5,
+      100
+    ],
+    "stockDeducted": [
+      10,
+      3
+    ],
+    "stockMovementCount": 2,
+    "dispensationReceiptCount": 2,
+    "invoiceCount": 1,
+    "invoiceLines": 3,
+    "totalKes": 850,
+    "disposition": "OUTPATIENT",
+    "closureVerified": true
+  },
+  "hostedCiUrl": "https://github.com/mbiti001/mwein/actions/runs/42701589918",
+  "hosted": {
+    "conclusion": "success",
+    "browserScenarios": 173,
+    "unitTests": 1361,
+    "outpatientChecks": 215,
+    "platformJobId": 129447423092
+  },
+  "live": {
+    "deployment": "dpl_GqyVZE2MoifC7Gdyg13vr5SAw6Bz",
+    "url": "https://mwein-hmis-platform.vercel.app",
+    "verifiedAt": "2026-11-09T21:35:48.079Z",
+    "database": "connected",
+    "migration": "20261109183000_order_price_handoff",
+    "browserSignInAndFooter": "verified",
+    "readinessHttp": 503,
+    "readiness": "blocked",
+    "patientUse": "on hold"
+  }
+}
