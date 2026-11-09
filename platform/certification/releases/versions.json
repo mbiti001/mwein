@@ -110,6 +110,13 @@
       "note": "Order the outpatient encounter around investigations, treatment, final diagnosis and disposition. Use a compact medicine editor and enable direct issue-unit calculation without preset clinical regimens.",
       "source": "8161e98994ebc087babda1618d923df94c0fec9c",
       "deploymentId": "dpl_GtEoZBAUuDgXmP1btfkPUxoonSTj"
+    },
+    {
+      "version": "1.8.0",
+      "displayName": "1.8.0",
+      "status": "reserved",
+      "branch": "codex/encounter-workspace",
+      "note": "Clinical encounter workspace and multiple authorised roles per staff account."
     }
   ]
 }
