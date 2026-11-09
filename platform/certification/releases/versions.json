@@ -105,9 +105,11 @@
     {
       "version": "1.7.1",
       "displayName": "1.7.1",
-      "status": "candidate",
+      "status": "deployed",
       "branch": "codex/encounter-pharmacy-workflow",
-      "note": "Order the outpatient encounter around investigations, treatment, final diagnosis and disposition. Use a compact medicine editor and enable direct issue-unit calculation without preset clinical regimens."
+      "note": "Order the outpatient encounter around investigations, treatment, final diagnosis and disposition. Use a compact medicine editor and enable direct issue-unit calculation without preset clinical regimens.",
+      "source": "8161e98994ebc087babda1618d923df94c0fec9c",
+      "deploymentId": "dpl_GtEoZBAUuDgXmP1btfkPUxoonSTj"
     }
   ]
 }
