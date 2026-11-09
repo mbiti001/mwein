@@ -70,7 +70,7 @@ async function fixture(page: Page, orders: object[] = []) {
   await page
     .getByRole("button", { name: /Synthetic Prescription.*P-RX/ })
     .click();
-  await page.getByRole("button", { name: /Prescription.*Prescribe only/ }).click();
+  await page.getByRole("navigation", { name: "Encounter sections" }).getByRole("button", { name: "Prescription", exact: true }).click();
 }
 async function fill(page: Page, code = "A") {
   await page
@@ -109,6 +109,45 @@ const saved = (data: any) =>
         : data.idempotencyKey,
     },
   }));
+
+test("saving a medicine keeps the saved list clear and the next search focused", async ({ page }) => {
+  const orders: ReturnType<typeof saved> = [];
+  await page.route("**/api/visits/*/consultation", route => {
+    const [order] = saved(route.request().postDataJSON().data);
+    orders.push({ ...order, id: order.prescription.medicineCode });
+    return route.fulfill({ json: { orders } });
+  });
+  await fixture(page);
+  const editor = page.getByRole("group", { name: "Add a medicine" });
+  const search = editor.getByPlaceholder("Search medicine by generic, brand or strength…");
+  const list = page.getByRole("table", { name: "Saved prescriptions" });
+  for (const code of ["A", "B"]) {
+    await search.fill("brand " + code);
+    const option = editor.getByRole("button", { name: new RegExp("Synthetic medicine " + code) });
+    await expect(option).toBeVisible();
+    if (code === "A") await option.click();
+    else {
+      await search.press("Tab");
+      await expect(option).toBeFocused();
+      await option.press("Enter");
+    }
+    await editor.getByLabel("Dose (tablet) *").fill("1");
+    await editor.getByRole("button", { name: "Save prescription" }).click();
+    await expect(list.getByRole("row", { name: new RegExp("Synthetic medicine " + code) })).toContainText("Sent to pharmacy");
+    await expect(search).toBeFocused();
+    await expect(search).toHaveValue("");
+    await expect(editor.getByRole("listbox")).toHaveCount(0);
+  }
+  await expect(list.locator("tbody tr")).toHaveCount(2);
+  for (const width of [834, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(list.getByText("Unit price", { exact: true }).last()).toBeVisible();
+    await expect.poll(() => list.evaluate(table => {
+      const wrapper = table.parentElement!;
+      return wrapper.scrollWidth - wrapper.clientWidth;
+    })).toBe(0);
+  }
+});
 
 test("a lost save response locks the editor and retries the same medicine", async ({page}) => {
   const posts: any[] = [];
@@ -344,7 +383,7 @@ test("configured liquid conversion calculates whole bottles from one dose", asyn
   await page.reload();
   await page.getByRole("button",{name:"Consultation",exact:true}).click();
   await page.getByRole("button",{name:/Synthetic Prescription.*P-RX/}).click();
-  await page.getByRole("button",{name:/Prescription.*Prescribe only/}).click();
+  await page.getByRole("navigation", { name: "Encounter sections" }).getByRole("button", { name: "Prescription", exact: true }).click();
   await page.getByPlaceholder("Search medicine by generic, brand or strength…").fill("brand A");
   await page.getByRole("button",{name:/Synthetic medicine A/}).click();
   await expect(page.locator('[name="route"]')).toHaveValue("Oral");
@@ -360,7 +399,7 @@ test("missing facility defaults stay blank and cannot invent a regimen", async (
   await page.reload();
   await page.getByRole("button",{name:"Consultation",exact:true}).click();
   await page.getByRole("button",{name:/Synthetic Prescription.*P-RX/}).click();
-  await page.getByRole("button",{name:/Prescription.*Prescribe only/}).click();
+  await page.getByRole("navigation", { name: "Encounter sections" }).getByRole("button", { name: "Prescription", exact: true }).click();
   await page.getByPlaceholder("Search medicine by generic, brand or strength…").fill("brand A");
   await page.getByRole("button",{name:/Synthetic medicine A/}).click();
   await expect(page.getByRole("status").filter({hasText:"Facility prescribing defaults"})).toHaveCount(0);
@@ -370,4 +409,17 @@ test("missing facility defaults stay blank and cannot invent a regimen", async (
   await page.locator('[name="frequencyPerDay"]').selectOption("2");
   await page.locator('[name="durationDays"]').fill("3");
   await expect(page.locator('[name="quantity"]')).toHaveValue("6");
+});
+
+test("encounter lists pharmacy's partial and not-supplied outcomes", async ({ page }) => {
+  const orders = ["PARTIALLY_DISPENSED", "NOT_DISPENSED"].map((dispenseStatus, index) => ({
+    id: "outcome-" + index, type: "MEDICATION", status: index ? "COMPLETED" : "IN_PROGRESS",
+    displayName: "Synthetic item " + index,
+    prescription: { dispenseStatus, quantity: "10", dispensedQuantity: index ? "0" : "4" },
+  }));
+  await fixture(page, orders);
+  const list = page.getByRole("table", { name: "Saved prescriptions" });
+  await expect(list.getByRole("row", { name: /Synthetic item 0/ })).toContainText("Partially dispensed");
+  await expect(list.getByRole("row", { name: /Synthetic item 1/ })).toContainText("Not supplied");
+  await expect(list.getByRole("button", { name: "Correct" })).toHaveCount(0);
 });

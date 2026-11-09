@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { confirmWorkspaceNavigation, useUnsavedConsultation } from "@/components/useUnsavedConsultation";
 import { consultationRevision } from "@/lib/consultation-revision";
 import ConsultationRecovery from "@/components/ConsultationRecovery";
@@ -8,6 +9,7 @@ import { patientClinicalGroup } from "@/lib/domain";
 import { jsonRequest } from "@/lib/client-http";
 import ProcedureDocumentation from "./ProcedureDocumentation";
 import PrescriptionComposer from "@/components/PrescriptionComposer";
+import { EncounterNavigation, encounterSections, type EncounterStep, type EncounterExitActions } from "./EncounterNavigation";
 import VisitVitalsPanel from "@/components/VisitVitalsPanel";
 import InvestigationReviewPanel from "@/components/InvestigationReviewPanel";
 import { isVerifiedResult } from "@/lib/verified-results";
@@ -47,6 +49,9 @@ export type ConsultationVisit = {
   };
   triage?: {
     triageCategory: string;
+    chiefComplaint?: string | null;
+    notes?: string | null;
+    completedAt?: string | null;
     lastMenstrualPeriod?: string | null;
     estimatedDeliveryDate?: string | null;
     gestationalAgeWeeks?: number | null;
@@ -1061,8 +1066,8 @@ export default function ConsultationWorkstation({
   onOpenServicePoints,
   initialVisitId,
   onInitialVisitOpened,
-  onWorkspaceChange,
-}: {
+  onWorkspaceChange, onHome, onSignOut,
+}: EncounterExitActions & {
   visits: ConsultationVisit[];
   onCompleted: (patientName: string) => void;
   onOpenServicePoints?: (visitId: string) => void;
@@ -1123,20 +1128,17 @@ export default function ConsultationWorkstation({
       </>
     );
   return (
-    <>
-    <VisitVitalsPanel key={`vitals-${active.id}`} visitId={active.id} />
-    <ConsultationForm
+    <ConsultationForm onHome={onHome} onSignOut={onSignOut}
       key={active.id}
       visit={active}
       onBack={() => setActive(null)}
       onCompleted={(name) => { setActive(null); onCompleted(name); }}
       onOpenServicePoints={onOpenServicePoints}
     />
-    </>
   );
 }
 
-export function ConsultationForm(props: {
+export function ConsultationForm(props: EncounterExitActions & {
   visit: ConsultationVisit;
   onBack: () => void;
   onCompleted: (name: string) => void;
@@ -1152,8 +1154,8 @@ function ConsultationEditor({
   onBack,
   onCompleted,
   onOpenServicePoints,
-  onRecover,
-}: {
+  onRecover, onHome, onSignOut,
+}: EncounterExitActions & {
   visit: ConsultationVisit;
   onBack: () => void;
   onCompleted: (name: string) => void;
@@ -1174,7 +1176,14 @@ function ConsultationEditor({
   >([]);
   const [diagnosisSearching, setDiagnosisSearching] = useState(false);
   const [diagnosisSourceWarning, setDiagnosisSourceWarning] = useState("");
-  const [activeStep, setActiveStep] = useState(1);
+  const [activeStep, setActiveStep] = useState<EncounterStep>("history");
+  const activeSection = encounterSections.find(section => section.id === activeStep)!;
+  const paneTitle = useRef<HTMLHeadingElement>(null);
+  function openSection(step: EncounterStep) {
+    flushSync(() => setActiveStep(step));
+    paneTitle.current?.focus({ preventScroll: true });
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }
   const [investigationRevision, setInvestigationRevision] = useState(0);
   const draft =
     visit.encounters?.find((item) => item.status === "DRAFT") ||
@@ -1199,15 +1208,6 @@ function ConsultationEditor({
   const [problemDescription, setProblemDescription] = useState("");
   const [savingProblem, setSavingProblem] = useState(false);
   const changes = useUnsavedConsultation(problemDescription, savingAction || savingProblem);
-  useEffect(() => {
-    const form = changes.form.current;
-    const bar = form?.querySelector(".consultationSaveBar");
-    if (!form || !bar) return;
-    const size = () => form.style.setProperty("--save-bar-height", bar.getBoundingClientRect().height+"px");
-    size();
-    const observer = new ResizeObserver(size); observer.observe(bar);
-    return () => observer.disconnect();
-  }, [changes.form]);
   useEffect(() => {
     fetch("/api/catalog")
       .then((response) => response.json())
@@ -1430,7 +1430,7 @@ function ConsultationEditor({
     if (action === "SAVE_NOTES") {
       const incomplete = complaints.findIndex(item => Boolean(item.durationValue) !== Boolean(item.durationUnit));
       if (incomplete >= 0) {
-        setActiveStep(1);
+        openSection("history");
         const field = complaints[incomplete].durationValue ? "unit" : "value";
         setError(field === "unit" ? "Select a unit for the complaint duration." : "Enter the complaint duration.");
         requestAnimationFrame(() => form.querySelector<HTMLElement>(`[data-duration-field="${field}-${incomplete}"]`)?.focus());
@@ -1509,94 +1509,598 @@ function ConsultationEditor({
     if (signed) onCompleted(visit.patient.fullName);
   }
   return (
-    <>
-      <header>
-        <div>
-          <p className="eyebrow">Private consultation</p>
-          <h1>{visit.patient.fullName}</h1>
-          <p>
-            {visit.patient.patientNumber} ·{" "}
-            {patientClinicalGroup(visit.patient).label} · {visit.visitNumber}
-          </p>
+    <div className="encounterLayout">
+      <EncounterNavigation active={activeStep} onSelect={openSection}
+        onBack={() => { if (confirmWorkspaceNavigation()) onBack(); }} onHome={onHome} onSignOut={onSignOut} />
+      <div className="encounterContent">
+        <div className="encounterIdentity">
+          <span>{visit.clinic}</span>
+          <strong>{visit.patient.fullName}</strong>
+          <span>{visit.visitNumber}</span>
+          <a href="#encounter-patient-overview">Patient overview</a>
         </div>
-        <button className="secondary" onClick={() => { if (confirmWorkspaceNavigation()) onBack(); }}>
-          ← Back to queue
-        </button>
-      </header>
-      <section className="clinicalSummary">
-        <div>
-          <small>Clinic</small>
-          <strong>{visit.clinic}</strong>
+        <form
+          ref={changes.form}
+          onChange={event => {
+            changes.refresh();
+            if (notice && (event.target as HTMLElement).closest('[data-unsaved-group="prescription"]')) setNotice("");
+          }}
+          inert={signing}
+          className="consultForm"
+          onSubmit={(event) => event.preventDefault()}
+        >
+          <div className="encounterPaneHeading">
+            <h1 ref={paneTitle} tabIndex={-1}>{activeSection.label}</h1>
+            {activeStep !== "examination" && (["history", "background", "disposition"].includes(activeStep) || changes.hasUnsavedNotes) &&
+              <button type="button" className="primary" disabled={savingAction || signing} onClick={event => void act(event, "SAVE_NOTES")}>Save notes</button>}
+          </div>
+          {visit.patient.allergies?.length ? (
+          <div className="allergyAlert">
+            <strong>Allergy alert</strong>
+            {visit.patient.allergies.map((a) => (
+              <span key={a.substance}>
+                {a.substance}
+                {a.reaction ? ` — ${a.reaction}` : ""}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="noAllergy">
+            No active allergies recorded — verify with the patient.
+          </div>
+        )}
+          {error && <div className="alert" role="alert">{error}</div>}
+          {notice && <div className="alert success" role="status">{notice}</div>}
+          {changes.description && <p className="encounterDraftNotice noPrint" role="status" aria-label="Unsaved consultation changes">Unsaved: {changes.description}.</p>}
+          {savingAction && <p role="status">Saving consultation. Wait for confirmation before another action.</p>}
+          {showRecovery && <ConsultationRecovery visitId={visit.id} onLoad={snapshot => {
+            if (actionPending.current || savingProblem) { setError("Wait for the current request to finish before replacing this form."); return; }
+            onRecover(snapshot);
+          }} />}
+
+          <ClinicalSection step="triage" active={activeStep} group="notes">
+            <div className="encounterTriage span2">
+              <dl className="encounterFacts">
+                <div><dt>Triage category</dt><dd>{visit.triage?.triageCategory || "Not recorded"}</dd></div>
+                <div><dt>Triage complaint</dt><dd>{visit.triage?.chiefComplaint || "Not recorded"}</dd></div>
+                {visit.triage?.notes && <div><dt>Triage notes</dt><dd>{visit.triage.notes}</dd></div>}
+              </dl>
+              {activeStep === "triage" && <VisitVitalsPanel visitId={visit.id} />}
+            </div>
+          </ClinicalSection>
+          <ClinicalSection step="history" active={activeStep} group="notes">
+            <div className="span2 complaintList">
+              <div className="complaintListHeader">
+                <div>
+                  <h3>Presenting complaints</h3>
+                  <p>Record each problem separately with its duration.</p>
+                </div>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={complaints.length >= 8}
+                  onClick={() =>
+                    setComplaints((current) => [
+                      ...current,
+                      {
+                        key: `added-${crypto.randomUUID()}`,
+                        complaint: "",
+                        durationValue: "",
+                        durationUnit: "",
+                      },
+                    ])
+                  }
+                >
+                  + Add complaint
+                </button>
+              </div>
+              {complaints.map((item, index) => (
+                <article className="complaintRow" key={item.key}>
+                  <span className="complaintNumber" aria-hidden="true">
+                    {index + 1}
+                  </span>
+                  <label className="complaintDescription">
+                    Complaint {index + 1} *
+                    <input
+                      required
+                      minLength={2}
+                      maxLength={500}
+                      value={item.complaint}
+                      onChange={(event) =>
+                        updateComplaint(index, {
+                          complaint: event.target.value,
+                        })
+                      }
+                      placeholder="Patient’s main symptom or concern"
+                    />
+                  </label>
+                  <label>
+                    Duration
+                    <input
+                      type="number"
+                      min="0.1"
+                      max="10000"
+                      step="0.1"
+                      data-duration-field={`value-${index}`}
+                      value={item.durationValue}
+                      onChange={(event) =>
+                        updateComplaint(index, {
+                          durationValue: event.target.value,
+                        })
+                      }
+                      placeholder="Value"
+                    />
+                  </label>
+                  <label>
+                    Unit
+                    <select
+                      data-duration-field={`unit-${index}`}
+                      value={item.durationUnit}
+                      required={Boolean(item.durationValue)}
+                      onChange={(event) =>
+                        updateComplaint(index, {
+                          durationUnit: event.target
+                            .value as ComplaintDurationUnit,
+                        })
+                      }
+                    >
+                      <option value="">Select unit</option>
+                      {complaintDurationOptions.map((option) => (
+                        <option value={option.value} key={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    className="secondary removeComplaint"
+                    disabled={complaints.length === 1}
+                    onClick={() =>
+                      setComplaints((current) =>
+                        current.filter((_, itemIndex) => itemIndex !== index),
+                      )
+                    }
+                    aria-label={`Remove complaint ${index + 1}`}
+                  >
+                    Remove
+                  </button>
+                </article>
+              ))}
+            </div>
+            <label className="span2">
+              History of presenting illness *
+              <textarea
+                name="historyPresentingIllness"
+                required
+                minLength={2}
+                rows={5}
+                defaultValue={savedSubjective.historyPresentingIllness || ""}
+              />
+            </label>
+            <details className="span2 findingsBlock progressiveDetails">
+              <summary>
+                <span>
+                  <strong>Focused review of systems</strong>
+                  <small>
+                    {focusedReview.length} prompts selected for {visit.clinic};
+                    open when clinically relevant
+                  </small>
+                </span>
+              </summary>
+              <FindingsGrid
+                prefix="ros"
+                findings={focusedReview}
+                values={parseFindings(savedSubjective.reviewOfSystems)}
+              />
+              <label>
+                Relevant review notes
+                <textarea
+                  name="reviewNotes"
+                  rows={3}
+                  defaultValue={
+                    parseFindings(savedSubjective.reviewOfSystems)[
+                      "Additional findings"
+                    ] || ""
+                  }
+                />
+              </label>
+            </details>
+          </ClinicalSection>
+          <ClinicalSection step="background" active={activeStep} group="notes">
+            <label>
+              Past medical and surgical history
+              <textarea
+                name="pastMedicalHistory"
+                rows={3}
+                defaultValue={savedSubjective.pastMedicalHistory || ""}
+              />
+            </label>
+            <label>
+              Current medicines
+              <textarea
+                name="currentMedicines"
+                rows={3}
+                defaultValue={savedSubjective.currentMedicines || ""}
+              />
+            </label>
+            <label className="span2">
+              Family and social history
+              <textarea
+                name="familySocialHistory"
+                rows={3}
+                defaultValue={savedSubjective.familySocialHistory || ""}
+              />
+            </label>
+          </ClinicalSection>
+          <ClinicalSection step="examination" active={activeStep} group="notes">
+            <details className="span2 findingsBlock progressiveDetails" open>
+              <summary>
+                <span>
+                  <strong>General examination</strong>
+                  <small>Core examination findings</small>
+                </span>
+              </summary>
+              <FindingsGrid
+                prefix="general"
+                findings={generalFindings}
+                values={parseFindings(savedObjective.generalExamination)}
+              />
+              <label>
+                General examination notes
+                <textarea
+                  name="generalExamNotes"
+                  rows={3}
+                  defaultValue={
+                    parseFindings(savedObjective.generalExamination)[
+                      "Additional findings"
+                    ] || ""
+                  }
+                />
+              </label>
+            </details>
+            <div className="span2 findingsBlock">
+              <h3>System examination</h3>
+              <p>
+                Use the examination-specific vocabulary below and localize
+                significant findings in the notes.
+              </p>
+              {focusedExaminations.map((group, index) => (
+                <details
+                  className="examGroup"
+                  key={group.title}
+                  open={index === 0}
+                >
+                  <summary>
+                    {group.title}
+                    <span>Open focused examination</span>
+                  </summary>
+                  <FindingsGrid
+                    prefix="exam"
+                    findings={group.findings}
+                    values={parseFindings(savedObjective.systemicExamination)}
+                  />
+                </details>
+              ))}
+              <label>
+                Abnormal findings / additional examination notes
+                <textarea
+                  name="systemExamNotes"
+                  rows={4}
+                  defaultValue={
+                    parseFindings(savedObjective.systemicExamination)[
+                      "Additional findings"
+                    ] || ""
+                  }
+                />
+              </label>
+            </div>
+          </ClinicalSection>
+          <div className={`stepAction ${activeStep === "examination" ? "" : "stepHidden"}`}>
+            <div>
+              <strong>Clinical note draft</strong>
+              <span>
+                Save your history and examination without signing the encounter.
+              </span>
+            </div>
+            <button
+              type="button"
+              className="secondary"
+              disabled={savingAction}
+              onClick={async (event) => {
+                if (await act(event, "SAVE_NOTES")) openSection("investigations");
+              }}
+            >
+              Save clinical notes
+            </button>
+          </div>
+          <ClinicalSection step="investigations" active={activeStep} group="investigations">
+            {activeStep === "investigations" && <InvestigationReviewPanel key={`${visit.id}-${investigationRevision}`} visitId={visit.id} />}
+            <label>
+              Priority *
+              <select name="investigationPriority" defaultValue={visit.priority}>
+                <option value="ROUTINE">Routine</option>
+                <option value="PRIORITY">Priority</option>
+                <option value="URGENT">Urgent</option>
+                <option value="EMERGENCY">Emergency</option>
+              </select>
+            </label>
+            <label>
+              Clinical indication *
+              <input
+                name="investigationIndication"
+                required
+                defaultValue={
+                  draft?.diagnoses?.find((item) => item.primary)?.description || ""
+                }
+                placeholder="Why the investigation is needed"
+              />
+            </label>
+            <SearchableMultiPicker
+              name="labs"
+              label="Laboratory tests"
+              options={catalogue
+                .filter((item) => item.category === "LABORATORY_TEST")
+                .map((item) => ({
+                  value: item.code,
+                  label: item.name,
+                  detail: `KES ${Number(item.unitPrice).toLocaleString()}`,
+                }))}
+            />
+            <SearchableMultiPicker
+              name="imaging"
+              label="Imaging requests"
+              options={catalogue
+                .filter((item) => item.category === "PROCEDURE" && !!item.modality && item.modality !== "PROCEDURE" && !item.code.startsWith("CONSULT-"))
+                .map((item) => ({
+                  value: item.code,
+                  label: item.name,
+                  detail: `KES ${Number(item.unitPrice).toLocaleString()}`,
+                }))}
+            />
+            <div className="span2 submitBar">
+              <span>
+                Submission creates service requests and adds their charges to the
+                invoice.
+              </span>
+              <button
+                type="button"
+                className="primary"
+                onClick={(event) => act(event, "SUBMIT_INVESTIGATIONS")}
+              >
+                Submit investigation requests
+              </button>
+            </div>
+          </ClinicalSection>
+          <ClinicalSection step="prescription" active={activeStep} group="prescription">
+            <PrescriptionComposer visitId={visit.id} catalogue={catalogue} orders={visit.orders || []} indication={savedDiagnoses.find(item => item.primary)?.description || ""} busy={savingAction || signing} onSave={data => run("SAVE_PRESCRIPTION", data, "Prescription list saved. Sent medicines are available to pharmacy; billing follows confirmed supply.")} onSaved={() => changes.resetAfterRender("prescription")} />
+          </ClinicalSection>
+          <ClinicalSection step="procedures" active={activeStep} group="procedures">
+            <ProcedureDocumentation savedPlan={draft?.plan} catalogue={catalogue} onRecorded={async () => changes.resetAfterRender("procedures")} onSave={async data => { const result = await run("RECORD_PROCEDURE", data, "Procedure recorded."); return result && result.procedure ? { procedure: result.procedure } : false; }} />
+          </ClinicalSection>
+          <ClinicalSection step="diagnosis" active={activeStep} group="diagnosis">
+            {savedDiagnoses.length > 0 && (
+              <div className="span2 diagnosisList">
+                <strong>Recorded diagnoses</strong>
+                {savedDiagnoses.map((item, index) => (
+                  <div key={item.id || `${item.code}-${index}`}>
+                    <span>
+                      {item.primary ? "PRIMARY" : item.type || "SECONDARY"}
+                    </span>
+                    <b>
+                      {item.code} · {item.description}
+                    </b>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="span2 diagnosisSearch">
+              <label>
+                Search diagnosis or ICD-11 code *
+                <input
+                  name="primaryDiagnosis"
+                  value={diagnosisQuery}
+                  onChange={(e) => {
+                    setDiagnosisQuery(e.target.value);
+                    setDiagnosisCode("");
+                    setDiagnosisUri("");
+                    setDiagnosisLinearizationUri("");
+                    setDiagnosisCodingVersion("");
+                    setDiagnosisSelectionToken("");
+                  }}
+                  required
+                  minLength={2}
+                  autoComplete="off"
+                  placeholder="Type a condition, symptom or ICD-11 code"
+                />
+              </label>
+              <small>Live searches send the diagnosis term to WHO. Use condition names or codes; leave out patient details.</small>
+              {diagnosisSearching && <small>Searching diagnoses…</small>}
+              {diagnosisResults.length > 0 && (
+                <div className="diagnosisResults" role="listbox">
+                  {diagnosisResults.map((result) => (
+                    <button
+                      type="button"
+                      key={`${result.code}-${result.title}`}
+                      onClick={() => {
+                        setDiagnosisQuery(result.title);
+                        setDiagnosisCode(result.code);
+                        setDiagnosisUri(result.foundationUri || "");
+                        setDiagnosisLinearizationUri(result.linearizationUri || "");
+                        setDiagnosisCodingVersion(result.codingVersion || "");
+                        setDiagnosisSelectionToken(result.selectionToken);
+                        setDiagnosisResults([]);
+                      }}
+                    >
+                      <strong>{result.title}</strong>
+                      <span>
+                        {result.code} · {result.source}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!diagnosisSearching && diagnosisQuery.trim().length >= 2 && !diagnosisCode && diagnosisResults.length === 0 && (
+                <small className="dangerText">No validated match is available. Try another term or ask the terminology administrator; free-text codes cannot be saved.</small>
+              )}
+            </div>
+            <label>
+              ICD-11 MMS code *
+              <input
+                name="primaryIcd11"
+                required
+                value={diagnosisCode}
+                placeholder="Selected automatically"
+                autoCapitalize="characters"
+                readOnly
+              />
+            </label>
+            <input type="hidden" name="foundationUri" value={diagnosisUri} />
+            <input type="hidden" name="linearizationUri" value={diagnosisLinearizationUri} />
+            <input type="hidden" name="codingVersion" value={diagnosisCodingVersion} />
+            <input type="hidden" name="diagnosisSelectionToken" value={diagnosisSelectionToken} />
+            <label>
+              Diagnostic certainty
+              <select name="diagnosisType">
+                <option value="PROVISIONAL">Provisional</option>
+                <option value="DIFFERENTIAL">Differential</option>
+                <option value="FINAL">Confirmed / final</option>
+              </select>
+            </label>
+            <label>
+              Diagnosis role
+              <select name="diagnosisRole">
+                <option value="PRIMARY">Primary diagnosis</option>
+                <option value="SECONDARY">Secondary / comorbidity</option>
+              </select>
+            </label>
+            <div className="span2 privacyNotice">
+              <strong>ICD-11 coding</strong>
+              <span>
+                Search by familiar clinical wording, then select the matching
+                ICD-11 MMS diagnosis. Confirm the displayed title and code before
+                saving{diagnosisCodingVersion ? ` (${diagnosisCodingVersion} release)` : ""}.
+              </span>
+              {diagnosisSourceWarning && (
+                <span className="dangerText">{diagnosisSourceWarning}</span>
+              )}
+              <a
+                href="https://icd.who.int/browse/2026-01/mms/en"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open the official WHO ICD-11 browser ↗
+              </a>
+            </div>
+            <button
+              type="button"
+              className="secondary span2"
+              disabled={!diagnosisSelectionToken}
+              onClick={async (event) => {
+                if (await act(event, "SAVE_DIAGNOSIS")) openSection("disposition");
+              }}
+            >
+              Add ICD-11 diagnosis
+            </button>
+          </ClinicalSection>
+          <ClinicalSection step="disposition" active={activeStep} group="notes">
+            <label className="span2">
+              Management plan *
+              <textarea
+                name="plan"
+                minLength={2}
+                rows={4}
+                defaultValue={savedPlan.plan || ""}
+              />
+            </label>
+            <label>
+              Disposition *
+              <select
+                name="disposition"
+                defaultValue={savedPlan.disposition || "OUTPATIENT"}
+              >
+                <option value="OUTPATIENT">Discharge home / outpatient follow-up</option>
+                <option value="RECOVERED">Recovered — complete remaining services, then discharge</option>
+                <option value="ADMIT">Admit</option>
+                <option value="REFER">Refer</option>
+                <option value="DECEASED">Deceased</option>
+                <option value="AGAINST_MEDICAL_ADVICE">Discharged against medical advice</option>
+                <option value="OTHER">Other documented outcome</option>
+              </select>
+            </label>
+            <label>
+              Follow-up date
+              <input
+                name="followUpDate"
+                type="date"
+                defaultValue={savedPlan.followUpDate || ""}
+              />
+            </label>
+            <label className="span2">
+              Disposition details
+              <textarea name="dispositionDetails" rows={3} defaultValue={savedPlan.dispositionDetails || ""} placeholder="Required for deceased, against-medical-advice and other outcomes; record counselling, handover and next steps" />
+            </label>
+            <label className="span2"><span><input type="checkbox" name="cancelPendingOrders" /> For exceptional closure, cancel unstarted orders and document their disposition above. In-progress services must first be resolved; charges remain for billing review.</span></label>
+            <label className="span2 confidential">
+              Confidential clinician note
+              <textarea
+                name="confidentialNote"
+                rows={3}
+                defaultValue={savedPlan.confidentialNote || ""}
+              />
+              <small>
+                Restricted clinical content; never shown in reception or public
+                queues.
+              </small>
+            </label>
+            {onOpenServicePoints && <div className="span2 clinicalBoundary"><strong>Referral or specialty record</strong><span>Save the clinical notes first, then open the connected service-point record. A referral must be sent before a REFER disposition can be signed.</span><button className="secondary" type="button" onClick={() => onOpenServicePoints(visit.id)}>Open service points</button></div>}
+          </ClinicalSection>
+          <div className={`signBar ${activeStep === "disposition" ? "" : "stepHidden"}`}>
+            <div>
+              <strong>Ready to sign?</strong>
+              <span>
+                Review the diagnosis, orders, prescription and disposition. A
+                signed encounter cannot be silently overwritten.
+              </span>
+            </div>
+            <button
+              type="button"
+              className="primary"
+              onClick={(event) => act(event, "SIGN")}
+            >
+              Sign &amp; send to next service
+            </button>
+          </div>
+        </form>
+      </div>
+      <aside className="encounterOverview" aria-label="Patient overview" id="encounter-patient-overview" tabIndex={-1}>
+        <h2>Patient overview</h2>
+        <div className="encounterPatientCard"><strong>{visit.patient.fullName}</strong>
+          <span>{patientClinicalGroup(visit.patient).label}</span><span>{visit.patient.patientNumber}</span>
         </div>
-        <div>
-          <small>Triage</small>
-          <strong>{visit.triage?.triageCategory || "Not recorded"}</strong>
-        </div>
-        <div>
-          <small>BP</small>
-          <strong>
-            {observation("BP_SYS")}/{observation("BP_DIA")}
-          </strong>
-        </div>
-        <div>
-          <small>Pulse</small>
-          <strong>{observation("PULSE")}</strong>
-        </div>
-        <div>
-          <small>SpO₂</small>
-          <strong>{observation("SPO2")}</strong>
-        </div>
-        <div>
-          <small>Temperature</small>
-          <strong>{observation("TEMP")}</strong>
-        </div>
-      </section>
+        <dl className="encounterFacts">
+          <div><dt>Visit</dt><dd>{visit.visitNumber}</dd></div>
+          <div><dt>Clinic</dt><dd>{visit.clinic}</dd></div>
+          <div><dt>Triage category</dt><dd>{visit.triage?.triageCategory || "Not recorded"}</dd></div>
+        </dl>
+        <h3>Triage observations</h3>
+        <dl className="encounterObservationGrid">
+          {[["BP_SYS","Systolic BP"],["BP_DIA","Diastolic BP"],["PULSE","Pulse"],["SPO2","SpO₂"],["TEMP","Temperature"],["RESP","Respiratory rate"]].map(([code,label]) =>
+            <div key={code}><dt>{label}</dt><dd>{observation(code)}</dd></div>)}
+        </dl>
       {visit.triage?.estimatedDeliveryDate && <section className="clinicalBoundary">
         <strong>Pregnancy dating</strong>
         <span>LNMP {visit.triage.lastMenstrualPeriod?.slice(0, 10) || "not recorded"} · EDD {visit.triage.estimatedDeliveryDate.slice(0, 10)} · gestational age {visit.triage.gestationalAgeWeeks ?? 0} weeks {visit.triage.gestationalAgeDays ?? 0} days · source {visit.triage.pregnancyDatingMethod || "LNMP"}. Confirm with ultrasound when clinically indicated.</span>
       </section>}
-      <section className="consultationContext" aria-label="Patient context">
-        <div>
-          <small>Phone</small>
-          <strong>{primaryPhone}</strong>
-        </div>
-        <div>
-          <small>Coverage</small>
-          <strong>{coverage}</strong>
-        </div>
-        <div>
-          <small>Last visit</small>
-          <strong>
-            {history[0]
-              ? new Date(history[0].arrivedAt).toLocaleDateString()
-              : "None found"}
-          </strong>
-        </div>
-        <div>
-          <small>Recent diagnoses</small>
-          <strong title={recentDiagnoses.join(" · ")}>
-            {recentDiagnoses.slice(0, 2).join(" · ") || "None recorded"}
-          </strong>
-        </div>
-      </section>
-      {visit.patient.allergies?.length ? (
-        <div className="allergyAlert">
-          <strong>Allergy alert</strong>
-          {visit.patient.allergies.map((a) => (
-            <span key={a.substance}>
-              {a.substance}
-              {a.reaction ? ` — ${a.reaction}` : ""}
-            </span>
-          ))}
-        </div>
-      ) : (
-        <div className="noAllergy">
-          No active allergies recorded — verify with the patient.
-        </div>
-      )}
+        <details className="encounterMore"><summary>Patient details</summary>
+          <dl className="encounterFacts">
+            <div><dt>Phone</dt><dd>{primaryPhone}</dd></div><div><dt>Coverage</dt><dd>{coverage}</dd></div>
+            <div><dt>Previous visit</dt><dd>{history[0] ? new Date(history[0].arrivedAt).toLocaleDateString("en-GB", { timeZone: "Africa/Nairobi" }) : "None found"}</dd></div>
+            <div><dt>Recent diagnoses</dt><dd>{recentDiagnoses.slice(0, 2).join(" · ") || "None recorded"}</dd></div>
+          </dl>
+        </details>
       <PatientTrends visits={[visit, ...history]} />
-      <section className="card historyPanel">
-        <div className="cardHead"><div><h2>Longitudinal problem list</h2><p>Active conditions persist across visits until a clinician resolves them.</p></div></div>
+      <details className="card historyPanel"><summary><strong>Problem list</strong><span>{problems.filter(p => p.clinicalStatus === "ACTIVE").length} active</span></summary>
         {problems.filter((problem) => problem.clinicalStatus === "ACTIVE").map((problem) => <article key={problem.id}>
           <h3>{problem.code ? `${problem.code} · ` : ""}{problem.description}</h3>
           <p>{problem.codeSystem} · recorded by {problem.recordedBy.displayName}</p>
@@ -1607,7 +2111,7 @@ function ConsultationEditor({
           <label>New active problem<input disabled={signing} value={problemDescription} onChange={(event) => setProblemDescription(event.target.value)} minLength={2} maxLength={500} required placeholder="Condition or persistent clinical concern" /></label>
           <button className="secondary" disabled={savingProblem || signing}>Add problem</button>
         </form>
-      </section>
+      </details>
       <details className="card historyPanel">
         <summary><strong>Patient clinical timeline</strong><span>{timeline.length} longitudinal event(s)</span></summary>
         <div className="timelineList">{timeline.map(item => <article key={item.id}><time>{new Date(item.occurredAt).toLocaleString()}</time><h3>{item.title}</h3><p><strong>{item.type.replaceAll("_", " ")}</strong> · {item.detail}</p></article>)}{!timeline.length && <p>No earlier longitudinal events found.</p>}</div>
@@ -1653,596 +2157,8 @@ function ConsultationEditor({
           </article>
         ))}
       </details>
-      <form
-        ref={changes.form}
-        onChange={changes.refresh}
-        inert={signing}
-        className="consultForm"
-        onSubmit={(event) => event.preventDefault()}
-      >
-        {activeStep !== 3 && ([1, 2, 7].includes(activeStep) || changes.hasUnsavedNotes) && <div className="consultationSaveBar noPrint"><span>Clinical notes and plan</span><button type="button" className="primary" disabled={savingAction || signing} onClick={event => void act(event, "SAVE_NOTES")}>Save notes</button></div>}
-        {error && <div className="alert">{error}</div>}
-        {notice && <div className="alert success" role="status">{notice}</div>}
-        {changes.description && <p className="alert noPrint" role="status" aria-label="Unsaved consultation changes">Unsaved: {changes.description}. Save each section before leaving. Changes stay in this open form until saved.</p>}
-        {savingAction && <p role="status">Saving consultation. Wait for confirmation before another action.</p>}
-        {showRecovery && <ConsultationRecovery visitId={visit.id} onLoad={snapshot => {
-          if (actionPending.current || savingProblem) { setError("Wait for the current request to finish before replacing this form."); return; }
-          onRecover(snapshot);
-        }} />}
-
-        <ClinicalSection
-          number="1"
-          title="Presenting complaint & history (HPI)"
-          description="Document privately in the patient’s own words."
-          active={activeStep === 1}
-          onOpen={() => setActiveStep(1)}
-        >
-          <div className="span2 complaintList">
-            <div className="complaintListHeader">
-              <div>
-                <h3>Presenting complaints</h3>
-                <p>Record each problem separately with its duration.</p>
-              </div>
-              <button
-                type="button"
-                className="secondary"
-                disabled={complaints.length >= 8}
-                onClick={() =>
-                  setComplaints((current) => [
-                    ...current,
-                    {
-                      key: `added-${crypto.randomUUID()}`,
-                      complaint: "",
-                      durationValue: "",
-                      durationUnit: "",
-                    },
-                  ])
-                }
-              >
-                + Add complaint
-              </button>
-            </div>
-            {complaints.map((item, index) => (
-              <article className="complaintRow" key={item.key}>
-                <span className="complaintNumber" aria-hidden="true">
-                  {index + 1}
-                </span>
-                <label className="complaintDescription">
-                  Complaint {index + 1} *
-                  <input
-                    required
-                    minLength={2}
-                    maxLength={500}
-                    value={item.complaint}
-                    onChange={(event) =>
-                      updateComplaint(index, {
-                        complaint: event.target.value,
-                      })
-                    }
-                    placeholder="Patient’s main symptom or concern"
-                  />
-                </label>
-                <label>
-                  Duration
-                  <input
-                    type="number"
-                    min="0.1"
-                    max="10000"
-                    step="0.1"
-                    data-duration-field={`value-${index}`}
-                    value={item.durationValue}
-                    onChange={(event) =>
-                      updateComplaint(index, {
-                        durationValue: event.target.value,
-                      })
-                    }
-                    placeholder="Value"
-                  />
-                </label>
-                <label>
-                  Unit
-                  <select
-                    data-duration-field={`unit-${index}`}
-                    value={item.durationUnit}
-                    required={Boolean(item.durationValue)}
-                    onChange={(event) =>
-                      updateComplaint(index, {
-                        durationUnit: event.target
-                          .value as ComplaintDurationUnit,
-                      })
-                    }
-                  >
-                    <option value="">Select unit</option>
-                    {complaintDurationOptions.map((option) => (
-                      <option value={option.value} key={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  className="secondary removeComplaint"
-                  disabled={complaints.length === 1}
-                  onClick={() =>
-                    setComplaints((current) =>
-                      current.filter((_, itemIndex) => itemIndex !== index),
-                    )
-                  }
-                  aria-label={`Remove complaint ${index + 1}`}
-                >
-                  Remove
-                </button>
-              </article>
-            ))}
-          </div>
-          <label className="span2">
-            History of presenting illness *
-            <textarea
-              name="historyPresentingIllness"
-              required
-              minLength={2}
-              rows={5}
-              defaultValue={savedSubjective.historyPresentingIllness || ""}
-            />
-          </label>
-          <details className="span2 findingsBlock progressiveDetails">
-            <summary>
-              <span>
-                <strong>Focused review of systems</strong>
-                <small>
-                  {focusedReview.length} prompts selected for {visit.clinic};
-                  open when clinically relevant
-                </small>
-              </span>
-            </summary>
-            <FindingsGrid
-              prefix="ros"
-              findings={focusedReview}
-              values={parseFindings(savedSubjective.reviewOfSystems)}
-            />
-            <label>
-              Relevant review notes
-              <textarea
-                name="reviewNotes"
-                rows={3}
-                defaultValue={
-                  parseFindings(savedSubjective.reviewOfSystems)[
-                    "Additional findings"
-                  ] || ""
-                }
-              />
-            </label>
-          </details>
-          <div className="span2 sectionAdvance">
-            <span>Keep documentation concise and problem-oriented.</span>
-            <button
-              type="button"
-              className="primary"
-              onClick={() => setActiveStep(2)}
-            >
-              Background →
-            </button>
-          </div>
-        </ClinicalSection>
-        <ClinicalSection
-          number="2"
-          title="Background history"
-          description="Capture information relevant to today’s decisions."
-          active={activeStep === 2}
-          onOpen={() => setActiveStep(2)}
-        >
-          <label>
-            Past medical and surgical history
-            <textarea
-              name="pastMedicalHistory"
-              rows={3}
-              defaultValue={savedSubjective.pastMedicalHistory || ""}
-            />
-          </label>
-          <label>
-            Current medicines
-            <textarea
-              name="currentMedicines"
-              rows={3}
-              defaultValue={savedSubjective.currentMedicines || ""}
-            />
-          </label>
-          <label className="span2">
-            Family and social history
-            <textarea
-              name="familySocialHistory"
-              rows={3}
-              defaultValue={savedSubjective.familySocialHistory || ""}
-            />
-          </label>
-          <div className="span2 sectionAdvance">
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => setActiveStep(1)}
-            >
-              ← History
-            </button>
-            <button
-              type="button"
-              className="primary"
-              onClick={() => setActiveStep(3)}
-            >
-              Examination →
-            </button>
-          </div>
-        </ClinicalSection>
-        <ClinicalSection
-          number="3"
-          title="Examination"
-          description="Record examination findings if assessed."
-          active={activeStep === 3}
-          onOpen={() => setActiveStep(3)}
-        >
-          <details className="span2 findingsBlock progressiveDetails" open>
-            <summary>
-              <span>
-                <strong>General examination</strong>
-                <small>Core examination findings</small>
-              </span>
-            </summary>
-            <FindingsGrid
-              prefix="general"
-              findings={generalFindings}
-              values={parseFindings(savedObjective.generalExamination)}
-            />
-            <label>
-              General examination notes
-              <textarea
-                name="generalExamNotes"
-                rows={3}
-                defaultValue={
-                  parseFindings(savedObjective.generalExamination)[
-                    "Additional findings"
-                  ] || ""
-                }
-              />
-            </label>
-          </details>
-          <div className="span2 findingsBlock">
-            <h3>System examination</h3>
-            <p>
-              Use the examination-specific vocabulary below and localize
-              significant findings in the notes.
-            </p>
-            {focusedExaminations.map((group, index) => (
-              <details
-                className="examGroup"
-                key={group.title}
-                open={index === 0}
-              >
-                <summary>
-                  {group.title}
-                  <span>Open focused examination</span>
-                </summary>
-                <FindingsGrid
-                  prefix="exam"
-                  findings={group.findings}
-                  values={parseFindings(savedObjective.systemicExamination)}
-                />
-              </details>
-            ))}
-            <label>
-              Abnormal findings / additional examination notes
-              <textarea
-                name="systemExamNotes"
-                rows={4}
-                defaultValue={
-                  parseFindings(savedObjective.systemicExamination)[
-                    "Additional findings"
-                  ] || ""
-                }
-              />
-            </label>
-          </div>
-        </ClinicalSection>
-        <div className={`stepAction ${activeStep === 3 ? "" : "stepHidden"}`}>
-          <div>
-            <strong>Clinical note draft</strong>
-            <span>
-              Save your history and examination without signing the encounter.
-            </span>
-          </div>
-          <button
-            type="button"
-            className="secondary"
-            disabled={savingAction}
-            onClick={async (event) => {
-              if (await act(event, "SAVE_NOTES")) setActiveStep(5);
-            }}
-          >
-            Save clinical notes
-          </button>
-        </div>
-        <ClinicalSection
-          number="4"
-          title="Investigations"
-          description="Selected items route automatically and are added to billing."
-          active={activeStep === 5}
-          onOpen={() => setActiveStep(5)}
-        >
-          {activeStep === 5 && <InvestigationReviewPanel key={`${visit.id}-${investigationRevision}`} visitId={visit.id} />}
-          <label>
-            Priority *
-            <select name="investigationPriority" defaultValue={visit.priority}>
-              <option value="ROUTINE">Routine</option>
-              <option value="PRIORITY">Priority</option>
-              <option value="URGENT">Urgent</option>
-              <option value="EMERGENCY">Emergency</option>
-            </select>
-          </label>
-          <label>
-            Clinical indication *
-            <input
-              name="investigationIndication"
-              required
-              defaultValue={
-                draft?.diagnoses?.find((item) => item.primary)?.description || ""
-              }
-              placeholder="Why the investigation is needed"
-            />
-          </label>
-          <SearchableMultiPicker
-            name="labs"
-            label="Laboratory tests"
-            options={catalogue
-              .filter((item) => item.category === "LABORATORY_TEST")
-              .map((item) => ({
-                value: item.code,
-                label: item.name,
-                detail: `KES ${Number(item.unitPrice).toLocaleString()}`,
-              }))}
-          />
-          <SearchableMultiPicker
-            name="imaging"
-            label="Imaging requests"
-            options={catalogue
-              .filter((item) => item.category === "PROCEDURE" && !!item.modality && item.modality !== "PROCEDURE" && !item.code.startsWith("CONSULT-"))
-              .map((item) => ({
-                value: item.code,
-                label: item.name,
-                detail: `KES ${Number(item.unitPrice).toLocaleString()}`,
-              }))}
-          />
-          <div className="span2 submitBar">
-            <span>
-              Submission creates service requests and adds their charges to the
-              invoice.
-            </span>
-            <button
-              type="button"
-              className="primary"
-              onClick={(event) => act(event, "SUBMIT_INVESTIGATIONS")}
-            >
-              Submit investigation requests
-            </button>
-          </div>
-        </ClinicalSection>
-        <ClinicalSection
-          number="5"
-          title="Prescription"
-          description="Prescribe only after checking allergies, indication, dose and patient factors."
-          active={activeStep === 6}
-          onOpen={() => setActiveStep(6)}
-        >
-          <PrescriptionComposer visitId={visit.id} catalogue={catalogue} orders={visit.orders || []} indication={savedDiagnoses.find(item => item.primary)?.description || ""} busy={savingAction || signing} onSave={data => run("SAVE_PRESCRIPTION", data, "Prescription list saved. Sent medicines are available to pharmacy; billing follows confirmed supply.")} onSaved={() => changes.resetAfterRender("prescription")} />
-        </ClinicalSection>
-        <ClinicalSection number="6" title="Procedures" description="Document a completed procedure." active={activeStep === 8} onOpen={() => setActiveStep(8)}>
-          <ProcedureDocumentation savedPlan={draft?.plan} catalogue={catalogue} onRecorded={async () => changes.resetAfterRender("procedures")} onSave={async data => { const result = await run("RECORD_PROCEDURE", data, "Procedure recorded."); return result && result.procedure ? { procedure: result.procedure } : false; }} />
-        </ClinicalSection>
-        <ClinicalSection
-          number="7"
-          title="Final diagnosis · ICD-11 assessment"
-          description="Record the diagnosis using the WHO ICD-11 MMS coding system."
-          active={activeStep === 4}
-          onOpen={() => setActiveStep(4)}
-        >
-          {savedDiagnoses.length > 0 && (
-            <div className="span2 diagnosisList">
-              <strong>Recorded diagnoses</strong>
-              {savedDiagnoses.map((item, index) => (
-                <div key={item.id || `${item.code}-${index}`}>
-                  <span>
-                    {item.primary ? "PRIMARY" : item.type || "SECONDARY"}
-                  </span>
-                  <b>
-                    {item.code} · {item.description}
-                  </b>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="span2 diagnosisSearch">
-            <label>
-              Search diagnosis or ICD-11 code *
-              <input
-                name="primaryDiagnosis"
-                value={diagnosisQuery}
-                onChange={(e) => {
-                  setDiagnosisQuery(e.target.value);
-                  setDiagnosisCode("");
-                  setDiagnosisUri("");
-                  setDiagnosisLinearizationUri("");
-                  setDiagnosisCodingVersion("");
-                  setDiagnosisSelectionToken("");
-                }}
-                required
-                minLength={2}
-                autoComplete="off"
-                placeholder="Type a condition, symptom or ICD-11 code"
-              />
-            </label>
-            <small>Live searches send the diagnosis term to WHO. Use condition names or codes; leave out patient details.</small>
-            {diagnosisSearching && <small>Searching diagnoses…</small>}
-            {diagnosisResults.length > 0 && (
-              <div className="diagnosisResults" role="listbox">
-                {diagnosisResults.map((result) => (
-                  <button
-                    type="button"
-                    key={`${result.code}-${result.title}`}
-                    onClick={() => {
-                      setDiagnosisQuery(result.title);
-                      setDiagnosisCode(result.code);
-                      setDiagnosisUri(result.foundationUri || "");
-                      setDiagnosisLinearizationUri(result.linearizationUri || "");
-                      setDiagnosisCodingVersion(result.codingVersion || "");
-                      setDiagnosisSelectionToken(result.selectionToken);
-                      setDiagnosisResults([]);
-                    }}
-                  >
-                    <strong>{result.title}</strong>
-                    <span>
-                      {result.code} · {result.source}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {!diagnosisSearching && diagnosisQuery.trim().length >= 2 && !diagnosisCode && diagnosisResults.length === 0 && (
-              <small className="dangerText">No validated match is available. Try another term or ask the terminology administrator; free-text codes cannot be saved.</small>
-            )}
-          </div>
-          <label>
-            ICD-11 MMS code *
-            <input
-              name="primaryIcd11"
-              required
-              value={diagnosisCode}
-              placeholder="Selected automatically"
-              autoCapitalize="characters"
-              readOnly
-            />
-          </label>
-          <input type="hidden" name="foundationUri" value={diagnosisUri} />
-          <input type="hidden" name="linearizationUri" value={diagnosisLinearizationUri} />
-          <input type="hidden" name="codingVersion" value={diagnosisCodingVersion} />
-          <input type="hidden" name="diagnosisSelectionToken" value={diagnosisSelectionToken} />
-          <label>
-            Diagnostic certainty
-            <select name="diagnosisType">
-              <option value="PROVISIONAL">Provisional</option>
-              <option value="DIFFERENTIAL">Differential</option>
-              <option value="FINAL">Confirmed / final</option>
-            </select>
-          </label>
-          <label>
-            Diagnosis role
-            <select name="diagnosisRole">
-              <option value="PRIMARY">Primary diagnosis</option>
-              <option value="SECONDARY">Secondary / comorbidity</option>
-            </select>
-          </label>
-          <div className="span2 privacyNotice">
-            <strong>ICD-11 coding</strong>
-            <span>
-              Search by familiar clinical wording, then select the matching
-              ICD-11 MMS diagnosis. Confirm the displayed title and code before
-              saving{diagnosisCodingVersion ? ` (${diagnosisCodingVersion} release)` : ""}.
-            </span>
-            {diagnosisSourceWarning && (
-              <span className="dangerText">{diagnosisSourceWarning}</span>
-            )}
-            <a
-              href="https://icd.who.int/browse/2026-01/mms/en"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Open the official WHO ICD-11 browser ↗
-            </a>
-          </div>
-          <button
-            type="button"
-            className="secondary span2"
-            disabled={!diagnosisSelectionToken}
-            onClick={async (event) => {
-              if (await act(event, "SAVE_DIAGNOSIS")) setActiveStep(7);
-            }}
-          >
-            Add ICD-11 diagnosis
-          </button>
-        </ClinicalSection>
-        <ClinicalSection
-          number="8"
-          title="Plan & completion · discharge"
-          description="Signing locks this encounter and routes the visit."
-          active={activeStep === 7}
-          onOpen={() => setActiveStep(7)}
-        >
-          <label className="span2">
-            Management plan *
-            <textarea
-              name="plan"
-              minLength={2}
-              rows={4}
-              defaultValue={savedPlan.plan || ""}
-            />
-          </label>
-          <label>
-            Disposition *
-            <select
-              name="disposition"
-              defaultValue={savedPlan.disposition || "OUTPATIENT"}
-            >
-              <option value="OUTPATIENT">Discharge home / outpatient follow-up</option>
-              <option value="RECOVERED">Recovered — complete remaining services, then discharge</option>
-              <option value="ADMIT">Admit</option>
-              <option value="REFER">Refer</option>
-              <option value="DECEASED">Deceased</option>
-              <option value="AGAINST_MEDICAL_ADVICE">Discharged against medical advice</option>
-              <option value="OTHER">Other documented outcome</option>
-            </select>
-          </label>
-          <label>
-            Follow-up date
-            <input
-              name="followUpDate"
-              type="date"
-              defaultValue={savedPlan.followUpDate || ""}
-            />
-          </label>
-          <label className="span2">
-            Disposition details
-            <textarea name="dispositionDetails" rows={3} defaultValue={savedPlan.dispositionDetails || ""} placeholder="Required for deceased, against-medical-advice and other outcomes; record counselling, handover and next steps" />
-          </label>
-          <label className="span2"><span><input type="checkbox" name="cancelPendingOrders" /> For exceptional closure, cancel unstarted orders and document their disposition above. In-progress services must first be resolved; charges remain for billing review.</span></label>
-          <label className="span2 confidential">
-            Confidential clinician note
-            <textarea
-              name="confidentialNote"
-              rows={3}
-              defaultValue={savedPlan.confidentialNote || ""}
-            />
-            <small>
-              Restricted clinical content; never shown in reception or public
-              queues.
-            </small>
-          </label>
-          {onOpenServicePoints && <div className="span2 clinicalBoundary"><strong>Referral or specialty record</strong><span>Save the clinical notes first, then open the connected service-point record. A referral must be sent before a REFER disposition can be signed.</span><button className="secondary" type="button" onClick={() => onOpenServicePoints(visit.id)}>Open service points</button></div>}
-        </ClinicalSection>
-        <div className={`signBar ${activeStep === 7 ? "" : "stepHidden"}`}>
-          <div>
-            <strong>Ready to sign?</strong>
-            <span>
-              Review the diagnosis, orders, prescription and disposition. A
-              signed encounter cannot be silently overwritten.
-            </span>
-          </div>
-          <button
-            type="button"
-            className="primary"
-            onClick={(event) => act(event, "SIGN")}
-          >
-            Sign &amp; send to next service
-          </button>
-        </div>
-      </form>
-    </>
+      </aside>
+    </div>
   );
 }
 
@@ -2278,39 +2194,10 @@ function FindingsGrid({
   );
 }
 
-function ClinicalSection({
-  number,
-  title,
-  description,
-  active,
-  onOpen,
-  children,
-}: {
-  number: string;
-  title: string;
-  description: string;
-  active: boolean;
-  onOpen: () => void;
-  children: React.ReactNode;
+function ClinicalSection({ step, active, group, children }: {
+  step: EncounterStep; active: EncounterStep; group: string; children: React.ReactNode;
 }) {
-  return (
-    <section data-unsaved-group={({ "4": "investigations", "5": "prescription", "6": "procedures", "7": "diagnosis" } as Record<string, string>)[number] || "notes"} className={`clinicalSection ${active ? "expanded" : "collapsed"}`}>
-      <button
-        type="button"
-        className="clinicalSectionHeader"
-        onClick={onOpen}
-        aria-expanded={active}
-      >
-        <b>{number}</b>
-        <span>
-          <strong>{title}</strong>
-          <small>{description}</small>
-        </span>
-        <i>{active ? "−" : "+"}</i>
-      </button>
-      <div className="sectionGrid" aria-hidden={!active}>
-        {children}
-      </div>
-    </section>
-  );
+  return <section id={`encounter-${step}`} data-unsaved-group={group} hidden={active !== step} className="clinicalSection">
+    <div className="sectionGrid">{children}</div>
+  </section>;
 }

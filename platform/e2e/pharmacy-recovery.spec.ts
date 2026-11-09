@@ -150,3 +150,36 @@ test("late supply confirmation cannot label or replace another patient's review"
   await page.getByRole("button", { name: "← Back to queue" }).click();
   await expect(page.locator(".medicineLabel")).toHaveCount(0);
 });
+
+test("dispensed and not-supplied queue entries reopen their recorded outcomes without offering supply", async ({ page }) => {
+  const state = await fixture(page);
+  const current = state.visits[0];
+  const base = current.orders[0];
+  const historyOrder = (name: string, dispenseStatus: string, dispensedQuantity: string, billedTotal: number) => ({
+    ...base, id: name, displayName: name, status: "COMPLETED",
+    prescription: { ...base.prescription, dispenseStatus, dispensedQuantity },
+    charge: { currency: "KES", billedTotal },
+  });
+  current.orders.push(historyOrder("Completed tablets", "DISPENSED", "10", 50), historyOrder("Unavailable capsules", "NOT_DISPENSED", "0", 0));
+  // A remaining pending medicine for the same patient still belongs on the awaiting worklist.
+  await page.reload();
+  await page.getByRole("button", { name: "Pharmacy & stock", exact: true }).click();
+  let stockChecks = 0;
+  page.on("request", req => { if (/\/api\/orders\/[^/]+\/dispense/.test(req.url())) stockChecks++; });
+  for (const [tab, medication, expectedBill] of [
+    ["Dispensed", "Completed tablets", "KES 50.00"],
+    ["Not supplied", "Unavailable capsules", "KES 0.00"],
+  ]) {
+    await page.getByRole("tab", { name: new RegExp(tab + " 1$") }).click();
+    const patient = page.getByRole("button", { name: /Synthetic one.*P-one/ });
+    await expect(patient).toContainText("1 medicine");
+    await patient.click();
+    await expect(page.getByRole("heading", { name: "Dispensing history" })).toBeVisible();
+    const list = page.getByLabel("Pharmacy prescription list");
+    await expect(list.locator("tbody tr")).toHaveCount(1);
+    await expect(list.getByRole("row", { name: new RegExp(medication) })).toContainText(expectedBill);
+    await expect(list.getByRole("button")).toHaveCount(0);
+    await page.getByRole("button", { name: "← Back to queue" }).click();
+  }
+  expect(stockChecks).toBe(0);
+});

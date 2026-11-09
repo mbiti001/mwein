@@ -46,7 +46,7 @@ export default function VisitVitalsPanel({ visitId, capture = false, onUse, onIn
       setError((error as Error).message + (uncertain ? " Retry the same save to confirm its result; your entries are retained." : ""));
     } finally { draft.pending.current = false; if (mounted.current) setBusy(false); }
   }
-  return <section className="card recordedVitals" aria-label="Recorded vital measurements"><h2>Vitals</h2><p>Only enter measurements actually taken. Recording vitals does not complete clinical triage. Alert clinical staff promptly if the patient appears unwell.</p>
+  return <section className="card recordedVitals" aria-label="Recorded vital measurements"><h2>Vitals</h2>{capture && <p>Only enter measurements actually taken. Recording vitals does not complete clinical triage. Alert clinical staff promptly if the patient appears unwell.</p>}
     {error && <div role="alert" className="alert">{error}</div>}{message && <p role="status">{message}</p>}
     {capture && <form onSubmit={save} onChange={() => { draft.dirty.current = true; }} className="dataForm"><fieldset className="wide vitalGrid" disabled={busy || retry}><legend>Measured values</legend><p className="wide">Leave unmeasured values blank. Nothing is assumed normal.</p>{measuredVitalFields.map(field => <label key={field.key}>{field.label}<input name={field.key} type="number" min={field.min} max={field.max} step={field.step} /></label>)}</fieldset>
       <label>Measured at (Nairobi)<input type="datetime-local" name="measuredAt" required defaultValue={new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 16)} disabled={busy || retry} /></label>

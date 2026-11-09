@@ -1,0 +1,138 @@
+.shell.encounterFocused > .workspace {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+}
+.encounterLayout {
+  display: grid;
+  grid-template-columns: clamp(12.5rem, 17vw, 16rem) minmax(0, 1fr) clamp(15rem, 20vw, 20rem);
+  min-height: 100dvh;
+  align-items: start;
+  color: var(--ink);
+  background: #fff;
+}
+.encounterRail, .encounterOverview { position: sticky; top: 0; max-height: 100dvh; overflow-y: auto; }
+.encounterRail {
+  min-height: 100dvh;
+  padding: 1.5rem .8rem;
+  color: #fff;
+  background: #163a80;
+}
+.encounterRailBrand { display: flex; align-items: center; gap: .65rem; padding: 0 .55rem 1.35rem; border-bottom: 1px solid #40629a; font-size: 1.15rem; font-weight: 750; }
+.encounterRailBrand .brandMark { width: 2.25rem; height: 2.25rem; border-radius: .55rem; background: #fff; }
+.encounterRailTitle { margin: 1.45rem .65rem .65rem; color: #cbdcf5; font-size: .82rem; }
+.encounterRail nav, .encounterRailExits { display: grid; gap: .2rem; }
+.encounterRail nav button, .encounterRailExits button {
+  width: 100%; padding: .7rem .75rem; border: 0; border-radius: .4rem;
+  background: transparent; color: inherit; text-align: left; font-size: .92rem; line-height: 1.3;
+}
+.encounterRail nav button:hover, .encounterRailExits button:hover { background: #224a8f; }
+.encounterRail nav button[aria-current="step"] { color: #15367b; background: #fff; font-weight: 700; box-shadow: inset .25rem 0 #70befd; }
+.encounterRail button:focus-visible { outline: 2px solid #91ceff; outline-offset: 1px; }
+.encounterRailExits { border-top: 1px solid #40629a; margin-top: 1.4rem; padding-top: .65rem; color: #dce8fa; }
+.encounterRail .encounterSectionsToggle { display: none; }
+.encounterContent { min-width: 0; width: 100%; max-width: 67rem; margin-inline: auto; padding: 1.5rem clamp(1rem, 2.1vw, 2.1rem) 3rem; container-type: inline-size; }
+.encounterIdentity { display: flex; flex-wrap: wrap; align-items: baseline; gap: .35rem .8rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); color: var(--muted); font-size: .82rem; overflow-wrap: anywhere; }
+.encounterIdentity strong { color: var(--ink); font-size: .95rem; }
+.encounterContent .consultForm { display: grid; gap: .85rem; margin: 0; }
+.encounterPaneHeading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .6rem; padding-top: 1.25rem; }
+.encounterPaneHeading h1 { margin: 0; font-size: clamp(1.55rem, 2.2vw, 2.1rem); line-height: 1.2; scroll-margin-top: 1rem; }
+.encounterPaneHeading h1:focus { outline: 0; }
+.encounterContent .clinicalSection { border: 0; background: transparent; min-width: 0; }
+.encounterContent .clinicalSection[hidden] { display: none; }
+.encounterContent .sectionGrid { padding: .6rem 0; }
+.encounterContent .noAllergy { margin: 0; background: #f4f7fa; border: 1px solid var(--line); color: #475a70; }
+.encounterOverview { padding: 1.5rem clamp(.8rem, 1.35vw, 1.4rem) 3rem; background: #f6f8fb; align-self: start; min-height: 100dvh; border-left: 1px solid var(--line); overflow-wrap: anywhere; }
+.encounterOverview > h2 { margin: .05rem 0 1.3rem; font-size: 1.12rem; }
+.encounterOverview > h3 { margin: 1.25rem 0 .7rem; font-size: .95rem; }
+.encounterPatientCard { display: grid; gap: .25rem; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
+.encounterPatientCard strong { font-size: 1.06rem; }
+.encounterPatientCard span, .encounterFacts dt, .encounterObservationGrid dt { color: var(--muted); font-size: .8rem; }
+.encounterFacts, .encounterObservationGrid { display: grid; gap: .65rem; margin: 0; }
+.encounterFacts dd, .encounterObservationGrid dd { margin: .12rem 0 0; font-size: .9rem; font-weight: 600; }
+.encounterObservationGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-bottom: .9rem; }
+.encounterObservationGrid > div { padding: .38rem 0; }
+.encounterOverview > .card, .encounterOverview > .encounterMore { margin: 0; padding: .75rem 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; box-shadow: none; }
+.encounterOverview summary { cursor: pointer; font-size: .86rem; }
+.encounterOverview .historyPanel summary { display: grid; gap: .15rem; }
+.encounterOverview .inlineForm { display: grid; grid-template-columns: minmax(0, 1fr); }
+.encounterMore .encounterFacts { margin-top: .7rem; }
+.encounterTriage { display: grid; gap: 1rem; min-width: 0; }
+.encounterTriage .recordedVitals { margin: 0; }
+@container (max-width: 46rem) {
+  .encounterContent .complaintRow { grid-template-columns: 1.4rem minmax(0, 1fr) minmax(5.5rem,.5fr); }
+  .encounterContent .complaintRow label:first-of-type { grid-column: span 2; }
+  .encounterContent .complaintRow label:nth-of-type(2) { grid-column: 2; }
+  .encounterContent .complaintRow button { grid-column: 2 / -1; justify-self: start; }
+  .encounterContent .rxCompactEditor { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .encounterContent .rxCompactEditor > .rxMedicine { grid-column: 1 / -1; }
+  .encounterContent .rxItemMeta { grid-column: 1 / -1; }
+}
+@media screen and (min-width: 751px) and (max-width: 1100px) {
+  .encounterLayout { grid-template-columns: 12.5rem minmax(0, 1fr); }
+  .encounterRail { grid-row: 1 / 3; }
+  .encounterOverview { position: static; grid-column: 2; min-height: 0; max-height: none; border-top: 1px solid var(--line); }
+}
+@media screen and (max-width: 750px) {
+  .encounterLayout { display: flex; flex-direction: column; padding-bottom: 4rem; }
+  .encounterContent { padding: .9rem .9rem 1.25rem; }
+  .encounterPaneHeading { padding-top: .8rem; }
+  .encounterOverview { width: 100%; min-height: 0; max-height: none; position: static; padding: 1.1rem .9rem; border: 0; border-top: 1px solid var(--line); }
+  .encounterRail { position: fixed; inset: auto 0 0; z-index: 42; min-height: 0; max-height: 80dvh; padding: 0 1rem env(safe-area-inset-bottom); box-shadow: 0 -2px 10px #162e4c21; }
+  .encounterRailBrand, .encounterRailTitle, .encounterRail[data-open="false"] .encounterRailMenu { display: none; }
+  .encounterRail .encounterSectionsToggle { width: 100%; height: 3.25rem; display: flex; align-items: center; justify-content: space-between; padding: 0; background: transparent; color: white; border: 0; font-weight: 700; }
+  .encounterSectionsToggle span:last-child { font-size: .8rem; font-weight: 500; }
+  .encounterRailMenu { padding-bottom: .8rem; }
+  .encounterRail nav { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .encounterRailExits { display: flex; flex-wrap: wrap; margin-top: .6rem; }
+  .encounterRailExits button { width: auto; }
+  .encounterContent .consultationRecovery { position: static; }
+}
+@media print { .encounterLayout { display: block; } .encounterRail { display: none; } .encounterContent,.encounterOverview { max-width: none; min-height: 0; position: static; max-height: none; } }
+.encounterIdentity a { display: none; }
+@media screen and (max-width: 1100px) {
+  .encounterIdentity a { display: inline; margin-left: auto; font-size: .8rem; }
+  .encounterOverview { scroll-margin-top: .75rem; }
+}
+.encounterContent .alert { margin: 0; }
+.encounterDraftNotice { margin: 0; color: #5d4b25; font-size: .85rem; }
+
+.rxSaved .rxCellLabel { display: none; }
+
+@media screen {
+  @container (max-width: 50rem) {
+    .rxSaved .workflowOrderTable { position: relative; display: block; }
+    .rxSaved thead {
+      position: absolute; width: 1px; height: 1px; overflow: hidden;
+      clip-path: inset(50%); white-space: nowrap;
+    }
+    .rxSaved tbody { display: grid; gap: .65rem; }
+    .rxSaved tbody tr {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .65rem .75rem; padding: .85rem;
+      border: 1px solid var(--line); border-radius: .5rem;
+    }
+    .rxSaved .workflowOrderTable td {
+      min-width: 0; padding: 0; border: 0; overflow-wrap: anywhere;
+    }
+    .rxSaved .rxCellLabel {
+      display: block; margin-bottom: .12rem; color: var(--muted);
+      font-size: .75rem; font-weight: 600;
+    }
+    .rxSaved td:nth-child(2) { grid-row: 1; grid-column: 1 / -1; font-size: 1rem; }
+    .rxSaved td:nth-child(1) { grid-column: 1; }
+    .rxSaved td:nth-child(3) { grid-column: 2 / -1; }
+    .rxSaved .workflowOrderTable td:last-child {
+      grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto;
+      align-items: center; padding-top: .5rem; border-top: 1px solid var(--line);
+    }
+    .rxSaved td:last-child .rxCellLabel { grid-column: 1; grid-row: 1; }
+    .rxSaved .workflowOrderTable td:last-child button { grid-column: 2; grid-row: 1 / 3; margin: 0; }
+  }
+  @container (max-width: 28rem) {
+    .rxSaved td:nth-child(1), .rxSaved td:nth-child(3) { grid-column: 1 / -1; }
+  }
+}

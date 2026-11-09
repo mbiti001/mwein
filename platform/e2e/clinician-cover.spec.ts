@@ -62,8 +62,8 @@ test("shortage-cover clinician starts in consultation, records vitals, bills and
   await page.getByRole("button",{name:"Home",exact:true}).click();
   await page.getByRole("button",{name:"Consultation",exact:true}).click();
   await page.getByRole("button",{name:/Browser Shortage Cover/}).first().click();
-  await expect(page.getByText("Private consultation", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Browser Shortage Cover", exact: true })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Encounter sections" })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Patient overview" })).toContainText("Browser Shortage Cover");
 
   // Exercise the real consultation endpoint under this same clinician's session.
   let expectedRevision: string | null = null;

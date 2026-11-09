@@ -378,8 +378,6 @@ export default function ClinicalApp() {
         </div>
       </aside>}
       <section className="workspace">
-        {encounterFocused && <button className="secondary encounterHome noPrint" onClick={() => { if (!confirmWorkspaceNavigation()) return; setScreen("dashboard"); setContextVisitId(null); setFocusedVisitId(null); setNotice(""); }}>← Home</button>}
-        {encounterFocused && <button type="button" className="secondary noPrint" onClick={signOut}>Sign out</button>}
         {navigationError && <p className="alert" role="alert">{navigationError}</p>}
         {visitsRefreshFailed && user.permissions.includes("visit.read") && (
           <div className="alert syncWarning" role="status">
@@ -546,6 +544,8 @@ export default function ClinicalApp() {
           <>
           <ConsultationWorkstation
             onWorkspaceChange={setEncounterWorkspaceOpen}
+            onHome={() => { if (!confirmWorkspaceNavigation()) return; setScreen("dashboard"); setContextVisitId(null); setFocusedVisitId(null); setNotice(""); }}
+            onSignOut={signOut}
             visits={visits.filter((visit) =>
               ["AWAITING_CLINICIAN", "UNDER_CONSULTATION"].includes(
                 visit.status,

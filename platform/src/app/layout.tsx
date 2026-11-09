@@ -27,6 +27,7 @@ import "./registration.css";
 import "./record-layout.css";
 import "./public-entry.css";
 import "./workflow-refinements.css";
+import "./encounter-workspace.css";
 
 export const metadata: Metadata = {
   title: "Mwein HMIS · Connected outpatient care",

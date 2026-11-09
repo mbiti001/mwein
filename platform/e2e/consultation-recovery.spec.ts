@@ -54,8 +54,16 @@ async function fixture(page: Page, permissions: string[] = [], items: object[] =
   await page.goto("/"); await page.getByRole("button", { name: "Consultation", exact: true }).click();
   await page.getByRole("button", { name: /Synthetic Recovery.*P-RECOVERY/ }).click();
 }
+async function openEncounterMenu(page: Page) {
+  const toggle = page.getByRole("button", { name: "Encounter sections", exact: true });
+  if (await toggle.isVisible() && await toggle.getAttribute("aria-expanded") === "false") await toggle.click();
+}
+async function chooseSection(page: Page, label: string) {
+  await openEncounterMenu(page);
+  await page.getByRole("navigation", { name: "Encounter sections" }).getByRole("button", { name: label, exact: true }).click();
+}
 async function save(page: Page) {
-  await page.locator(".clinicalSectionHeader").filter({hasText: "Examination"}).click();
+  await chooseSection(page, "Examination");
   await page.getByRole("button", { name: "Save clinical notes", exact: true }).click();
 }
 
@@ -104,13 +112,14 @@ test("signing saves the visible plan first and a delayed response cannot undo na
     await pending; return route.fulfill({ json: { stage: "SIGNED", target: "AWAITING_PAYMENT" } });
   });
   await fixture(page);
-  await page.locator(".clinicalSectionHeader").filter({hasText: "Plan & completion"}).click();
+  await chooseSection(page, "Plan & discharge");
   await page.locator('[name="plan"]').fill("Visible plan must be saved before signing");
   await page.getByRole("button", { name: "Sign & send to next service" }).click();
   await expect.poll(() => posts.length).toBe(2);
   expect(posts[0]).toMatchObject({ action: "SAVE_NOTES", expectedRevision: null, data: { plan: "Visible plan must be saved before signing" } });
   expect(posts[1]).toMatchObject({ action: "SIGN", expectedRevision: `${encounterId}:${updatedAt}` });
   page.once("dialog", async dialog => { expect(dialog.message()).toContain("request is still in progress"); await dialog.accept(); });
+  await openEncounterMenu(page);
   await page.getByRole("button", { name: "← Back to queue" }).click();
   const signedResponse = page.waitForResponse(response => response.url().endsWith("/consultation") && response.request().postDataJSON().action === "SIGN");
   release(); await (await signedResponse).finished();
@@ -143,6 +152,7 @@ test("unsaved consultation guards queue, sidebar, room actions, patient switch, 
   await page.route("**/api/patients?q=*", route => route.fulfill({ json: { patients: [visit().patient] } }));
   await fixture(page, ["patient.read", "patient.create", "visit.create", "vitals.write", "billing.read"]);
   await expect(page.getByLabel("Unsaved consultation changes")).toHaveCount(0);
+  await openEncounterMenu(page);
   await page.getByRole("button", { name: "← Back to queue" }).click();
   await page.getByRole("button", { name: /Synthetic Recovery.*P-RECOVERY/ }).click();
   await page.locator('[name="historyPresentingIllness"]').fill("Unsaved synthetic history");
@@ -157,7 +167,7 @@ test("unsaved consultation guards queue, sidebar, room actions, patient switch, 
   for (const label of ["← Back to queue", "← Home"]) await cancelLeave(label);
   expect(logoutRequests).toBe(0);
   await expect(page.getByPlaceholder("Name, patient number, phone, National ID or SHA number")).toHaveCount(0);
-  await page.locator(".clinicalSectionHeader").filter({hasText: "Plan & completion"}).click();
+  await chooseSection(page, "Plan & discharge");
   await cancelLeave("Open service points");
   for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
@@ -167,6 +177,7 @@ test("unsaved consultation guards queue, sidebar, room actions, patient switch, 
   await page.emulateMedia({ media: "print" }); await expect(page.getByLabel("Unsaved consultation changes")).toBeHidden();
   await page.emulateMedia({ media: "screen" });
   page.once("dialog", dialog => dialog.accept());
+  await openEncounterMenu(page);
   await page.getByRole("button", { name: "← Back to queue" }).click();
   await expect(page.getByRole("button", { name: /Synthetic Recovery.*P-RECOVERY/ })).toBeVisible();
   // Discard is in-memory only; re-opening does not restore discarded notes.
@@ -194,7 +205,7 @@ test("reload warns, failed saves retain changes and edits during a save remain u
   await save(page); await expect(page.getByText("Synthetic save outage", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Unsaved consultation changes")).toContainText("clinical notes");
   await save(page); await expect.poll(() => posts).toBe(2);
-  await page.getByRole("button", { name: "Presenting complaint & history" }).click();
+  await chooseSection(page, "Complaints & HPI");
   await history.fill("Newer edit while saving");
   release(); await expect(page.getByText("Clinical notes saved as a draft.", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Unsaved consultation changes")).toContainText("clinical notes");
@@ -203,6 +214,7 @@ test("reload warns, failed saves retain changes and edits during a save remain u
   await expect(page.getByLabel("Unsaved consultation changes")).toHaveCount(0);
   const prevented = await page.evaluate(() => !window.dispatchEvent(new Event("beforeunload", { cancelable: true })));
   expect(prevented).toBe(false);
+  await openEncounterMenu(page);
   await page.getByRole("button", { name: "← Back to queue" }).click();
   await expect(page.getByRole("button", { name: /Synthetic Recovery.*P-RECOVERY/ })).toBeVisible();
 });
@@ -219,27 +231,27 @@ test("notes do not clear diagnosis, investigation or prescription drafts and sig
     { code: "SYNTH-LAB", name: "Synthetic laboratory test", category: "LABORATORY_TEST", unitPrice: 100, active: true },
     { code: "SYNTH-MED", name: "Synthetic medicine", genericName: "Synthetic medicine", category: "PHARMACEUTICAL", unitPrice: 100, active: true, prescribingDefaults: { route: "Oral", frequencyPerDay: 1, durationDays: 2, doseUnit: "tablet", doseUnitsPerIssueUnit: 1, wholeIssueUnits: false } },
   ]);
-  await page.locator(".clinicalSectionHeader").filter({hasText: "ICD-11 assessment"}).click();
+  await chooseSection(page, "Final diagnosis");
   await page.locator('[name="primaryDiagnosis"]').fill("Synthetic diagnosis selection");
-  await page.locator(".clinicalSectionHeader").filter({hasText: "Investigations"}).first().click();
+  await chooseSection(page, "Diagnostics & results");
   await page.getByPlaceholder("Search laboratory tests…").fill("Synthetic");
   await page.getByRole("button", { name: /Synthetic laboratory test/ }).click();
-  await page.locator(".clinicalSectionHeader").filter({hasText: "Prescription"}).click();
+  await chooseSection(page, "Prescription");
   await page.getByPlaceholder("Search medicine by generic, brand or strength…").fill("Synthetic");
   await page.getByRole("button", { name: /Synthetic medicine/ }).click();
   await save(page);
   const status = page.getByLabel("Unsaved consultation changes");
   for (const group of ["diagnosis", "investigation requests", "prescription"]) await expect(status).toContainText(group);
   await expect(status).not.toContainText("clinical notes and plan");
-  await page.locator(".clinicalSectionHeader").filter({hasText: "Plan & completion"}).click();
+  await chooseSection(page, "Plan & discharge");
   await page.getByRole("button", { name: "Sign & send to next service" }).click();
   await expect(page.getByText(/Save or clear the unfinished diagnosis/)).toBeVisible();
   expect(posts).toHaveLength(1);
-  await page.locator(".clinicalSectionHeader").filter({hasText: "Investigations"}).first().click();
+  await chooseSection(page, "Diagnostics & results");
   await page.getByRole("button", { name: "Submit investigation requests" }).click();
   await expect(status).not.toContainText("investigation requests");
   await expect(status).toContainText("prescription");
-  await page.locator(".clinicalSectionHeader").filter({hasText: "Prescription"}).click();
+  await chooseSection(page, "Prescription");
   await page.locator('[name="dose"]').fill("1 tablet");
   await page.locator('[name="route"]').selectOption("Oral");
   await page.locator('[name="frequencyPerDay"]').selectOption("1");
@@ -248,7 +260,7 @@ test("notes do not clear diagnosis, investigation or prescription drafts and sig
   await page.getByRole("button", { name: "Save prescription", exact: true }).click();
   await expect(status).toContainText("diagnosis");
   await expect(status).not.toContainText("prescription");
-  await page.locator(".clinicalSectionHeader").filter({hasText: "ICD-11 assessment"}).click();
+  await chooseSection(page, "Final diagnosis");
   await page.locator('[name="primaryDiagnosis"]').fill("");
   await expect(status).toHaveCount(0);
   expect(posts.map(post => post.action)).toEqual(["SAVE_NOTES", "SUBMIT_INVESTIGATIONS", "SAVE_PRESCRIPTION"]);
@@ -264,7 +276,7 @@ test("a diagnosis response preserves a newer selection and a successful sign ret
     return route.fulfill({ json: { stage: "SAVED", draftRevision: `${encounterId}:${updatedAt}` } });
   });
   await fixture(page);
-  await page.locator(".clinicalSectionHeader").filter({hasText: "ICD-11 assessment"}).click();
+  await chooseSection(page, "Final diagnosis");
   const search = page.locator('[name="primaryDiagnosis"]');
   await search.fill("Synthetic"); await page.getByRole("button", { name: /Synthetic diagnosis.*SYNTH/ }).click();
   await page.getByRole("button", { name: "Add ICD-11 diagnosis" }).click();
@@ -273,12 +285,12 @@ test("a diagnosis response preserves a newer selection and a successful sign ret
   await expect(page.getByText("Primary ICD-11 diagnosis recorded.", { exact: true })).toBeVisible();
   await expect(search).toHaveValue("Newer diagnosis");
   await expect(page.getByLabel("Unsaved consultation changes")).toContainText("diagnosis");
-  await page.locator(".clinicalSectionHeader").filter({hasText: "ICD-11 assessment"}).click();
+  await chooseSection(page, "Final diagnosis");
   await page.getByRole("button", { name: /Synthetic diagnosis.*SYNTH/ }).click();
   await page.getByRole("button", { name: "Add ICD-11 diagnosis" }).click();
   await expect.poll(() => posts.length).toBe(2);
   await expect(page.getByLabel("Unsaved consultation changes")).toHaveCount(0);
-  await page.locator(".clinicalSectionHeader").filter({hasText: "Plan & completion"}).click();
+  await chooseSection(page, "Plan & discharge");
   await page.locator('[name="plan"]').fill("Synthetic plan");
   await page.getByRole("button", { name: "Sign & send to next service" }).click();
   await expect(page.getByRole("button", { name: /Synthetic Recovery.*P-RECOVERY/ })).toBeVisible();
@@ -293,7 +305,7 @@ test("signing stops if notes change during its save and active-problem drafts st
     return route.fulfill({ json: { stage: "NOTES_SAVED", draftRevision: `${encounterId}:${updatedAt}` } });
   });
   await fixture(page);
-  await page.locator(".clinicalSectionHeader").filter({hasText: "Plan & completion"}).click();
+  await chooseSection(page, "Plan & discharge");
   await page.locator('[name="plan"]').fill("First plan");
   await page.getByRole("button", { name: "Sign & send to next service" }).click();
   await expect.poll(() => posts.length).toBe(1);
@@ -301,6 +313,7 @@ test("signing stops if notes change during its save and active-problem drafts st
   release(); await expect(page.getByText(/The form changed while notes were saving/)).toBeVisible();
   expect(posts[0].action).toBe("SAVE_NOTES"); expect(posts).toHaveLength(1);
   await expect(page.getByLabel("Unsaved consultation changes")).toContainText("clinical notes");
+  await page.getByRole("complementary", { name: "Patient overview" }).getByText("Problem list", { exact: true }).click();
   await page.getByPlaceholder("Condition or persistent clinical concern").fill("Synthetic active problem");
   await expect(page.getByLabel("Unsaved consultation changes")).toContainText("active problem");
   await save(page); await expect.poll(() => posts.length).toBe(2);

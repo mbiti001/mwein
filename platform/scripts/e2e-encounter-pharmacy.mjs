@@ -36,7 +36,8 @@ export async function verifyEncounterPharmacy({ pg, facility, admin, storeId, or
     await page.getByRole("button",{name:"Sign in securely"}).click();
     await page.getByRole("button",{name:"Consultation",exact:true}).click();
     await page.getByRole("button",{name:/Synthetic two medicines/}).click();
-    await page.getByRole("button",{name:/Prescription.*Prescribe only/}).click();
+    const sections = page.getByRole("navigation", {name:"Encounter sections"});
+    await sections.getByRole("button", {name:"Prescription",exact:true}).click();
     const list = page.getByRole("table",{name:"Saved prescriptions"});
     for (const m of medicines) {
       await page.getByPlaceholder("Search medicine by generic, brand or strength…").fill(m.code);
@@ -59,7 +60,7 @@ export async function verifyEncounterPharmacy({ pg, facility, admin, storeId, or
     await expect(list.locator("tbody tr")).toHaveCount(2);
     const lines=async()=> (await pg.query(`SELECT p."medicineCode",i.quantity,i."unitPrice" FROM "InvoiceItem" i JOIN "Prescription" p ON p."orderId"=i."orderId" JOIN "ClinicalOrder" o ON o.id=p."orderId" WHERE o."visitId"=$1 ORDER BY p."medicineCode"`,[visitId])).rows;
     expect(await lines()).toHaveLength(0);
-    await page.locator(".clinicalSectionHeader").filter({hasText:"Procedures"}).click();
+    await sections.getByRole("button",{name:"Procedures",exact:true}).click();
     await page.locator('[name="procedure_name"]').fill("Synthetic wound dressing");
     await page.locator('[name="procedure_performedAt"]').fill(new Date(Date.now()+3*3600000-60000).toISOString().slice(0,16));
     for (const field of ["indication","consentNote","anaesthesia","findings","complications","aftercare"]) {

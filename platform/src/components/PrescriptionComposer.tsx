@@ -1,10 +1,22 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { SearchablePicker } from "./SearchablePicker";
 import { chargeMoney, orderCharge, type OrderCharge } from "@/lib/order-charges";
 import { directIssueConversion, frequencyLabel, prescriptionCalculation, readPrescribingDefaults, type PrescribingDefaults } from "@/lib/prescribing-defaults";
 import { jsonRequest } from "@/lib/client-http";
+
+const prescriptionColumns = ["Duration", "Medication", "Instructions", "Quantity", "Unit price", "Total", "Status / action"] as const;
+
+function PrescriptionCell({ label, children }: {
+  label: typeof prescriptionColumns[number];
+  children: ReactNode;
+}) {
+  return <td role="cell">
+    <span className="rxCellLabel" aria-hidden="true">{label}</span>
+    {children}
+  </td>;
+}
 
 type Medicine = {
   code: string;
@@ -308,6 +320,7 @@ export default function PrescriptionComposer({
           Generic item names *
           <SearchablePicker
             name="medicineCode"
+            showUnfilteredOptions={false}
             value={editor.medicineCode}
             onChange={(value) => {
               if (editor.existingOrderId) return;
@@ -480,10 +493,36 @@ export default function PrescriptionComposer({
           </button>
         </header>
         {!saved.length && <p>No medicines saved for this visit yet.</p>}
-        <div className="workflowTableScroll"><table className="workflowOrderTable" aria-label="Saved prescriptions"><thead><tr><th>Duration</th><th>Medication</th><th>Instructions</th><th>Quantity</th><th>Unit price</th><th>Total</th><th>Status / action</th></tr></thead><tbody>{saved.filter(order => order.prescription && order.status !== "CANCELLED").map(order => {
-          const charge = order.charge || orderCharge(order); const prescription = order.prescription!;
-          return <tr key={order.id}><td>{prescription.startDate?.slice(0,10)}{prescription.stopDate ? ` – ${prescription.stopDate.slice(0,10)}` : ""}</td><td><strong>{order.displayName}</strong></td><td>{prescription.instructions}</td><td>{Number(prescription.quantity)}</td><td>{chargeMoney(charge.unitPrice)}</td><td>{chargeMoney(charge.total)}</td><td>{prescription.dispenseStatus === "DISPENSED" ? "Dispensed" : order.status === "DRAFT" ? "Draft" : "Sent to pharmacy"}{["DRAFT", "REQUESTED"].includes(order.status) && prescription.dispenseStatus === "PENDING" && !Number(prescription.dispensedQuantity || 0) && <button type="button" className="secondary" disabled={locked} onClick={() => editSaved(order)}>Correct</button>}</td></tr>;
-        })}</tbody></table></div>
+        <div className="workflowTableScroll">
+          <table className="workflowOrderTable" role="table" aria-label="Saved prescriptions">
+            <thead role="rowgroup"><tr role="row">
+              {prescriptionColumns.map(label => <th key={label} scope="col" role="columnheader">{label}</th>)}
+            </tr></thead>
+            <tbody role="rowgroup">
+              {saved.filter(order => order.prescription && order.status !== "CANCELLED").map(order => {
+                const charge = order.charge || orderCharge(order);
+                const prescription = order.prescription!;
+                const supplyStatus: Record<string, string> = { DISPENSED: "Dispensed", PARTIALLY_DISPENSED: "Partially dispensed", NOT_DISPENSED: "Not supplied" };
+                const status = supplyStatus[prescription.dispenseStatus] || (order.status === "DRAFT" ? "Draft" : "Sent to pharmacy");
+                const canCorrect = ["DRAFT", "REQUESTED"].includes(order.status) && prescription.dispenseStatus === "PENDING" && !Number(prescription.dispensedQuantity || 0);
+                return <tr key={order.id} role="row">
+                  <PrescriptionCell label="Duration">
+                    {prescription.startDate?.slice(0, 10)}{prescription.stopDate && ` – ${prescription.stopDate.slice(0, 10)}`}
+                  </PrescriptionCell>
+                  <PrescriptionCell label="Medication"><strong>{order.displayName}</strong></PrescriptionCell>
+                  <PrescriptionCell label="Instructions">{prescription.instructions}</PrescriptionCell>
+                  <PrescriptionCell label="Quantity">{Number(prescription.quantity)}</PrescriptionCell>
+                  <PrescriptionCell label="Unit price">{chargeMoney(charge.unitPrice)}</PrescriptionCell>
+                  <PrescriptionCell label="Total">{chargeMoney(charge.total)}</PrescriptionCell>
+                  <PrescriptionCell label="Status / action">
+                    {status}
+                    {canCorrect && <button type="button" className="secondary" disabled={locked} onClick={() => editSaved(order)}>Correct</button>}
+                  </PrescriptionCell>
+                </tr>;
+              })}
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   );

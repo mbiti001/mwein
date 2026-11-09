@@ -140,7 +140,7 @@ test("results refresh preserves notes, clears failed data and supports keyboard 
   await page.route("**/api/visits/*/investigations", route => route.fulfill(fail ? { status: 503, json: { error: "Synthetic results outage" } } : { json: reports() }));
   await fixture(page);
   await page.locator('[name="historyPresentingIllness"]').fill("Unsaved consultation notes stay here");
-  await page.locator(".clinicalSectionHeader").filter({hasText: "Investigations"}).click();
+  await page.getByRole("navigation", { name: "Encounter sections" }).getByRole("button", { name: "Diagnostics & results" }).click();
   const panel = page.getByRole("region", { name: "Investigation results", exact: true });
   await expect(panel).toContainText("Specimen rejected");
   await expect(page.getByRole("region", { name: "Clinical review overview" })).toHaveCount(0);
@@ -173,11 +173,11 @@ test("a delayed result response cannot cross into another patient's consultation
     if (route.request().url().includes(firstId)) { requested(); await pending; return route.fulfill({ json: reports() }); }
     return route.fulfill({ json: { visit: { ...visit(secondId, "Other"), clinicallyClosedAt: null }, truncated: false, limit: 200 } });
   });
-  await fixture(page); await page.locator(".clinicalSectionHeader").filter({hasText: "Investigations"}).click(); await started;
+  await fixture(page); await page.getByRole("navigation", { name: "Encounter sections" }).getByRole("button", { name: "Diagnostics & results" }).click(); await started;
   await expect(page.getByText("Loading investigations for this visit…")).toBeVisible();
   await page.getByRole("button", { name: "← Back to queue" }).click();
   await page.getByRole("button", { name: /Synthetic Other.*P-Other/ }).click();
-  await page.locator(".clinicalSectionHeader").filter({hasText: "Investigations"}).click();
+  await page.getByRole("navigation", { name: "Encounter sections" }).getByRole("button", { name: "Diagnostics & results" }).click();
   const panel = page.getByRole("region", { name: "Investigation results", exact: true });
   await expect(panel).toContainText("No investigations requested"); release();
   await expect(panel).toContainText("Synthetic Other"); await expect(panel).not.toContainText("Synthetic Results"); await expect(panel).not.toContainText("Synthetic blood test");

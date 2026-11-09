@@ -69,11 +69,24 @@ export function dispensingCompletionCopy(input: {
   return { message: "This quantity completes the outstanding prescription.", action: "Confirm full supply" };
 }
 
+const queueLabels = { AWAITING: "Awaiting", PARTIAL: "Partial", DISPENSED: "Dispensed", CLARIFICATION: "Not supplied" } as const;
+type QueueTab = keyof typeof queueLabels;
+function matchesQueue(order: Order, tab: QueueTab) {
+  if (order.type !== "MEDICATION" || !order.prescription || order.status === "CANCELLED") return false;
+  const status = order.prescription.dispenseStatus;
+  switch (tab) {
+    case "AWAITING": return order.status === "REQUESTED" && status === "PENDING";
+    case "PARTIAL": return status === "PARTIALLY_DISPENSED";
+    case "DISPENSED": return status === "DISPENSED";
+    case "CLARIFICATION": return status === "NOT_DISPENSED";
+  }
+}
+
 export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId, onInitialVisitOpened }: { visits: Visit[]; onUpdated: () => Promise<void>; initialVisitId?: string | null; onInitialVisitOpened?: () => void }) {
-  const [tab, setTab] = useState<"AWAITING" | "PARTIAL" | "DISPENSED" | "CLARIFICATION">("AWAITING");
+  const [tab, setTab] = useState<QueueTab>("AWAITING");
+  const reviewingHistory = tab === "DISPENSED" || tab === "CLARIFICATION";
   const medicationVisits = useMemo(() => visits.filter(v => v.orders?.some(o => o.type === "MEDICATION" && o.prescription)), [visits]);
-  const matchesTab = (order: Order) => order.type === "MEDICATION" && !!order.prescription && (tab === "AWAITING" ? order.status === "REQUESTED" && order.prescription.dispenseStatus === "PENDING" : tab === "PARTIAL" ? order.prescription.dispenseStatus === "PARTIALLY_DISPENSED" : tab === "DISPENSED" ? order.prescription.dispenseStatus === "DISPENSED" : order.prescription.dispenseStatus === "NOT_DISPENSED");
-  const queue = useMemo(() => medicationVisits.filter(v => v.orders?.some(matchesTab)), [medicationVisits, tab]); // eslint-disable-line react-hooks/exhaustive-deps
+  const queue = medicationVisits.filter(visit => visit.orders?.some(order => matchesQueue(order, tab)));
   const [active, setActive] = useState<Visit | null>(null);
   const [detailsOrderId, setDetailsOrderId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -93,7 +106,7 @@ export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId,
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const stockRequestIds = useRef<Record<string, number>>({});
   const [label, setLabel] = useState<{ facility?: string; patient: string; medicine: string; directions: string; batches: string } | null>(null);
-  const prescriptions = active?.orders?.filter(o => o.type === "MEDICATION" && o.prescription && (["REQUESTED", "IN_PROGRESS"].includes(o.status) || uncertain[o.id] || (confirmed[o.id] && !confirmed[o.id].refreshed))) || [];
+  const prescriptions = reviewingHistory ? [] : active?.orders?.filter(o => o.type === "MEDICATION" && o.prescription && (["REQUESTED", "IN_PROGRESS"].includes(o.status) || uncertain[o.id] || (confirmed[o.id] && !confirmed[o.id].refreshed))) || [];
   function openVisit(visit: Visit) { setError(""); setNotice(""); setLabel(null); setActive(visit); }
   useEffect(() => {
     if (!initialVisitId) return;
@@ -218,26 +231,35 @@ export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId,
     <header><div><p className="eyebrow">Pharmacy workstation</p><h1>Prescription queue</h1><p>Review, supply and trace every medicine from prescription to batch and bill.</p></div></header>
     {notice && <div className="alert success" role="status">{notice}</div>}
     {label && <section className="medicineLabel card">{label.facility?.toLowerCase().includes("mwein") && <BrandWordmark className="medicineLabelWordmark" />}<strong>{label.patient}</strong><h2>{label.medicine}</h2><p>{label.directions}</p><small>Batch: {label.batches}{label.facility ? ` · ${label.facility}` : ""}</small><button className="secondary noPrint" onClick={() => { document.body.classList.add("printingMedicineLabel"); window.print(); window.setTimeout(() => document.body.classList.remove("printingMedicineLabel"), 500); }}>Print medicine label</button></section>}
-    <div className="pharmacyTabs" role="tablist">{(["AWAITING", "PARTIAL", "DISPENSED", "CLARIFICATION"] as const).map(value => { const count = medicationVisits.filter(v => v.orders?.some(order => order.type === "MEDICATION" && !!order.prescription && (value === "AWAITING" ? order.status === "REQUESTED" && order.prescription.dispenseStatus === "PENDING" : value === "PARTIAL" ? order.prescription.dispenseStatus === "PARTIALLY_DISPENSED" : value === "DISPENSED" ? order.prescription.dispenseStatus === "DISPENSED" : order.prescription.dispenseStatus === "NOT_DISPENSED"))).length; return <button type="button" role="tab" aria-selected={tab === value} className={tab === value ? "active" : ""} onClick={() => setTab(value)} key={value}>{value === "CLARIFICATION" ? "Not supplied" : value.toLowerCase().replace(/^./, letter => letter.toUpperCase())} <b>{count}</b></button>;})}</div>
-    <section className="card">{queue.length ? <div className="queue">{queue.map(v => <button className={`row ${v.priority.toLowerCase()}`} onClick={() => ["AWAITING", "PARTIAL"].includes(tab) && openVisit(v)} disabled={!(["AWAITING", "PARTIAL"] as string[]).includes(tab)} key={v.id}>
-      <span className="dot"/><div><strong>{v.patient.fullName}</strong><small>{v.patient.patientNumber} · {v.visitNumber} · {v.orders?.filter(o => o.type === "MEDICATION" && ["REQUESTED", "IN_PROGRESS"].includes(o.status)).length} medicine(s)</small></div><b>{v.priority}</b><time>{new Date(v.arrivedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
-    </button>)}</div> : <div className="empty"><strong>No prescriptions awaiting pharmacy</strong><p>Submitted prescriptions will appear here automatically.</p></div>}</section>
+    <div className="pharmacyTabs" role="tablist">{(Object.keys(queueLabels) as QueueTab[]).map(value => {
+      const count = medicationVisits.filter(visit => visit.orders?.some(order => matchesQueue(order, value))).length;
+      return <button type="button" role="tab" aria-selected={tab === value} className={tab === value ? "active" : ""} onClick={() => setTab(value)} key={value}>{queueLabels[value]} <b>{count}</b></button>;
+    })}</div>
+    <section className="card">{queue.length ? <div className="queue">{queue.map(visit => {
+      const count = visit.orders?.filter(order => matchesQueue(order, tab)).length;
+      return <button className={`row ${visit.priority.toLowerCase()}`} onClick={() => openVisit(visit)} key={visit.id}>
+        <span className="dot"/><div><strong>{visit.patient.fullName}</strong><small>{visit.patient.patientNumber} · {visit.visitNumber} · {count} {count === 1 ? "medicine" : "medicines"}</small></div><b>{visit.priority}</b><time>{new Date(visit.arrivedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
+      </button>;
+    })}</div> : <div className="empty"><strong>No prescriptions in {queueLabels[tab].toLowerCase()}</strong></div>}</section>
   </>;
 
   const age = active.patient.dateOfBirth ? `${Math.floor((Date.now() - new Date(active.patient.dateOfBirth).getTime()) / 31557600000)} years` : active.patient.estimatedAgeYears != null ? `About ${active.patient.estimatedAgeYears} years` : "Age not recorded";
   const weight = active.triage?.observations.find(item => item.code === "WEIGHT");
   const primaryDiagnosis = active.encounters?.[0]?.diagnoses.find(item => item.primary) || active.encounters?.[0]?.diagnoses[0];
+  const visibleOrders = (active.orders || []).filter(order => reviewingHistory
+    ? matchesQueue(order, tab)
+    : order.type === "MEDICATION" && order.prescription && !["DRAFT", "CANCELLED"].includes(order.status));
   return <>
-    <header className="pharmacyReviewHeader noPrint"><div><p className="eyebrow">Pharmacy workstation</p><h1>Prescription review</h1><p>Confirm the patient, clinical context, medicine, quantity and batch before supply.</p></div><button className="secondary" onClick={() => setActive(null)}>← Back to queue</button></header>
+    <header className="pharmacyReviewHeader noPrint"><div><p className="eyebrow">Pharmacy workstation</p><h1>{reviewingHistory ? "Dispensing history" : "Prescription review"}</h1></div><button className="secondary" onClick={() => setActive(null)}>← Back to queue</button></header>
     <div className={`patientBanner ${active.priority.toLowerCase()}`} aria-label="Pharmacy patient safety banner"><div><strong>{active.patient.fullName}</strong><span>{active.patient.patientNumber} · {active.visitNumber} · {active.patient.sexAtBirth ? active.patient.sexAtBirth.replaceAll("_", " ") : "Sex not recorded"} · {age}</span></div><div><small>Weight</small><b>{weight?.valueDecimal ? `${Number(weight.valueDecimal)} ${weight.unit || "kg"}` : "Not recorded"}</b></div><div><small>Primary diagnosis</small><b>{primaryDiagnosis ? `${primaryDiagnosis.code ? `${primaryDiagnosis.code} · ` : ""}${primaryDiagnosis.description}` : "Not recorded"}</b></div><div><small>Priority</small><b>{active.priority}</b></div></div>
     {active.patient.allergies?.length ? <div className="allergyAlert"><strong>Allergy alert</strong>{active.patient.allergies.map(a => <span key={a.substance}>{a.substance}{a.reaction ? ` — ${a.reaction}` : ""}{a.severity ? ` (${a.severity})` : ""}</span>)}</div> : <div className="privacyNotice"><strong>No active allergies recorded</strong><span>Confirm allergy status with the patient before supply.</span></div>}
     {error && <div className="alert">{error}</div>}
     {notice && <div className="alert success" role="status">{notice}</div>}
-    {!prescriptions.length && <section className="card empty"><strong>Pharmacy work complete for this patient</strong><p>The patient remains open so you can verify the result. Return to the queue when ready.</p></section>}
-    <section className="card" aria-label="Pharmacy prescription list"><h2>Prescription</h2><div className="workflowTableScroll"><table className="workflowOrderTable"><thead><tr><th>Medication</th><th>Instructions</th><th>Prescribed / supplied</th><th>Supply now</th><th>Unit price</th><th>Total</th><th>Actions</th></tr></thead><tbody>{(active.orders || []).filter(order => order.type === "MEDICATION" && order.prescription && !["DRAFT", "CANCELLED"].includes(order.status)).map(order => {
+    {!reviewingHistory && !prescriptions.length && <section className="card empty"><strong>Pharmacy work complete for this patient</strong><p>The patient remains open so you can verify the result. Return to the queue when ready.</p></section>}
+    <section className="card" aria-label="Pharmacy prescription list"><h2>Prescription</h2><div className="workflowTableScroll"><table className="workflowOrderTable"><thead><tr><th>Medication</th><th>Instructions</th><th>Prescribed / supplied</th>{!reviewingHistory && <><th>Supply now</th><th>Unit price</th></>}<th>{reviewingHistory ? "Billed" : "Total"}</th><th>{reviewingHistory ? "Outcome" : "Actions"}</th></tr></thead><tbody>{visibleOrders.map(order => {
       const p = order.prescription!; const preview = stock[order.id]; const quantity = choices[order.id]?.quantity ?? preview?.quantityToSupply ?? 0; const unitPrice = preview?.unitPrice ?? order.charge?.unitPrice ?? null;
       const pending = ["REQUESTED", "IN_PROGRESS"].includes(order.status); const hasException = Boolean(choices[order.id]?.catalogItemId || choices[order.id]?.preferredBatchId || choices[order.id]?.quantity !== undefined || choices[order.id]?.action === "NOT_DISPENSED");
-      return <tr key={order.id}><td><strong>{order.displayName}</strong><small>{p.startDate?.slice(0,10)}{p.stopDate ? ` – ${p.stopDate.slice(0,10)}` : ""}</small></td><td>{p.instructions || `${p.dose} · ${p.frequency}`}{p.needsRefill && <small>Refill review requested</small>}</td><td>{Number(p.quantity)} / {Number(p.dispensedQuantity || 0)}</td><td><output aria-label={`Supply quantity for ${order.displayName}`}>{pending ? stockLoading[order.id] ? "…" : quantity : 0}</output></td><td>{chargeMoney(unitPrice)}</td><td>{chargeMoney(pending ? unitPrice == null ? null : Number((unitPrice * quantity).toFixed(2)) : order.charge?.billedTotal ?? null)}</td><td>{pending ? <div className="workflowOrderActions"><button className="primary" type="button" disabled={Boolean(busy) || Boolean(stockLoading[order.id]) || !preview || quantity <= 0 || uncertain[order.id] || Boolean(confirmed[order.id])} onClick={() => hasException ? setDetailsOrderId(order.id) : supplyDefault(order)}>Dispense & confirm counselling</button><button className="secondary" type="button" onClick={() => setDetailsOrderId(detailsOrderId === order.id ? null : order.id)}>Change / partial supply</button></div> : p.dispenseStatus.replaceAll("_", " ")}</td></tr>;
+      return <tr key={order.id}><td><strong>{order.displayName}</strong><small>{p.startDate?.slice(0,10)}{p.stopDate ? ` – ${p.stopDate.slice(0,10)}` : ""}</small></td><td>{p.instructions || `${p.dose} · ${p.frequency}`}{p.needsRefill && <small>Refill review requested</small>}</td><td>{Number(p.quantity)} / {Number(p.dispensedQuantity || 0)}</td>{!reviewingHistory && <><td><output aria-label={`Supply quantity for ${order.displayName}`}>{pending ? stockLoading[order.id] ? "…" : quantity : 0}</output></td><td>{chargeMoney(unitPrice)}</td></>}<td>{chargeMoney(pending ? unitPrice == null ? null : Number((unitPrice * quantity).toFixed(2)) : order.charge?.billedTotal ?? null)}</td><td>{pending ? <div className="workflowOrderActions"><button className="primary" type="button" disabled={Boolean(busy) || Boolean(stockLoading[order.id]) || !preview || quantity <= 0 || uncertain[order.id] || Boolean(confirmed[order.id])} onClick={() => hasException ? setDetailsOrderId(order.id) : supplyDefault(order)}>Dispense & confirm counselling</button><button className="secondary" type="button" onClick={() => setDetailsOrderId(detailsOrderId === order.id ? null : order.id)}>Change / partial supply</button></div> : reviewingHistory ? queueLabels[tab] : p.dispenseStatus.replaceAll("_", " ")}</td></tr>;
     })}</tbody></table></div></section>
     <div className="queue compact">{prescriptions.filter(order => order.id === detailsOrderId || uncertain[order.id] || (confirmed[order.id] && !confirmed[order.id].refreshed)).map(order => {
       const prescribed = Number(order.prescription!.quantity);

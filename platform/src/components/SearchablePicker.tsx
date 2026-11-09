@@ -11,6 +11,7 @@ export function SearchablePicker({
   onChange,
   placeholder = "Search and select…",
   required = false,
+  showUnfilteredOptions = true,
 }: {
   name?: string;
   options: PickerOption[];
@@ -18,11 +19,13 @@ export function SearchablePicker({
   onChange: (value: string) => void;
   placeholder?: string;
   required?: boolean;
+  showUnfilteredOptions?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const selected = options.find((option) => option.value === value);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const showResults = open && (showUnfilteredOptions || Boolean(query.trim()));
   const matches = useMemo(() => {
     const term = query.trim().toLowerCase();
     if (!term) return options.slice(0, 8);
@@ -36,7 +39,19 @@ export function SearchablePicker({
     inputRef.current?.setCustomValidity(required && !value ? "Select an item from the search results" : "");
   }, [required, value]);
   return (
-    <div className="searchablePicker">
+    <div
+      className="searchablePicker"
+      onBlur={event => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }}
+      onKeyDown={event => {
+        if (event.key === "Escape" && showResults) {
+          event.preventDefault();
+          inputRef.current?.focus();
+          setOpen(false);
+        }
+      }}
+    >
       {name && (
         <input type="hidden" name={name} value={value} required={required} />
       )}
@@ -55,15 +70,16 @@ export function SearchablePicker({
         }}
         placeholder={placeholder}
         autoComplete="off"
-        aria-expanded={open}
+        aria-expanded={showResults}
       />
-      {open && (
+      {showResults && (
         <div className="pickerResults" role="listbox">
           {matches.length ? (
             matches.map((option) => (
               <button
                 type="button"
                 key={option.value}
+                onMouseDown={event => event.preventDefault()}
                 onClick={() => {
                   onChange(option.value);
                   setQuery("");
