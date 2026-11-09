@@ -174,6 +174,8 @@ export default function ClinicalApp() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [screen, setScreenState] = useState<Screen>("dashboard");
+  const [encounterWorkspaceOpen, setEncounterWorkspaceOpen] = useState(false);
+  const encounterFocused = screen === "consultation" && encounterWorkspaceOpen;
   const navigationVersion = useRef(0);
   const setScreen = useCallback((next: Screen) => {
     navigationVersion.current++;
@@ -217,6 +219,12 @@ export default function ClinicalApp() {
     visitsRequest.current = request;
     return request;
   }, []);
+
+  useEffect(() => {
+    if (screen === "pharmacy" && user?.permissions.includes("visit.read")) {
+      void loadVisits().catch(() => undefined);
+    }
+  }, [screen, user, loadVisits]);
 
   useEffect(() => {
     api<{ user: User }>("/api/auth/me")
@@ -328,10 +336,10 @@ export default function ClinicalApp() {
     nav.push(["admin", "Administration"]);
   if (documentKinds.some(kind => user.permissions.includes(documentDefinitions[kind].permission))) nav.push(["forms", "Clinic forms"]);
   return (
-    <main className="shell">
-      <button className="mobileNavToggle noPrint" aria-label={mobileNavOpen ? "Close menu" : "☰ Menu"} aria-expanded={mobileNavOpen} aria-controls="main-navigation" onClick={() => setMobileNavOpen(value => !value)}><span>{mobileNavOpen ? "Close menu" : "☰ Menu"}</span><span aria-hidden="true"><BrandWordmark className="mobileWordmark" /></span></button>
-      {mobileNavOpen && <button className="navScrim noPrint" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
-      <aside className={`sidebar ${mobileNavOpen ? "mobileOpen" : ""}`} id="main-navigation">
+    <main className={`shell ${encounterFocused ? "encounterFocused" : ""}`}>
+      {!encounterFocused && <button className="mobileNavToggle noPrint" aria-label={mobileNavOpen ? "Close menu" : "☰ Menu"} aria-expanded={mobileNavOpen} aria-controls="main-navigation" onClick={() => setMobileNavOpen(value => !value)}><span>{mobileNavOpen ? "Close menu" : "☰ Menu"}</span><span aria-hidden="true"><BrandWordmark className="mobileWordmark" /></span></button>}
+      {!encounterFocused && mobileNavOpen && <button className="navScrim noPrint" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
+      {!encounterFocused && <aside className={`sidebar ${mobileNavOpen ? "mobileOpen" : ""}`} id="main-navigation">
         <div className="brand brandWithWordmark">
           <BrandWordmark />
           <div>
@@ -340,7 +348,7 @@ export default function ClinicalApp() {
           </div>
         </div>
         <nav>
-          {nav.map(([key, label]) => (
+          {nav.filter(([key]) => !["triage", "consultation", "servicePoints"].includes(key)).map(([key, label]) => (
             <button
               className={screen === key ? "active" : ""}
               onClick={() => { if (!confirmWorkspaceNavigation()) return; setReturnToConsultation(false); setScreen(key); setFocusedVisitId(null); setContextVisitId(null); setStockFocus(null); setMobileNavOpen(false); setAppointmentFocus(null); setReferralFocus(null); setRecordFocus(null); setAppointment(null); setNotice(""); }}
@@ -370,8 +378,9 @@ export default function ClinicalApp() {
             Sign out
           </button>
         </div>
-      </aside>
+      </aside>}
       <section className="workspace">
+        {encounterFocused && <button className="secondary encounterHome noPrint" onClick={() => { if (!confirmWorkspaceNavigation()) return; setScreen("dashboard"); setContextVisitId(null); setFocusedVisitId(null); setNotice(""); }}>← Home</button>}
         {navigationError && <p className="alert" role="alert">{navigationError}</p>}
         {visitsRefreshFailed && user.permissions.includes("visit.read") && (
           <div className="alert syncWarning" role="status">
@@ -384,7 +393,7 @@ export default function ClinicalApp() {
             <button className="secondary" onClick={() => void loadVisits().catch(() => undefined)}>Retry</button>
           </div>
         )}
-        {user.permissions.includes("patient.read") && (
+        {!encounterFocused && user.permissions.includes("patient.read") && (
           <GlobalPatientFinder onSelect={(patient) => {
             if (!confirmWorkspaceNavigation()) return;
             const activeVisit = visits.find(visit => visit.patient.id === patient.id && isOpenClinicalVisit(visit));
@@ -395,11 +404,7 @@ export default function ClinicalApp() {
             } else openVisit(patient);
           }}/>
         )}
-        {screen !== "dashboard" &&
-          !["forms", "summaries", "reports", "surveillance", "triage", "security", "appointments", "admin", "followUps"].includes(screen) && (
-            <WorkflowSteps screen={screen} />
-          )}{" "}
-        {contextVisitId && (() => {
+        {!encounterFocused && contextVisitId && (() => {
           const visit = visits.find(item => item.id === contextVisitId);
           return visit ? <PatientContextBar
             visit={visit}
@@ -418,11 +423,12 @@ export default function ClinicalApp() {
             }}
           /> : null;
         })()}
-        {notice && <div className="alert success" role="status">{notice}</div>}
+        {!encounterFocused && notice && <div className="alert success" role="status">{notice}</div>}
         {screen === "dashboard" && (
           <Dashboard
             visits={visits}
             onGovernance={() => setScreen("admin")}
+            onOpenWorkspace={target => { if (!confirmWorkspaceNavigation()) return; if (target === "visit") { setSelected(null); setAppointment(null); } setContextVisitId(null); setFocusedVisitId(null); setNotice(""); setScreen(target); }}
             user={user}
             onStart={() => {
               setContextVisitId(null); setAppointment(null);
@@ -539,17 +545,8 @@ export default function ClinicalApp() {
         )}
         {screen === "consultation" && (
           <>
-          <section className="card compact" aria-label="Consultation room actions">
-            <h2>Consultation room actions</h2>
-            <p>Start a visit, record measured vitals, consult, then handle billing and clinical discharge as your assigned role permits.</p>
-            <div className="actions">
-              {user.permissions.includes("visit.create") && <button className="primary" onClick={() => { if (!confirmWorkspaceNavigation()) return; setSelected(null); setAppointment(null); setFocusedVisitId(null); setContextVisitId(null); setReturnToConsultation(true); setNotice(""); setScreen("visit"); }}>Start visit from consultation</button>}
-              {user.permissions.includes("patient.create") && <button className="secondary" onClick={() => { if (!confirmWorkspaceNavigation()) return; setSelected(null); setAppointment(null); setReturnToConsultation(true); setNotice(""); setScreen("registration"); }}>Register new patient</button>}
-              {user.permissions.includes("vitals.write") && <button className="secondary" onClick={() => { if (!confirmWorkspaceNavigation()) return; setFocusedVisitId(null); setReturnToConsultation(true); setScreen("triage"); }}>Take vitals</button>}
-              {user.permissions.includes("billing.read") && <button className="secondary" onClick={() => { if (!confirmWorkspaceNavigation()) return; setFocusedVisitId(null); setScreen("billing"); }}>Open billing</button>}
-            </div>
-          </section>
           <ConsultationWorkstation
+            onWorkspaceChange={setEncounterWorkspaceOpen}
             visits={visits.filter((visit) =>
               ["AWAITING_CLINICIAN", "UNDER_CONSULTATION"].includes(
                 visit.status,
@@ -567,7 +564,7 @@ export default function ClinicalApp() {
             initialVisitId={focusedVisitId}
             onInitialVisitOpened={() => setFocusedVisitId(null)}
           />
-          <VisitClosurePanel visits={visits} onUpdated={loadVisits} />
+          {!encounterFocused && <VisitClosurePanel visits={visits} onUpdated={loadVisits} />}
           </>
         )}
         {screen === "diagnosticReviews" && <DiagnosticReviewWorkstation />}
@@ -602,54 +599,6 @@ function GlobalPatientFinder({ onSelect }: { onSelect: (patient: Patient) => voi
   const [query, setQuery] = useState("");
   const search = useWorklist<{ patients: Patient[] }>(query.trim().length >= 2 ? `/api/patients?q=${encodeURIComponent(query.trim())}` : null, 0, 250);
   return <div className="globalPatientFinder noPrint"><label><span>Find a patient anywhere</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, patient number, phone, National ID or SHA number" autoComplete="off"/></label>{search.error && <small className="dangerText" role="alert">{search.error}</small>}{search.loading && <small role="status">Searching patients…</small>}{search.data && <div className="globalPatientResults">{search.data.patients.slice(0, 8).map(patient => <button type="button" key={patient.id} onClick={() => { onSelect(patient); setQuery(""); }}><strong>{patient.fullName}</strong><span>{patient.patientNumber} · {patientClinicalGroup(patient).label}</span></button>)}{!search.data.patients.length && <p>No matching patient. Check the identifier or use Registration.</p>}</div>}</div>;
-}
-
-function WorkflowSteps({ screen }: { screen: Screen }) {
-  const stages = [
-    {
-      keys: ["registration", "visit"],
-      number: 1,
-      label: "Reception",
-      detail: "Register & check in",
-    },
-    {
-      keys: ["triage"],
-      number: 2,
-      label: "Triage",
-      detail: "Vitals & priority",
-    },
-    {
-      keys: ["servicePoints", "consultation"],
-      number: 3,
-      label: "Consultation",
-      detail: "Complaint, examination & plan",
-    },
-    {
-      keys: ["diagnostics", "imaging", "pharmacy", "billing"],
-      number: 4,
-      label: "Services & closure",
-      detail: "Orders, discharge & settlement",
-    },
-  ];
-  const current = stages.findIndex((stage) => stage.keys.includes(screen));
-  return (
-    <ol className="workflowSteps" aria-label="Workspace guide; current screen, not patient completion">
-      {stages.map((stage, index) => (
-        <li
-          className={
-            index === current ? "current" : ""
-          }
-          key={stage.number}
-        >
-          <b>{stage.number}</b>
-          <span>
-            <strong>{stage.label}</strong>
-            <small>{stage.detail}</small>
-          </span>
-        </li>
-      ))}
-    </ol>
-  );
 }
 
 function Login({ onLogin }: { onLogin: (user: User) => void }) {
@@ -757,6 +706,7 @@ function PasswordChange({ onChanged }: { onChanged: () => Promise<void> }) {
 
 function Dashboard({
   visits,
+  onOpenWorkspace,
   onGovernance,
   user,
   onStart,
@@ -764,6 +714,7 @@ function Dashboard({
   onUpdated,
 }: {
   visits: Visit[];
+  onOpenWorkspace: (screen: Screen) => void;
   onGovernance: () => void;
   user: User;
   onStart: () => void;
@@ -801,10 +752,22 @@ function Dashboard({
           <h1>My work now</h1>
           <p>{user.roles?.join(" · ") || "Clinical operations"} · tasks are ordered by urgency and waiting time.</p>
         </div>
-        {user.permissions.includes("patient.create") && <button className="new" onClick={onStart}>
-          + Reception / register patient
-        </button>}
       </header>
+      {user.permissions.some(permission => ["patient.create", "visit.create"].includes(permission)) && <section className="card" aria-label="Reception">
+        <h2>Reception</h2>
+        <div className="actions">
+          {user.permissions.includes("patient.create") && <button className="primary" onClick={onStart}>Register patient</button>}
+          {user.permissions.includes("visit.create") && <>
+            <button className="secondary" onClick={() => onOpenWorkspace("appointments")}>Book appointment</button>
+            <button className="secondary" onClick={() => onOpenWorkspace("visit")}>Check in existing patient</button>
+          </>}
+        </div>
+      </section>}
+      <section className="card homeEncounterHub" aria-label="Encounter workspace"><div><p className="eyebrow">Clinical care</p><h2>Encounter workspace</h2><p>Open a patient queue to begin or continue care.</p></div><div className="homeEncounterActions">{[
+        { key: "triage" as Screen, label: "Triage", allowed: user.permissions.some(permission => ["triage.write", "vitals.write"].includes(permission)) },
+        { key: "consultation" as Screen, label: "Consultation", allowed: user.permissions.includes("encounter.write") },
+        { key: "servicePoints" as Screen, label: "Service points", allowed: user.permissions.includes("encounter.write") },
+      ].filter(item => item.allowed).map(item => <button key={item.key} type="button" className="secondary" onClick={() => onOpenWorkspace(item.key)}>{item.label}</button>)}</div></section>
       <div className="metrics">
         <article>
           <small>My open tasks</small>

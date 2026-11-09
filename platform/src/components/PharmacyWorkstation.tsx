@@ -1,4 +1,5 @@
 "use client";
+import { chargeMoney, type OrderCharge } from "@/lib/order-charges";
 import { RecordFields } from "./RecordFields";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -11,6 +12,7 @@ type StockBatch = Omit<BatchAllocation, "quantity">;
 type CatalogReference = { id: string; code: string; name: string };
 type MedicineChoice = CatalogReference & { available: number };
 type StockPreview = {
+  quantityToSupply: number; unitPrice: number; currency: string; supplyTotal: number;
   outstanding: number;
   available: number;
   allocation: BatchAllocation[];
@@ -31,14 +33,14 @@ type DispensingChoice = {
 
 type Prescription = {
   medicineCode: string; genericName?: string | null; strength?: string | null; dosageForm?: string | null; dose: string; route: string; frequency: string; duration?: string | null;
-  startDate?: string; stopDate?: string | null; doseTiming?: string;
+  startDate?: string; stopDate?: string | null; needsRefill?: boolean; doseTiming?: string;
   quantity: string; instructions?: string | null; dispensedQuantity?: string | null;
   dispenseStatus: string; dispenseNotes?: string | null; dispensedAt?: string | null;
   dispensedBy?: { displayName: string } | null;
   counsellingCompleted?: boolean; stockMovements?: { id: string; quantity: string; batch: { batchNumber: string; expiryDate: string } }[];
   dispensations?: { id: string; status: string; quantity: string; substitutionReason?: string | null; fefoOverrideReason?: string | null; catalogItem?: { code: string; name: string } | null; items: { quantity: string; batch: { batchNumber: string; expiryDate: string } }[] }[];
 };
-type Order = { id: string; type: string; status: string; priority?: string; requestedAt?: string; displayName: string; clinicalIndication?: string | null; orderedBy?: { displayName: string }; prescription?: Prescription | null };
+type Order = { id: string; charge?: OrderCharge; type: string; status: string; priority?: string; requestedAt?: string; displayName: string; clinicalIndication?: string | null; orderedBy?: { displayName: string }; prescription?: Prescription | null };
 type Visit = {
   facility?: { name: string };
   id: string; visitNumber: string; priority: string; status: string; arrivedAt: string;
@@ -73,6 +75,7 @@ export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId,
   const matchesTab = (order: Order) => order.type === "MEDICATION" && !!order.prescription && (tab === "AWAITING" ? order.status === "REQUESTED" && order.prescription.dispenseStatus === "PENDING" : tab === "PARTIAL" ? order.prescription.dispenseStatus === "PARTIALLY_DISPENSED" : tab === "DISPENSED" ? order.prescription.dispenseStatus === "DISPENSED" : order.prescription.dispenseStatus === "NOT_DISPENSED");
   const queue = useMemo(() => medicationVisits.filter(v => v.orders?.some(matchesTab)), [medicationVisits, tab]); // eslint-disable-line react-hooks/exhaustive-deps
   const [active, setActive] = useState<Visit | null>(null);
+  const [detailsOrderId, setDetailsOrderId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
@@ -150,13 +153,13 @@ export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId,
     finally { submitting.current = false; if (mounted.current) setBusy(""); }
   }
 
-  async function submit(event: FormEvent<HTMLFormElement> | null, order: Order) {
+  async function submit(event: FormEvent<HTMLFormElement> | null, order: Order, prepared?: FormData) {
     event?.preventDefault();
     if (submitting.current || confirmed[order.id] || !active) return;
     submitting.current = true; setError(""); setNotice(""); setBusy(order.id);
     const visit = active;
     const wasUncertain = Boolean(requests.current[order.id]);
-    const form = event ? new FormData(event.currentTarget) : null;
+    const form = event ? new FormData(event.currentTarget) : prepared || null;
     try {
       const body = requests.current[order.id] ||= {
         action: form!.get("action"), idempotencyKey: crypto.randomUUID(),
@@ -192,6 +195,25 @@ export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId,
     } finally { submitting.current = false; if (mounted.current) setBusy(""); }
   }
 
+  function supplyDefault(order: Order) {
+    const preview = stock[order.id]; if (!preview || preview.quantityToSupply <= 0 || uncertain[order.id]) return;
+    const data = new FormData(); data.set("action", "DISPENSE"); data.set("quantity", String(preview.quantityToSupply)); data.set("counsellingCompleted", "on"); data.set("catalogItemId", preview.selectedCatalogItem.id);
+    void submit(null, order, data);
+  }
+  useEffect(() => {
+    if (!active) return;
+    for (const [id, receipt] of Object.entries(confirmed)) {
+      const order = active.orders?.find(item => item.id === id);
+      const outstanding = order?.prescription ? Math.max(0, Number(order.prescription.quantity) - Number(order.prescription.dispensedQuantity || 0)) : null;
+      if (receipt.refreshed && outstanding !== null && outstanding <= receipt.remaining) {
+        setConfirmed(current => { const next = { ...current }; delete next[id]; return next; });
+        setChoices(current => { const next = { ...current }; delete next[id]; return next; });
+        setDetailsOrderId(null);
+        if (outstanding > 0) void loadStock(id);
+      }
+    }
+  }, [active, confirmed]);
+
   if (!active) return <>
     <header><div><p className="eyebrow">Pharmacy workstation</p><h1>Prescription queue</h1><p>Review, supply and trace every medicine from prescription to batch and bill.</p></div></header>
     {notice && <div className="alert success" role="status">{notice}</div>}
@@ -212,7 +234,12 @@ export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId,
     {error && <div className="alert">{error}</div>}
     {notice && <div className="alert success" role="status">{notice}</div>}
     {!prescriptions.length && <section className="card empty"><strong>Pharmacy work complete for this patient</strong><p>The patient remains open so you can verify the result. Return to the queue when ready.</p></section>}
-    <div className="queue compact">{prescriptions.map(order => {
+    <section className="card" aria-label="Pharmacy prescription list"><h2>Prescription</h2><div className="workflowTableScroll"><table className="workflowOrderTable"><thead><tr><th>Medication</th><th>Instructions</th><th>Prescribed / supplied</th><th>Supply now</th><th>Unit price</th><th>Total</th><th>Actions</th></tr></thead><tbody>{(active.orders || []).filter(order => order.type === "MEDICATION" && order.prescription && !["DRAFT", "CANCELLED"].includes(order.status)).map(order => {
+      const p = order.prescription!; const preview = stock[order.id]; const quantity = choices[order.id]?.quantity ?? preview?.quantityToSupply ?? 0; const unitPrice = preview?.unitPrice ?? order.charge?.unitPrice ?? null;
+      const pending = ["REQUESTED", "IN_PROGRESS"].includes(order.status); const hasException = Boolean(choices[order.id]?.catalogItemId || choices[order.id]?.preferredBatchId || choices[order.id]?.quantity !== undefined || choices[order.id]?.action === "NOT_DISPENSED");
+      return <tr key={order.id}><td><strong>{order.displayName}</strong><small>{p.startDate?.slice(0,10)}{p.stopDate ? ` – ${p.stopDate.slice(0,10)}` : ""}</small></td><td>{p.instructions || `${p.dose} · ${p.frequency}`}{p.needsRefill && <small>Refill review requested</small>}</td><td>{Number(p.quantity)} / {Number(p.dispensedQuantity || 0)}</td><td><output aria-label={`Supply quantity for ${order.displayName}`}>{pending ? stockLoading[order.id] ? "…" : quantity : 0}</output></td><td>{chargeMoney(unitPrice)}</td><td>{chargeMoney(pending ? unitPrice == null ? null : Number((unitPrice * quantity).toFixed(2)) : order.charge?.billedTotal ?? null)}</td><td>{pending ? <div className="workflowOrderActions"><button className="primary" type="button" disabled={Boolean(busy) || Boolean(stockLoading[order.id]) || !preview || quantity <= 0 || uncertain[order.id] || Boolean(confirmed[order.id])} onClick={() => hasException ? setDetailsOrderId(order.id) : supplyDefault(order)}>Dispense & confirm counselling</button><button className="secondary" type="button" onClick={() => setDetailsOrderId(detailsOrderId === order.id ? null : order.id)}>Change / partial supply</button></div> : p.dispenseStatus.replaceAll("_", " ")}</td></tr>;
+    })}</tbody></table></div></section>
+    <div className="queue compact">{prescriptions.filter(order => order.id === detailsOrderId || uncertain[order.id] || (confirmed[order.id] && !confirmed[order.id].refreshed)).map(order => {
       const prescribed = Number(order.prescription!.quantity);
       const supplied = Number(order.prescription!.dispensedQuantity || 0);
       const outstanding = Math.max(0, prescribed - supplied);
@@ -220,7 +247,7 @@ export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId,
       const loadingStock = Boolean(stockLoading[order.id]);
       const choice = choices[order.id] || {};
       const isDispensing = choice.action !== "NOT_DISPENSED";
-      const supplyNow = choice.quantity ?? outstanding;
+      const supplyNow = choice.quantity ?? preview?.quantityToSupply ?? 0;
       const remainingAfterSupply = Math.max(0, outstanding - supplyNow);
       const allocated = preview?.allocation.reduce((sum, item) => sum + item.quantity, 0) || 0;
       const canConfirm = !isDispensing || (!loadingStock && Boolean(preview) && supplyNow > 0 && supplyNow <= outstanding && allocated >= supplyNow);
@@ -240,7 +267,7 @@ export default function PharmacyWorkstation({ visits, onUpdated, initialVisitId,
       ]} /></div>
       <div className="wide privacyNotice"><strong>Order context</strong><span>Prescriber: {order.orderedBy?.displayName || "Not recorded"} · Prescribed: {order.requestedAt ? new Date(order.requestedAt).toLocaleString() : "time not recorded"} · Priority: {order.priority || active.priority} · Payer status: {active.invoice?.status || "No invoice"}</span></div>
       <label>Decision *<select name="action" value={choice.action || "DISPENSE"} onChange={(event) => setChoices(current => ({ ...current, [order.id]: { ...choice, action: event.target.value as DispensingChoice["action"] } }))}><option value="DISPENSE">Dispense medicine</option><option value="NOT_DISPENSED">Do not dispense</option></select></label>
-      <label>Quantity supplied now *<input name="quantity" type="number" required={isDispensing} disabled={!isDispensing} min="0.001" max={outstanding} step="0.001" value={choice.quantity ?? outstanding} onChange={(event) => { const next = { ...choice, quantity: Number(event.target.value) }; setChoices(current => ({ ...current, [order.id]: next })); void loadStock(order.id, next); }}/><small>Prescribed: {prescribed} · Previously supplied: {supplied} · Outstanding: {outstanding}</small></label>
+      <label>Quantity supplied now *<input name="quantity" type="number" required={isDispensing} disabled={!isDispensing} min="0.001" max={outstanding} step="0.001" value={choice.quantity ?? supplyNow} onChange={(event) => { const next = { ...choice, quantity: Number(event.target.value) }; setChoices(current => ({ ...current, [order.id]: next })); void loadStock(order.id, next); }}/><small>Prescribed: {prescribed} · Previously supplied: {supplied} · Outstanding: {outstanding}</small></label>
       {isDispensing && <>
         <label>Medicine supplied *<select name="catalogItemId" value={choice.catalogItemId || preview?.selectedCatalogItem.id || ""} disabled={loadingStock || !preview} onChange={(event) => { const next = { ...choice, catalogItemId: event.target.value, preferredBatchId: undefined }; setChoices(current => ({ ...current, [order.id]: next })); void loadStock(order.id, next).catch(x => setError(x.message)); }}>{!preview && <option value="">Loading current stock…</option>}{preview?.medicines.map(item => <option value={item.id} key={item.id}>{item.name} · {item.available} available{item.id === preview.prescribedCatalogItem.id ? " · PRESCRIBED" : " · MATCHING FORMULARY ITEM"}</option>)}</select><small>Only matching ingredient, strength, dosage form and issue unit are listed. Verify the product, release formulation and suitability with the patient before substitution. A different medicine needs prescriber review.</small></label>
         <label>Batch selection<select name="preferredBatchId" value={choice.preferredBatchId || ""} disabled={loadingStock || !preview} onChange={(event) => { const next = { ...choice, preferredBatchId: event.target.value || undefined }; setChoices(current => ({ ...current, [order.id]: next })); void loadStock(order.id, next).catch(x => setError(x.message)); }}><option value="">Automatic FEFO allocation</option>{preview?.batches.map(batch => <option value={batch.id} key={batch.id}>{batch.batchNumber} · {batch.quantityAvailable} available · exp {new Date(batch.expiryDate).toLocaleDateString()}</option>)}</select><small>Leave automatic unless there is an operational reason to use another batch first.</small></label>

@@ -1020,6 +1020,8 @@ model ClinicalOrder {
   priority           Priority         @default(ROUTINE)
   displayName        String
   clinicalIndication String?
+  quotedUnitPrice Decimal? @db.Decimal(14, 2)
+  quotedPriceVersionId String? @db.Uuid
   requestedAt        DateTime         @default(now())
   completedAt        DateTime?
   visit              Visit            @relation(fields: [visitId], references: [id])
@@ -1159,6 +1161,7 @@ model Prescription {
   quantityConfirmed    Boolean                      @default(false)
   startDate            DateTime                     @default(now()) @db.Date
   stopDate             DateTime?                    @db.Date
+  needsRefill          Boolean @default(false)
   isPrn                Boolean                      @default(false)
   prnIndication        String?
   doseTiming           String                       @default("SCHEDULED")

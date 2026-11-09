@@ -31,6 +31,20 @@ export const presentingComplaintSchema = z
       });
   });
 
+export const procedureRecordSchema = z.object({
+  catalogCode: z.string().trim().min(2).max(40).optional(),
+  idempotencyKey: z.uuid(),
+  name: z.string().trim().min(2).max(200),
+  indication: z.string().trim().min(2).max(1000),
+  consent: z.enum(["OBTAINED", "EMERGENCY_EXCEPTION"]),
+  consentNote: z.string().trim().min(2).max(1000),
+  performedAt: z.iso.datetime({ offset: true }),
+  anaesthesia: z.string().trim().min(2).max(1000),
+  findings: z.string().trim().min(2).max(3000),
+  complications: z.string().trim().min(2).max(1000),
+  aftercare: z.string().trim().min(2).max(3000),
+});
+
 export const consultationNotesSchema = z.object({
   chiefComplaint: z.string().trim().min(2).max(1000),
   complaints: z.array(presentingComplaintSchema).max(8).default([]),
@@ -110,6 +124,9 @@ export const prescriptionSchema = z.object({
         quantity: z.coerce.number().positive().max(10000),
         quantityConfirmed: z.boolean().default(false),
         instructions: z.string().trim().min(2).max(500),
+        needsRefill: z.boolean().optional(),
+        isPrn: z.boolean().optional(),
+        prnIndication: z.string().trim().max(240).optional(),
         doseTiming: z.enum(["SCHEDULED", "STAT", "STAT_THEN_SCHEDULED"]).default("SCHEDULED"),
         sequenceNote: z.string().trim().max(240).optional(),
       }),
@@ -124,6 +141,7 @@ export const prescriptionSchema = z.object({
     if (codes.has(code)) context.addIssue({ code: "custom", path: ["prescriptions", index, "medicineCode"], message: "Each medicine must appear once in the prescription list" });
     codes.add(code);
     if (item.existingOrderId && item.expectedPrescriptionKey === undefined) context.addIssue({ code: "custom", path: ["prescriptions", index, "expectedPrescriptionKey"], message: "Reload the saved prescription before editing" });
+    if (item.isPrn && !item.prnIndication) context.addIssue({ code: "custom", path: ["prescriptions", index, "prnIndication"], message: "Specify when the medicine should be taken as needed" });
     if (!item.duration && !item.stopDate) context.addIssue({ code: "custom", path: ["prescriptions", index, "duration"], message: "Duration or stop date is required" });
     if (item.stopDate && item.stopDate < item.startDate) context.addIssue({ code: "custom", path: ["prescriptions", index, "stopDate"], message: "Stop date cannot be before start date" });
     if (item.doseTiming === "STAT_THEN_SCHEDULED" && !item.sequenceNote) context.addIssue({ code: "custom", path: ["prescriptions", index, "sequenceNote"], message: "Document the intended STAT-to-course sequence" });

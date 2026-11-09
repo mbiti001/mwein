@@ -11,7 +11,7 @@ export function confirmWorkspaceNavigation() {
 
 const labels: Record<string, string> = {
   notes: "clinical notes and plan", diagnosis: "diagnosis", investigations: "investigation requests",
-  prescription: "prescription", problem: "active problem", completion: "closure instruction",
+  procedures: "procedure record", prescription: "prescription", problem: "active problem", completion: "closure instruction",
 };
 type Snapshot = Record<string, string>;
 

@@ -225,6 +225,7 @@ test("a pending triage save prevents navigation until its result is confirmed", 
   });
   await page.getByRole("button", { name: "Complete triage" }).click();
   await started;
+  await page.getByRole("button", { name: "Home", exact: true }).click();
   await page.getByRole("button", { name: "Consultation", exact: true }).click();
   releaseResponse();
   await expect(page.getByText("Browser Full Flow", { exact: true }).first()).toBeVisible();

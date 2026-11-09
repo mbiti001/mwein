@@ -11,6 +11,7 @@ import { operationalReference } from "@/lib/domain";
 import { appointmentClinics } from "@/lib/appointments";
 import { assessAncAdmission } from "@/lib/clinic-admission";
 import { visitAccessProfile, visitOrderTypes } from "@/lib/visit-access";
+import { orderCharge } from "@/lib/order-charges";
 import { effectiveCatalogPrice } from "@/lib/catalog-pricing";
 import { verifiedResultWhere } from "@/lib/verified-results";
 
@@ -93,6 +94,7 @@ export async function GET() {
           where: access.clinical ? undefined : { type: { in: [...orderTypes] } },
           include: {
             orderedBy: { select: { displayName: true } },
+            invoiceItems: { select: { quantity: true, unitPrice: true } },
             ...(access.clinical || access.laboratory ? { laboratory: {
               include: {
                 result: {
@@ -148,7 +150,7 @@ export async function GET() {
         a.arrivedAt.getTime() - b.arrivedAt.getTime(),
     );
     await recordClinicalAccess(user, "VISIT_WORKLIST", visits.map(({ id }) => ({ type: "Visit", id })));
-    return NextResponse.json({ visits }, { headers: { "Cache-Control": "private, no-store" } });
+    return NextResponse.json({ visits: visits.map(visit => ({ ...visit, ...("orders" in visit ? { orders: visit.orders?.map(order => ({ ...order, charge: orderCharge(order), invoiceItems: undefined })) } : {}) })) }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return apiError(error);
   }

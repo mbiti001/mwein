@@ -9,16 +9,17 @@ function visit(id = "one") { return {
   orders: [{ id: `order-${id}`, type: "MEDICATION", status: "REQUESTED", displayName: medicine.name, orderedBy: { displayName: "Synthetic clinician" },
     prescription: { quantity: "10", dispensedQuantity: "0", dispenseStatus: "PENDING", genericName: medicine.name, medicineCode: "TEST", dose: "Synthetic dose", route: "Test route", frequency: "Test frequency", duration: "Test course" } }],
 }; }
-function preview(quantity = 10, available = 20) { return { outstanding: 10, available, allocation: [{ ...batch, quantity: Math.min(quantity, available) }], standardAllocation: [], batches: [batch], fefoOverridden: false, substitutionRequired: false, prescribedCatalogItem: medicine, selectedCatalogItem: medicine, medicines: [{ ...medicine, available }] }; }
+function preview(quantity = 10, available = 20) { return { quantityToSupply: quantity, unitPrice: 10, currency: "KES", supplyTotal: quantity * 10,  outstanding: 10, available, allocation: [{ ...batch, quantity: Math.min(quantity, available) }], standardAllocation: [], batches: [batch], fefoOverridden: false, substitutionRequired: false, prescribedCatalogItem: medicine, selectedCatalogItem: medicine, medicines: [{ ...medicine, available }] }; }
 function result(quantity = 4) { return { allocations: [{ ...batch, quantity }], remainingOrders: quantity < 10 ? 1 : 0, remainingQuantity: 10 - quantity, dispenseStatus: quantity < 10 ? "PARTIALLY_DISPENSED" : "DISPENSED", dispensedMedicine: medicine }; }
 async function fixture(page: Page) {
   const state = { visits: [visit(), visit("two")], failRefresh: false };
   await page.route("**/api/auth/me", route => route.fulfill({ json: { user: { displayName: "Synthetic pharmacist", facility: { name: "Synthetic clinic", timezone: "Africa/Nairobi" }, permissions: ["visit.read", "pharmacy.dispense", "inventory.view"], roles: [], mustChangePassword: false } } }));
   await page.route("**/api/visits", route => route.fulfill(state.failRefresh ? { status: 503, json: { error: "Synthetic refresh failure" } } : { json: { visits: state.visits } }));
   await page.route("**/api/queues", route => route.fulfill({ json: { entries: [], controls: [], history: [] } }));
-  await page.route("**/api/orders/*/dispense**", route => route.request().method() === "GET" ? route.fulfill({ json: preview(Number(new URL(route.request().url()).searchParams.get("quantity") || 10)) }) : route.fallback());
+  await page.route("**/api/orders/*/dispense**", route => route.request().method() === "GET" ? route.fulfill({ json: preview(Number(new URL(route.request().url()).searchParams.get("quantity") || (10 - Number(state.visits.find(v => route.request().url().includes(v.orders[0].id))?.orders[0].prescription.dispensedQuantity || 0)))) }) : route.fallback());
   await page.goto("/"); await page.getByRole("button", { name: "Pharmacy & stock", exact: true }).click();
   await page.getByRole("button", { name: /Synthetic one.*P-one/ }).click();
+  await page.getByRole("button",{name:"Change / partial supply"}).click();
   return state;
 }
 const quantity = (page: Page) => page.locator('[name="quantity"]');
@@ -42,7 +43,7 @@ test("confirmed partial supply survives refresh failure and requires fresh prepa
   await page.getByRole("button", { name: "Refresh pharmacy records" }).click(); expect(posts).toHaveLength(1);
   state.failRefresh = false;
   await page.getByRole("button", { name: "Refresh pharmacy records" }).click();
-  await page.getByRole("button", { name: "Prepare remaining supply" }).click();
+  await page.getByRole("button", { name: "Change / partial supply" }).click();
   await expect(quantity(page)).toHaveValue("6"); await expect(counselling(page)).not.toBeChecked();
   expect(posts).toHaveLength(1);
   await page.getByRole("button", { name: "← Back to queue" }).click();
@@ -142,7 +143,8 @@ test("late supply confirmation cannot label or replace another patient's review"
   await page.getByRole("button", { name: /Synthetic two.*P-two/ }).click();
   const response = page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/dispense"));
   release(); await (await response).finished();
-  await expect(quantity(page)).toBeEnabled();
+  await expect(quantity(page)).toHaveCount(0);
+  await expect(page.getByRole("button",{name:"Dispense & confirm counselling"})).toBeEnabled();
   await expect(page.locator(".patientBanner")).toContainText("Synthetic two");
   await expect(page.getByText(/Dispensed Synthetic medicine/)).toHaveCount(0);
   await page.getByRole("button", { name: "← Back to queue" }).click();

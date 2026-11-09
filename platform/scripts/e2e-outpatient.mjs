@@ -1043,6 +1043,11 @@ try {
     } finally { await stopChild(mfaServer); childProcesses.delete(mfaServer); }
   }
 
+  if (process.env.E2E_TWO_PRESCRIPTIONS === "1" || process.argv.includes("--two-prescriptions")) {
+    const { verifyEncounterPharmacy } = await import("./e2e-encounter-pharmacy.mjs");
+    await verifyEncounterPharmacy({ pg, facility, admin, storeId, origin, adminPassword });
+    steps.push("save two prescriptions through the encounter and dispense both through pharmacy with correct stock and charges after retry");
+  }
   console.log(`Outpatient E2E passed (${steps.length} checks)`);
   steps.forEach((step, index) => console.log(`${index + 1}. ${step}`));
   if (process.env.E2E_HOLD === "1") {

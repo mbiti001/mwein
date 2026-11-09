@@ -15,10 +15,12 @@ import { canonicalLaboratoryCode } from "@/lib/laboratory";
 import { verifyDiagnosisSelectionToken } from "@/lib/diagnosis-selection";
 import { normalizeMedicationConcept, periodsOverlap, prescriptionSnapshot, sameVisitMedicationKey, treatmentStopDate } from "@/lib/medication";
 import { evaluateMedicationSafety, medicationSafetyContextHash } from "@/lib/medication-safety";
+import { orderCharge, orderPriceSnapshot } from "@/lib/order-charges";
 import { effectiveCatalogPrice } from "@/lib/catalog-pricing";
 import { dispositionVisitStatus, normalizedVisitOutcome } from "@/lib/visit-disposition";
 import { closeClinicalVisit } from "@/lib/close-visit";
 import {
+  procedureRecordSchema,
   consultationNotesSchema,
   diagnosisSchema,
   investigationOrderSchema,
@@ -37,6 +39,7 @@ const requestSchema = z.discriminatedUnion("action", [
     action: z.literal("SAVE_PRESCRIPTION"),
     data: prescriptionSchema,
   }),
+  z.object({ action: z.literal("RECORD_PROCEDURE"), expectedRevision: z.string().max(120), data: procedureRecordSchema }),
   z.object({ action: z.literal("SIGN"), expectedRevision: z.string().max(120).nullable().optional(), data: signConsultationSchema }),
 ]);
 
@@ -48,7 +51,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       where: { id, facilityId: user.facilityId },
       select: {
         id: true, status: true, clinicallyClosedAt: true,
-        orders: { where: { type: "MEDICATION" }, include: { prescription: true, orderedBy: { select: { displayName: true } } }, orderBy: { requestedAt: "asc" } },
+        orders: { where: { type: "MEDICATION" }, include: { prescription: true, invoiceItems: { select: { quantity: true, unitPrice: true } }, orderedBy: { select: { displayName: true } } }, orderBy: { requestedAt: "asc" } },
         encounters: {
           orderBy: [{ createdAt: "desc" }, { id: "asc" }], take: 1,
           select: { id: true, status: true, subjective: true, objective: true, assessment: true, plan: true,
@@ -125,6 +128,7 @@ export async function POST(
               systemicExamination: input.data.systemicExamination,
             }),
             plan: JSON.stringify({
+              ...(encounter?.plan && encounter.plan.trimStart().startsWith("{") && JSON.parse(encounter.plan).procedures ? { procedures: JSON.parse(encounter.plan).procedures } : {}),
               plan: input.data.plan,
               confidentialNote: input.data.confidentialNote,
               followUpDate: input.data.followUpDate,
@@ -191,6 +195,32 @@ export async function POST(
             new Error("Save the clinical notes before continuing"),
             { status: 409 },
           );
+        if (input.action === "RECORD_PROCEDURE") {
+          if (new Date(input.data.performedAt) > new Date())
+            throw Object.assign(new Error("Procedure time cannot be in the future"), { status: 422 });
+          const plan = encounter.plan ? JSON.parse(encounter.plan) : {};
+          const existingProcedure = (plan.procedures || []).find((item: { idempotencyKey: string }) => item.idempotencyKey === input.data.idempotencyKey);
+          if (existingProcedure) {
+            if (existingProcedure.performedById !== user.id || existingProcedure.requestHash !== auditValueFingerprint(input.data)) throw consultationConflict();
+            return { stage: "PROCEDURE_RECORDED", procedure: existingProcedure, draftRevision: consultationRevision(encounter) };
+          }
+          if (input.expectedRevision !== consultationRevision(encounter)) throw consultationConflict();
+          const procedureId = crypto.randomUUID();
+          let procedureCharge;
+          if (input.data.catalogCode) {
+            const item = await tx.catalogItem.findFirst({ where: { facilityId: user.facilityId, code: input.data.catalogCode, active: true, category: "PROCEDURE", NOT: { code: { startsWith: "CONSULT-" } }, OR: [{ modality: null }, { modality: "PROCEDURE" }] }, include: { priceVersions: true } });
+            if (!item || item.name.trim().toLowerCase() !== input.data.name.trim().toLowerCase()) throw Object.assign(new Error("Select an active procedure from the service catalogue"), { status: 422 });
+            if (!visit.invoice) throw Object.assign(new Error("Visit invoice is not available"), { status: 409 });
+            const quote = orderPriceSnapshot(item);
+            await tx.clinicalOrder.create({ data: { id: procedureId, visitId: id, orderedById: user.id, type: "PROCEDURE", status: "COMPLETED", displayName: item.name, clinicalIndication: input.data.indication, completedAt: new Date(input.data.performedAt), ...quote } });
+            await tx.invoiceItem.create({ data: { invoiceId: visit.invoice.id, orderId: procedureId, serviceCode: `PROC-${item.code}`, description: item.name, quantity: 1, unitPrice: quote.quotedUnitPrice, catalogItemId: item.id, priceVersionId: quote.quotedPriceVersionId } });
+            procedureCharge = orderCharge({ ...quote, invoiceItems: [{ quantity: 1, unitPrice: quote.quotedUnitPrice }] });
+          }
+          const procedure = { ...input.data, requestHash: auditValueFingerprint(input.data), id: procedureId, orderId: input.data.catalogCode ? procedureId : undefined, charge: procedureCharge, performedById: user.id, performedByName: user.displayName, recordedAt: new Date().toISOString() };
+          const updated = await tx.encounter.update({ where: { id: encounter.id }, data: { plan: JSON.stringify({ ...plan, procedures: [...(plan.procedures || []), procedure] }) } });
+          await appendAudit(tx, { userId: user.id, sessionId: user.sessionId, action: "PROCEDURE_RECORDED", entityType: "Encounter", entityId: encounter.id, afterHash: auditValueFingerprint(procedure) });
+          return { stage: "PROCEDURE_RECORDED", procedure, draftRevision: consultationRevision(updated) };
+        }
         if (input.action === "SAVE_DIAGNOSIS") {
           try {
             verifyDiagnosisSelectionToken(input.data.selectionToken, {
@@ -297,6 +327,7 @@ export async function POST(
                 type: "LABORATORY",
                 priority: input.data.priority,
                 displayName: item.name,
+                ...orderPriceSnapshot(item, pricingTime),
                 clinicalIndication: input.data.indication,
                 laboratory: {
                   create: { testCode: code, specimenType: item.specimenType! },
@@ -344,6 +375,7 @@ export async function POST(
                 type: "IMAGING",
                 priority: input.data.priority,
                 displayName: item.name,
+                ...orderPriceSnapshot(item, pricingTime),
                 clinicalIndication: input.data.indication,
                 imaging: {
                   create: {
@@ -411,7 +443,7 @@ export async function POST(
             const receipt = idempotent.order.visitId === id && await tx.auditEvent.findFirst({ where: { facilityId: user.facilityId, userId: user.id, entityType: "Encounter", entityId: encounter.id, action: { in: ["PRESCRIPTION_SUBMITTED", "PRESCRIPTION_DRAFT_SAVED"] }, afterHash: requestHash } });
             if (!receipt) throw Object.assign(new Error("This save key belongs to a different prescription request. Reload and review the saved list."), { status: 409 });
             await appendAudit(tx, { userId: user.id, sessionId: user.sessionId, action: "PRESCRIPTION_SAVE_CONFIRMED", entityType: "Encounter", entityId: encounter.id, afterHash: requestHash });
-            const orders = await tx.clinicalOrder.findMany({ where: { visitId: id, type: "MEDICATION" }, include: { prescription: true, orderedBy: { select: { displayName: true } } }, orderBy: { requestedAt: "asc" } });
+            const orders = await tx.clinicalOrder.findMany({ where: { visitId: id, type: "MEDICATION" }, include: { prescription: true, invoiceItems: { select: { quantity: true, unitPrice: true } }, orderedBy: { select: { displayName: true } } }, orderBy: { requestedAt: "asc" } });
             return { stage: "PRESCRIPTION_ALREADY_SAVED", created: [idempotent.order.displayName], orders, warnings: ["The original prescription was already saved. Review the saved list and medication safety findings before proceeding."] };
           }
           const catalogue = await tx.catalogItem.findMany({
@@ -521,7 +553,7 @@ export async function POST(
                 dose: medicine.dose, route: medicine.route, frequency: medicine.frequency, duration: medicine.duration,
                 doseQuantity: medicine.doseQuantity ? new Prisma.Decimal(medicine.doseQuantity) : undefined, frequencyPerDay: medicine.frequencyPerDay, durationDays: medicine.durationDays, quantityConfirmed: medicine.quantityConfirmed,
                 startDate, stopDate, quantity: new Prisma.Decimal(medicine.quantity), instructions: medicine.instructions,
-                isPrn: false, prnIndication: null, doseTiming: medicine.doseTiming, sequenceNote: medicine.sequenceNote,
+                needsRefill: medicine.needsRefill, isPrn: medicine.isPrn, prnIndication: medicine.isPrn === undefined ? undefined : medicine.isPrn ? medicine.prnIndication : null, doseTiming: medicine.doseTiming, sequenceNote: medicine.sequenceNote,
                 encounterId: encounter.id, diagnosisId: primary?.id ?? null, idempotencyKey: lineSaveKey,
                 ...(sameVisit ? { visitMedicationKey: sameVisitMedicationKey(id, medicationConceptId) } : {}),
               } });
@@ -545,6 +577,7 @@ export async function POST(
                 orderedById: user.id,
                 type: "MEDICATION",
                 status: input.data.submit ? "REQUESTED" : "DRAFT",
+                ...orderPriceSnapshot(item, now),
                 displayName: item.name,
                 clinicalIndication: medicine.indication,
                 prescription: {
@@ -564,8 +597,8 @@ export async function POST(
                     durationDays: medicine.durationDays,
                     startDate,
                     stopDate,
-                    isPrn: false,
-                    prnIndication: null,
+                    needsRefill: medicine.needsRefill, isPrn: medicine.isPrn,
+                    prnIndication: medicine.isPrn ? medicine.prnIndication : null,
                     doseTiming: medicine.doseTiming,
                     sequenceNote: medicine.sequenceNote,
                     quantity: new Prisma.Decimal(medicine.quantity),
@@ -601,7 +634,7 @@ export async function POST(
             entityId: encounter.id,
             afterHash: requestHash,
           });
-          const orders = await tx.clinicalOrder.findMany({ where: { visitId: id, type: "MEDICATION" }, include: { prescription: true, orderedBy: { select: { displayName: true } } }, orderBy: { requestedAt: "asc" } });
+          const orders = await tx.clinicalOrder.findMany({ where: { visitId: id, type: "MEDICATION" }, include: { prescription: true, invoiceItems: { select: { quantity: true, unitPrice: true } }, orderedBy: { select: { displayName: true } } }, orderBy: { requestedAt: "asc" } });
           return {
             orders,
             stage: input.data.submit

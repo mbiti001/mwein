@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { SearchablePicker } from "./SearchablePicker";
-import { RecordFields } from "./RecordFields";
+import { chargeMoney, orderCharge, type OrderCharge } from "@/lib/order-charges";
 import { frequencyLabel, prescriptionCalculation, readPrescribingDefaults, type PrescribingDefaults } from "@/lib/prescribing-defaults";
 import { jsonRequest } from "@/lib/client-http";
 
@@ -19,6 +19,9 @@ type Medicine = {
 };
 type Line = {
   medicineCode: string;
+  needsRefill: boolean;
+  isPrn: boolean;
+  prnIndication: string;
   calculationDefaults?: PrescribingDefaults;
   indication: string;
   dose: string;
@@ -40,6 +43,9 @@ type Line = {
 };
 export type PrescriptionOrder = {
   id: string;
+  charge?: OrderCharge;
+  quotedUnitPrice?: string | number | null;
+  invoiceItems?: { quantity: string; unitPrice: string }[];
   type: string;
   status: string;
   displayName: string;
@@ -47,6 +53,7 @@ export type PrescriptionOrder = {
   requestedAt?: string;
   orderedBy?: { displayName: string };
   prescription?: {
+    needsRefill?: boolean; isPrn?: boolean; prnIndication?: string | null;
     genericName?: string | null;
     strength?: string | null;
     dosageForm?: string | null;
@@ -77,7 +84,7 @@ const today = () =>
     day: "2-digit",
   }).format(new Date());
 const blank = (indication: string): Line => ({
-  medicineCode: "",
+  medicineCode: "", needsRefill: false, isPrn: false, prnIndication: "",
   indication,
   dose: "",
   doseQuantity: "",
@@ -93,7 +100,7 @@ const blank = (indication: string): Line => ({
   doseTiming: "SCHEDULED",
   sequenceNote: "",
 });
-const instructionsFor = (line: Line) => line.instructions.trim() || `${line.dose}; ${line.route}; ${line.frequency}; ${line.durationDays} days.`;
+const instructionsFor = (line: Line) => [`${line.dose}; ${line.route}; ${line.frequency}; ${line.durationDays} days.`, line.isPrn ? `As needed for ${line.prnIndication}.` : "", line.instructions.trim()].filter(Boolean).join(" ");
 function payload(line: Line) {
   return {
     ...line,
@@ -102,7 +109,7 @@ function payload(line: Line) {
     frequencyPerDay: Number(line.frequencyPerDay),
     durationDays: Number(line.durationDays),
     duration: line.durationDays + " days",
-    quantity: Number(line.quantity),
+    quantity: Number(line.quantity), quantityConfirmed: true,
     stopDate: line.stopDate || undefined,
     sequenceNote: line.sequenceNote || undefined,
     correctionReason: line.correctionReason || undefined,
@@ -110,8 +117,8 @@ function payload(line: Line) {
 }
 function fromOrder(order: PrescriptionOrder): Line {
   const p = order.prescription!;
-  return {
-    medicineCode: p.medicineCode,
+  const line: Line = {
+    medicineCode: p.medicineCode, needsRefill: !!p.needsRefill, isPrn: !!p.isPrn, prnIndication: p.prnIndication || "",
     indication: order.clinicalIndication || "",
     dose: p.dose,
     doseQuantity: String(p.doseQuantity ?? ""),
@@ -129,6 +136,11 @@ function fromOrder(order: PrescriptionOrder): Line {
     existingOrderId: order.id,
     expectedPrescriptionKey: p.idempotencyKey ?? null,
   };
+  const directions = instructionsFor({ ...line, instructions: "" });
+  if (line.instructions.startsWith(directions)) {
+    line.instructions = line.instructions.slice(directions.length).trimStart();
+  }
+  return line;
 }
 
 export default function PrescriptionComposer({
@@ -151,9 +163,7 @@ export default function PrescriptionComposer({
   const [saved, setSaved] = useState(
     orders.filter((o) => o.type === "MEDICATION" && o.prescription),
   );
-  const [lines, setLines] = useState<Line[]>([]);
   const [editor, setEditor] = useState<Line>(() => blank(indication));
-  const [editing, setEditing] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [uncertain, setUncertain] = useState<object | null>(null);
   const [loading, setLoading] = useState(false);
@@ -177,7 +187,7 @@ export default function PrescriptionComposer({
         next.doseQuantity = calculated ? String(calculated.doseQuantity) : "";
         next.quantity = calculated ? String(calculated.quantity) : "";
       }
-      if (!("quantityConfirmed" in patch)) next.quantityConfirmed = false;
+      next.quantityConfirmed = !!prescriptionCalculation(next.dose, next.frequencyPerDay, next.durationDays, next.calculationDefaults || null);
       return next;
     });
   }
@@ -202,47 +212,16 @@ export default function PrescriptionComposer({
     }
     return true;
   }
-  function stage() {
-    if (!validate()) return false;
-    if (
-      lines.some(
-        (line, index) =>
-          index !== editing && line.medicineCode === editor.medicineCode,
-      )
-    ) {
-      setError("This medicine is already on the list. Edit its existing line.");
-      return false;
-    }
-    if (editing === null && lines.length >= 20) {
-      setError("Review and save this list before adding more medicines.");
-      return false;
-    }
-    const calculated = prescriptionCalculation(editor.dose, editor.frequencyPerDay, editor.durationDays, editor.calculationDefaults || null)!;
-    const reviewed = { ...editor, dose: calculated.dose, doseQuantity: String(calculated.doseQuantity), quantity: String(calculated.quantity) };
-    const next = editing === null ? [...lines, reviewed] : lines.map((line, index) => index === editing ? reviewed : line);
-    setLines(next);
-    setEditor(blank(indication));
-    setEditing(null);
-    setError("");
-    requestAnimationFrame(() => editorRef.current?.querySelector<HTMLInputElement>(".searchablePicker input:not([type=hidden])")?.focus());
-    return next;
-  }
-  async function save(submit: boolean, retry?: object) {
+  async function save(retry?: object) {
     if (pending.current || busy) return;
-    let next = lines;
-    if (!retry && editor.medicineCode) {
-      const staged = stage();
-      if (!staged) return;
-      next = staged;
-    }
-    if (!retry && !next.length) {
-      setError("Add at least one medicine to the prescription list.");
-      return;
-    }
+    if (!retry && !validate()) return;
+    const calculated = prescriptionCalculation(editor.dose, editor.frequencyPerDay, editor.durationDays, editor.calculationDefaults || null);
+    if (!retry && !calculated) return;
     const body = retry || {
-      submit,
+      submit: true,
       idempotencyKey: crypto.randomUUID(),
-      prescriptions: next.map(payload),
+      prescriptions: [payload({ ...editor, indication: editor.indication || indication,
+        dose: calculated!.dose, doseQuantity: String(calculated!.doseQuantity), quantity: String(calculated!.quantity) })],
     };
     pending.current = true;
     setError("");
@@ -259,9 +238,7 @@ export default function PrescriptionComposer({
         return;
       }
       setSaved(result.orders || saved);
-      setLines([]);
       setEditor(blank(indication));
-      setEditing(null);
       setUncertain(null);
       onSaved();
     } finally {
@@ -287,21 +264,14 @@ export default function PrescriptionComposer({
     if (
       editor.medicineCode &&
       !window.confirm(
-        "Replace the medicine currently being entered? Your staged list stays intact.",
+        "Replace the medicine currently being entered?",
       )
     )
       return;
-    if (lines.some((l) => l.existingOrderId === order.id)) {
-      setError(
-        "This saved medicine is already on your review list. Edit that line.",
-      );
-      return;
-    }
     const line = fromOrder(order);
     const defaults = readPrescribingDefaults(catalogue.find(item => item.code === line.medicineCode)?.prescribingDefaults);
     const calculated = prescriptionCalculation(line.dose, line.frequencyPerDay, line.durationDays, defaults);
     setEditor({ ...line, calculationDefaults: defaults || undefined, quantity: calculated ? String(calculated.quantity) : "", doseQuantity: calculated ? String(calculated.doseQuantity) : "" });
-    setEditing(null);
     setError(calculated && calculated.quantity !== Number(line.quantity) ? "Supply quantity recalculated from current facility settings. Review it before resubmitting." : "");
     editorRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
   }
@@ -310,23 +280,6 @@ export default function PrescriptionComposer({
     saved.find((o) => o.id === editor.existingOrderId)?.status !== "DRAFT";
   return (
     <div className="prescriptionComposer span2">
-      <input
-        type="hidden"
-        name="prescriptionList"
-        value={JSON.stringify(lines)}
-      />
-      <header className="rxHeading noPrint">
-        <div>
-          <h3>Prescription list</h3>
-          <p>
-            Choose a medicine and enter its directions. Add another if needed,
-            then review the list below and save or send it.
-          </p>
-        </div>
-        <strong>
-          {lines.length} added to list{editor.medicineCode ? " · Entry in progress" : ""}
-        </strong>
-      </header>
       {error && (
         <p className="alert" role="alert">
           {error}
@@ -343,7 +296,7 @@ export default function PrescriptionComposer({
             type="button"
             className="primary"
             disabled={busy}
-            onClick={() => void save(false, uncertain)}
+            onClick={() => void save(uncertain)}
           >
             Retry unchanged prescription
           </button>
@@ -351,21 +304,18 @@ export default function PrescriptionComposer({
       )}
       <fieldset ref={editorRef} disabled={locked} className="rxEditor rxCompactEditor noPrint">
         <legend>
-          {editing === null
-            ? editor.existingOrderId
-              ? "Review saved medicine"
-              : "Add a medicine"
-            : "Edit medicine " + (editing + 1)}
+          {editor.existingOrderId ? "Review saved medicine" : "Add a medicine"}
         </legend>
+        <label className="wide">Item Type<input value="Medicine" readOnly /></label>
         <label className="rxMedicine">
-          Medicine
+          Generic item names *
           <SearchablePicker
             name="medicineCode"
             value={editor.medicineCode}
             onChange={(value) => {
               if (editor.existingOrderId) return;
               const defaults = readPrescribingDefaults(catalogue.find(item => item.code === value)?.prescribingDefaults);
-              setEditor({ ...blank(""), medicineCode: value, calculationDefaults: defaults || undefined,
+              setEditor({ ...blank(indication), medicineCode: value, calculationDefaults: defaults || undefined,
                 route: defaults?.route || "", frequencyPerDay: defaults ? String(defaults.frequencyPerDay) : "",
                 frequency: defaults ? frequencyLabel(defaults.frequencyPerDay) : "", durationDays: defaults ? String(defaults.durationDays) : "" });
               requestAnimationFrame(() => editorRef.current?.querySelector<HTMLInputElement>('input[name="dose"]')?.focus());
@@ -390,17 +340,10 @@ export default function PrescriptionComposer({
         </label>
         {editor.medicineCode && (
           <>
-            <label>
-              Dose ({editor.calculationDefaults?.doseUnit || "unit not configured"}) *
-              <input
-                name="dose"
-                value={editor.dose}
-                onChange={(e) => change({ dose: e.target.value })}
-                required
-                maxLength={100}
-                placeholder={editor.calculationDefaults ? `Amount in ${editor.calculationDefaults.doseUnit}` : "Configure dose unit first"}
-              />
-            </label>
+            <label>Identifier<input value={editor.medicineCode} readOnly /></label>
+            <label>rx: take *<input name="dose" value={editor.dose} onChange={event => change({ dose: event.target.value })} required maxLength={100} placeholder="Amount" /></label>
+            {editor.quantity && <p className="wide">Written prescription: {editor.dose} {/^([0-9.]+)$/.test(editor.dose.trim()) ? editor.calculationDefaults?.doseUnit : ""} · {editor.route} · {editor.frequency} for {editor.durationDays} days.</p>}
+            <label>Form<input value={editor.calculationDefaults?.doseUnit || selected?.dosageForm || "Not configured"} readOnly /></label>
             <label>
               Route *
               <select
@@ -468,12 +411,15 @@ export default function PrescriptionComposer({
               <input name="quantity" type="number" required readOnly value={editor.quantity} aria-label="Calculated dispensing quantity" />
             </label>
             {!editor.calculationDefaults && <p className="wide error" role="status">Facility prescribing defaults are not configured for this medicine. Configure its route, frequency, duration and dose conversion in the catalogue.</p>}
+            <label><input type="checkbox" name="needsRefill" checked={editor.needsRefill} onChange={e => change({ needsRefill: e.target.checked })} />Needs refill review</label>
+            <label><input type="checkbox" name="isPrn" checked={editor.isPrn} onChange={e => change({ isPrn: e.target.checked })} />Take as needed (PRN)</label>
+            {editor.isPrn && <label>Take as needed for<input required maxLength={240} name="prnIndication" value={editor.prnIndication} onChange={e => change({ prnIndication: e.target.value })} /></label>}
             <details className="rxCourseDetails wide">
               <summary>Additional patient instructions</summary>
               <label>Instructions (optional)<textarea name="medicineInstructions" maxLength={500} value={editor.instructions} onChange={e => change({ instructions: e.target.value })} /></label>
             </details>
             <details className="rxCourseDetails wide">
-              <summary>Course dates and dose timing <span>Starts {editor.startDate || "Not set"} · {editor.doseTiming.replaceAll("_", " ")}{editor.stopDate ? ` · Stops ${editor.stopDate}` : ""}</span></summary>
+              <summary>Course dates <span>Starts {editor.startDate || "Not set"}{editor.stopDate ? ` · Stops ${editor.stopDate}` : ""}</span></summary>
               <div className="rxEntryGroup">
             <label>
               Start date *
@@ -495,30 +441,6 @@ export default function PrescriptionComposer({
                 onChange={(e) => change({ stopDate: e.target.value })}
               />
             </label>
-            <label>
-              Dose timing
-              <select
-                name="doseTiming"
-                value={editor.doseTiming}
-                onChange={(e) => change({ doseTiming: e.target.value })}
-              >
-                <option value="SCHEDULED">Scheduled course</option>
-                <option value="STAT">STAT dose</option>
-                <option value="STAT_THEN_SCHEDULED">
-                  STAT then scheduled course
-                </option>
-              </select>
-            </label>
-            <label>
-              Sequence note
-              <input
-                name="sequenceNote"
-                required={editor.doseTiming === "STAT_THEN_SCHEDULED"}
-                maxLength={240}
-                value={editor.sequenceNote}
-                onChange={(e) => change({ sequenceNote: e.target.value })}
-              />
-            </label>
               </div>
             </details>
             {sentEdit && (
@@ -534,133 +456,10 @@ export default function PrescriptionComposer({
                 />
               </label>
             )}
-            <label className="wide rxCheck">
-              <input
-                name="quantityConfirmed"
-                type="checkbox"
-                required
-                checked={editor.quantityConfirmed}
-                onChange={(e) =>
-                  change({ quantityConfirmed: e.target.checked })
-                }
-              />
-              I reviewed the medicine instructions and confirmed the dispensing
-              quantity.
-            </label>
           </>
         )}
-        <div className="wide rxEditorActions">
-          <button
-            type="button"
-            className="primary"
-            disabled={!editor.medicineCode}
-            onClick={() => stage()}
-          >
-            {editing === null
-              ? "Add to prescription list"
-              : "Update medicine line"}
-          </button>
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => {
-              setEditor(blank(indication));
-              setEditing(null);
-            }}
-          >
-            Clear medicine entry
-          </button>
-        </div>
+        <div className="wide rxEditorActions"><button type="button" className="primary" disabled={locked || !editor.medicineCode} onClick={() => void save()}>{loading || busy ? "Saving…" : editor.existingOrderId ? "Save correction" : "Save prescription"}</button><span>Save this medicine, then choose the next. Each saved item is handed to pharmacy.</span></div>
       </fieldset>
-      {!!lines.length && (
-        <div className="rxList noPrint" aria-label="Medicines to save">
-          {lines.map((line, index) => (
-            <article className="rxLine" key={index}>
-              <h4>
-                {index + 1}. {name(line)}
-              </h4>
-              <RecordFields
-                fields={[
-                  { label: "Dose", value: line.dose },
-                  { label: "Route", value: line.route },
-                  { label: "Frequency", value: line.frequency },
-                  { label: "Duration", value: line.durationDays + " days" },
-                  { label: "Quantity", value: line.quantity },
-                  { label: "Starts", value: line.startDate },
-                  {
-                    label: "Patient instructions",
-                    value: instructionsFor(line),
-                    wide: true,
-                  },
-                ]}
-              />
-              <div className="rxLineActions noPrint">
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={locked}
-                  onClick={() => {
-                    if (
-                      editor.medicineCode &&
-                      !window.confirm(
-                        "Replace the medicine currently being entered?",
-                      )
-                    )
-                      return;
-                    setEditor({ ...line, quantityConfirmed: false });
-                    setEditing(index);
-                  }}
-                >
-                  Edit medicine {index + 1}
-                </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={locked || editing !== null}
-                  onClick={() => setLines(lines.filter((_, i) => i !== index))}
-                >
-                  Remove medicine {index + 1}
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-      <div className="rxActions noPrint">
-        <span>
-          {lines.length
-            ? "Review every line before sending."
-            : editor.medicineCode ? "Review the entered medicine before saving." : "Choose a medicine above."}
-        </span>
-        <div>
-          <button
-            type="button"
-            className="secondary"
-            disabled={
-              locked ||
-              (!lines.length && !editor.medicineCode) ||
-              lines.some(
-                (l) =>
-                  l.existingOrderId &&
-                  saved.find((o) => o.id === l.existingOrderId)?.status !==
-                    "DRAFT",
-              ) ||
-              sentEdit
-            }
-            onClick={() => void save(false)}
-          >
-            Save for later
-          </button>
-          <button
-            type="button"
-            className="primary"
-            disabled={locked || (!lines.length && !editor.medicineCode)}
-            onClick={() => void save(true)}
-          >
-            {busy ? "Saving…" : "Send to pharmacy"}
-          </button>
-        </div>
-      </div>
       <section className="rxSaved">
         <header className="rxHeading">
           <div>
@@ -680,59 +479,10 @@ export default function PrescriptionComposer({
           </button>
         </header>
         {!saved.length && <p>No medicines saved for this visit yet.</p>}
-        {saved.map((order) => (
-          <article className="rxLine" key={order.id}>
-            <h4>
-              {[order.prescription!.genericName || order.displayName, order.prescription!.strength, order.prescription!.dosageForm].filter(Boolean).join(" · ")}{" "}
-              <span className="statusPill">
-                {order.status === "DRAFT"
-                  ? "Draft — not sent"
-                  : order.status.replaceAll("_", " ")}
-              </span>
-            </h4>
-            <RecordFields
-              fields={[
-                { label: "Dose", value: order.prescription!.dose },
-                { label: "Route", value: order.prescription!.route },
-                { label: "Frequency", value: order.prescription!.frequency },
-                { label: "Duration", value: order.prescription!.duration },
-                {
-                  label: "Quantity",
-                  value: Number(order.prescription!.quantity),
-                },
-                {
-                  label: "Supply status",
-                  value: order.prescription!.dispenseStatus.replaceAll(
-                    "_",
-                    " ",
-                  ),
-                },
-                { label: "Current prescriber", value: order.orderedBy?.displayName },
-                { label: "Order created", value: order.requestedAt ? new Date(order.requestedAt).toLocaleString("en-KE", {timeZone:"Africa/Nairobi"})+" Nairobi" : undefined },
-                { label: "Indication", value: order.clinicalIndication },
-                {
-                  label: "Patient instructions",
-                  value: order.prescription!.instructions,
-                  wide: true,
-                },
-              ]}
-            />
-            {["DRAFT", "REQUESTED"].includes(order.status) &&
-              order.prescription!.dispenseStatus === "PENDING" &&
-              !Number(order.prescription!.dispensedQuantity || 0) && (
-                <button
-                  type="button"
-                  className="secondary noPrint"
-                  disabled={locked}
-                  onClick={() => editSaved(order)}
-                >
-                  {order.status === "DRAFT"
-                    ? "Review draft"
-                    : "Correct prescription"}
-                </button>
-              )}
-          </article>
-        ))}
+        <div className="workflowTableScroll"><table className="workflowOrderTable" aria-label="Saved prescriptions"><thead><tr><th>Duration</th><th>Medication</th><th>Instructions</th><th>Quantity</th><th>Unit price</th><th>Total</th><th>Status / action</th></tr></thead><tbody>{saved.filter(order => order.prescription && order.status !== "CANCELLED").map(order => {
+          const charge = order.charge || orderCharge(order); const prescription = order.prescription!;
+          return <tr key={order.id}><td>{prescription.startDate?.slice(0,10)}{prescription.stopDate ? ` – ${prescription.stopDate.slice(0,10)}` : ""}</td><td><strong>{order.displayName}</strong></td><td>{prescription.instructions}</td><td>{Number(prescription.quantity)}</td><td>{chargeMoney(charge.unitPrice)}</td><td>{chargeMoney(charge.total)}</td><td>{prescription.dispenseStatus === "DISPENSED" ? "Dispensed" : order.status === "DRAFT" ? "Draft" : "Sent to pharmacy"}{["DRAFT", "REQUESTED"].includes(order.status) && prescription.dispenseStatus === "PENDING" && !Number(prescription.dispensedQuantity || 0) && <button type="button" className="secondary" disabled={locked} onClick={() => editSaved(order)}>Correct</button>}</td></tr>;
+        })}</tbody></table></div>
       </section>
     </div>
   );

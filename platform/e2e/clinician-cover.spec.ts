@@ -30,11 +30,11 @@ test("shortage-cover clinician starts in consultation, records vitals, bills and
   await login(page, "clinician.cover@example.test");
   await page.getByRole("button", { name: "Consultation", exact: true }).click();
   await page.screenshot({ path: testInfo.outputPath("consultation-cover.png"), fullPage: true });
-  await page.getByRole("button", { name: "Start visit from consultation" }).click();
+  await page.getByRole("button", { name: "Home", exact: true }).click();
+  await page.getByRole("button", { name: "Check in existing patient" }).click();
   await expect(page.getByRole("heading", { name: "Clinic check-in" })).toBeVisible();
   await expect(page.getByPlaceholder("Name, patient number or phone")).toBeVisible();
-  await page.getByRole("button", { name: "Consultation", exact: true }).click();
-  await page.getByRole("button", { name: "Register new patient", exact: true }).click();
+  await page.getByRole("button", { name: "Registration", exact: true }).click();
   await page.getByLabel("First name *").fill("Browser");
   await page.getByLabel("Surname *").fill("Shortage Cover");
   await page.getByLabel("Estimated age").fill("32");
@@ -58,6 +58,9 @@ test("shortage-cover clinician starts in consultation, records vitals, bills and
   const triageResponse = await triaged;
   expect(triageResponse.status()).toBe(200);
   await triageResponse.finished();
+  await page.getByRole("button",{name:"Home",exact:true}).click();
+  await page.getByRole("button",{name:"Consultation",exact:true}).click();
+  await page.getByRole("button",{name:/Browser Shortage Cover/}).first().click();
   await expect(page.getByText("Private consultation", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Browser Shortage Cover", exact: true })).toBeVisible();
 
@@ -79,8 +82,7 @@ test("shortage-cover clinician starts in consultation, records vitals, bills and
   await consultation({ action: "SAVE_DIAGNOSIS", data: { ...diagnoses.results[0], primary: true, type: "FINAL" } });
   await consultation({ action: "SIGN", data: { disposition: "OUTPATIENT" } });
   await page.reload();
-  await page.getByRole("button", { name: "Consultation", exact: true }).click();
-  await page.getByRole("button", { name: "Open billing" }).click();
+  await page.getByRole("button", { name: "Billing", exact: true }).click();
   await page.getByText("Cashier shift", { exact: true }).click();
   await page.getByLabel("Opening cash float").fill("0");
   await page.getByRole("button", { name: "Open shift", exact: true }).click();
@@ -97,6 +99,7 @@ test("shortage-cover clinician starts in consultation, records vitals, bills and
   const shifts = await (await request(page, "/api/billing/shifts")).body;
   const approve = await request(page, "/api/billing/shifts", { action: "APPROVE", id: shifts.shifts[0].id });
   expect(approve.status).toBe(403);
+  await page.getByRole("button", { name: "Home", exact: true }).click();
   await page.getByRole("button", { name: "Consultation", exact: true }).click();
   const closure = page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Clinical discharge", exact: true }) });
   await closure.getByLabel("Patient and visit").selectOption(visit.id);

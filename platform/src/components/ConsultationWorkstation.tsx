@@ -6,6 +6,7 @@ import { consultationRevision } from "@/lib/consultation-revision";
 import ConsultationRecovery from "@/components/ConsultationRecovery";
 import { patientClinicalGroup } from "@/lib/domain";
 import { jsonRequest } from "@/lib/client-http";
+import ProcedureDocumentation from "./ProcedureDocumentation";
 import PrescriptionComposer from "@/components/PrescriptionComposer";
 import VisitVitalsPanel from "@/components/VisitVitalsPanel";
 import InvestigationReviewPanel from "@/components/InvestigationReviewPanel";
@@ -84,6 +85,7 @@ export type ConsultationVisit = {
   } | null;
 };
 type CatalogItem = {
+  modality?: string | null;
   code: string;
   name: string;
   category: "LABORATORY_TEST" | "PROCEDURE" | "PHARMACEUTICAL";
@@ -1059,14 +1061,17 @@ export default function ConsultationWorkstation({
   onOpenServicePoints,
   initialVisitId,
   onInitialVisitOpened,
+  onWorkspaceChange,
 }: {
   visits: ConsultationVisit[];
   onCompleted: (patientName: string) => void;
   onOpenServicePoints?: (visitId: string) => void;
   initialVisitId?: string | null;
   onInitialVisitOpened?: () => void;
+  onWorkspaceChange?: (open: boolean) => void;
 }) {
   const [active, setActive] = useState<ConsultationVisit | null>(null);
+  useEffect(() => { onWorkspaceChange?.(!!active); return () => onWorkspaceChange?.(false); }, [active?.id, onWorkspaceChange]);
   useEffect(() => {
     if (!initialVisitId) return;
     const visit = visits.find((item) => item.id === initialVisitId);
@@ -1581,10 +1586,6 @@ function ConsultationEditor({
           No active allergies recorded — verify with the patient.
         </div>
       )}
-      <section className="card historyPanel" aria-label="Clinical review overview">
-        <div className="cardHead"><div><h2>Clinical review at a glance</h2><p>{problems.filter(problem => problem.clinicalStatus === "ACTIVE").length} active problem(s) · {savedDiagnoses.length} recorded diagnosis/diagnoses</p><p>Open Investigations to check current requests and verified reports.</p></div></div>
-        <div className="actions">{[{ step: 1, label: "History" }, { step: 3, label: "Examination" }, { step: 4, label: "Diagnosis" }, { step: 5, label: "Investigations" }, { step: 6, label: "Medicines" }, { step: 7, label: "Plan & finish" }].map(item => <button type="button" className="secondary" key={item.step} onClick={() => { setActiveStep(item.step); document.getElementById("consultation-work")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>{item.label}</button>)}</div>
-      </section>
       <PatientTrends visits={[visit, ...history]} />
       <section className="card historyPanel">
         <div className="cardHead"><div><h2>Longitudinal problem list</h2><p>Active conditions persist across visits until a clinician resolves them.</p></div></div>
@@ -1660,27 +1661,7 @@ function ConsultationEditor({
           if (actionPending.current || savingProblem) { setError("Wait for the current request to finish before replacing this form."); return; }
           onRecover(snapshot);
         }} />}
-        <nav id="consultation-work" className="consultNavigator" aria-label="Consultation sections">
-          {[
-            [1, "History"],
-            [2, "Background"],
-            [3, "Examination"],
-            [4, "Diagnosis"],
-            [5, "Investigations"],
-            [6, "Prescription"],
-            [7, "Plan & sign"],
-          ].map(([step, label]) => (
-            <button
-              type="button"
-              className={activeStep === step ? "active" : ""}
-              onClick={() => setActiveStep(Number(step))}
-              key={step}
-            >
-              <b>{step}</b>
-              <span>{label}</span>
-            </button>
-          ))}
-        </nav>
+
         <ClinicalSection
           number="1"
           title="Presenting complaint & history"
@@ -2154,9 +2135,9 @@ function ConsultationEditor({
           </div>
           <SearchableMultiPicker
             name="imaging"
-            label="Imaging and procedures"
+            label="Imaging requests"
             options={catalogue
-              .filter((item) => item.category === "PROCEDURE" && !item.code.startsWith("CONSULT-"))
+              .filter((item) => item.category === "PROCEDURE" && !!item.modality && item.modality !== "PROCEDURE" && !item.code.startsWith("CONSULT-"))
               .map((item) => ({
                 value: item.code,
                 label: item.name,
@@ -2172,6 +2153,9 @@ function ConsultationEditor({
           onOpen={() => setActiveStep(6)}
         >
           <PrescriptionComposer visitId={visit.id} catalogue={catalogue} orders={visit.orders || []} indication={savedDiagnoses.find(item => item.primary)?.description || ""} busy={savingAction || signing} onSave={data => run("SAVE_PRESCRIPTION", data, "Prescription list saved. Sent medicines are available to pharmacy; billing follows confirmed supply.")} onSaved={() => changes.resetAfterRender("prescription")} />
+        </ClinicalSection>
+        <ClinicalSection number="6a" title="Procedures" description="Document a completed procedure." active={activeStep === 8} onOpen={() => setActiveStep(8)}>
+          <ProcedureDocumentation savedPlan={draft?.plan} catalogue={catalogue} onRecorded={async () => changes.resetAfterRender("procedures")} onSave={async data => { const result = await run("RECORD_PROCEDURE", data, "Procedure recorded."); return result && result.procedure ? { procedure: result.procedure } : false; }} />
         </ClinicalSection>
         <ClinicalSection
           number="7"
@@ -2300,7 +2284,7 @@ function ClinicalSection({
   children: React.ReactNode;
 }) {
   return (
-    <section data-unsaved-group={({ "4": "diagnosis", "5": "investigations", "6": "prescription" } as Record<string, string>)[number] || "notes"} className={`clinicalSection ${active ? "expanded" : "collapsed"}`}>
+    <section data-unsaved-group={({ "4": "diagnosis", "5": "investigations", "6": "prescription", "6a": "procedures" } as Record<string, string>)[number] || "notes"} className={`clinicalSection ${active ? "expanded" : "collapsed"}`}>
       <button
         type="button"
         className="clinicalSectionHeader"

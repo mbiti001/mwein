@@ -1,0 +1,20 @@
+@media screen {
+ .shell.encounterFocused { grid-template-columns:minmax(0,1fr); }
+ .encounterHome { margin-bottom:20px; }
+ .homeEncounterHub { display:flex; justify-content:space-between; align-items:center; gap:20px; margin-bottom:22px; }
+ .homeEncounterHub h2 { margin:4px 0; }
+ .homeEncounterActions { display:flex; flex-wrap:wrap; gap:12px; }
+ .workflowTableScroll { overflow-x:auto; }
+ .workflowOrderTable { width:100%; border-collapse:collapse; text-align:left; font-size:13px; }
+ .workflowOrderTable th { color:var(--muted); padding:12px 10px; border-bottom:2px solid var(--line); }
+ .workflowOrderTable td { padding:16px 10px; border-bottom:1px solid var(--line); vertical-align:top; min-width:90px; }
+ .workflowOrderTable td small { display:block; margin-top:6px; color:var(--muted); }
+ .workflowOrderTable td:nth-child(2),.workflowOrderTable td:nth-child(3) { min-width:160px; }
+ .workflowOrderActions { display:grid; gap:8px; min-width:170px; }
+ .workflowOrderActions button { font-size:11px; padding:9px; }
+ .rxSaved .workflowOrderTable button { display:block; margin-top:9px; }
+ .rxEditorActions { display:flex; align-items:center; gap:16px; }
+ .rxEditorActions span { font-size:12px; color:var(--muted); }
+ .pharmacyHub > header { display:flex; justify-content:space-between; align-items:center; gap:20px; margin-bottom:22px; }
+ @media(max-width:650px) { .homeEncounterHub,.rxEditorActions { align-items:stretch; flex-direction:column; } }
+}

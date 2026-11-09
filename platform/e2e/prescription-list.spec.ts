@@ -70,7 +70,7 @@ async function fixture(page: Page, orders: object[] = []) {
   await page
     .getByRole("button", { name: /Synthetic Prescription.*P-RX/ })
     .click();
-  await page.getByRole("button", { name: "Medicines", exact: true }).click();
+  await page.getByRole("button", { name: /Prescription.*Prescribe only/ }).click();
 }
 async function fill(page: Page, code = "A") {
   await page
@@ -90,7 +90,6 @@ async function fill(page: Page, code = "A") {
   await page
     .locator('[name="medicineInstructions"]')
     .fill("Synthetic patient instructions");
-  await page.locator('[name="quantityConfirmed"]').check();
 }
 const saved = (data: any) =>
   data.prescriptions.map((line: any, index: number) => ({
@@ -111,86 +110,26 @@ const saved = (data: any) =>
     },
   }));
 
-test("multiple medicines retain editable lines, recover a lost response and use compact saved and print layouts", async ({
-  page,
-}, info) => {
+test("a lost save response locks the editor and retries the same medicine", async ({page}) => {
   const posts: any[] = [];
-  await page.route("**/api/visits/*/consultation", (route) => {
+  await page.route("**/api/visits/*/consultation", route => {
     const body = route.request().postDataJSON();
     posts.push(body);
     if (posts.length === 1) return route.abort("failed");
-    return route.fulfill({
-      json: { stage: "PRESCRIPTION_ALREADY_SAVED", orders: saved(body.data) },
-    });
+    return route.fulfill({json:{orders:saved(body.data)}});
   });
   await fixture(page);
   await fill(page);
-  await page
-    .getByRole("button", { name: "Add to prescription list", exact: true })
-    .click();
-  await fill(page, "B");
-  await page
-    .getByRole("button", { name: "Add to prescription list", exact: true })
-    .click();
-  await expect(
-    page.getByLabel("Medicines to save").locator("article"),
-  ).toHaveCount(2);
-  await page
-    .getByRole("button", { name: "Edit medicine 1", exact: true })
-    .click();
-  await expect(page.locator('[name="dose"]')).toHaveValue("1 tablet");
-  await page.getByText("Additional patient instructions", { exact: true }).click();
-  await page
-    .locator('[name="medicineInstructions"]')
-    .fill("Revised synthetic patient instructions");
-  await page.locator('[name="quantityConfirmed"]').check();
-  await page.getByRole("button", { name: "Update medicine line" }).click();
-  await page
-    .getByRole("button", { name: "Send to pharmacy", exact: true })
-    .click();
-  await expect(
-    page.getByText("Save confirmation is missing.", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Remove medicine 1", exact: true }),
-  ).toBeDisabled();
-  await page
-    .getByRole("button", { name: "Retry unchanged prescription" })
-    .click();
-  await expect(page.locator(".rxSaved article")).toHaveCount(2);
+  await page.getByRole("button",{name:"Save prescription",exact:true}).click();
+  await expect(page.locator('[name="dose"]')).toBeDisabled();
+  await page.getByRole("button",{name:"Retry unchanged prescription"}).click();
+  await expect(page.locator(".rxSaved tbody tr")).toHaveCount(1);
   expect(posts[1]).toEqual(posts[0]);
-  expect(posts[1].data.prescriptions).toHaveLength(2);
+  await expect(page.locator('[name="medicineCode"]')).toHaveValue("");
   await expect(page.getByLabel("Unsaved consultation changes")).toHaveCount(0);
-  for (const width of [1440, 768, 390, 320]) {
-    await page.setViewportSize({ width, height: 900 });
-    await expect
-      .poll(() =>
-        page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-      )
-      .toBe(true);
-    const grid = page.locator(".rxSaved .recordFields").first();
-    // Related values stay side by side, including on a narrow phone.
-    expect(await grid.count()).toBe(1);
-  if (await grid.count())
-      expect(
-        await grid.evaluate(
-          (el) => getComputedStyle(el).gridTemplateColumns.split(" ").length,
-        ),
-      ).toBeGreaterThanOrEqual(2);
-    await page
-      .locator(".rxSaved")
-      .screenshot({
-        path: info.outputPath("saved-prescriptions-" + width + ".png"),
-      });
-  }
-  await page.emulateMedia({ media: "print" });
-  await expect(page.locator(".rxActions")).toBeHidden();
+  await page.emulateMedia({media:"print"});
   await expect(page.locator(".rxEditor")).toBeHidden();
-  await expect(page.locator(".rxSaved article")).toHaveCount(2);
-  await page.screenshot({
-    path: info.outputPath("prescription-print.png"),
-    fullPage: true,
-  });
+  await expect(page.locator(".rxSaved table")).toBeVisible();
 });
 
 test("saved draft review hydrates all fields and saves against the original revision", async ({
@@ -226,24 +165,23 @@ test("saved draft review hydrates all fields and saves against the original revi
     return route.fulfill({ json: { orders: saved(body.data) } });
   });
   await fixture(page, initial);
-  await page.getByRole("button", { name: "Review draft", exact: true }).click();
+  await page.getByRole("button", { name: "Correct", exact: true }).click();
   await expect(page.locator('[name="dose"]')).toHaveValue("2 tablets");
   await expect(page.locator('[name="quantity"]')).toHaveValue("12");
   await expect(page.locator('[name="medicineInstructions"]')).toHaveValue(
     "Retained synthetic instructions",
   );
-  await page.locator('[name="quantityConfirmed"]').check();
   await page
-    .getByRole("button", { name: "Send to pharmacy", exact: true })
+    .getByRole("button", { name: "Save correction", exact: true })
     .click();
-  await expect(page.locator(".rxSaved")).toContainText("REQUESTED");
+  await expect(page.locator(".rxSaved")).toContainText("Sent to pharmacy");
   expect(posts[0].data.prescriptions[0]).toMatchObject({
     existingOrderId: initial[0].id,
     expectedPrescriptionKey: id,
     dose: "2 tablets",
     quantity: 12,
   });
-  await expect(page.locator(".rxSaved article")).toHaveCount(1);
+  await expect(page.locator(".rxSaved tbody tr")).toHaveCount(1);
 });
 
 test("validation failure retains the editable prescription and save actions follow review", async ({
@@ -260,34 +198,14 @@ test("validation failure retains the editable prescription and save actions foll
   await fixture(page);
   await fill(page);
   await page
-    .getByRole("button", { name: "Send to pharmacy", exact: true })
+    .getByRole("button", { name: "Save prescription", exact: true })
     .click();
   await expect(
     page.getByText("Synthetic clinical review required", { exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Edit medicine 1", exact: true }),
-  ).toBeEnabled();
-  await expect(
-    page.getByText("Save confirmation is missing.", { exact: true }),
-  ).toHaveCount(0);
-  for (const width of [1440, 768, 390, 320]) {
-    await page.setViewportSize({ width, height: 900 });
-    await page.locator(".rxActions").scrollIntoViewIfNeeded();
-    await expect(
-      page.getByRole("button", { name: "Send to pharmacy", exact: true }),
-    ).toBeInViewport();
-    await expect(
-      page.getByRole("button", { name: "Save notes", exact: true }),
-    ).toBeInViewport();
-    const boxes = await page.evaluate(() =>
-      [".consultationSaveBar", ".rxActions"].map((selector) => {
-        const r = document.querySelector(selector)!.getBoundingClientRect();
-        return { top: r.top, bottom: r.bottom };
-      }),
-    );
-    expect(boxes[1].top).toBeGreaterThanOrEqual(boxes[0].bottom - 1);
-  }
+  await expect(page.locator('[name="dose"]')).toBeEnabled();
+  await expect(page.locator('[name="dose"]')).toHaveValue("1 tablet");
+  await expect(page.getByRole("button",{name:"Save prescription",exact:true})).toHaveCount(1);
   expect(posts).toBe(1);
 });
 
@@ -300,7 +218,6 @@ test("prescription uses one dose in a compact row with editable facility default
   await page.locator('[name="durationDays"]').fill("");
   await expect(page.locator('[name="quantity"]')).toHaveValue("");
   await page.locator('[name="durationDays"]').fill("2");
-  await page.locator('[name="quantityConfirmed"]').check();
   for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
@@ -312,11 +229,8 @@ test("prescription uses one dose in a compact row with editable facility default
     expect(bounds).not.toBeNull();
     await page.screenshot({ path: info.outputPath(`prescription-entry-${width}.png`), fullPage: true, clip: bounds! });
   }
-  await page.getByRole("button", { name: "Add to prescription list", exact: true }).click();
-  expect(await page.evaluate(() => {
-    const editor = document.querySelector(".rxEditor")!, list = document.querySelector(".rxList")!, actions = document.querySelector(".rxActions")!;
-    return !!(editor.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING) && !!(list.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING) && getComputedStyle(actions).position === "static";
-  })).toBe(true);
+  await expect(page.locator(".rxEditor")).toHaveCount(1);
+  await expect(page.locator(".rxSaved table")).toHaveCount(1);
 });
 
 test("collapsed course details reveal invalid dates without losing medicine directions", async ({ page }) => {
@@ -328,7 +242,7 @@ test("collapsed course details reveal invalid dates without losing medicine dire
   await page.locator('[name="startDate"]').fill("");
   await summary.click();
   await expect(page.locator('[name="startDate"]')).toBeHidden();
-  await page.getByRole("button", { name: "Add to prescription list", exact: true }).click();
+  await page.getByRole("button", { name: "Save prescription", exact: true }).click();
   await expect(page.locator('[name="startDate"]')).toBeVisible();
   await expect(page.locator('[name="dose"]')).toHaveValue("1 tablet");
   await expect(page.getByLabel("Medicines to save").locator("article")).toHaveCount(0);
@@ -430,7 +344,7 @@ test("configured liquid conversion calculates whole bottles from one dose", asyn
   await page.reload();
   await page.getByRole("button",{name:"Consultation",exact:true}).click();
   await page.getByRole("button",{name:/Synthetic Prescription.*P-RX/}).click();
-  await page.getByRole("button",{name:"Medicines",exact:true}).click();
+  await page.getByRole("button",{name:/Prescription.*Prescribe only/}).click();
   await page.getByPlaceholder("Search medicine by generic, brand or strength…").fill("brand A");
   await page.getByRole("button",{name:/Synthetic medicine A/}).click();
   await expect(page.locator('[name="route"]')).toHaveValue("Oral");
@@ -438,10 +352,7 @@ test("configured liquid conversion calculates whole bottles from one dose", asyn
   await expect(page.locator('[name="durationDays"]')).toHaveValue("7");
   await page.locator('[name="dose"]').fill("5");
   await expect(page.locator('[name="quantity"]')).toHaveValue("2");
-  await page.locator('[name="quantityConfirmed"]').check();
-  await page.getByRole("button",{name:"Add to prescription list",exact:true}).click();
-  await expect(page.getByLabel("Medicines to save")).toContainText("5 mL");
-  await expect(page.locator('[name="medicineCode"]')).toHaveValue("");
+  await expect(page.getByText(/Written prescription:/)).toContainText("5 mL");
 });
 test("missing facility defaults stay blank and cannot invent a regimen", async ({page}) => {
   await fixture(page);
@@ -449,7 +360,7 @@ test("missing facility defaults stay blank and cannot invent a regimen", async (
   await page.reload();
   await page.getByRole("button",{name:"Consultation",exact:true}).click();
   await page.getByRole("button",{name:/Synthetic Prescription.*P-RX/}).click();
-  await page.getByRole("button",{name:"Medicines",exact:true}).click();
+  await page.getByRole("button",{name:/Prescription.*Prescribe only/}).click();
   await page.getByPlaceholder("Search medicine by generic, brand or strength…").fill("brand A");
   await page.getByRole("button",{name:/Synthetic medicine A/}).click();
   await expect(page.getByRole("status").filter({hasText:"Facility prescribing defaults"})).toBeVisible();

@@ -48,6 +48,13 @@ async function findDispensableOrder(id: string, facilityId: string) {
   return { ...order, prescription: order.prescription };
 }
 
+function supplyPrice(order: { quotedUnitPrice: Prisma.Decimal | null; quotedPriceVersionId: string | null }, item: Parameters<typeof effectiveCatalogPrice>[0], substituted: boolean) {
+  if (!substituted && order.quotedUnitPrice !== null) {
+    return { unitPrice: order.quotedUnitPrice, priceVersionId: order.quotedPriceVersionId };
+  }
+  return effectiveCatalogPrice(item);
+}
+
 function prescriptionIdentity(prescription: {
   medicationConceptId?: string | null;
   genericName?: string | null;
@@ -108,6 +115,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         ],
       },
       include: {
+        priceVersions: { where: { effectiveFrom: { lte: new Date() } }, orderBy: { effectiveFrom: "desc" }, take: 1 },
         inventoryBatches: {
           where: {
             active: true,
@@ -139,7 +147,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       ? planDispensingAllocation(batches, plannedQuantity, preferredBatchId)
       : { allocation: [], standardAllocation: [], fefoOverridden: false };
     await recordDisclosure(user, "DISPENSING_DETAILS", [order.id]);
+    const unitPrice = Number(supplyPrice(order, selectedItem, selectedItem.id !== prescribedItem.id).unitPrice);
     return privateJson({
+      unitPrice, currency: "KES", supplyTotal: Number((unitPrice * plannedQuantity).toFixed(2)), quantityToSupply: plannedQuantity,
       outstanding,
       available,
       allocation: plan.allocation,
@@ -279,7 +289,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           const batchBalance = Number(batch.quantityAvailable) - allocation.quantity;
           await tx.inventoryBatch.update({ where: { id: batch.id }, data: { quantityAvailable: new Prisma.Decimal(batchBalance), active: batchBalance > 0 } });
           const storeBalance = await tx.inventoryLocationBalance.update({ where: { storeId_batchId: { storeId: mainStore.id, batchId: batch.id } }, data: { quantity: { decrement: allocation.quantity } } });
-          await tx.dispensationItem.create({ data: { dispensationId: dispensation.id, batchId: batch.id, quantity: new Prisma.Decimal(allocation.quantity), unitPrice: new Prisma.Decimal(Number(effectiveCatalogPrice(dispensedItem).unitPrice)), unitCost: batch.unitCost } });
+          await tx.dispensationItem.create({ data: { dispensationId: dispensation.id, batchId: batch.id, quantity: new Prisma.Decimal(allocation.quantity), unitPrice: new Prisma.Decimal(Number(supplyPrice(order, dispensedItem, substituted).unitPrice)), unitCost: batch.unitCost } });
           const movement = await tx.stockMovement.create({ data: {
             batchId: batch.id,
             userId: user.id,
@@ -328,7 +338,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         dispensedById: user.id,
       } });
       if (input.action === "DISPENSE") {
-        const price = effectiveCatalogPrice(dispensedItem!);
+        const price = supplyPrice(order, dispensedItem!, substituted);
         await tx.invoiceItem.create({
           data: {
             invoiceId: order.visit.invoice!.id,
