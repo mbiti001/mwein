@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const visitDispositionOptions = [
   { code: "RECOVERED", label: "Recovered" },
-  { code: "OUTPATIENT", label: "Discharged for outpatient care (not necessarily recovered)" },
+  { code: "OUTPATIENT", label: "Discharged home / outpatient follow-up" },
   { code: "DECEASED", label: "Deceased" },
   { code: "REFERRED", label: "Referred to another facility" },
   { code: "AGAINST_MEDICAL_ADVICE", label: "Discharged against medical advice" },

@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { SearchablePicker } from "./SearchablePicker";
 import { chargeMoney, orderCharge, type OrderCharge } from "@/lib/order-charges";
-import { frequencyLabel, prescriptionCalculation, readPrescribingDefaults, type PrescribingDefaults } from "@/lib/prescribing-defaults";
+import { directIssueConversion, frequencyLabel, prescriptionCalculation, readPrescribingDefaults, type PrescribingDefaults } from "@/lib/prescribing-defaults";
 import { jsonRequest } from "@/lib/client-http";
 
 type Medicine = {
@@ -23,6 +23,7 @@ type Line = {
   isPrn: boolean;
   prnIndication: string;
   calculationDefaults?: PrescribingDefaults;
+  issueUnit?: string;
   indication: string;
   dose: string;
   doseQuantity: string;
@@ -100,6 +101,7 @@ const blank = (indication: string): Line => ({
   doseTiming: "SCHEDULED",
   sequenceNote: "",
 });
+const conversionFor = (line: Line) => line.calculationDefaults || directIssueConversion(line.issueUnit);
 const instructionsFor = (line: Line) => [`${line.dose}; ${line.route}; ${line.frequency}; ${line.durationDays} days.`, line.isPrn ? `As needed for ${line.prnIndication}.` : "", line.instructions.trim()].filter(Boolean).join(" ");
 function payload(line: Line) {
   return {
@@ -171,23 +173,15 @@ export default function PrescriptionComposer({
   const pending = useRef(false);
   const locked = busy || loading || !!uncertain;
   const selected = catalogue.find(item => item.code === editor.medicineCode);
-  const name = (line: Line) => {
-    const m = catalogue.find((m) => m.code === line.medicineCode);
-    return m
-      ? [m.genericName || m.name, m.strength, m.dosageForm]
-          .filter(Boolean)
-          .join(" · ")
-      : line.medicineCode;
-  };
   function change(patch: Partial<Line>) {
     setEditor((current) => {
       const next = { ...current, ...patch };
       if (["dose", "frequencyPerDay", "durationDays"].some(key => key in patch)) {
-        const calculated = prescriptionCalculation(next.dose, next.frequencyPerDay, next.durationDays, next.calculationDefaults || null);
+        const calculated = prescriptionCalculation(next.dose, next.frequencyPerDay, next.durationDays, conversionFor(next));
         next.doseQuantity = calculated ? String(calculated.doseQuantity) : "";
         next.quantity = calculated ? String(calculated.quantity) : "";
       }
-      next.quantityConfirmed = !!prescriptionCalculation(next.dose, next.frequencyPerDay, next.durationDays, next.calculationDefaults || null);
+      next.quantityConfirmed = !!prescriptionCalculation(next.dose, next.frequencyPerDay, next.durationDays, conversionFor(next));
       return next;
     });
   }
@@ -205,7 +199,7 @@ export default function PrescriptionComposer({
         element.reportValidity();
         return false;
       }
-    const calculated = prescriptionCalculation(editor.dose, editor.frequencyPerDay, editor.durationDays, editor.calculationDefaults || null);
+    const calculated = prescriptionCalculation(editor.dose, editor.frequencyPerDay, editor.durationDays, conversionFor(editor));
     if (!calculated || !editor.quantity) {
       setError("A valid dose and facility-configured dose conversion are required to calculate quantity. Review the medicine catalogue defaults.");
       return false;
@@ -215,7 +209,7 @@ export default function PrescriptionComposer({
   async function save(retry?: object) {
     if (pending.current || busy) return;
     if (!retry && !validate()) return;
-    const calculated = prescriptionCalculation(editor.dose, editor.frequencyPerDay, editor.durationDays, editor.calculationDefaults || null);
+    const calculated = prescriptionCalculation(editor.dose, editor.frequencyPerDay, editor.durationDays, conversionFor(editor));
     if (!retry && !calculated) return;
     const body = retry || {
       submit: true,
@@ -241,6 +235,7 @@ export default function PrescriptionComposer({
       setEditor(blank(indication));
       setUncertain(null);
       onSaved();
+      requestAnimationFrame(() => editorRef.current?.querySelector<HTMLInputElement>(".searchablePicker input:not([type=hidden])")?.focus());
     } finally {
       pending.current = false;
     }
@@ -269,9 +264,11 @@ export default function PrescriptionComposer({
     )
       return;
     const line = fromOrder(order);
-    const defaults = readPrescribingDefaults(catalogue.find(item => item.code === line.medicineCode)?.prescribingDefaults);
-    const calculated = prescriptionCalculation(line.dose, line.frequencyPerDay, line.durationDays, defaults);
-    setEditor({ ...line, calculationDefaults: defaults || undefined, quantity: calculated ? String(calculated.quantity) : "", doseQuantity: calculated ? String(calculated.doseQuantity) : "" });
+    const item = catalogue.find(item => item.code === line.medicineCode);
+    const defaults = readPrescribingDefaults(item?.prescribingDefaults);
+    const issueUnit = defaults ? undefined : directIssueConversion(item?.unitOfMeasure)?.doseUnit;
+    const calculated = prescriptionCalculation(line.dose, line.frequencyPerDay, line.durationDays, defaults || directIssueConversion(issueUnit));
+    setEditor({ ...line, issueUnit, calculationDefaults: defaults || undefined, quantity: calculated ? String(calculated.quantity) : "", doseQuantity: calculated ? String(calculated.doseQuantity) : "" });
     setError(calculated && calculated.quantity !== Number(line.quantity) ? "Supply quantity recalculated from current facility settings. Review it before resubmitting." : "");
     editorRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
   }
@@ -306,7 +303,7 @@ export default function PrescriptionComposer({
         <legend>
           {editor.existingOrderId ? "Review saved medicine" : "Add a medicine"}
         </legend>
-        <label className="wide">Item Type<input value="Medicine" readOnly /></label>
+
         <label className="rxMedicine">
           Generic item names *
           <SearchablePicker
@@ -314,8 +311,9 @@ export default function PrescriptionComposer({
             value={editor.medicineCode}
             onChange={(value) => {
               if (editor.existingOrderId) return;
-              const defaults = readPrescribingDefaults(catalogue.find(item => item.code === value)?.prescribingDefaults);
-              setEditor({ ...blank(indication), medicineCode: value, calculationDefaults: defaults || undefined,
+              const item = catalogue.find(item => item.code === value);
+              const defaults = readPrescribingDefaults(item?.prescribingDefaults);
+              setEditor({ ...blank(indication), medicineCode: value, issueUnit: defaults ? undefined : directIssueConversion(item?.unitOfMeasure)?.doseUnit, calculationDefaults: defaults || undefined,
                 route: defaults?.route || "", frequencyPerDay: defaults ? String(defaults.frequencyPerDay) : "",
                 frequency: defaults ? frequencyLabel(defaults.frequencyPerDay) : "", durationDays: defaults ? String(defaults.durationDays) : "" });
               requestAnimationFrame(() => editorRef.current?.querySelector<HTMLInputElement>('input[name="dose"]')?.focus());
@@ -336,14 +334,12 @@ export default function PrescriptionComposer({
                 detail: m.name + " · " + m.code,
               }))}
           />
-          {selected && <small className="rxSelected">{name(editor)}</small>}
+
         </label>
         {editor.medicineCode && (
           <>
-            <label>Identifier<input value={editor.medicineCode} readOnly /></label>
-            <label>rx: take *<input name="dose" value={editor.dose} onChange={event => change({ dose: event.target.value })} required maxLength={100} placeholder="Amount" /></label>
-            {editor.quantity && <p className="wide">Written prescription: {editor.dose} {/^([0-9.]+)$/.test(editor.dose.trim()) ? editor.calculationDefaults?.doseUnit : ""} · {editor.route} · {editor.frequency} for {editor.durationDays} days.</p>}
-            <label>Form<input value={editor.calculationDefaults?.doseUnit || selected?.dosageForm || "Not configured"} readOnly /></label>
+            <div className="rxItemMeta"><small>Medicine identifier</small><strong>{editor.medicineCode}</strong></div>
+            <label>Dose ({conversionFor(editor)?.doseUnit || selected?.dosageForm || "amount"}) *<input name="dose" value={editor.dose} onChange={event => change({ dose: event.target.value })} required maxLength={100} placeholder="Amount" /></label>
             <label>
               Route *
               <select
@@ -407,12 +403,9 @@ export default function PrescriptionComposer({
                 onChange={(e) => change({ durationDays: e.target.value })}
               />
             </label>
-            <label>Quantity ({selected?.unitOfMeasure || "unit not configured"})
-              <input name="quantity" type="number" required readOnly value={editor.quantity} aria-label="Calculated dispensing quantity" />
-            </label>
-            {!editor.calculationDefaults && <p className="wide error" role="status">Facility prescribing defaults are not configured for this medicine. Configure its route, frequency, duration and dose conversion in the catalogue.</p>}
-            <label><input type="checkbox" name="needsRefill" checked={editor.needsRefill} onChange={e => change({ needsRefill: e.target.checked })} />Needs refill review</label>
-            <label><input type="checkbox" name="isPrn" checked={editor.isPrn} onChange={e => change({ isPrn: e.target.checked })} />Take as needed (PRN)</label>
+            {!conversionFor(editor) && <p className="wide error" role="status">Facility prescribing defaults are not configured for this medicine. Configure its route, frequency, duration and dose conversion in the catalogue.</p>}
+            <label className="rxCheck"><input type="checkbox" name="needsRefill" checked={editor.needsRefill} onChange={e => change({ needsRefill: e.target.checked })} />Needs refill review</label>
+            <label className="rxCheck"><input type="checkbox" name="isPrn" checked={editor.isPrn} onChange={e => change({ isPrn: e.target.checked })} />Take as needed (PRN)</label>
             {editor.isPrn && <label>Take as needed for<input required maxLength={240} name="prnIndication" value={editor.prnIndication} onChange={e => change({ prnIndication: e.target.value })} /></label>}
             <details className="rxCourseDetails wide">
               <summary>Additional patient instructions</summary>
@@ -458,16 +451,24 @@ export default function PrescriptionComposer({
             )}
           </>
         )}
-        <div className="wide rxEditorActions"><button type="button" className="primary" disabled={locked || !editor.medicineCode} onClick={() => void save()}>{loading || busy ? "Saving…" : editor.existingOrderId ? "Save correction" : "Save prescription"}</button><span>Save this medicine, then choose the next. Each saved item is handed to pharmacy.</span></div>
+        <div className="wide rxSaveArea">
+          {editor.quantity && <p className="wide">Written prescription: {editor.dose} {/^([0-9.]+)$/.test(editor.dose.trim()) ? conversionFor(editor)?.doseUnit : ""} · {editor.route} · {editor.frequency} for {editor.durationDays} days.</p>}
+          <div className="rxEditorActions">
+            {editor.medicineCode && (<label>Quantity ({selected?.unitOfMeasure || "unit not configured"})
+              <input name="quantity" type="number" required readOnly value={editor.quantity} aria-label="Calculated dispensing quantity" />
+            </label>)}
+            <button type="button" className="primary" disabled={locked || !editor.medicineCode || !conversionFor(editor)}
+              onClick={() => void save()}>
+              {busy ? "Saving…" : editor.existingOrderId ? "Save correction" : "Save prescription"}
+            </button>
+          </div>
+        </div>
       </fieldset>
       <section className="rxSaved">
         <header className="rxHeading">
           <div>
             <h3>Saved prescriptions</h3>
-            <p>
-              Drafts stay with the clinician. Sent medicines are available to
-              pharmacy; supply and billing remain separate steps.
-            </p>
+
           </div>
           <button
             type="button"

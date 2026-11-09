@@ -1044,10 +1044,10 @@ function serializeFindings(
   systems: readonly FindingDefinition[],
   notesField: string,
 ) {
-  const findings = systems.map(
-    ({ key, label }) =>
-      `${label}: ${form.get(`${prefix}_${key}`) || "Not recorded"}`,
-  );
+  const findings = systems.flatMap(({ key, label }) => {
+    const value = String(form.get(`${prefix}_${key}`) || "").trim();
+    return value && value !== "Not recorded" ? [`${label}: ${value}`] : [];
+  });
   const notes = String(form.get(notesField) || "").trim();
   return [
     ...findings,
@@ -1428,6 +1428,14 @@ function ConsultationEditor({
     const f = new FormData(form);
     const submitted = changes.snapshot();
     if (action === "SAVE_NOTES") {
+      const incomplete = complaints.findIndex(item => Boolean(item.durationValue) !== Boolean(item.durationUnit));
+      if (incomplete >= 0) {
+        setActiveStep(1);
+        const field = complaints[incomplete].durationValue ? "unit" : "value";
+        setError(field === "unit" ? "Select a unit for the complaint duration." : "Enter the complaint duration.");
+        requestAnimationFrame(() => form.querySelector<HTMLElement>(`[data-duration-field="${field}-${incomplete}"]`)?.focus());
+        return false;
+      }
       const result = await run(action, notes(f), "Clinical notes saved as a draft.");
       if (result) changes.markSaved("notes", submitted);
       return result;
@@ -1522,7 +1530,7 @@ function ConsultationEditor({
         </div>
         <div>
           <small>Triage</small>
-          <strong>{visit.triage?.triageCategory || visit.priority}</strong>
+          <strong>{visit.triage?.triageCategory || "Not recorded"}</strong>
         </div>
         <div>
           <small>BP</small>
@@ -1652,7 +1660,7 @@ function ConsultationEditor({
         className="consultForm"
         onSubmit={(event) => event.preventDefault()}
       >
-        <div className="consultationSaveBar noPrint"><span>Clinical notes and plan</span><button type="button" className="primary" disabled={savingAction || signing} onClick={event => void act(event, "SAVE_NOTES")}>Save notes</button><small>Medicines and investigations have their own save actions.</small></div>
+        {activeStep !== 3 && ([1, 2, 7].includes(activeStep) || changes.hasUnsavedNotes) && <div className="consultationSaveBar noPrint"><span>Clinical notes and plan</span><button type="button" className="primary" disabled={savingAction || signing} onClick={event => void act(event, "SAVE_NOTES")}>Save notes</button></div>}
         {error && <div className="alert">{error}</div>}
         {notice && <div className="alert success" role="status">{notice}</div>}
         {changes.description && <p className="alert noPrint" role="status" aria-label="Unsaved consultation changes">Unsaved: {changes.description}. Save each section before leaving. Changes stay in this open form until saved.</p>}
@@ -1664,7 +1672,7 @@ function ConsultationEditor({
 
         <ClinicalSection
           number="1"
-          title="Presenting complaint & history"
+          title="Presenting complaint & history (HPI)"
           description="Document privately in the patient’s own words."
           active={activeStep === 1}
           onOpen={() => setActiveStep(1)}
@@ -1721,6 +1729,7 @@ function ConsultationEditor({
                     min="0.1"
                     max="10000"
                     step="0.1"
+                    data-duration-field={`value-${index}`}
                     value={item.durationValue}
                     onChange={(event) =>
                       updateComplaint(index, {
@@ -1733,6 +1742,7 @@ function ConsultationEditor({
                 <label>
                   Unit
                   <select
+                    data-duration-field={`unit-${index}`}
                     value={item.durationUnit}
                     required={Boolean(item.durationValue)}
                     onChange={(event) =>
@@ -1866,7 +1876,7 @@ function ConsultationEditor({
         <ClinicalSection
           number="3"
           title="Examination"
-          description="Triage observations remain visible above."
+          description="Record examination findings if assessed."
           active={activeStep === 3}
           onOpen={() => setActiveStep(3)}
         >
@@ -1944,7 +1954,7 @@ function ConsultationEditor({
             className="secondary"
             disabled={savingAction}
             onClick={async (event) => {
-              if (await act(event, "SAVE_NOTES")) setActiveStep(4);
+              if (await act(event, "SAVE_NOTES")) setActiveStep(5);
             }}
           >
             Save clinical notes
@@ -1952,7 +1962,83 @@ function ConsultationEditor({
         </div>
         <ClinicalSection
           number="4"
-          title="ICD-11 assessment"
+          title="Investigations"
+          description="Selected items route automatically and are added to billing."
+          active={activeStep === 5}
+          onOpen={() => setActiveStep(5)}
+        >
+          {activeStep === 5 && <InvestigationReviewPanel key={`${visit.id}-${investigationRevision}`} visitId={visit.id} />}
+          <label>
+            Priority *
+            <select name="investigationPriority" defaultValue={visit.priority}>
+              <option value="ROUTINE">Routine</option>
+              <option value="PRIORITY">Priority</option>
+              <option value="URGENT">Urgent</option>
+              <option value="EMERGENCY">Emergency</option>
+            </select>
+          </label>
+          <label>
+            Clinical indication *
+            <input
+              name="investigationIndication"
+              required
+              defaultValue={
+                draft?.diagnoses?.find((item) => item.primary)?.description || ""
+              }
+              placeholder="Why the investigation is needed"
+            />
+          </label>
+          <SearchableMultiPicker
+            name="labs"
+            label="Laboratory tests"
+            options={catalogue
+              .filter((item) => item.category === "LABORATORY_TEST")
+              .map((item) => ({
+                value: item.code,
+                label: item.name,
+                detail: `KES ${Number(item.unitPrice).toLocaleString()}`,
+              }))}
+          />
+          <SearchableMultiPicker
+            name="imaging"
+            label="Imaging requests"
+            options={catalogue
+              .filter((item) => item.category === "PROCEDURE" && !!item.modality && item.modality !== "PROCEDURE" && !item.code.startsWith("CONSULT-"))
+              .map((item) => ({
+                value: item.code,
+                label: item.name,
+                detail: `KES ${Number(item.unitPrice).toLocaleString()}`,
+              }))}
+          />
+          <div className="span2 submitBar">
+            <span>
+              Submission creates service requests and adds their charges to the
+              invoice.
+            </span>
+            <button
+              type="button"
+              className="primary"
+              onClick={(event) => act(event, "SUBMIT_INVESTIGATIONS")}
+            >
+              Submit investigation requests
+            </button>
+          </div>
+        </ClinicalSection>
+        <ClinicalSection
+          number="5"
+          title="Prescription"
+          description="Prescribe only after checking allergies, indication, dose and patient factors."
+          active={activeStep === 6}
+          onOpen={() => setActiveStep(6)}
+        >
+          <PrescriptionComposer visitId={visit.id} catalogue={catalogue} orders={visit.orders || []} indication={savedDiagnoses.find(item => item.primary)?.description || ""} busy={savingAction || signing} onSave={data => run("SAVE_PRESCRIPTION", data, "Prescription list saved. Sent medicines are available to pharmacy; billing follows confirmed supply.")} onSaved={() => changes.resetAfterRender("prescription")} />
+        </ClinicalSection>
+        <ClinicalSection number="6" title="Procedures" description="Document a completed procedure." active={activeStep === 8} onOpen={() => setActiveStep(8)}>
+          <ProcedureDocumentation savedPlan={draft?.plan} catalogue={catalogue} onRecorded={async () => changes.resetAfterRender("procedures")} onSave={async data => { const result = await run("RECORD_PROCEDURE", data, "Procedure recorded."); return result && result.procedure ? { procedure: result.procedure } : false; }} />
+        </ClinicalSection>
+        <ClinicalSection
+          number="7"
+          title="Final diagnosis · ICD-11 assessment"
           description="Record the diagnosis using the WHO ICD-11 MMS coding system."
           active={activeStep === 4}
           onOpen={() => setActiveStep(4)}
@@ -2075,91 +2161,15 @@ function ConsultationEditor({
             className="secondary span2"
             disabled={!diagnosisSelectionToken}
             onClick={async (event) => {
-              if (await act(event, "SAVE_DIAGNOSIS")) setActiveStep(5);
+              if (await act(event, "SAVE_DIAGNOSIS")) setActiveStep(7);
             }}
           >
             Add ICD-11 diagnosis
           </button>
         </ClinicalSection>
         <ClinicalSection
-          number="5"
-          title="Investigations"
-          description="Selected items route automatically and are added to billing."
-          active={activeStep === 5}
-          onOpen={() => setActiveStep(5)}
-        >
-          {activeStep === 5 && <InvestigationReviewPanel key={`${visit.id}-${investigationRevision}`} visitId={visit.id} />}
-          <label>
-            Priority *
-            <select name="investigationPriority" defaultValue={visit.priority}>
-              <option value="ROUTINE">Routine</option>
-              <option value="PRIORITY">Priority</option>
-              <option value="URGENT">Urgent</option>
-              <option value="EMERGENCY">Emergency</option>
-            </select>
-          </label>
-          <label>
-            Clinical indication *
-            <input
-              name="investigationIndication"
-              required
-              defaultValue={
-                draft?.diagnoses?.find((item) => item.primary)?.description || ""
-              }
-              placeholder="Why the investigation is needed"
-            />
-          </label>
-          <SearchableMultiPicker
-            name="labs"
-            label="Laboratory tests"
-            options={catalogue
-              .filter((item) => item.category === "LABORATORY_TEST")
-              .map((item) => ({
-                value: item.code,
-                label: item.name,
-                detail: `KES ${Number(item.unitPrice).toLocaleString()}`,
-              }))}
-          />
-          <div className="span2 submitBar">
-            <span>
-              Submission creates service requests and adds their charges to the
-              invoice.
-            </span>
-            <button
-              type="button"
-              className="primary"
-              onClick={(event) => act(event, "SUBMIT_INVESTIGATIONS")}
-            >
-              Submit investigation requests
-            </button>
-          </div>
-          <SearchableMultiPicker
-            name="imaging"
-            label="Imaging requests"
-            options={catalogue
-              .filter((item) => item.category === "PROCEDURE" && !!item.modality && item.modality !== "PROCEDURE" && !item.code.startsWith("CONSULT-"))
-              .map((item) => ({
-                value: item.code,
-                label: item.name,
-                detail: `KES ${Number(item.unitPrice).toLocaleString()}`,
-              }))}
-          />
-        </ClinicalSection>
-        <ClinicalSection
-          number="6"
-          title="Prescription"
-          description="Prescribe only after checking allergies, indication, dose and patient factors."
-          active={activeStep === 6}
-          onOpen={() => setActiveStep(6)}
-        >
-          <PrescriptionComposer visitId={visit.id} catalogue={catalogue} orders={visit.orders || []} indication={savedDiagnoses.find(item => item.primary)?.description || ""} busy={savingAction || signing} onSave={data => run("SAVE_PRESCRIPTION", data, "Prescription list saved. Sent medicines are available to pharmacy; billing follows confirmed supply.")} onSaved={() => changes.resetAfterRender("prescription")} />
-        </ClinicalSection>
-        <ClinicalSection number="6a" title="Procedures" description="Document a completed procedure." active={activeStep === 8} onOpen={() => setActiveStep(8)}>
-          <ProcedureDocumentation savedPlan={draft?.plan} catalogue={catalogue} onRecorded={async () => changes.resetAfterRender("procedures")} onSave={async data => { const result = await run("RECORD_PROCEDURE", data, "Procedure recorded."); return result && result.procedure ? { procedure: result.procedure } : false; }} />
-        </ClinicalSection>
-        <ClinicalSection
-          number="7"
-          title="Plan & completion"
+          number="8"
+          title="Plan & completion · discharge"
           description="Signing locks this encounter and routes the visit."
           active={activeStep === 7}
           onOpen={() => setActiveStep(7)}
@@ -2179,7 +2189,7 @@ function ConsultationEditor({
               name="disposition"
               defaultValue={savedPlan.disposition || "OUTPATIENT"}
             >
-              <option value="OUTPATIENT">Continue outpatient care</option>
+              <option value="OUTPATIENT">Discharge home / outpatient follow-up</option>
               <option value="RECOVERED">Recovered — complete remaining services, then discharge</option>
               <option value="ADMIT">Admit</option>
               <option value="REFER">Refer</option>
@@ -2284,7 +2294,7 @@ function ClinicalSection({
   children: React.ReactNode;
 }) {
   return (
-    <section data-unsaved-group={({ "4": "diagnosis", "5": "investigations", "6": "prescription", "6a": "procedures" } as Record<string, string>)[number] || "notes"} className={`clinicalSection ${active ? "expanded" : "collapsed"}`}>
+    <section data-unsaved-group={({ "4": "investigations", "5": "prescription", "6": "procedures", "7": "diagnosis" } as Record<string, string>)[number] || "notes"} className={`clinicalSection ${active ? "expanded" : "collapsed"}`}>
       <button
         type="button"
         className="clinicalSectionHeader"

@@ -1,4 +1,4 @@
-import { prescriptionCalculation, readPrescribingDefaults } from "@/lib/prescribing-defaults";
+import { directIssueConversion, prescriptionCalculation, readPrescribingDefaults } from "@/lib/prescribing-defaults";
 import { ensureServiceTask } from "@/lib/visit-handoff";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
@@ -276,10 +276,10 @@ export async function POST(
             code: { not: null },
           },
         });
-        if (!primary && input.action !== "SAVE_PRESCRIPTION")
+        if (!primary && input.action === "SIGN")
           throw Object.assign(
             new Error(
-              "Record a primary ICD-11 diagnosis before investigations or signing",
+              "Record a primary ICD-11 diagnosis before signing the encounter",
             ),
             { status: 409 },
           );
@@ -478,11 +478,14 @@ export async function POST(
               );
             if (!item.genericName || !item.strength || !item.dosageForm)
               throw Object.assign(new Error(`${item.name} is missing generic name, strength or dosage form in the medicine catalogue`), { status: 422 });
-            if (medicine.calculationDefaults) {
+            if (medicine.calculationDefaults || medicine.issueUnit) {
               const configured = readPrescribingDefaults(item.prescribingDefaults);
-              if (!configured || JSON.stringify(configured) !== JSON.stringify(medicine.calculationDefaults))
-                throw Object.assign(new Error("Medicine defaults changed. Reload the catalogue and review this line."), { status: 409 });
-              const calculated = prescriptionCalculation(medicine.dose, String(medicine.frequencyPerDay ?? ""), String(medicine.durationDays ?? ""), configured);
+              const direct = directIssueConversion(item.unitOfMeasure);
+              const validBasis = medicine.calculationDefaults
+                ? configured && JSON.stringify(configured) === JSON.stringify(medicine.calculationDefaults)
+                : !configured && direct?.doseUnit === medicine.issueUnit;
+              if (!validBasis) throw Object.assign(new Error("Medicine settings changed. Reload the catalogue and review this prescription."), { status: 409 });
+              const calculated = prescriptionCalculation(medicine.dose, String(medicine.frequencyPerDay ?? ""), String(medicine.durationDays ?? ""), configured || direct);
               if (!calculated || calculated.doseQuantity !== medicine.doseQuantity || calculated.quantity !== medicine.quantity)
                 throw Object.assign(new Error("The dose and calculated supply quantity do not agree."), { status: 422 });
             }

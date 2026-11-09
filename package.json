@@ -1,18 +1,61 @@
 {
-  "name": "mwein-cloud-emr-legacy",
-  "version": "0.8.0",
+  "name": "mwein-hmis-platform",
+  "version": "1.7.1",
   "private": true,
-  "description": "Legacy SQLite compatibility pilot; use ./platform for the canonical Mwein HMIS.",
-  "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
-    "test": "node --test test/*.test.js",
-    "backup": "node scripts/backup.js",
-    "verify-backup": "node scripts/verify-backup.js",
-    "package-release": "sh scripts/package-release.sh"
+    "dev": "next dev",
+    "build": "next build",
+    "vercel-build": "prisma generate && next build",
+    "start": "next start",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "node scripts/e2e-outpatient.mjs",
+    "test:encounter-pharmacy": "node scripts/e2e-outpatient.mjs --two-prescriptions",
+    "test:browser": "playwright test",
+    "test:migrations": "node scripts/verify-migrations.mjs",
+    "test:assessment-history-store": "node scripts/verify-assessment-revision-store.mjs",
+    "release:migrate": "prisma migrate deploy",
+    "db:bootstrap": "node scripts/bootstrap.mjs",
+    "ops:backup": "node scripts/backup-postgres.mjs",
+    "ops:restore-drill": "node scripts/restore-drill.mjs",
+    "ops:audit-verify": "node scripts/verify-audit-export.mjs",
+    "ops:release-verify": "node scripts/verify-release.mjs",
+    "ops:patient-use-verify": "node scripts/verify-release.mjs --patient-use",
+    "ops:release-preflight": "node scripts/release-preflight.mjs",
+    "ops:audit-coverage": "node scripts/audit-coverage.mjs",
+    "ops:oidc-verify": "node scripts/verify-oidc-provider.mjs",
+    "certification:evidence": "node scripts/certification-evidence.mjs",
+    "db:generate": "prisma generate",
+    "db:validate": "prisma validate",
+    "db:migrate": "prisma migrate dev",
+    "ops:icd11-verify": "node scripts/verify-icd11.mjs"
   },
-  "engines": {
-    "node": ">=22.5.0"
+  "dependencies": {
+    "@prisma/client": "6.12.0",
+    "exceljs": "^4.4.0",
+    "next": "16.4.3",
+    "openai": "^7.15.0",
+    "otpauth": "^9.5.2",
+    "qrcode": "^1.5.4",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-socket": "^0.2.11",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.0.0",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "pg": "8.23.1",
+    "prisma": "6.12.0",
+    "typescript": "7.0.2",
+    "vitest": "4.1.12"
+  },
+  "overrides": {
+    "uuid": "11.1.1",
+    "vite": "8.2.4"
   }
 }

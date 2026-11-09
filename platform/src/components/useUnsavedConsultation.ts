@@ -81,7 +81,7 @@ export function useUnsavedConsultation(problem: string, pending: boolean) {
   }, [unsaved, pending]);
 
   return {
-    form, snapshot, changed, refresh,
+    form, snapshot, changed, refresh, hasUnsavedNotes: unsaved.includes("notes"),
     description: unsaved.map(key => labels[key]).join(", "),
     markSaved(group: string, submitted: Snapshot) {
       if (baseline.current) baseline.current[group] = submitted[group];

@@ -101,6 +101,13 @@
       "note": "Promoted to the engineering pilot. Release identity, migration and sign-in verified. Clinical readiness is blocked and patient use is on hold. FHIR remains disabled.",
       "source": "1a0faef367af32fab5e237b8d107aa2bb20a13d1",
       "deploymentId": "dpl_BPBWRsdCteheQtycirQ93bWbGufm"
+    },
+    {
+      "version": "1.7.1",
+      "displayName": "1.7.1",
+      "status": "candidate",
+      "branch": "codex/encounter-pharmacy-workflow",
+      "note": "Order the outpatient encounter around investigations, treatment, final diagnosis and disposition. Use a compact medicine editor and enable direct issue-unit calculation without preset clinical regimens."
     }
   ]
 }

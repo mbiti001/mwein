@@ -20,7 +20,7 @@ export async function verifyEncounterPharmacy({ pg, facility, admin, storeId, or
     const item = randomUUID(), batch = randomUUID();
     const defaults = { route:"Oral",frequencyPerDay:m.frequency,durationDays:m.days,doseUnit:"tablet",doseUnitsPerIssueUnit:1,wholeIssueUnits:true };
     await pg.query(`INSERT INTO "CatalogItem" (id,"facilityId",category,code,name,"genericName","medicationConceptId",strength,"dosageForm","unitOfMeasure","unitPrice","prescribingDefaults","updatedAt")
-      VALUES ($1,$2,'PHARMACEUTICAL',$3,$3,$3,$3,'synthetic','Tablet','tablet',$4,$5,now())`,[item,facility.id,m.code,m.price,JSON.stringify(defaults)]);
+      VALUES ($1,$2,'PHARMACEUTICAL',$3,$3,$3,$3,'synthetic','Tablet','tablet',$4,$5,now())`,[item,facility.id,m.code,m.price,m.code === "SIM-ALPHA" ? JSON.stringify(defaults) : null]);
     await pg.query(`INSERT INTO "InventoryBatch" (id,"catalogItemId","batchNumber","expiryDate","quantityReceived","quantityAvailable","unitCost")
       VALUES ($1,$2,$3,CURRENT_DATE + 365,20,20,2)`,[batch,item,m.code]);
     await pg.query(`INSERT INTO "InventoryLocationBalance" (id,"storeId","batchId",quantity,"updatedAt") VALUES ($1,$2,$3,20,now())`,[randomUUID(),storeId,batch]);
@@ -42,6 +42,11 @@ export async function verifyEncounterPharmacy({ pg, facility, admin, storeId, or
       await page.getByPlaceholder("Search medicine by generic, brand or strength…").fill(m.code);
       await page.getByRole("button",{name:new RegExp(m.code)}).click();
       await page.locator('[name="dose"]').fill(m.dose);
+      if (m.code === "SIM-BETA") {
+        await page.locator('[name="route"]').selectOption("Oral");
+        await page.locator('[name="frequencyPerDay"]').selectOption(String(m.frequency));
+        await page.locator('[name="durationDays"]').fill(String(m.days));
+      }
       await expect(page.getByLabel("Calculated dispensing quantity")).toHaveValue(String(m.quantity));
       const save = page.getByRole("button",{name:"Save prescription",exact:true});
       await expect(save).toHaveCount(1);

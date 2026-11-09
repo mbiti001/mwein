@@ -363,6 +363,11 @@ test("missing facility defaults stay blank and cannot invent a regimen", async (
   await page.getByRole("button",{name:/Prescription.*Prescribe only/}).click();
   await page.getByPlaceholder("Search medicine by generic, brand or strength…").fill("brand A");
   await page.getByRole("button",{name:/Synthetic medicine A/}).click();
-  await expect(page.getByRole("status").filter({hasText:"Facility prescribing defaults"})).toBeVisible();
+  await expect(page.getByRole("status").filter({hasText:"Facility prescribing defaults"})).toHaveCount(0);
   for (const name of ["route", "frequencyPerDay", "durationDays", "quantity"]) await expect(page.locator('[name="'+name+'"]')).toHaveValue("");
+  await page.locator('[name="dose"]').fill("1");
+  await page.locator('[name="route"]').selectOption("Oral");
+  await page.locator('[name="frequencyPerDay"]').selectOption("2");
+  await page.locator('[name="durationDays"]').fill("3");
+  await expect(page.locator('[name="quantity"]')).toHaveValue("6");
 });

@@ -17,7 +17,19 @@ export function readPrescribingDefaults(value: unknown): PrescribingDefaults | n
 export function frequencyLabel(count: number) {
   return ["", "Once daily", "Twice daily", "Three times daily", "Four times daily"][count] || `${count} times daily`;
 }
-export function prescriptionCalculation(dose: string, frequency: string, days: string, config: PrescribingDefaults | null) {
+type DoseConversion = Pick<PrescribingDefaults, "doseUnit" | "doseUnitsPerIssueUnit" | "wholeIssueUnits">;
+
+// When the clinician prescribes directly in a known issue unit no pack conversion is needed.
+export function directIssueConversion(unit?: string | null): DoseConversion | null {
+  const normalized = unit?.trim().toLowerCase();
+  if (normalized === "tablet" || normalized === "capsule") {
+    return { doseUnit: normalized, doseUnitsPerIssueUnit: 1, wholeIssueUnits: true };
+  }
+  if (normalized === "ml") return { doseUnit: "mL", doseUnitsPerIssueUnit: 1, wholeIssueUnits: false };
+  return null;
+}
+
+export function prescriptionCalculation(dose: string, frequency: string, days: string, config: DoseConversion | null) {
   if (!config) return null;
   const match = dose.trim().match(/^(\d+(?:\.\d+)?)\s*(.*)$/);
   if (!match) return null;
