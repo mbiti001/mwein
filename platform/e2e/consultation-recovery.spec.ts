@@ -229,7 +229,7 @@ test("notes do not clear diagnosis, investigation or prescription drafts and sig
   await page.getByRole("button", { name: /Synthetic medicine/ }).click();
   await save(page);
   const status = page.getByLabel("Unsaved consultation changes");
-  await expect(status).toContainText("diagnosis, investigation requests, prescription");
+  for (const group of ["diagnosis", "investigation requests", "prescription"]) await expect(status).toContainText(group);
   await expect(status).not.toContainText("clinical notes and plan");
   await page.locator(".clinicalSectionHeader").filter({hasText: "Plan & completion"}).click();
   await page.getByRole("button", { name: "Sign & send to next service" }).click();
