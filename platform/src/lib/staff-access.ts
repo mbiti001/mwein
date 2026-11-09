@@ -7,7 +7,5 @@ export function canAssignRole(input: { actorRoles: string[]; canAssignGovernance
 }
 
 export function canManageStaff(input: { actorRoles: string[]; canAssignGovernance: boolean; targetRoleCodes: string[] }) {
-  if (input.targetRoleCodes.includes("SYSTEM_ADMIN")) return input.actorRoles.includes("SYSTEM_ADMIN");
-  if (input.targetRoleCodes.some(code => governanceRoles.has(code))) return input.canAssignGovernance;
-  return true;
+  return input.targetRoleCodes.every(roleCode => canAssignRole({ ...input, roleCode }));
 }
