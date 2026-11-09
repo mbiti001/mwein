@@ -143,7 +143,7 @@ test("results refresh preserves notes, clears failed data and supports keyboard 
   await page.locator(".clinicalSectionHeader").filter({hasText: "Investigations"}).click();
   const panel = page.getByRole("region", { name: "Investigation results", exact: true });
   await expect(panel).toContainText("Specimen rejected");
-  await expect(page.getByRole("region", { name: "Clinical review overview" })).not.toContainText("pending order(s)");
+  await expect(page.getByRole("region", { name: "Clinical review overview" })).toHaveCount(0);
   await panel.getByText("Read verified report · Synthetic blood test", { exact: true }).focus();
   await page.keyboard.press("Enter"); await expect(panel).toContainText("Critical result");
   await panel.getByText("Read verified report · Synthetic imaging", { exact: true }).click();

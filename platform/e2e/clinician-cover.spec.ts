@@ -58,6 +58,7 @@ test("shortage-cover clinician starts in consultation, records vitals, bills and
   const triageResponse = await triaged;
   expect(triageResponse.status()).toBe(200);
   await triageResponse.finished();
+  await expect(page.getByText(/Triage saved for Browser Shortage Cover/)).toBeVisible();
   await page.getByRole("button",{name:"Home",exact:true}).click();
   await page.getByRole("button",{name:"Consultation",exact:true}).click();
   await page.getByRole("button",{name:/Browser Shortage Cover/}).first().click();
